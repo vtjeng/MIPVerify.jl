@@ -4,12 +4,19 @@ using Base.Cartesian
 using JuMP
 using ConditionalJuMP
 using Gurobi
+using Memento
+using AutoHashEquals
 
 JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
 
+function set_log_level(level::String)
+    # Options correspond to Mememento.jl's log names. 
+    Memento.config(level)
+end
+
 abstract type LayerParameters end
 
-struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
+@auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
     filter::Array{T, 4}
     bias::Array{U, 1}
 
@@ -40,6 +47,8 @@ struct PoolParameters{N} <: LayerParameters
     pooling_function::Function
 end
 
+Base.hash(a::PoolParameters, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:PoolParameters, h)))
+
 function MaxPoolParameters(strides::NTuple{N, Int}) where {N}
     PoolParameters(strides, MIPVerify.maximum)
 end
@@ -49,22 +58,22 @@ function AveragePoolParameters(strides::NTuple{N, Int}) where {N}
     PoolParameters(strides, Base.mean)
 end
 
-struct ConvolutionLayerParameters{T<:Real, U<:Real} <: LayerParameters
+@auto_hash_equals struct ConvolutionLayerParameters{T<:Real, U<:Real} <: LayerParameters
     conv2dparams::Conv2DParameters{T, U}
     maxpoolparams::PoolParameters{4}
 
-    # function ConvolutionLayerParameters{T, U}(conv2dparams::Conv2DParameters{T, U}, maxpoolparams::PoolParameters{4}) where {T<:Real, U<:Real}
-    #     @assert maxpoolparams.pooling_function == MIPVerify.maximum
-    #     return new(conv2dparams, maxpoolparams)
-    # end
+    function ConvolutionLayerParameters{T, U}(conv2dparams::Conv2DParameters{T, U}, maxpoolparams::PoolParameters{4}) where {T<:Real, U<:Real}
+        @assert maxpoolparams.pooling_function == MIPVerify.maximum
+        return new(conv2dparams, maxpoolparams)
+    end
 
 end
 
 function ConvolutionLayerParameters{T<:Real, U<:Real}(filter::Array{T, 4}, bias::Array{U, 1}, strides::NTuple{4, Int})
-    ConvolutionLayerParameters(Conv2DParameters(filter, bias), MaxPoolParameters(strides))
+    ConvolutionLayerParameters{T, U}(Conv2DParameters(filter, bias), MaxPoolParameters(strides))
 end
 
-struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: LayerParameters
+@auto_hash_equals struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: LayerParameters
     matrix::Array{T, 2}
     bias::Array{U, 1}
 
@@ -84,7 +93,7 @@ function MatrixMultiplicationParameters(matrix::Array{T, 2}, bias::Array{U, 1}) 
     MatrixMultiplicationParameters{T, U}(matrix, bias)
 end
 
-struct SoftmaxParameters{T<:Real, U<:Real} <: LayerParameters
+@auto_hash_equals struct SoftmaxParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end
 
@@ -92,7 +101,7 @@ function SoftmaxParameters(matrix::Array{T, 2}, bias::Array{U, 1}) where {T<:Rea
     SoftmaxParameters(MatrixMultiplicationParameters(matrix, bias))
 end
 
-struct FullyConnectedLayerParameters{T<:Real, U<:Real} <: LayerParameters
+@auto_hash_equals struct FullyConnectedLayerParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end
 
@@ -104,7 +113,7 @@ abstract type NeuralNetParameters end
 
 # TODO: Support empty convlayer array, empty fclayer array, and optional softmax params
 
-struct StandardNeuralNetParameters <: NeuralNetParameters
+@auto_hash_equals struct StandardNeuralNetParameters <: NeuralNetParameters
     convlayer_params::Array{ConvolutionLayerParameters, 1}
     fclayer_params::Array{FullyConnectedLayerParameters, 1}
     softmax_params::SoftmaxParameters
@@ -124,9 +133,9 @@ function conv2d(
     input::Array{T, 4},
     params::Conv2DParameters{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
-    # TODO: Print this one level up
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
-        println("Setting convolution constraints ... ")
+        logger = get_logger(current_module())
+        info(logger, "Specifying conv2d constraints ... ")
     end
     filter = params.filter
 
@@ -250,6 +259,10 @@ end
 function pool(
     input::AbstractArray{T, N},
     params::PoolParameters{N}) where {T<:JuMPReal, N}
+    if T<:JuMP.AbstractJuMPScalar
+        logger = get_logger(current_module())
+        info(logger, "Specifying pooling constraints ... ")
+    end
     return poolmap(params.pooling_function, input, params.strides)
 end
 
@@ -387,11 +400,10 @@ function tight_upperbound(x::JuMP.AbstractJuMPScalar)
     if status == :Optimal || status == :UserLimit
         u = min(getobjectivebound(m), u)
         if status == :UserLimit
-            gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
-            println("Gap was $gap.")
+            log_gap(m)
         end
     end
-    println("Δu = $(upperbound(x)-u)")
+    debug(get_logger(current_module()), "  Δu = $(upperbound(x)-u)")
     return u
 end
 
@@ -403,12 +415,16 @@ function tight_lowerbound(x::JuMP.AbstractJuMPScalar)
     if status == :Optimal || status == :UserLimit
         l = max(getobjectivebound(m), l)
         if status == :UserLimit
-            gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
-            println("Gap was $gap.")
+            log_gap(m)
         end
     end
-    println("Δl = $(l-lowerbound(x))")
+    debug(get_logger(current_module()), "  Δl = $(l-lowerbound(x))")
     return l
+end
+
+function log_gap(m::JuMP.Model)
+    gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
+    notice(get_logger(current_module()), "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
 function set_input_constraint(v_input::Array{JuMP.Variable}, input::Array{T}) where {T<:Real}
@@ -419,7 +435,6 @@ end
 
 (p::MatrixMultiplicationParameters)(x::Array{T, 1}) where {T<:JuMPReal} = matmul(x, p)
 (p::Conv2DParameters)(x::Array{T, 4}) where {T<:JuMPReal} = conv2d(x, p)
-
 (p::PoolParameters)(x::Array{T}) where {T<:JuMPReal} = pool(x, p)
 (p::ConvolutionLayerParameters)(x::Array{T, 4}) where {T<:JuMPReal} = convlayer(x, p)
 (p::FullyConnectedLayerParameters)(x::Array{T, 1}) where {T<:JuMPReal} = fullyconnectedlayer(x, p)
@@ -508,7 +523,7 @@ function example_solve(nnparams, input, target_label; tolerance = 0.0, norm_type
 
     # Set output constraint
     set_max_index(v_output, target_label, tolerance)
-    println("Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target label is $target_label")
+    info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target label is $target_label")
     status = solve(m)
 end
 
@@ -519,12 +534,12 @@ function initialize_additive(
     input_size = size(input)
     model_file_name = "models/$(nn_params.UUID).$(input_size).additive.jls"
     if isfile(model_file_name) && !rebuild
-        println("Loading model from cache.")
+        info(get_logger(current_module()), "Loading model from cache.")
         d = open(model_file_name, "r") do f
             deserialize(f)
         end
     else
-        println("Rebuilding model from scratch.")
+        info(get_logger(current_module()), "Rebuilding model from scratch.")
         d = initialize_additive_uncached(nn_params, input_size)
         open(model_file_name, "w") do f
             serialize(f, d)

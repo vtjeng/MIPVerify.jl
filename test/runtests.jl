@@ -1,4 +1,4 @@
-using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, pool, relu, set_max_index, get_max_index, matmul, tight_upperbound, tight_lowerbound
+using MIPVerify: set_log_level, Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, pool, relu, set_max_index, get_max_index, matmul, tight_upperbound, tight_lowerbound
 using Base.Test
 using Base.Test: @test_throws
 
@@ -6,6 +6,7 @@ using JuMP
 using Gurobi
 
 @testset "MIPVerify" begin
+    MIPVerify.set_log_level("debug")
     @testset "LayerParameters" begin
         
         @testset "Conv2DParameters" begin
