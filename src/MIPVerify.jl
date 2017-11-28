@@ -35,22 +35,23 @@ function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
     Conv2DParameters(filter, bias)
 end
 
-struct PoolParameters{N} <: LayerParameters
+abstract type PoolParameters{N} <: LayerParameters end
+
+struct MaxPoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
 end
 
-struct MaxpoolParameters{N} <: LayerParameters
+struct AveragePoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
 end
 
 struct ConvolutionLayerParameters{T<:Real, U<:Real} <: LayerParameters
     conv2dparams::Conv2DParameters{T, U}
-    maxpoolparams::PoolParameters{4}
-
+    maxpoolparams::MaxPoolParameters{4}
 end
 
 function ConvolutionLayerParameters{T<:Real, U<:Real}(filter::Array{T, 4}, bias::Array{U, 1}, strides::NTuple{4, Int})
-    ConvolutionLayerParameters(Conv2DParameters(filter, bias), PoolParameters(strides))
+    ConvolutionLayerParameters(Conv2DParameters(filter, bias), MaxPoolParameters(strides))
 end
 
 struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: LayerParameters
@@ -238,7 +239,7 @@ end
 
 function avgpool{T<:Real, N}(
     input::AbstractArray{T, N},
-    params::PoolParameters{N})
+    params::AveragePoolParameters{N})
     return poolmap(mean, input, params.strides)
 end
 
@@ -246,19 +247,18 @@ end
 Computes the result of a max-pooling operation on `input` with specified
 `strides`.
 """
-function maxpool{T<:Real, N}(
+function maxpool{T<:JuMPReal, N}(
     input::AbstractArray{T, N},
-    params::PoolParameters{N})::Array{T, N}
+    params::MaxPoolParameters{N})::Array{T, N}
     # NB: Tried to use pooling function from Knet.relu but it had way too many
     # incompatibilities
-    return poolmap(Base.maximum, input, params.strides)
+    # TODO: change naming to just 'pool'?
+    return poolmap(maximum, input, params.strides)
 end
 
-function maxpool{T<:JuMP.AbstractJuMPScalar, N}(
-    input::Array{T, N},
-    params::PoolParameters{N})
-    println("Setting maxpool constraints ... ")
-    return poolmap(MIPVerify.maximum, input, params.strides)
+function maximum{T<:Real, N}(xs::AbstractArray{T, N})::T
+    # TODO: Check whether this type piracy is kosher.
+    return Base.maximum(xs)
 end
 
 function maximum{T<:JuMP.AbstractJuMPScalar, N}(xs::AbstractArray{T, N})::JuMP.Variable
@@ -343,10 +343,7 @@ end
 function convlayer{T<:JuMPReal}(
     x::Array{T, 4},
     params::ConvolutionLayerParameters)
-    x_conv = params.conv2dparams(x)
-    x_maxpool = maxpool(x_conv, params.maxpoolparams)
-    if T<:JuMP.AbstractJuMPScalar println("Setting rectified linearity constraints ... ") end
-    x_relu = relu.(x_maxpool)
+    x_relu = relu.(x |> params.conv2dparams |> params.maxpoolparams)
     return x_relu
 end
 
@@ -359,7 +356,6 @@ end
 function fullyconnectedlayer{T<:JuMPReal}(
     x::Array{T, 1}, 
     params::FullyConnectedLayerParameters)
-    if T<:JuMP.AbstractJuMPScalar println("Setting rectified linearity constraints ... ") end
     return relu.(x |> params.mmparams)
 end
 
@@ -445,6 +441,7 @@ end
 (p::MatrixMultiplicationParameters){T<:JuMPReal}(x::Array{T, 1}) = matmul(x, p)
 (p::Conv2DParameters){T<:JuMPReal}(x::Array{T, 4}) = conv2d(x, p)
 
+(p::MaxPoolParameters){T<:JuMPReal}(x::Array{T}) = maxpool(x, p)
 (p::ConvolutionLayerParameters){T<:JuMPReal}(x::Array{T, 4}) = convlayer(x, p)
 (p::FullyConnectedLayerParameters){T<:JuMPReal}(x::Array{T, 1}) = fullyconnectedlayer(x, p)
 (p::SoftmaxParameters){T<:JuMPReal}(x::Array{T, 1}) = p.mmparams(x)

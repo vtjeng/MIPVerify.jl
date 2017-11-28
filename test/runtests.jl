@@ -1,4 +1,4 @@
-using MIPVerify: Conv2DParameters, PoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, maxpool, avgpool, relu
+using MIPVerify: Conv2DParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, maxpool, avgpool, relu
 using Base.Test
 using Base.Test: @test_throws
 
@@ -40,9 +40,9 @@ using Gurobi
             end
         end
         
-        @testset "PoolParameters" begin
+        @testset "MaxPoolParameters" begin
             strides = (1, 2, 2, 1)
-            p = PoolParameters(strides)
+            p = MaxPoolParameters(strides)
             @test p.strides == strides
         end
         
@@ -193,7 +193,7 @@ using Gurobi
                     12 24 36
                 ]
                 @testset "Numerical Input" begin
-                    @test maxpool(input_array, PoolParameters((2, 2))) == true_output
+                    @test maxpool(input_array, MaxPoolParameters((2, 2))) == true_output
                 end
                 @testset "Variable Input" begin
                     m = Model(solver=GurobiSolver(OutputFlag=0))
@@ -201,8 +201,8 @@ using Gurobi
                         i -> @variable(m, lowerbound=i-2, upperbound=i), 
                         input_array
                     )
-                    pool_v = maxpool(input_array_v, PoolParameters((2, 2)))
-                    # elements of the input array take their maximum value
+                    pool_v = maxpool(input_array_v, MaxPoolParameters((2, 2)))
+                    # elements of the input array are made to take their maximum value
                     @objective(m, Max, sum(input_array_v))
                     solve(m)
 
@@ -212,12 +212,14 @@ using Gurobi
             end
 
             @testset "avgpool" begin
-                true_output = [
-                    4.5 16.5 28.5;
-                    6.5 18.5 30.5;
-                    8.5 20.5 32.5
-                ]
-                @test avgpool(input_array, PoolParameters((2, 2))) == true_output
+                @testset "Numerical Input" begin
+                    true_output = [
+                        4.5 16.5 28.5;
+                        6.5 18.5 30.5;
+                        8.5 20.5 32.5
+                    ]
+                    @test avgpool(input_array, AveragePoolParameters((2, 2))) == true_output
+                end
             end
 
         end
@@ -229,7 +231,7 @@ using Gurobi
                 x2 = @variable(m, lowerbound=4, upperbound=5)
                 x3 = @variable(m, lowerbound=2, upperbound=7)
                 xmax = MIPVerify.maximum([x1, x2, x3])
-                # elements of the input array take their maximum value
+                # elements of the input array are made to take their maximum value
                 @objective(m, Max, x1+x2+x3)
                 solve(m)
                 println(m)
