@@ -5,13 +5,15 @@ using JuMP
 using ConditionalJuMP
 using Gurobi
 
+JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
+
 abstract type LayerParameters end
 
-struct Conv2DParameters{T, U} <: LayerParameters
+struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
     filter::Array{T, 4}
     bias::Array{U, 1}
 
-    function Conv2DParameters{T, U}(filter::Array{T, 4}, bias::Array{U, 1}) where {T, U}
+    function Conv2DParameters{T, U}(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
@@ -23,17 +25,21 @@ struct Conv2DParameters{T, U} <: LayerParameters
 
 end
 
-function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T, U}
+function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
     Conv2DParameters{T, U}(filter, bias)
 end
 
-function Conv2DParameters(filter::Array{T, 4}) where {T}
+function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
     bias_out_channels::Int = size(filter)[4]
     bias = zeros(bias_out_channels)
     Conv2DParameters(filter, bias)
 end
 
 struct PoolParameters{N} <: LayerParameters
+    strides::NTuple{N, Int}
+end
+
+struct MaxpoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
 end
 
@@ -54,7 +60,10 @@ struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: LayerParameters
     function MatrixMultiplicationParameters{T, U}(matrix::Array{T, 2}, bias::Array{U, 1}) where {T<:Real, U<:Real}
         (matrix_height, matrix_width) = size(matrix)
         bias_height = length(bias)
-        @assert matrix_height == bias_height "Number of output channels in matrix, $matrix_height, does not match number of output channels in bias, $bias_height."
+        @assert(
+            matrix_height == bias_height,
+            "Number of output channels in matrix, $matrix_height, does not match number of output channels in bias, $bias_height."
+        )
         return new(matrix, bias)
     end
 
@@ -80,10 +89,9 @@ function FullyConnectedLayerParameters(matrix::Array{T, 2}, bias::Array{U, 1}) w
     FullyConnectedLayerParameters(MatrixMultiplicationParameters(matrix, bias))
 end
 
-
-
-
 abstract type NeuralNetParameters end
+
+# TODO: Support empty convlayer array, empty fclayer array, and optional softmax params
 
 struct StandardNeuralNetParameters <: NeuralNetParameters
     convlayer_params::Array{ConvolutionLayerParameters, 1}
@@ -92,61 +100,36 @@ struct StandardNeuralNetParameters <: NeuralNetParameters
     UUID::String
 end
 
-
-
-JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
-
-"""
-For a convolution of `filter` on `input`, determines the size of the output.
-
-# Throws
-* ArgumentError if input and filter are not compatible.
-"""
-function getconv2doutputsize{T}(
-    input::Array{T, 4},
-    params::Conv2DParameters)::NTuple{4, Int}
-    getconv2doutputsize(input, params.filter)
-end
-
-function getconv2doutputsize{T, U}(
-    input::Array{T, 4},
-    filter::Array{U, 4})::NTuple{4, Int}
-    (batch, in_height, in_width, input_in_channels) = size(input)
-    (filter_height, filter_width, filter_in_channels, out_channels) = size(filter)
-    if input_in_channels != filter_in_channels
-        throw(ArgumentError("Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."))
-    end
-    return (batch, in_height, in_width, out_channels)
-end
-
-# TODO: Really test this conv2d logic!!!
 """
 Computes a 2D-convolution given 4-D `input` and `filter` tensors.
 
 Mirrors `tf.nn.conv2d` from `tensorflow` package, with `strides` = [1, 1, 1, 1],
  `padding` = 'SAME'.
+
+ # Throws
+ * ArgumentError if input and filter are not compatible.
 """
 function conv2d{T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}(
     input::Array{T, 4},
     params::Conv2DParameters{U, V})
 
+    # Todo: Print this one level up
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
         println("Setting convolution constraints ... ")
     end
-    # TEST PLAN:
-    #  (1) Incorrectly sized input,
-    #  (2) Incorrectly sized filter,
-    #  (3) Non-matching elements of array
-    #  (4) Non-matching input_in_channels and filter_in_channels
     filter = params.filter
 
     (batch, in_height, in_width, input_in_channels) = size(input)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
+    
+    @assert(
+        input_in_channels == filter_in_channels, 
+        "Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."
+    )
+    
+    output_size = (batch, in_height, in_width, filter_out_channels)
 
-    output_size = getconv2doutputsize(input, params)
-
-    # Considered using offset arrays here, but looks like it currently is not
-    # really supported
+    # Considered using offset arrays here, but could not get it working.
 
     # Calculating appropriate offsets so that center of kernel is matched with
     # cell at which correlation is being calculated. Note that tensorflow
@@ -167,9 +150,6 @@ function conv2d{T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}(
                     # Doing bounds check to make sure that we stay within bounds
                     # for input. This effectively zero-pads the input.
                     # TODO: Use default checkbounds function here instead?
-                    # TODO: Addition here is a bottleneck; figure out whether
-                    # you could use append without making this incompatible
-                    # with normal numbers
                     s = increment!(s, input[i_1, x, y, j_3], filter[j_1, j_2, j_3, j_4])
                 end
             end
@@ -186,7 +166,7 @@ function increment!(s::Real, input_val::Real, filter_val::Real)
 end
 
 function increment!(s::JuMP.AffExpr, input_val::JuMP.AffExpr, filter_val::Real)
-    append!(s, input_val, filter_val)
+    append!(s, input_val*filter_val)
     return s
 end
 
@@ -195,7 +175,7 @@ function increment!(s::JuMP.AffExpr, input_val::JuMP.Variable, filter_val::Real)
 end
 
 function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.AffExpr)
-    append!(s, filter_val, input_val)
+    append!(s, filter_val*input_val)
     return s
 end
 
@@ -231,9 +211,9 @@ end
 For pooling operations on an array, returns a view of the parent array
 corresponding to the `output_index` in the output array.
 """
-function getpoolview{T, N}(input_array::Array{T, N}, strides::NTuple{N, Int}, output_index::NTuple{N, Int})::SubArray{T, N}
+function getpoolview{T, N}(input_array::AbstractArray{T, N}, strides::NTuple{N, Int}, output_index::NTuple{N, Int})::SubArray{T, N}
     it = zip(size(input_array), strides, output_index)
-    input_index_range = map((x)-> getsliceindex(x...), it)
+    input_index_range = map(x -> getsliceindex(x...), it)
     return view(input_array, input_index_range...)
 end
 
@@ -241,7 +221,7 @@ end
 For pooling operations on an array, returns the expected size of the output
 array.
 """
-function getoutputsize{T, N}(input_array::Array{T, N}, strides::NTuple{N, Int})::NTuple{N, Int}
+function getoutputsize{T, N}(input_array::AbstractArray{T, N}, strides::NTuple{N, Int})::NTuple{N, Int}
     output_size = ((x, y) -> round(Int, x/y, RoundUp)).(size(input_array), strides)
     return output_size
 end
@@ -250,83 +230,69 @@ end
 Returns output from applying `f` to subarrays of `input_array`, with the windows
 determined by the `strides`.
 """
-function poolmap{T, N}(f::Function, input_array::Array{T, N}, strides::NTuple{N, Int})
+function poolmap{T, N}(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{N, Int})
     output_size = getoutputsize(input_array, strides)
     output_indices = collect(CartesianRange(output_size))
     return ((I) -> f(getpoolview(input_array, strides, I.I))).(output_indices)
 end
 
 function avgpool{T<:Real, N}(
-    input::Array{T, N},
-    params::PoolParameters{N})::Array{T, N}
+    input::AbstractArray{T, N},
+    params::PoolParameters{N})
     return poolmap(mean, input, params.strides)
 end
 
 """
-Computes the result of a max-pooling operation on `input_array` with specified
+Computes the result of a max-pooling operation on `input` with specified
 `strides`.
 """
 function maxpool{T<:Real, N}(
-    input::Array{T, N},
+    input::AbstractArray{T, N},
     params::PoolParameters{N})::Array{T, N}
     # NB: Tried to use pooling function from Knet.relu but it had way too many
     # incompatibilities
     return poolmap(Base.maximum, input, params.strides)
 end
 
-"""
-Imposes a max-pooling constraint between `x` and `x_pooled` using the big-M
-formulation.
-
-`x` is divided into cells of size `strides`, and each entry of `x_pooled`
-is equal to the maximum value in the corresponding cell.
-
-If the height (viz. width) of the input array `x` is not an integer multiple
-of the stride along the height (viz. width) as specified in strides, the bottom
-(viz. rightmost) cell's height (viz. width) is truncated, and we select the
-maximum value from the truncated cell.
-
-Note that `x` and `x_pooled` must have sizes that match according to `strides`.
-
-TODO: finish up documentation
-"""
-function maxpool{T<:JuMP.AbstractJuMPScalar}(
-    xs::Array{T, 4},
-    params::PoolParameters{4})
+function maxpool{T<:JuMP.AbstractJuMPScalar, N}(
+    input::Array{T, N},
+    params::PoolParameters{N})
     println("Setting maxpool constraints ... ")
-    return poolmap(
-        (x) -> MIPVerify.maximum(x[:]),
-        xs,
-        params.strides
-    )
+    return poolmap(MIPVerify.maximum, input, params.strides)
 end
 
-function maximum_with_relu{T<:JuMP.AbstractJuMPScalar}(xs::Array{T, 1})::JuMP.GenericAffExpr
-    if length(xs) == 1
-        return xs[1]
-    else
-        a = xs[1]
-        b = length(xs) == 2 ? xs[2] : MIPVerify.maximum(xs[2:end])
-        return relu(a-b) + b
-    end
-end
-
-function maximum{T<:JuMP.AbstractJuMPScalar}(xs::Array{T, 1})::JuMP.Variable
+function maximum{T<:JuMP.AbstractJuMPScalar, N}(xs::AbstractArray{T, N})::JuMP.Variable
     @assert length(xs) >= 1
     model = ConditionalJuMP.getmodel(xs[1])
-    l = Base.maximum(map(tight_lowerbound, xs))
-    u = Base.maximum(map(tight_upperbound, xs))
+    ls = tight_lowerbound.(xs)
+    us = tight_upperbound.(xs)
+    l = Base.maximum(ls)
+    u = Base.maximum(us)
     x_max = @variable(model,
         lowerbound = l,
         upperbound = u)
-    indicators = []
-    for x in xs
-        a = @variable(model, category =:Bin)
-        @implies(model, a, x_max == x)
-        @implies(model, 1 - a, x_max >= x)
-        push!(indicators, a)
+    
+    xs_filtered::Array{T, 1} = map(
+        t-> t[1], 
+        Iterators.filter(
+            t -> t[2]>l, 
+            zip(xs, us)
+        )
+    )
+
+    if length(xs_filtered) == 1
+        @constraint(model, x_max == xs_filtered[1])
+    else
+        indicators = []
+        for (i, x) in enumerate(xs_filtered)
+            a = @variable(model, category =:Bin)
+            umaxi = Base.maximum(us[1:end .!= i])
+            @constraint(model, x_max <= x + (1-a)*(umaxi - ls[i]))
+            @constraint(model, x_max >= x)
+            push!(indicators, a)
+        end
+        @constraint(model, sum(indicators) == 1)
     end
-    @constraint(model, sum(indicators) == 1)
     return x_max
 end
 
@@ -546,95 +512,13 @@ function abs_strict(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_abs
 end
 
-function layer{T<:JuMPReal}(
-    input::Array{T, 4},
-    params::ConvolutionLayerParameters)
-    return convlayer(input, params)
-end
-
-function layer{T<:JuMPReal}(
-    input::Array{T, 1},
-    params::FullyConnectedLayerParameters)
-    return fullyconnectedlayer(input, params)
-end
-
-function prop{T<:Real, U<:Real, V<:Real}(
-    input::Array{T},
-    input_lowerbounds::Array{U},
-    input_upperbounds::Array{V},
-    params::LayerParameters
-    )
-
-    @assert size(input) == size(input_lowerbounds) "Size of input does not match size of lowerbounds."
-    @assert size(input) == size(input_upperbounds) "Size of input does not match size of upperbounds."
-
-    m = Model(solver=GurobiSolver(MIPFocus = 3))
-    ve = map(_ -> @variable(m), input)
-    ve_abs = abs_ge.(m, ve)
-
-    vx0 = reshape(
-        map(t -> @variable(m, lowerbound = t[1], upperbound = t[2]), zip(input_lowerbounds, input_upperbounds)),
-        size(input)
-    )
-
-    @constraint(m, vx0 .== input + ve)
-
-    conv_input = layer(input, params)
-    vx1 = layer(vx0, params)
-    dvx1_abs = abs_strict.(m, vx1-conv_input)
-
-    input_perturbation_norm = sum(ve_abs)
-    output_perturbation_norm = sum(dvx1_abs)
-
-    return (m, input_perturbation_norm, output_perturbation_norm)
-
-end
-
-function forwardprop{T<:Real, U<:Real, V<:Real}(
-    input::Array{T},
-    input_lowerbounds::Array{U},
-    input_upperbounds::Array{V},
-    params::LayerParameters,
-    k_in::Real
-    )::Real
-
-    (m, input_perturbation_norm, output_perturbation_norm) =
-        prop(input, input_lowerbounds, input_upperbounds, params)
-
-    @constraint(m, input_perturbation_norm <= k_in)
-    @objective(m, Max, output_perturbation_norm)
-
-    status = solve(m)
-
-    return getobjectivevalue(m)
-end
-
-function backprop{T<:Real, U<:Real, V<:Real}(
-    input::Array{T},
-    input_lowerbounds::Array{U},
-    input_upperbounds::Array{V},
-    params::LayerParameters,
-    k_out::Real
-    )::Real
-
-    (m, input_perturbation_norm, output_perturbation_norm) =
-        prop(input, input_lowerbounds, input_upperbounds, params)
-
-    @objective(m, Min, input_perturbation_norm)
-    @constraint(m, output_perturbation_norm >= k_out)
-
-    status = solve(m)
-
-    return getobjectivevalue(m)
-end
-
 # TODO: Not everything from solve has been included here.
 
 function example_solve(nnparams, input, target_label; tolerance = 0.0, norm_type = 1)
     """
     Solving (without logging etc) for a simple example.
     """
-    d = initialize_additive(nnparams, input)
+    d = initialize_additive(nnparams, input, rebuild = true)
     m = d["model"]
     v_e = d["perturbation"]
     v_output = d["output variable"]
