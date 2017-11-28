@@ -35,19 +35,29 @@ function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
     Conv2DParameters(filter, bias)
 end
 
-abstract type PoolParameters{N} <: LayerParameters end
-
-struct MaxPoolParameters{N} <: LayerParameters
+struct PoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
+    pooling_function::Function
 end
 
-struct AveragePoolParameters{N} <: LayerParameters
-    strides::NTuple{N, Int}
+function MaxPoolParameters(strides::NTuple{N, Int}) where {N}
+    PoolParameters(strides, MIPVerify.maximum)
+end
+
+function AveragePoolParameters(strides::NTuple{N, Int}) where {N}
+    # TODO: pooling over variables not supported just yet
+    PoolParameters(strides, Base.mean)
 end
 
 struct ConvolutionLayerParameters{T<:Real, U<:Real} <: LayerParameters
     conv2dparams::Conv2DParameters{T, U}
-    maxpoolparams::MaxPoolParameters{4}
+    maxpoolparams::PoolParameters{4}
+
+    # function ConvolutionLayerParameters{T, U}(conv2dparams::Conv2DParameters{T, U}, maxpoolparams::PoolParameters{4}) where {T<:Real, U<:Real}
+    #     @assert maxpoolparams.pooling_function == MIPVerify.maximum
+    #     return new(conv2dparams, maxpoolparams)
+    # end
+
 end
 
 function ConvolutionLayerParameters{T<:Real, U<:Real}(filter::Array{T, 4}, bias::Array{U, 1}, strides::NTuple{4, Int})
@@ -110,11 +120,11 @@ Mirrors `tf.nn.conv2d` from `tensorflow` package, with `strides` = [1, 1, 1, 1],
  # Throws
  * ArgumentError if input and filter are not compatible.
 """
-function conv2d{T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}(
+function conv2d(
     input::Array{T, 4},
-    params::Conv2DParameters{U, V})
+    params::Conv2DParameters{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
-    # Todo: Print this one level up
+    # TODO: Print this one level up
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
         println("Setting convolution constraints ... ")
     end
@@ -212,7 +222,7 @@ end
 For pooling operations on an array, returns a view of the parent array
 corresponding to the `output_index` in the output array.
 """
-function getpoolview{T, N}(input_array::AbstractArray{T, N}, strides::NTuple{N, Int}, output_index::NTuple{N, Int})::SubArray{T, N}
+function getpoolview(input_array::AbstractArray{T, N}, strides::NTuple{N, Int}, output_index::NTuple{N, Int})::SubArray{T, N} where {T, N}
     it = zip(size(input_array), strides, output_index)
     input_index_range = map(x -> getsliceindex(x...), it)
     return view(input_array, input_index_range...)
@@ -222,7 +232,7 @@ end
 For pooling operations on an array, returns the expected size of the output
 array.
 """
-function getoutputsize{T, N}(input_array::AbstractArray{T, N}, strides::NTuple{N, Int})::NTuple{N, Int}
+function getoutputsize(input_array::AbstractArray{T, N}, strides::NTuple{N, Int})::NTuple{N, Int} where {T, N}
     output_size = ((x, y) -> round(Int, x/y, RoundUp)).(size(input_array), strides)
     return output_size
 end
@@ -231,37 +241,24 @@ end
 Returns output from applying `f` to subarrays of `input_array`, with the windows
 determined by the `strides`.
 """
-function poolmap{T, N}(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{N, Int})
+function poolmap(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{N, Int}) where {T, N}
     output_size = getoutputsize(input_array, strides)
     output_indices = collect(CartesianRange(output_size))
     return ((I) -> f(getpoolview(input_array, strides, I.I))).(output_indices)
 end
 
-function avgpool{T<:Real, N}(
+function pool(
     input::AbstractArray{T, N},
-    params::AveragePoolParameters{N})
-    return poolmap(mean, input, params.strides)
+    params::PoolParameters{N}) where {T<:JuMPReal, N}
+    return poolmap(params.pooling_function, input, params.strides)
 end
 
-"""
-Computes the result of a max-pooling operation on `input` with specified
-`strides`.
-"""
-function maxpool{T<:JuMPReal, N}(
-    input::AbstractArray{T, N},
-    params::MaxPoolParameters{N})::Array{T, N}
-    # NB: Tried to use pooling function from Knet.relu but it had way too many
-    # incompatibilities
-    # TODO: change naming to just 'pool'?
-    return poolmap(maximum, input, params.strides)
-end
-
-function maximum{T<:Real, N}(xs::AbstractArray{T, N})::T
+function maximum(xs::AbstractArray{T, N})::T where {T<:Real, N}
     # TODO: Check whether this type piracy is kosher.
     return Base.maximum(xs)
 end
 
-function maximum{T<:JuMP.AbstractJuMPScalar, N}(xs::AbstractArray{T, N})::JuMP.Variable
+function maximum(xs::AbstractArray{T, N})::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar, N}
     @assert length(xs) >= 1
     model = ConditionalJuMP.getmodel(xs[1])
     ls = tight_lowerbound.(xs)
@@ -340,32 +337,29 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_rect
 end
 
-function convlayer{T<:JuMPReal}(
+function convlayer(
     x::Array{T, 4},
-    params::ConvolutionLayerParameters)
+    params::ConvolutionLayerParameters) where {T<:JuMPReal}
     x_relu = relu.(x |> params.conv2dparams |> params.maxpoolparams)
     return x_relu
 end
 
-function matmul{T<:JuMPReal}(
+function matmul(
     x::Array{T, 1}, 
-    params::MatrixMultiplicationParameters)
+    params::MatrixMultiplicationParameters) where {T<:JuMPReal}
     return params.matrix*x .+ params.bias
 end
 
-function fullyconnectedlayer{T<:JuMPReal}(
+function fullyconnectedlayer(
     x::Array{T, 1}, 
-    params::FullyConnectedLayerParameters)
+    params::FullyConnectedLayerParameters) where {T<:JuMPReal}
     return relu.(x |> params.mmparams)
 end
 
-# TODO: Handle interaction between setting max index and setting unmax index.
-# TODO: rename to set_max_output_index
-
-function set_max_index{T<:JuMP.AbstractJuMPScalar}(
+function set_max_index(
     x::Array{T, 1},
     target_index::Integer,
-    tol::Real = 0)
+    tol::Real = 0) where {T<:JuMP.AbstractJuMPScalar}
     """
     Sets the target index to be the maximum.
 
@@ -380,23 +374,8 @@ function set_max_index{T<:JuMP.AbstractJuMPScalar}(
     
 end
 
-function set_unmax_index{T<:JuMP.AbstractJuMPScalar}(
-    x::Array{T, 1},
-    target_index::Integer,
-    tol::Real = 0)
-    """
-    Sets the target index to NOT be the maximum.
-    """
-    @assert length(x) >= 1
-    @assert (target_index >= 1) && (target_index <= length(x))
-    model = ConditionalJuMP.getmodel(x[1])
-    
-    x_max = MIPVerify.maximum(x)
-    @constraint(model, x_max - x[target_index] >= tol)
-end
-
-function get_max_index{T<:Real}(
-    x::Array{T, 1})::Integer
+function get_max_index(
+    x::Array{T, 1})::Integer where {T<:Real}
     return findmax(x)[2]
 end
 
@@ -432,33 +411,32 @@ function tight_lowerbound(x::JuMP.AbstractJuMPScalar)
     return l
 end
 
-function set_input_constraint{T<:Real}(v_input::Array{JuMP.Variable}, input::Array{T})
+function set_input_constraint(v_input::Array{JuMP.Variable}, input::Array{T}) where {T<:Real}
     @assert length(v_input) > 0
     m = ConditionalJuMP.getmodel(v_input[1])
     @constraint(m, v_input .== input)
 end
 
-(p::MatrixMultiplicationParameters){T<:JuMPReal}(x::Array{T, 1}) = matmul(x, p)
-(p::Conv2DParameters){T<:JuMPReal}(x::Array{T, 4}) = conv2d(x, p)
+(p::MatrixMultiplicationParameters)(x::Array{T, 1}) where {T<:JuMPReal} = matmul(x, p)
+(p::Conv2DParameters)(x::Array{T, 4}) where {T<:JuMPReal} = conv2d(x, p)
 
-(p::MaxPoolParameters){T<:JuMPReal}(x::Array{T}) = maxpool(x, p)
-(p::ConvolutionLayerParameters){T<:JuMPReal}(x::Array{T, 4}) = convlayer(x, p)
-(p::FullyConnectedLayerParameters){T<:JuMPReal}(x::Array{T, 1}) = fullyconnectedlayer(x, p)
-(p::SoftmaxParameters){T<:JuMPReal}(x::Array{T, 1}) = p.mmparams(x)
+(p::PoolParameters)(x::Array{T}) where {T<:JuMPReal} = pool(x, p)
+(p::ConvolutionLayerParameters)(x::Array{T, 4}) where {T<:JuMPReal} = convlayer(x, p)
+(p::FullyConnectedLayerParameters)(x::Array{T, 1}) where {T<:JuMPReal} = fullyconnectedlayer(x, p)
+(p::SoftmaxParameters)(x::Array{T, 1}) where {T<:JuMPReal} = p.mmparams(x)
 
-(ps::Array{U, 1}){T<:JuMPReal, U<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}}(x::Array{T}) = (
+(ps::Array{U, 1})(x::Array{T}) where {T<:JuMPReal, U<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}} = (
     length(ps) == 0 ? x : ps[2:end](ps[1](x))
 )
 
-(p::StandardNeuralNetParameters){T<:JuMPReal}(x::Array{T, 4}) = (
+(p::StandardNeuralNetParameters)(x::Array{T, 4}) where {T<:JuMPReal} = (
     x |> p.convlayer_params |> MIPVerify.flatten |> p.fclayer_params |> p.softmax_params
 )
 
 """
 Permute dimensions of array because Python flattens arrays in the opposite order.
 """
-function flatten{T, N}(x::Array{T, N})
-    # return x[:]
+function flatten(x::Array{T, N}) where {T, N}
     return permutedims(x, N:-1:1)[:]
 end
 
@@ -534,10 +512,10 @@ function example_solve(nnparams, input, target_label; tolerance = 0.0, norm_type
     status = solve(m)
 end
 
-function initialize_additive{T<:Real, N}(
+function initialize_additive(
     nn_params::Union{NeuralNetParameters, LayerParameters},
     input::Array{T, N}; rebuild::Bool = false
-    )::Dict
+    )::Dict where {T<:Real, N}
     input_size = size(input)
     model_file_name = "models/$(nn_params.UUID).$(input_size).additive.jls"
     if isfile(model_file_name) && !rebuild
@@ -555,9 +533,9 @@ function initialize_additive{T<:Real, N}(
     end
 end
 
-function initialize_additive_uncached{N}(
+function initialize_additive_uncached(
     nn_params::Union{NeuralNetParameters, LayerParameters},
-    input_size::NTuple{N}
+    input_size::NTuple
     )::Dict
 
     m = Model(solver=GurobiSolver(MIPFocus = 0, OutputFlag=0, TimeLimit = 120))
@@ -582,7 +560,7 @@ function initialize_additive_uncached{N}(
     return d
 end
 
-function check_size{N}(input::AbstractArray, expected_size::NTuple{N, Int})::Void
+function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
     input_size = size(input)
     @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
 end
@@ -601,11 +579,11 @@ function check_size(params::MatrixMultiplicationParameters, sizes::NTuple{2, Int
     check_size(params.bias, (sizes[1], ))
 end
 
-function get_label{T<:Real}(y::Array{T, 2}, test_index::Int)::Int
+function get_label(y::Array{T, 2}, test_index::Int)::Int where {T<:Real}
     return findmax(y[test_index, :])[2]
 end
 
-function get_input{T<:Real}(x::Array{T, 4}, test_index::Int)::Array{T, 4}
+function get_input(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
@@ -644,30 +622,28 @@ function get_conv_params(
     return params
 end
 
-function get_norm{T<:Real}(
+function get_norm(
     norm_type::Int,
-    v::Array{T}
-)
+    v::Array{T}) where {T<:Real}
     if norm_type == 1
         return sum(abs.(v))
     elseif norm_type == 2
-        return sqrt(sum(v.^2))
+        return sqrt(sum(v.*v))
     elseif norm_type == Inf
         return maximum(Iterators.flatten(abs.(v)))
     end
 end
 
-function get_norm{T<:JuMP.AbstractJuMPScalar}(
+function get_norm(
     norm_type::Int,
-    v::Array{T}
-)
+    v::Array{T}) where {T<:JuMP.AbstractJuMPScalar}
     if norm_type == 1
         abs_v = abs_ge.(v)
         return sum(abs_v)
     elseif norm_type == 2
         return sum(v.*v)
     elseif norm_type == Inf
-        return v |> MIPVerify.flatten |> MIPVerify.maximum
+        return abs_ge.(v) |> MIPVerify.flatten |> MIPVerify.maximum
     end
 end
 

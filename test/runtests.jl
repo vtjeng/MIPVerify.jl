@@ -1,4 +1,4 @@
-using MIPVerify: Conv2DParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, maxpool, avgpool, relu
+using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters, increment!, getsliceindex, getpoolview, pool, relu, set_max_index, get_max_index, matmul, tight_upperbound, tight_lowerbound
 using Base.Test
 using Base.Test: @test_throws
 
@@ -40,9 +40,9 @@ using Gurobi
             end
         end
         
-        @testset "MaxPoolParameters" begin
+        @testset "PoolParameters" begin
             strides = (1, 2, 2, 1)
-            p = MaxPoolParameters(strides)
+            p = PoolParameters(strides, x -> x)
             @test p.strides == strides
         end
         
@@ -193,7 +193,7 @@ using Gurobi
                     12 24 36
                 ]
                 @testset "Numerical Input" begin
-                    @test maxpool(input_array, MaxPoolParameters((2, 2))) == true_output
+                    @test pool(input_array, MaxPoolParameters((2, 2))) == true_output
                 end
                 @testset "Variable Input" begin
                     m = Model(solver=GurobiSolver(OutputFlag=0))
@@ -201,7 +201,7 @@ using Gurobi
                         i -> @variable(m, lowerbound=i-2, upperbound=i), 
                         input_array
                     )
-                    pool_v = maxpool(input_array_v, MaxPoolParameters((2, 2)))
+                    pool_v = pool(input_array_v, MaxPoolParameters((2, 2)))
                     # elements of the input array are made to take their maximum value
                     @objective(m, Max, sum(input_array_v))
                     solve(m)
@@ -218,7 +218,7 @@ using Gurobi
                         6.5 18.5 30.5;
                         8.5 20.5 32.5
                     ]
-                    @test avgpool(input_array, AveragePoolParameters((2, 2))) == true_output
+                    @test pool(input_array, AveragePoolParameters((2, 2))) == true_output
                 end
             end
 
@@ -230,14 +230,19 @@ using Gurobi
                 x1 = @variable(m, lowerbound=0, upperbound=3)
                 x2 = @variable(m, lowerbound=4, upperbound=5)
                 x3 = @variable(m, lowerbound=2, upperbound=7)
-                xmax = MIPVerify.maximum([x1, x2, x3])
+                x4 = @variable(m, lowerbound=-1, upperbound=1)
+                x5 = @variable(m, lowerbound=-3, upperbound=1)
+                xmax = MIPVerify.maximum([x1, x2, x3, x4, x5])
                 # elements of the input array are made to take their maximum value
-                @objective(m, Max, x1+x2+x3)
+                @objective(m, Max, x1+x2+x3+x4+x5)
                 solve(m)
-                println(m)
-                solve_output = getvalue(xmax)
                 
+                solve_output = getvalue(xmax)
+                # an efficient implementation does not add binary variables for x1, x4 and x5
+                num_binary_variables = count(x -> x == :Bin, m.colCat)
+
                 @test solve_output==7
+                @test num_binary_variables<= 2
             end
         end
         
@@ -247,11 +252,64 @@ using Gurobi
                 @test relu(0)==0
                 @test relu(-1)==0           
             end
+            
             @testset "Variable Input" begin
                 @test 1==1
             end
         end
 
+        @testset "Max index operations" begin
+            @testset "set_max_index" begin
+                @testset "no tolerance" begin
+                    m = Model(solver=GurobiSolver(OutputFlag=0))
+                    x = @variable(m, [i=1:3])
+                    @constraint(m, x[2] == 5)
+                    @constraint(m, x[3] == 1)
+                    set_max_index(x, 1)
+                    @objective(m, Min, x[1])
+                    solve(m)
+                    @test getvalue(x[1])==5
+                end
+                @testset "with tolerance" begin
+                    tolerance = 3
+                    m = Model(solver=GurobiSolver(OutputFlag=0))
+                    x = @variable(m, [i=1:3])
+                    @constraint(m, x[2] == 5)
+                    @constraint(m, x[3] == 1)
+                    set_max_index(x, 1, tolerance)
+                    @objective(m, Min, x[1])
+                    solve(m)
+                    @test getvalue(x[1])==5+tolerance
+                end
+            end
+
+            @testset "get_max_index" begin
+                @test_throws MethodError get_max_index([])
+                @test get_max_index([3]) == 1
+                @test get_max_index([3, 1, 4]) == 3
+                @test get_max_index([3, 1, 4, 1, 5, 9, 2]) == 6
+            end
+        end
+
+        @testset "Bounds" begin
+            m = Model(solver=GurobiSolver(OutputFlag=0))
+            x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
+            
+            A1 = [1 -0.5; -0.5 1]
+            b1 = zeros(2)
+            p1 = MatrixMultiplicationParameters(A1, b1)
+            # naive bounds on our intermediate activations are [-1, 1]
+            # for both, but the extremal values are not simultaneously
+            # achievable
+
+            A2 = [1 1]
+            b2 = zeros(1)
+            p2 = MatrixMultiplicationParameters(A2, b2)
+          
+            output = matmul(matmul(x, p1), p2)[1]
+            @test tight_upperbound(output) == 1
+            @test tight_lowerbound(output) == -1
+        end
     end
 end
 
