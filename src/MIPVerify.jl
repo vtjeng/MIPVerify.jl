@@ -80,7 +80,7 @@ end
     bias::Array{U, 1}
 
     function MatrixMultiplicationParameters{T, U}(matrix::Array{T, 2}, bias::Array{U, 1}) where {T<:Real, U<:Real}
-        (matrix_height, matrix_width) = size(matrix)
+        (matrix_width, matrix_height) = size(matrix)
         bias_height = length(bias)
         @assert(
             matrix_height == bias_height,
@@ -111,6 +111,25 @@ function FullyConnectedLayerParameters(matrix::Array{T, 2}, bias::Array{U, 1}) w
     FullyConnectedLayerParameters(MatrixMultiplicationParameters(matrix, bias))
 end
 
+function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
+    input_size = size(input)
+    @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
+end
+
+function check_size(params::ConvolutionLayerParameters, sizes::NTuple{4, Int})::Void
+    check_size(params.conv2dparams, sizes)
+end
+
+function check_size(params::Conv2DParameters, sizes::NTuple{4, Int})::Void
+    check_size(params.filter, sizes)
+    check_size(params.bias, (sizes[end], ))
+end
+
+function check_size(params::MatrixMultiplicationParameters, sizes::NTuple{2, Int})::Void
+    check_size(params.matrix, sizes)
+    check_size(params.bias, (sizes[end], ))
+end
+
 abstract type NeuralNetParameters end
 
 # TODO: Support empty convlayer array, empty fclayer array, and optional softmax params
@@ -129,7 +148,7 @@ Mirrors `tf.nn.conv2d` from `tensorflow` package, with `strides` = [1, 1, 1, 1],
  `padding` = 'SAME'.
 
  # Throws
- * ArgumentError if input and filter are not compatible.
+ * AssertionError if input and filter are not compatible.
 """
 function conv2d(
     input::Array{T, 4},
@@ -362,7 +381,7 @@ end
 function matmul(
     x::Array{T, 1}, 
     params::MatrixMultiplicationParameters) where {T<:JuMPReal}
-    return params.matrix*x .+ params.bias
+    return params.matrix.'*x .+ params.bias
 end
 
 function fullyconnectedlayer(
@@ -504,59 +523,118 @@ function abs_strict(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_abs
 end
 
-# TODO: Not everything from solve has been included here.
 
-function example_solve(nnparams, input, target_label; tolerance = 0.0, norm_type = 1)
-    """
-    Solving (without logging etc) for a simple example.
-    """
-    d = initialize_additive(nnparams, input, rebuild = true)
-    m = d["model"]
-    v_e = d["perturbation"]
-    v_output = d["output variable"]
-    v_input = d["input variable"]
+abstract type PerturbationParameters end
 
-    # Set perturbation constraint
-    e_norm = get_norm(norm_type, v_e)
-    @objective(m, Min, e_norm)
+struct AdditivePerturbationParameters <: PerturbationParameters end
+Base.string(pp::AdditivePerturbationParameters) = "additive"
+Base.hash(a::AdditivePerturbationParameters, h::UInt) = hash(:AdditivePerturbationParameters, h)
 
-    # Set input constraint
-    set_input_constraint(v_input, input)
+@auto_hash_equals struct BlurPerturbationParameters <: PerturbationParameters
+    blur_kernel_size::NTuple{2}
+end
+Base.string(pp::BlurPerturbationParameters) = "blur.$(pp.blur_kernel_size)"
+
+function find_adversarial_example(
+    nnparams::NeuralNetParameters, 
+    input::Array{T, N},
+    target_label::Int;
+    pp::PerturbationParameters = AdditivePerturbationParameters(),
+    tolerance = 0.0, 
+    norm_type = 1, 
+    rebuild::Bool = true)::Dict where {T<:Real, N}
+
+    d = get_model(nnparams, input, pp, rebuild)
+    m = d[:Model]
+
+    # Set perturbation objective
+    @objective(m, Min, get_norm(norm_type, d[:Perturbation]))
 
     # Set output constraint
-    set_max_index(v_output, target_label, tolerance)
+    set_max_index(d[:Output], target_label, tolerance)
     info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target label is $target_label")
     status = solve(m)
+    return d
 end
 
-function initialize_additive(
-    nn_params::Union{NeuralNetParameters, LayerParameters},
-    input::Array{T, N}; rebuild::Bool = false
+function get_model(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::AdditivePerturbationParameters,
+    rebuild::Bool
     )::Dict where {T<:Real, N}
+    d = get_reusable_model(nn_params, input, pp, rebuild)
+    set_input_constraint(d[:Input], input)
+    return d
+end
+
+function get_model(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::BlurPerturbationParameters,
+    rebuild::Bool
+    )::Dict where {T<:Real, N}
+    return get_reusable_model(nn_params, input, pp, rebuild)
+end
+
+function model_hash(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::AdditivePerturbationParameters)::UInt where {T<:Real, N}
     input_size = size(input)
-    model_file_name = "models/$(nn_params.UUID).$(input_size).additive.jls"
-    if isfile(model_file_name) && !rebuild
+    return hash(nn_params, hash(input_size, hash(pp)))
+end
+
+function model_hash(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::BlurPerturbationParameters)::UInt where {T<:Real, N}
+    return hash(nn_params, hash(input, hash(pp)))
+end
+
+function model_filename(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::PerturbationParameters)::String where {T<:Real, N}
+    hash_val = model_hash(nn_params, input, pp)
+    input_size = size(input)
+    return "$(nn_params.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
+end
+
+function get_reusable_model(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::PerturbationParameters,
+    rebuild::Bool
+    )::Dict where {T<:Real, N}
+
+    filename = model_filename(nn_params, input, pp)
+    model_filepath = "models/$(filename)"
+    # TODO: Place in temporary directory.
+
+    if isfile(model_filepath) && !rebuild
         info(get_logger(current_module()), "Loading model from cache.")
-        d = open(model_file_name, "r") do f
+        d = open(model_filepath, "r") do f
             deserialize(f)
         end
     else
         info(get_logger(current_module()), "Rebuilding model from scratch.")
-        d = initialize_additive_uncached(nn_params, input_size)
-        open(model_file_name, "w") do f
+        d = build_reusable_model_uncached(nn_params, input, pp)
+        open(model_filepath, "w") do f
             serialize(f, d)
         end
-    return d
     end
+    return d
 end
 
-function initialize_additive_uncached(
-    nn_params::Union{NeuralNetParameters, LayerParameters},
-    input_size::NTuple
-    )::Dict
-
+function build_reusable_model_uncached(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::AdditivePerturbationParameters
+    )::Dict where {T<:Real, N}
+    
     m = Model(solver=GurobiSolver(MIPFocus = 0, OutputFlag=0, TimeLimit = 120))
-    input_range = CartesianRange(input_size)
+    input_range = CartesianRange(size(input))
 
     v_input = map(_ -> @variable(m), input_range) # what you're trying to perturb
     v_e = map(_ -> @variable(m), input_range) # perturbation added
@@ -565,35 +643,51 @@ function initialize_additive_uncached(
 
     v_output = v_x0 |> nn_params
 
-    setsolver(m, GurobiSolver(MIPFocus = 3))
+    setsolver(m, GurobiSolver(MIPFocus = 0))
 
-    d = Dict()
-    d["model"] = m
-    d["input variable"] = v_input
-    d["base layer variable"] = v_x0
-    d["perturbation"] = v_e
-    d["output variable"] = v_output
+    d = Dict(
+        :Model => m,
+        :PerturbedInput => v_x0,
+        :Perturbation => v_e,
+        :Output => v_output,
+        :Input => v_input,
+        :PerturbationParameters => pp
+    )
     
     return d
 end
 
-function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
+function build_reusable_model_uncached(
+    nn_params::NeuralNetParameters,
+    input::Array{T, N},
+    pp::BlurPerturbationParameters
+    )::Dict where {T<:Real, N}
+    # For blurring perturbations, we build a new model for each input. This enables us to get
+    # much better bounds.
+
+    m = Model(solver=GurobiSolver(MIPFocus = 0, OutputFlag=0, TimeLimit = 120))
     input_size = size(input)
-    @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
-end
+    filter_size = (pp.blur_kernel_size..., 1, 1)
 
-function check_size(params::ConvolutionLayerParameters, sizes::NTuple{4, Int})::Void
-    check_size(params.conv2dparams, sizes)
-end
+    v_f = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(filter_size))
+    @constraint(m, sum(v_f) == 1)
+    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(input_size))
+    @constraint(m, v_x0 .== input |> Conv2DParameters(v_f))
 
-function check_size(params::Conv2DParameters, sizes::NTuple{4, Int})::Void
-    check_size(params.filter, sizes)
-    check_size(params.bias, (sizes[4], ))
-end
+    v_output = v_x0 |> nn_params
 
-function check_size(params::MatrixMultiplicationParameters, sizes::NTuple{2, Int})::Void
-    check_size(params.matrix, sizes)
-    check_size(params.bias, (sizes[1], ))
+    setsolver(m, GurobiSolver(MIPFocus = 0))
+
+    d = Dict(
+        :Model => m,
+        :PerturbedInput => v_x0,
+        :Perturbation => v_x0 - input,
+        :Output => v_output,
+        :BlurKernel => v_f,
+        :PerturbationParameters => pp
+    )
+
+    return d
 end
 
 function get_label(y::Array{T, 2}, test_index::Int)::Int where {T<:Real}
@@ -613,7 +707,7 @@ function get_matrix_params(
     bias_name::String = "bias")
 
     params = MatrixMultiplicationParameters(
-        transpose(param_dict["$layer_name/$matrix_name"]),
+        param_dict["$layer_name/$matrix_name"],
         squeeze(param_dict["$layer_name/$bias_name"], 1)
     )
 
