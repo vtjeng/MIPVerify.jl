@@ -7,6 +7,8 @@ using Gurobi
 using Memento
 using AutoHashEquals
 
+include("input_data.jl")
+
 JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
 
 function set_log_level(level::String)
