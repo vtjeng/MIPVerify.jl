@@ -3,10 +3,11 @@ using Base.Test
 using Base.Test: @test_throws
 
 @testset "MIPVerify" begin
-    MIPVerify.set_log_level("debug")
+    MIPVerify.set_log_level("info")
 
     include("net_parameters.jl")
     include("layers.jl")
+    include("integration/generated_weights/conv+softmax.jl")
     
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])

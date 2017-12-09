@@ -3,7 +3,8 @@ using Base.Test
 using Base.Test: @test_throws
 
 using JuMP
-using Gurobi
+using Cbc
+using MathProgBase
 
 @testset "layers/" begin
 
@@ -51,7 +52,9 @@ using Gurobi
             @test evaluated_output == true_output
         end
         @testset "Numerical Input, Variable Layer Parameters" begin
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
             bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
             p_v = MIPVerify.Conv2DParameters(filter_v, bias_v)
@@ -64,7 +67,9 @@ using Gurobi
             @test solve_output≈true_output
         end
         @testset "Variable Input, Numerical Layer Parameters" begin
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             input_v = map(_ -> @variable(m), CartesianRange(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)
@@ -109,7 +114,9 @@ end
             @test pool(input_array, MaxPoolParameters((2, 2))) == true_output
         end
         @testset "Variable Input" begin
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             input_array_v = map(
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array
@@ -140,7 +147,9 @@ end
 @testset "core_ops.jl" begin
     @testset "maximum" begin
         @testset "Variable Input" begin
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             x1 = @variable(m, lowerbound=0, upperbound=3)
             x2 = @variable(m, lowerbound=4, upperbound=5)
             x3 = @variable(m, lowerbound=2, upperbound=7)
@@ -155,7 +164,7 @@ end
             # an efficient implementation does not add binary variables for x1, x4 and x5
             num_binary_variables = count(x -> x == :Bin, m.colCat)
 
-            @test solve_output==7
+            @test solve_output≈7
             @test num_binary_variables<= 2
         end
     end
@@ -174,30 +183,36 @@ end
 
     @testset "set_max_index" begin
         @testset "no tolerance" begin
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             x = @variable(m, [i=1:3])
             @constraint(m, x[2] == 5)
             @constraint(m, x[3] == 1)
             set_max_index(x, 1)
             @objective(m, Min, x[1])
             solve(m)
-            @test getvalue(x[1])==5
+            @test getvalue(x[1])≈5
         end
         @testset "with tolerance" begin
             tolerance = 3
-            m = Model(solver=GurobiSolver(OutputFlag=0))
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             x = @variable(m, [i=1:3])
             @constraint(m, x[2] == 5)
             @constraint(m, x[3] == 1)
             set_max_index(x, 1, tolerance)
             @objective(m, Min, x[1])
             solve(m)
-            @test getvalue(x[1])==5+tolerance
+            @test getvalue(x[1])≈5+tolerance
         end
     end
 
     @testset "Bounds" begin
-        m = Model(solver=GurobiSolver(OutputFlag=0))
+        solver = CbcSolver()
+        MathProgBase.setparameters!(solver, Silent = true)
+        m = Model(solver=solver)
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
         
         A1 = [1 -0.5; -0.5 1]
@@ -212,8 +227,8 @@ end
         p2 = MatrixMultiplicationParameters(A2, b2)
     
         output = matmul(matmul(x, p1), p2)[1]
-        @test tight_upperbound(output) == 1
-        @test tight_lowerbound(output) == -1
+        @test tight_upperbound(output)≈1
+        @test tight_lowerbound(output)≈-1
     end
 end
 

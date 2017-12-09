@@ -4,13 +4,14 @@ using Base.Cartesian
 using JuMP
 using ConditionalJuMP
 using Gurobi
+using Cbc
 using Memento
 using AutoHashEquals
 
 include("input_data.jl")
 include("layers/core_ops.jl")
 
-include("net_parameters.jl")
+include("layers/net_parameters.jl")
 include("layers/conv2d.jl")
 include("layers/pool.jl")
 include("layers/matmul.jl")
@@ -81,7 +82,7 @@ function get_norm(
         return sum(abs.(v))
     elseif norm_type == 2
         return sqrt(sum(v.*v))
-    elseif norm_type == Inf
+    elseif norm_type == typemax(Int)
         return maximum(Iterators.flatten(abs.(v)))
     end
 end
@@ -94,7 +95,7 @@ function get_norm(
         return sum(abs_v)
     elseif norm_type == 2
         return sum(v.*v)
-    elseif norm_type == Inf
+    elseif norm_type == typemax(Int)
         return abs_ge.(v) |> MIPVerify.flatten |> MIPVerify.maximum
     end
 end

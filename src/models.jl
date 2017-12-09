@@ -1,4 +1,13 @@
 using AutoHashEquals
+using MathProgBase
+
+const module_tempdir = joinpath(Base.tempdir(), "julia", string(module_name(current_module())))
+const model_dir = joinpath(module_tempdir, "models")
+if !ispath(model_dir)
+    mkpath(model_dir)
+end
+
+# TODO: Add support for removing all models.
 
 abstract type PerturbationParameters end
 
@@ -63,7 +72,7 @@ function get_reusable_model(
     )::Dict where {T<:Real, N}
 
     filename = model_filename(nn_params, input, pp)
-    model_filepath = "models/$(filename)"
+    model_filepath = joinpath(model_dir, filename)
     # TODO: Place in temporary directory.
 
     if isfile(model_filepath) && !rebuild
@@ -87,17 +96,23 @@ function build_reusable_model_uncached(
     pp::AdditivePerturbationParameters
     )::Dict where {T<:Real, N}
     
-    m = Model(solver=GurobiSolver(MIPFocus = 0, OutputFlag=0, TimeLimit = 120))
+    s = GurobiSolver()
+    # s = CbcSolver()
+
+    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
+    m = Model(solver = s)
+
     input_range = CartesianRange(size(input))
 
     v_input = map(_ -> @variable(m), input_range) # what you're trying to perturb
-    v_e = map(_ -> @variable(m), input_range) # perturbation added
+    v_e = map(_ -> @variable(m, lowerbound = -1, upperbound = 1), input_range) # perturbation added
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range) # perturbation + original image
     @constraint(m, v_x0 .== v_input + v_e)
 
     v_output = v_x0 |> nn_params
 
-    setsolver(m, GurobiSolver(MIPFocus = 0))
+    # MathProgBase.setparameters!(s, Silent = false, TimeLimit = 86400)
+    setsolver(m, GurobiSolver())
 
     d = Dict(
         :Model => m,
