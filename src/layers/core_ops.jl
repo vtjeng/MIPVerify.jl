@@ -2,8 +2,11 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
-function tight_upperbound(x::JuMP.AbstractJuMPScalar)
+function tight_upperbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
     u = upperbound(x)
+    if !tighten
+        return u
+    end
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Max, x)
     status = solve(m)
@@ -17,8 +20,11 @@ function tight_upperbound(x::JuMP.AbstractJuMPScalar)
     return u
 end
 
-function tight_lowerbound(x::JuMP.AbstractJuMPScalar)
+function tight_lowerbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
     l = lowerbound(x)
+    if !tighten
+        return l
+    end
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Min, x)
     status = solve(m)
@@ -83,11 +89,11 @@ function maximum(xs::AbstractArray{T, N})::T where {T<:Real, N}
     return Base.maximum(xs)
 end
 
-function maximum(xs::AbstractArray{T, N})::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar, N}
+function maximum(xs::AbstractArray{T, N}; tighten::Bool = true)::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar, N}
     @assert length(xs) >= 1
     model = ConditionalJuMP.getmodel(xs[1])
-    ls = tight_lowerbound.(xs)
-    us = tight_upperbound.(xs)
+    ls = tight_lowerbound.(xs; tighten = tighten)
+    us = tight_upperbound.(xs; tighten = tighten)
     l = Base.maximum(ls)
     u = Base.maximum(us)
     x_max = @variable(model,

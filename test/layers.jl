@@ -1,3 +1,4 @@
+using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters
 using MIPVerify: increment!, getsliceindex, getpoolview, pool, relu, set_max_index, get_max_index, matmul, tight_upperbound, tight_lowerbound
 using Base.Test
 using Base.Test: @test_throws
@@ -15,7 +16,9 @@ using MathProgBase
             @test 7 == increment!(1, 2, 3)
         end
         @testset "JuMP.AffExpr * Real" begin
-            m = Model()
+            solver = CbcSolver()
+            MathProgBase.setparameters!(solver, Silent = true)
+            m = Model(solver=solver)
             x = @variable(m, start=100)
             y = @variable(m, start=1)
             s = 5*x+3*y
@@ -54,12 +57,13 @@ using MathProgBase
         @testset "Numerical Input, Variable Layer Parameters" begin
             solver = CbcSolver()
             MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = Model()
             filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
             bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
             p_v = MIPVerify.Conv2DParameters(filter_v, bias_v)
             output_v = MIPVerify.conv2d(input, p_v)
             @constraint(m, output_v .== true_output)
+            setsolver(m, solver)
             solve(m)
 
             p_solve = MIPVerify.Conv2DParameters(getvalue(filter_v), getvalue(bias_v))
@@ -69,10 +73,11 @@ using MathProgBase
         @testset "Variable Input, Numerical Layer Parameters" begin
             solver = CbcSolver()
             MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = Model()
             input_v = map(_ -> @variable(m), CartesianRange(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)
+            setsolver(m, solver)
             solve(m)
 
             solve_output = MIPVerify.conv2d(getvalue(input_v), p)
@@ -116,7 +121,7 @@ end
         @testset "Variable Input" begin
             solver = CbcSolver()
             MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = Model(solver = solver)
             input_array_v = map(
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array

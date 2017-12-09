@@ -48,7 +48,7 @@ nnparams = StandardNeuralNetParameters(
     @test getobjectivevalue(d[:Model]) ≈ 2.344824299053464    
     # Gurobi : 2.344824299053464
     # Cbc    : 2.3448242990534602
-    d = find_adversarial_example(nnparams, x0, 1, tolerance=1.0, norm_type = typemax(Int), rebuild=false)
+    d = find_adversarial_example(nnparams, x0, 1, tolerance=1.0, norm_type = typemax(Int), rebuild=true)
     @test getobjectivevalue(d[:Model]) ≈ 0.15628022275388148
     # Gurobi : 0.15628022275388148
 end

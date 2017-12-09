@@ -53,7 +53,7 @@ function find_adversarial_example(
 
     d = get_model(nnparams, input, pp, rebuild)
     m = d[:Model]
-
+    # setsolver(m, CbcSolver()) # TODO: Ensure that you also overwrite the choice of solver here!!
     # Set perturbation objective
     @objective(m, Min, get_norm(norm_type, d[:Perturbation]))
 
@@ -96,7 +96,7 @@ function get_norm(
     elseif norm_type == 2
         return sum(v.*v)
     elseif norm_type == typemax(Int)
-        return abs_ge.(v) |> MIPVerify.flatten |> MIPVerify.maximum
+        return MIPVerify.maximum(abs_ge.(v) |> MIPVerify.flatten; tighten = false)
     end
 end
 

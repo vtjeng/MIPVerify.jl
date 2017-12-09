@@ -96,9 +96,9 @@ function build_reusable_model_uncached(
     pp::AdditivePerturbationParameters
     )::Dict where {T<:Real, N}
     
-    s = GurobiSolver()
-    # s = CbcSolver()
+    Solver = CbcSolver
 
+    s = Solver()
     MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
     m = Model(solver = s)
 
@@ -111,8 +111,9 @@ function build_reusable_model_uncached(
 
     v_output = v_x0 |> nn_params
 
-    # MathProgBase.setparameters!(s, Silent = false, TimeLimit = 86400)
-    setsolver(m, GurobiSolver())
+    s = Solver()
+    MathProgBase.setparameters!(s, Silent = false, TimeLimit = 86400)
+    setsolver(m, s)
 
     d = Dict(
         :Model => m,
@@ -134,7 +135,9 @@ function build_reusable_model_uncached(
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
-    m = Model(solver=GurobiSolver(MIPFocus = 0, OutputFlag=0, TimeLimit = 120))
+    Solver = GurobiSolver
+
+    m = Model(solver = Solver(OutputFlag=0, TimeLimit = 120))
     input_size = size(input)
     filter_size = (pp.blur_kernel_size..., 1, 1)
 
@@ -145,7 +148,7 @@ function build_reusable_model_uncached(
 
     v_output = v_x0 |> nn_params
 
-    setsolver(m, GurobiSolver(MIPFocus = 0))
+    setsolver(m, Solver())
 
     d = Dict(
         :Model => m,
