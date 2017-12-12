@@ -7,6 +7,12 @@ using JuMP
 using Cbc
 using MathProgBase
 
+function get_new_model()::Model
+    solver = CbcSolver()
+    MathProgBase.setparameters!(solver, Silent = true)
+    return Model(solver=solver)
+end
+
 @testset "layers/" begin
 
 @testset "conv2d.jl" begin
@@ -16,9 +22,7 @@ using MathProgBase
             @test 7 == increment!(1, 2, 3)
         end
         @testset "JuMP.AffExpr * Real" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = get_new_model()
             x = @variable(m, start=100)
             y = @variable(m, start=1)
             s = 5*x+3*y
@@ -55,15 +59,12 @@ using MathProgBase
             @test evaluated_output == true_output
         end
         @testset "Numerical Input, Variable Layer Parameters" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model()
+            m = get_new_model()
             filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
             bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
             p_v = MIPVerify.Conv2DParameters(filter_v, bias_v)
             output_v = MIPVerify.conv2d(input, p_v)
             @constraint(m, output_v .== true_output)
-            setsolver(m, solver)
             solve(m)
 
             p_solve = MIPVerify.Conv2DParameters(getvalue(filter_v), getvalue(bias_v))
@@ -71,13 +72,10 @@ using MathProgBase
             @test solve_output≈true_output
         end
         @testset "Variable Input, Numerical Layer Parameters" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model()
+            m = get_new_model()
             input_v = map(_ -> @variable(m), CartesianRange(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)
-            setsolver(m, solver)
             solve(m)
 
             solve_output = MIPVerify.conv2d(getvalue(input_v), p)
@@ -119,9 +117,7 @@ end
             @test pool(input_array, MaxPoolParameters((2, 2))) == true_output
         end
         @testset "Variable Input" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver = solver)
+            m = get_new_model()
             input_array_v = map(
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array
@@ -152,9 +148,7 @@ end
 @testset "core_ops.jl" begin
     @testset "maximum" begin
         @testset "Variable Input" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = get_new_model()
             x1 = @variable(m, lowerbound=0, upperbound=3)
             x2 = @variable(m, lowerbound=4, upperbound=5)
             x3 = @variable(m, lowerbound=2, upperbound=7)
@@ -188,9 +182,7 @@ end
 
     @testset "set_max_index" begin
         @testset "no tolerance" begin
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = get_new_model()
             x = @variable(m, [i=1:3])
             @constraint(m, x[2] == 5)
             @constraint(m, x[3] == 1)
@@ -201,9 +193,7 @@ end
         end
         @testset "with tolerance" begin
             tolerance = 3
-            solver = CbcSolver()
-            MathProgBase.setparameters!(solver, Silent = true)
-            m = Model(solver=solver)
+            m = get_new_model()
             x = @variable(m, [i=1:3])
             @constraint(m, x[2] == 5)
             @constraint(m, x[3] == 1)
@@ -215,9 +205,7 @@ end
     end
 
     @testset "Bounds" begin
-        solver = CbcSolver()
-        MathProgBase.setparameters!(solver, Silent = true)
-        m = Model(solver=solver)
+        m = get_new_model()
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
         
         A1 = [1 -0.5; -0.5 1]
