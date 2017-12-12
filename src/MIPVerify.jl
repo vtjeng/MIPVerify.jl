@@ -47,13 +47,13 @@ function find_adversarial_example(
     solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     tolerance = 0.0, 
-    norm_type = 1, 
+    norm_order::Real = 1, 
     rebuild::Bool = true)::Dict where {T<:Real, N}
 
     d = get_model(nnparams, input, pp, solver_type, rebuild)
     m = d[:Model]
     # Set perturbation objective
-    @objective(m, Min, get_norm(norm_type, d[:Perturbation]))
+    @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
 
     # Set output constraint
     set_max_index(d[:Output], target_label, tolerance)
@@ -74,26 +74,26 @@ end
 
 
 function get_norm(
-    norm_type::Int,
+    norm_order::Real,
     v::Array{T}) where {T<:Real}
-    if norm_type == 1
+    if norm_order == 1
         return sum(abs.(v))
-    elseif norm_type == 2
+    elseif norm_order == 2
         return sqrt(sum(v.*v))
-    elseif norm_type == typemax(Int)
+    elseif norm_order == Inf
         return maximum(Iterators.flatten(abs.(v)))
     end
 end
 
 function get_norm(
-    norm_type::Int,
+    norm_order::Real,
     v::Array{T}) where {T<:JuMP.AbstractJuMPScalar}
-    if norm_type == 1
+    if norm_order == 1
         abs_v = abs_ge.(v)
         return sum(abs_v)
-    elseif norm_type == 2
+    elseif norm_order == 2
         return sum(v.*v)
-    elseif norm_type == typemax(Int)
+    elseif norm_order == Inf
         return MIPVerify.maximum(abs_ge.(v) |> MIPVerify.flatten; tighten = false)
     end
 end
