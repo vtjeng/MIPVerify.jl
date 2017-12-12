@@ -3,8 +3,6 @@ module MIPVerify
 using Base.Cartesian
 using JuMP
 using ConditionalJuMP
-using Gurobi
-using Cbc
 using Memento
 using AutoHashEquals
 
@@ -45,15 +43,15 @@ end
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{T, N},
-    target_label::Int;
+    target_label::Int,
+    solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     tolerance = 0.0, 
     norm_type = 1, 
     rebuild::Bool = true)::Dict where {T<:Real, N}
 
-    d = get_model(nnparams, input, pp, rebuild)
+    d = get_model(nnparams, input, pp, solver_type, rebuild)
     m = d[:Model]
-    # setsolver(m, CbcSolver()) # TODO: Ensure that you also overwrite the choice of solver here!!
     # Set perturbation objective
     @objective(m, Min, get_norm(norm_type, d[:Perturbation]))
 

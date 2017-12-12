@@ -2,6 +2,7 @@ using JuMP
 
 using MIPVerify: find_adversarial_example, ConvolutionLayerParameters, SoftmaxParameters, StandardNeuralNetParameters, FullyConnectedLayerParameters, BlurPerturbationParameters
 using Base.Test
+using Gurobi
 
 @testset "Conv + Softmax" begin
 
@@ -44,13 +45,14 @@ nnparams = StandardNeuralNetParameters(
 )
 
 @testset "Additive Adversarial Example" begin
-    d = find_adversarial_example(nnparams, x0, 1, tolerance=1.0, norm_type = 1, rebuild=true)
+    d = find_adversarial_example(nnparams, x0, 1, GurobiSolver, tolerance=1.0, norm_type = 1, rebuild=true)
     @test getobjectivevalue(d[:Model]) ≈ 2.344824299053464    
     # Gurobi : 2.344824299053464
     # Cbc    : 2.3448242990534602
-    d = find_adversarial_example(nnparams, x0, 1, tolerance=1.0, norm_type = typemax(Int), rebuild=true)
+    d = find_adversarial_example(nnparams, x0, 1, GurobiSolver, tolerance=1.0, norm_type = typemax(Int), rebuild=true)
     @test getobjectivevalue(d[:Model]) ≈ 0.15628022275388148
     # Gurobi : 0.15628022275388148
+    # Cbc    : 0.1562802227538815
 end
 
 end

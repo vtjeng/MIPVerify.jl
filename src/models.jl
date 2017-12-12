@@ -24,10 +24,12 @@ function get_model(
     nn_params::NeuralNetParameters,
     input::Array{T, N},
     pp::AdditivePerturbationParameters,
+    solver_type::DataType,
     rebuild::Bool
     )::Dict where {T<:Real, N}
-    d = get_reusable_model(nn_params, input, pp, rebuild)
+    d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
     @constraint(d[:Model], d[:Input] .== input)
+    setsolver(d[:Model], solver_type())
     return d
 end
 
@@ -35,9 +37,12 @@ function get_model(
     nn_params::NeuralNetParameters,
     input::Array{T, N},
     pp::BlurPerturbationParameters,
+    solver_type::DataType,
     rebuild::Bool
     )::Dict where {T<:Real, N}
-    return get_reusable_model(nn_params, input, pp, rebuild)
+    d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
+    setsolver(d[:Model], solver_type())
+    return d
 end
 
 function model_hash(
@@ -68,6 +73,7 @@ function get_reusable_model(
     nn_params::NeuralNetParameters,
     input::Array{T, N},
     pp::PerturbationParameters,
+    solver_type::DataType,
     rebuild::Bool
     )::Dict where {T<:Real, N}
 
@@ -82,7 +88,7 @@ function get_reusable_model(
         end
     else
         info(get_logger(current_module()), "Rebuilding model from scratch.")
-        d = build_reusable_model_uncached(nn_params, input, pp)
+        d = build_reusable_model_uncached(nn_params, input, pp, solver_type)
         open(model_filepath, "w") do f
             serialize(f, d)
         end
@@ -93,12 +99,11 @@ end
 function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{T, N},
-    pp::AdditivePerturbationParameters
+    pp::AdditivePerturbationParameters,
+    solver_type::DataType
     )::Dict where {T<:Real, N}
-    
-    Solver = CbcSolver
 
-    s = Solver()
+    s = solver_type()
     MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
     m = Model(solver = s)
 
@@ -110,10 +115,6 @@ function build_reusable_model_uncached(
     @constraint(m, v_x0 .== v_input + v_e)
 
     v_output = v_x0 |> nn_params
-
-    s = Solver()
-    MathProgBase.setparameters!(s, Silent = false, TimeLimit = 86400)
-    setsolver(m, s)
 
     d = Dict(
         :Model => m,
@@ -130,14 +131,16 @@ end
 function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{T, N},
-    pp::BlurPerturbationParameters
+    pp::BlurPerturbationParameters,
+    solver_type::DataType
     )::Dict where {T<:Real, N}
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
-    Solver = GurobiSolver
+    s = solver_type()
+    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
+    m = Model(solver = s)
 
-    m = Model(solver = Solver(OutputFlag=0, TimeLimit = 120))
     input_size = size(input)
     filter_size = (pp.blur_kernel_size..., 1, 1)
 
@@ -147,8 +150,6 @@ function build_reusable_model_uncached(
     @constraint(m, v_x0 .== input |> Conv2DParameters(v_f))
 
     v_output = v_x0 |> nn_params
-
-    setsolver(m, Solver())
 
     d = Dict(
         :Model => m,
