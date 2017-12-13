@@ -36,7 +36,7 @@ function test_find_adversarial_example(
     if d[:SolveStatus] == :Infeasible
         @test isnan(expected_objective_value)
     else
-        @test getobjectivevalue(d[:Model]) ≈ expected_objective_value
+        @test getobjectivevalue(d[:Model])/expected_objective_value≈1 atol=1e-5
         perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
         if expected_objective_value > 0
             perturbed_target_output = perturbed_output[target_label]
