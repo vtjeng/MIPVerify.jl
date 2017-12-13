@@ -28,8 +28,11 @@ function get_model(
     rebuild::Bool
     )::Dict where {T<:Real, N}
     d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
-    @constraint(d[:Model], d[:Input] .== input)
     setsolver(d[:Model], solver_type())
+    @constraint(d[:Model], d[:Input] .== input)
+    # NOTE (vtjeng): It is important to set the solver before attempting to add a constraint, as
+    # the saved model may have been saved with a different solver (or different)
+    # environment. Flipping the order of the two leads to test failures.
     return d
 end
 

@@ -41,7 +41,7 @@ nnparams = StandardNeuralNetParameters(
     [conv1params], 
     [],
     softmaxparams,
-    "g02"
+    "tests.integration.generated_weights.conv+softmax"
 )
 
 expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
@@ -62,14 +62,12 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
             1 => Dict(
                 0 => 23.867990336527132,
                 0.01 => 24.0720398153788,
-                0.1 => NaN,
-                1 => NaN,
+                0.1 => NaN
             ),
             Inf => Dict(
                 0 => 0.9235214207033635,
                 0.01 => 0.9281502350801694,
-                0.1 => NaN,
-                1 => NaN
+                0.1 => NaN
             )
 
         )
