@@ -1,9 +1,11 @@
 using MIPVerify: set_log_level
+using MIPVerify: remove_cached_models
 using Base.Test
 using Base.Test: @test_throws
 
 @testset "MIPVerify" begin
     MIPVerify.set_log_level("info")
+    MIPVerify.remove_cached_models()
 
     include("net_parameters.jl")
     include("layers.jl")

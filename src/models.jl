@@ -7,6 +7,13 @@ if !ispath(model_dir)
     mkpath(model_dir)
 end
 
+function remove_cached_models()
+    if ispath(model_dir)
+        rm(model_dir, recursive=true)
+        mkpath(model_dir)
+    end
+end
+
 # TODO: Add support for removing all models.
 
 abstract type PerturbationParameters end
