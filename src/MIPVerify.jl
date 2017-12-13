@@ -6,7 +6,6 @@ using ConditionalJuMP
 using Memento
 using AutoHashEquals
 
-include("input_data.jl")
 include("layers/core_ops.jl")
 
 include("layers/net_parameters.jl")
@@ -17,7 +16,8 @@ include("layers/convlayer.jl")
 include("layers/fullyconnectedlayer.jl")
 
 include("models.jl")
-include("import.jl")
+include("utils/import_weights.jl")
+include("utils/import_datasets.jl")
 include("logging.jl")
 
 function get_max_index(
