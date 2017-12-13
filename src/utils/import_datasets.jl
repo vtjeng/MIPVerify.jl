@@ -23,13 +23,35 @@ struct FullDataset{T<:Dataset}
     test::T
 end
 
-function read_data_sets(name::String)
+const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
+const data_repo_path = "https://github.com/vtjeng/MIPVerify_data/raw/master"
+
+function prep_data_file(relative_dir::String, filename::String)::String
+    absolute_dir = joinpath(dependencies_path, relative_dir)
+    if !ispath(absolute_dir)
+        mkpath(absolute_dir)
+    end
+    
+    relative_file_path = joinpath(relative_dir, filename)
+    absolute_file_path = joinpath(dependencies_path, relative_file_path)
+    if !isfile(absolute_file_path)
+        url = joinpath(data_repo_path, relative_file_path)
+        println(url)
+        download(url, absolute_file_path)
+    end
+
+    return absolute_file_path
+end
+
+function read_datasets(name::String)
     if name == "MNIST_data"
-        # TODO: Download files if they are not available yet.
-        path = "deps/input_data/mnist"
-        m_train = matread("$(path)/mnist_train.mat")
+
+        MNIST_dir = joinpath("datasets", "mnist")
+
+        m_train = prep_data_file(MNIST_dir, "mnist_test.mat") |> matread
         train = ImageDataset(m_train["images"], m_train["labels"][:])
-        m_test = matread("$(path)/mnist_test.mat")
+
+        m_test = prep_data_file(MNIST_dir, "mnist_train.mat") |> matread
         test = ImageDataset(m_test["images"], m_test["labels"][:])
         return FullDataset(train, test)
     end
