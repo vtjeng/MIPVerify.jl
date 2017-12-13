@@ -46,8 +46,8 @@ function find_adversarial_example(
     target_label::Int,
     solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
-    tolerance = 0.0, 
-    norm_order::Real = 1, 
+    norm_order::Real = 1,
+    tolerance = 0.0,
     rebuild::Bool = true)::Dict where {T<:Real, N}
 
     d = get_model(nnparams, input, pp, solver_type, rebuild)
@@ -58,7 +58,7 @@ function find_adversarial_example(
     # Set output constraint
     set_max_index(d[:Output], target_label, tolerance)
     info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target label is $target_label")
-    status = solve(m)
+    d[:SolveStatus] = solve(m)
     return d
 end
 
@@ -97,6 +97,8 @@ function get_norm(
         return MIPVerify.maximum(abs_ge.(v) |> MIPVerify.flatten; tighten = false)
     end
 end
+
+include("../test/IntegrationTestHelpers.jl")
 
 end
 

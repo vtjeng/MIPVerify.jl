@@ -1,8 +1,8 @@
-using JuMP
-
-using MIPVerify: find_adversarial_example, ConvolutionLayerParameters, SoftmaxParameters, StandardNeuralNetParameters, FullyConnectedLayerParameters, BlurPerturbationParameters
+using MIPVerify: ConvolutionLayerParameters, SoftmaxParameters, FullyConnectedLayerParameters
+using MIPVerify: StandardNeuralNetParameters
+using MIPVerify: PerturbationParameters, AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify.IntegrationTestHelpers: batch_test_adversarial_example
 using Base.Test
-using Gurobi
 
 @testset "Conv + Softmax" begin
 
@@ -44,15 +44,39 @@ nnparams = StandardNeuralNetParameters(
     "g02"
 )
 
-@testset "Additive Adversarial Example" begin
-    d = find_adversarial_example(nnparams, x0, 1, GurobiSolver, tolerance=1.0, norm_order = 1, rebuild=true)
-    @test getobjectivevalue(d[:Model]) ≈ 2.344824299053464    
-    # Gurobi : 2.344824299053464
-    # Cbc    : 2.3448242990534602
-    d = find_adversarial_example(nnparams, x0, 1, GurobiSolver, tolerance=1.0, norm_order = Inf, rebuild=true)
-    @test getobjectivevalue(d[:Model]) ≈ 0.15628022275388148
-    # Gurobi : 0.15628022275388148
-    # Cbc    : 0.1562802227538815
-end
+expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
+    1 => Dict(
+        AdditivePerturbationParameters() => Dict(
+            1 => Dict(
+                0 => 1.5062235508854336,
+                0.1 => 1.5890722810196023,
+                1 => 2.344824299053464
+            ),
+            Inf => Dict(
+                0 => 0.10083445669401571,
+                0.1 => 0.10618316791130927,
+                1 => 0.15628022275388145
+            )
+        ),
+        BlurPerturbationParameters((5, 5)) => Dict(
+            1 => Dict(
+                0 => 23.867990336527132,
+                0.01 => 24.0720398153788,
+                0.1 => NaN,
+                1 => NaN,
+            ),
+            Inf => Dict(
+                0 => 0.9235214207033635,
+                0.01 => 0.9281502350801694,
+                0.1 => NaN,
+                1 => NaN
+            )
+
+        )
+    )
+)
+
+batch_test_adversarial_example(nnparams, x0, expected_objective_values)
+
 
 end
