@@ -70,7 +70,25 @@ function get_input(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
-# Maybe merge functionality?
+function num_correct(nnparams::NeuralNetParameters, dataset_name::String, num_samples::Int)::Int
+    """
+    Returns the number of correctly classified items our neural net obtains
+    of the first `num_samples` for the test set of the name dataset.
+    """
+
+    d = read_datasets(dataset_name)
+
+    num_correct = 0
+    for sample_index in 1:num_samples
+        x0 = get_input(d.test.images, sample_index)
+        actual_label = get_label(d.test.labels, sample_index)
+        predicted_label = (x0 |> nnparams |> get_max_index) - 1
+        if actual_label == predicted_label
+            num_correct += 1
+        end
+    end
+    return num_correct
+end
 
 
 function get_norm(

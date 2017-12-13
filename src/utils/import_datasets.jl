@@ -44,15 +44,17 @@ function prep_data_file(relative_dir::String, filename::String)::String
 end
 
 function read_datasets(name::String)
-    if name == "MNIST_data"
+    if name == "MNIST"
 
         MNIST_dir = joinpath("datasets", "mnist")
 
-        m_train = prep_data_file(MNIST_dir, "mnist_test.mat") |> matread
+        m_train = prep_data_file(MNIST_dir, "mnist_train.mat") |> matread
         train = ImageDataset(m_train["images"], m_train["labels"][:])
 
-        m_test = prep_data_file(MNIST_dir, "mnist_train.mat") |> matread
+        m_test = prep_data_file(MNIST_dir, "mnist_test.mat") |> matread
         test = ImageDataset(m_test["images"], m_test["labels"][:])
         return FullDataset(train, test)
+    else
+        throw(ArgumentError("Dataset $name not supported."))
     end
 end

@@ -10,6 +10,7 @@ using Base.Test: @test_throws
     include("net_parameters.jl")
     include("layers.jl")
     include("integration.jl")
+    include("utils.jl")
     
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])
