@@ -1,3 +1,5 @@
+const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps") # TODO: move to common repo
+
 function get_matrix_params(
     param_dict::Dict{String},
     layer_name::String,
@@ -46,7 +48,7 @@ function get_example_network_params(name::String)::NeuralNetParameters
         C_height = 10
         C_width = B_height
         
-        param_dict = matread(joinpath("deps", "weights", "mnist", "n1.mat"))
+        param_dict = matread(joinpath(dependencies_path, "weights", "mnist", "n1.mat"))
         fc1params = get_matrix_params(param_dict, "fc1", (A_width, A_height)) |> FullyConnectedLayerParameters
         fc2params = get_matrix_params(param_dict, "fc2", (B_width, B_height)) |> FullyConnectedLayerParameters
         softmaxparams = get_matrix_params(param_dict, "logits", (C_width, C_height)) |> SoftmaxParameters

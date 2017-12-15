@@ -1,5 +1,5 @@
 using MIPVerify: PerturbationParameters, AdditivePerturbationParameters, BlurPerturbationParameters
-using MIPVerify: get_example_network_params, read_datasets, get_input
+using MIPVerify: get_example_network_params, read_datasets, get_image
 using MIPVerify.IntegrationTestHelpers: batch_test_adversarial_example
 using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index
@@ -12,7 +12,7 @@ using Base.Test
 
     sample_index = 1
     @testset "sample index = $sample_index" begin
-        x0 = get_input(mnist.test.images, sample_index)
+        x0 = get_image(mnist.test.images, sample_index)
     
         expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
             1 => Dict(
@@ -55,7 +55,7 @@ using Base.Test
 
     sample_index = 3
     @testset "sample index = $sample_index" begin
-        x0 = get_input(mnist.test.images, sample_index)
+        x0 = get_image(mnist.test.images, sample_index)
         expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
             8 => Dict(
                 AdditivePerturbationParameters() => Dict(

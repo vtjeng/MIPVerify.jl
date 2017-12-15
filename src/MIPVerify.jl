@@ -66,7 +66,7 @@ function get_label(y::Array{T, 1}, test_index::Int)::Int where {T<:Real}
     return y[test_index]
 end
 
-function get_input(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
+function get_image(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
@@ -80,7 +80,7 @@ function num_correct(nnparams::NeuralNetParameters, dataset_name::String, num_sa
 
     num_correct = 0
     for sample_index in 1:num_samples
-        x0 = get_input(d.test.images, sample_index)
+        x0 = get_image(d.test.images, sample_index)
         actual_label = get_label(d.test.labels, sample_index)
         predicted_label = (x0 |> nnparams |> get_max_index) - 1
         if actual_label == predicted_label
