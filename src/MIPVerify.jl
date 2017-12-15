@@ -18,6 +18,7 @@ include("layers/convlayer.jl")
 include("layers/fullyconnectedlayer.jl")
 
 include("models.jl")
+include("utils/prep_data_file.jl")
 include("utils/import_weights.jl")
 include("utils/import_datasets.jl")
 include("logging.jl")
