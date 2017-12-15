@@ -104,7 +104,8 @@ function MatrixMultiplicationParameters(matrix::Array{T, 2}, bias::Array{U, 1}) 
     MatrixMultiplicationParameters{T, U}(matrix, bias)
 end
 
-output_size(p::MatrixMultiplicationParameters) = length(p.bias)
+input_size(p::MatrixMultiplicationParameters) = size(p.matrix)[1]
+output_size(p::MatrixMultiplicationParameters) = size(p.matrix)[2]
 
 @auto_hash_equals struct SoftmaxParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
@@ -116,7 +117,7 @@ end
 
 function Base.string(p::SoftmaxParameters)
     string(
-        "softmax layer with $(p.mmparams |> output_size) output units."
+        "softmax layer with $(p.mmparams |> input_size) inputs and $(p.mmparams |> output_size) output units."
     )
 end
 
@@ -130,7 +131,7 @@ end
 
 function Base.string(p::FullyConnectedLayerParameters)
     string(
-        "fully connected layer with $(p.mmparams |> output_size) output units and a ReLU activation function."
+        "fully connected layer with $(p.mmparams |> input_size) inputs and $(p.mmparams |> output_size) output units, and a ReLU activation function."
     )
 end
 
