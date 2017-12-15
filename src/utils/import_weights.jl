@@ -1,5 +1,3 @@
-const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps") # TODO: move to common repo
-
 function get_matrix_params(
     param_dict::Dict{String},
     layer_name::String,

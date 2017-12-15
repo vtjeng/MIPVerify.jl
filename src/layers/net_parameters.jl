@@ -31,9 +31,25 @@ function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
     Conv2DParameters(filter, bias)
 end
 
+function Base.string(p::Conv2DParameters)
+    (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
+    "applies $filter_out_channels $(filter_height)x$(filter_width) filters"
+end
+
 struct PoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
     pooling_function::Function
+end
+
+function Base.string(p::PoolParameters)
+    (_, stride_height, stride_width, _) = p.strides
+    function_display_name = Dict(
+        MIPVerify.maximum => "max",
+        Base.mean => "average",
+    )
+    string(
+        "$(function_display_name[p.pooling_function]) pooling with a $(stride_height)x$(stride_width) filter and a stride of ($stride_height, $stride_width)"
+    )
 end
 
 Base.hash(a::PoolParameters, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:PoolParameters, h)))
@@ -56,6 +72,12 @@ end
         return new(conv2dparams, maxpoolparams)
     end
 
+end
+
+function Base.string(p::ConvolutionLayerParameters)
+    string(
+        "convolution layer. $(p.conv2dparams |> Base.string), followed by $(p.maxpoolparams |> Base.string), and a ReLU activation function.",
+    )
 end
 
 function ConvolutionLayerParameters{T<:Real, U<:Real}(filter::Array{T, 4}, bias::Array{U, 1}, strides::NTuple{4, Int})
@@ -82,6 +104,8 @@ function MatrixMultiplicationParameters(matrix::Array{T, 2}, bias::Array{U, 1}) 
     MatrixMultiplicationParameters{T, U}(matrix, bias)
 end
 
+output_size(p::MatrixMultiplicationParameters) = length(p.bias)
+
 @auto_hash_equals struct SoftmaxParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end
@@ -90,12 +114,24 @@ function SoftmaxParameters(matrix::Array{T, 2}, bias::Array{U, 1}) where {T<:Rea
     SoftmaxParameters(MatrixMultiplicationParameters(matrix, bias))
 end
 
+function Base.string(p::SoftmaxParameters)
+    string(
+        "softmax layer with $(p.mmparams |> output_size) output units."
+    )
+end
+
 @auto_hash_equals struct FullyConnectedLayerParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end
 
 function FullyConnectedLayerParameters(matrix::Array{T, 2}, bias::Array{U, 1}) where {T<:Real, U<:Real}
     FullyConnectedLayerParameters(MatrixMultiplicationParameters(matrix, bias))
+end
+
+function Base.string(p::FullyConnectedLayerParameters)
+    string(
+        "fully connected layer with $(p.mmparams |> output_size) output units and a ReLU activation function."
+    )
 end
 
 function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
@@ -119,11 +155,27 @@ end
 
 abstract type NeuralNetParameters end
 
-# TODO: Support empty convlayer array, empty fclayer array, and optional softmax params
-
 @auto_hash_equals struct StandardNeuralNetParameters <: NeuralNetParameters
     convlayer_params::Array{ConvolutionLayerParameters, 1}
     fclayer_params::Array{FullyConnectedLayerParameters, 1}
     softmax_params::SoftmaxParameters
     UUID::String
 end
+
+function Base.string(p::StandardNeuralNetParameters)
+    convolutional_layer_text = (length(p.convlayer_params) == 0) ? "\n    (none)" : join(string.([""; p.convlayer_params]), "\n    ")
+    fc_layer_text = (length(p.fclayer_params) == 0) ? "\n    (none)" : join(string.([""; p.fclayer_params]), "\n    ")
+    softmax_text = string(
+        "\n    ",
+        string(p.softmax_params)
+    )
+
+    string(
+        "convolutional neural net $(p.UUID)",
+        "\n  `convlayer_params` [$(length(p.convlayer_params))]:", convolutional_layer_text,
+        "\n  `fclayer_params` [$(length(p.fclayer_params))]:", fc_layer_text,
+        "\n  `softmax_params`:", softmax_text
+    )
+end
+
+Base.show(io::IO, p::Union{LayerParameters, NeuralNetParameters}) = print(Base.string(p))

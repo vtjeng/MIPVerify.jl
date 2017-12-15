@@ -14,8 +14,6 @@ function remove_cached_models()
     end
 end
 
-# TODO: Add support for removing all models.
-
 abstract type PerturbationParameters end
 
 struct AdditivePerturbationParameters <: PerturbationParameters end
@@ -89,7 +87,6 @@ function get_reusable_model(
 
     filename = model_filename(nn_params, input, pp)
     model_filepath = joinpath(model_dir, filename)
-    # TODO: Place in temporary directory.
 
     if isfile(model_filepath) && !rebuild
         info(get_logger(current_module()), "Loading model from cache.")

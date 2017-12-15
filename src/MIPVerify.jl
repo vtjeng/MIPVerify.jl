@@ -6,6 +6,8 @@ using ConditionalJuMP
 using Memento
 using AutoHashEquals
 
+const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
+
 include("layers/core_ops.jl")
 
 include("layers/net_parameters.jl")

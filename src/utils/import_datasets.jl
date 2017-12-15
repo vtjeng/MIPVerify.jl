@@ -29,8 +29,8 @@ function Base.string(dataset::ImageDataset)
     num_unique_labels = length(unique(dataset.labels))
     string(
         "{ImageDataset}",
-        "\n    images: $num_samples images of size $image_size, with pixels in [$min_pixel, $max_pixel].",
-        "\n    labels: $num_samples corresponding labels, with $num_unique_labels unique labels in [$min_label, $max_label]."
+        "\n    `images`: $num_samples images of size $image_size, with pixels in [$min_pixel, $max_pixel].",
+        "\n    `labels`: $num_samples corresponding labels, with $num_unique_labels unique labels in [$min_label, $max_label]."
     )
 end
 
@@ -43,12 +43,11 @@ end
 function Base.string(dataset::NamedTrainTestDataset)
     string(
         "$(dataset.name):",
-        "\n  train: $(dataset.train |> Base.string)",
-        "\n  test: $(dataset.test |> Base.string)"
+        "\n  `train`: $(dataset.train |> Base.string)",
+        "\n  `test`: $(dataset.test |> Base.string)"
     )
 end
 
-const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 const data_repo_path = "https://github.com/vtjeng/MIPVerify_data/raw/master"
 
 function prep_data_file(relative_dir::String, filename::String)::String

@@ -79,7 +79,7 @@ function batch_test_adversarial_example(
                     test_find_adversarial_example(
                         nnparams, x0, 
                         target_label, pp, norm_order, tolerance, expected_objective_value,
-                        GurobiSolver)
+                        CbcSolver)
                     end
                     println("Completed target label = $target_label, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance.")
                 end

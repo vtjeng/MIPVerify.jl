@@ -85,7 +85,6 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
 end
 
 function maximum(xs::AbstractArray{T, N})::T where {T<:Real, N}
-    # TODO: Check whether this type piracy is kosher.
     return Base.maximum(xs)
 end
 
