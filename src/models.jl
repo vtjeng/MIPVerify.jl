@@ -114,7 +114,7 @@ function build_reusable_model_uncached(
     )::Dict where {T<:Real, N}
 
     s = solver_type()
-    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
+    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 20)
     m = Model(solver = s)
 
     input_range = CartesianRange(size(input))
@@ -148,7 +148,7 @@ function build_reusable_model_uncached(
     # much better bounds.
 
     s = solver_type()
-    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 120)
+    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 20)
     m = Model(solver = s)
 
     input_size = size(input)

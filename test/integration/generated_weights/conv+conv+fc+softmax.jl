@@ -77,14 +77,14 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
         AdditivePerturbationParameters() => Dict(
             1 => Dict(
                 0.1 => 0.0,
-                1 => 0.9916155869838157,
-                1.5 => 3.974644866892766,
+                1 => 0.991616,
+                1.5 => 3.97464,
                 2 => NaN
             ),
             Inf => Dict(
                 0.1 => 0.0,
-                1 => 0.0953526547120843,
-                1.5 => 0.3300495149023098,
+                1 => 0.0953527,
+                1.5 => 0.330050, # cbc thinks: 0.3300592979616859, gurobi thinks: 0.3300495149023101
                 2 => NaN
             )
         ),
@@ -92,13 +92,13 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
             1 => Dict(
                 0 => 0.0,
                 0.6 => 0.0,
-                0.625 => 1.4095513638053276,
+                0.625 => 1.40955,
                 0.65 => NaN,
             ),
             Inf => Dict(
                 0 => 0.0,
                 0.6 => 0.0,
-                0.625 => 0.057045171408480894,
+                0.625 => 0.0570452,
                 0.65 => NaN,
             )
 

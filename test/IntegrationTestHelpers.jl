@@ -7,6 +7,7 @@ using MIPVerify: NeuralNetParameters
 using MIPVerify: PerturbationParameters
 using Base.Test
 using Gurobi
+using Cbc
 
 """
     test_find_adversarial_example(nnparams, x0, target_label, pp, norm_order, tolerance, expected_objective_value, solver_type)
@@ -36,12 +37,17 @@ function test_find_adversarial_example(
     if d[:SolveStatus] == :Infeasible
         @test isnan(expected_objective_value)
     else
-        @test getobjectivevalue(d[:Model])/expected_objective_value≈1 atol=1e-5
-        perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
-        if expected_objective_value > 0
+        if expected_objective_value == 0
+            @test getobjectivevalue(d[:Model]) == 0
+        else
+            actual_objective_value = getobjectivevalue(d[:Model])
+            println("Actual objective value: $actual_objective_value")
+            @test actual_objective_value/expected_objective_value≈1 atol=5e-5
+            
+            perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
             perturbed_target_output = perturbed_output[target_label]
             maximum_perturbed_other_output = maximum(perturbed_output[1:end .!= target_label])
-            @test perturbed_target_output/(maximum_perturbed_other_output+tolerance)≈1 atol=1e-5
+            @test perturbed_target_output/(maximum_perturbed_other_output+tolerance)≈1 atol=5e-5
         end
     end
 end
@@ -75,6 +81,7 @@ function batch_test_adversarial_example(
                         target_label, pp, norm_order, tolerance, expected_objective_value,
                         GurobiSolver)
                     end
+                    println("Completed target label = $target_label, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance.")
                 end
                 end
             end

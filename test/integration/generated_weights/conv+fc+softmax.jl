@@ -67,14 +67,14 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
     2 => Dict(
         AdditivePerturbationParameters() => Dict(
             1 => Dict(
-                0 => 2.9826560354715803,
-                0.1 => 3.0346542633968334,
-                1 => 3.5738646877222147
+                0 => 2.98266,
+                0.1 => 3.03465,
+                1 => 3.57386
             ),
             Inf => Dict(
-                0 => 0.23563145790531903,
-                0.1 => 0.24012407765320404,
-                1 => 0.28536464231819064
+                0 => 0.235631,
+                0.1 => 0.240124,
+                1 => 0.285365
             )
         ),
         BlurPerturbationParameters((5, 5)) => Dict(
@@ -90,13 +90,13 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
     3 => Dict(
         BlurPerturbationParameters((5, 5)) => Dict(
             1 => Dict(
-                0 => 0.26148313171566834,
-                1 => 0.826241509034785,
+                0 => 0.261483,
+                1 => 0.826242,
                 10 => NaN
             ),
             Inf => Dict(
-                0 => 0.0105534113962751,
-                1 => 0.03696859980011553,
+                0 => 0.0105534,
+                1 => 0.0369686,
                 10 => NaN
             )
 
