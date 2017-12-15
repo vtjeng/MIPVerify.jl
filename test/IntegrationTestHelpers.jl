@@ -6,8 +6,14 @@ using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNetParameters
 using MIPVerify: PerturbationParameters
 using Base.Test
-using Gurobi
-using Cbc
+
+if Pkg.installed("Gurobi") == nothing
+    using Cbc
+    Solver = CbcSolver
+else
+    using Gurobi
+    Solver = GurobiSolver
+end
 
 """
     test_find_adversarial_example(nnparams, x0, target_label, pp, norm_order, tolerance, expected_objective_value, solver_type)
@@ -41,7 +47,6 @@ function test_find_adversarial_example(
             @test getobjectivevalue(d[:Model]) == 0
         else
             actual_objective_value = getobjectivevalue(d[:Model])
-            println("Actual objective value: $actual_objective_value")
             @test actual_objective_value/expected_objective_value≈1 atol=5e-5
             
             perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
@@ -79,9 +84,8 @@ function batch_test_adversarial_example(
                     test_find_adversarial_example(
                         nnparams, x0, 
                         target_label, pp, norm_order, tolerance, expected_objective_value,
-                        CbcSolver)
+                        Solver)
                     end
-                    println("Completed target label = $target_label, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance.")
                 end
                 end
             end

@@ -4,11 +4,18 @@ using Base.Test
 using Base.Test: @test_throws
 
 using JuMP
-using Cbc
 using MathProgBase
 
+if Pkg.installed("Gurobi") == nothing
+    using Cbc
+    Solver = CbcSolver
+else
+    using Gurobi
+    Solver = GurobiSolver
+end
+
 function get_new_model()::Model
-    solver = CbcSolver()
+    solver = Solver()
     MathProgBase.setparameters!(solver, Silent = true)
     return Model(solver=solver)
 end
