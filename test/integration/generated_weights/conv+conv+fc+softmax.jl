@@ -84,19 +84,17 @@ expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dic
             Inf => Dict(
                 0.1 => 0.0,
                 1 => 0.0953527,
-                1.5 => 0.330050, # cbc thinks: 0.3300592979616859, gurobi thinks: 0.3300495149023101
+                1.5 => 0.330050, # CBC: 0.3300592979616859, Gurobi: 0.3300495149023101
                 2 => NaN
             )
         ),
         BlurPerturbationParameters((5, 5)) => Dict(
             1 => Dict(
-                0 => 0.0,
                 0.6 => 0.0,
                 0.625 => 1.40955,
                 0.65 => NaN,
             ),
             Inf => Dict(
-                0 => 0.0,
                 0.6 => 0.0,
                 0.625 => 0.0570452,
                 0.65 => NaN,
