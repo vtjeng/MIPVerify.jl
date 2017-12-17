@@ -3,3 +3,4 @@
 *.jl.mem
 
 deps/*
+*.ipynb_checkpoints
