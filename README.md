@@ -1,1 +1,1 @@
-# MIPVerify
+# MIPVerify.jl
