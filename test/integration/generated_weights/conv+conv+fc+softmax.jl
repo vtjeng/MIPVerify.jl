@@ -75,7 +75,7 @@ nnparams = StandardNeuralNetParameters(
 pp_blur = BlurPerturbationParameters((5, 5))
 pp_additive = AdditivePerturbationParameters()
 
-expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+expected_objective_values = Dict(
     (2, pp_additive, 1, 0.1) => 0.0,
     (2, pp_additive, 1, 1) => 0.991616,
     (2, pp_additive, 1, 1.5) => 3.97464,

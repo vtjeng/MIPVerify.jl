@@ -17,7 +17,7 @@ using Base.Test
     @testset "sample index = $sample_index" begin
         x0 = get_image(mnist.test.images, sample_index)
 
-        expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+        expected_objective_values = Dict(
             (1, pp_additive, 1, 0) => 13.8219,
             (1, pp_additive, Inf, 0) => 0.0964639,
             (3, pp_blur, 1, 0) => 88.0038,
@@ -39,7 +39,7 @@ using Base.Test
     @testset "sample index = $sample_index" begin
         x0 = get_image(mnist.test.images, sample_index)
         
-        expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+        expected_objective_values = Dict(
             (8, pp_additive, 1, 0) => 0.582587,
             (8, pp_additive, Inf, 0) => 0.00363594,
             (8, pp_blur, 1, 0) => 9.77784,

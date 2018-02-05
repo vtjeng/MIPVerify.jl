@@ -56,7 +56,7 @@ nnparams = StandardNeuralNetParameters(
 pp_blur = BlurPerturbationParameters((5, 5))
 pp_additive = AdditivePerturbationParameters()
 
-expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+expected_objective_values = Dict(
     (1, pp_blur, 1, 0) => 0,
     (1, pp_blur, Inf, 0) => 0,
     (2, pp_additive, 1, 0) => 2.98266,
@@ -67,12 +67,18 @@ expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, 
     (2, pp_additive, Inf, 1) => 0.285365,
     (2, pp_blur, 1, 0) => NaN,
     (2, pp_blur, Inf, 0) => NaN,
+    (3, pp_additive, Inf, 0) => 0.00288325,
+    (3, pp_additive, Inf, 1) => 0.0110296,
     (3, pp_blur, 1, 0) => 0.261483,
     (3, pp_blur, 1, 1) => 0.826242,
     (3, pp_blur, 1, 10) => NaN,
     (3, pp_blur, Inf, 0) => 0.0105534,
     (3, pp_blur, Inf, 1) => 0.0369686,
-    (3, pp_blur, Inf, 10) => NaN
+    (3, pp_blur, Inf, 10) => NaN,
+    ([2, 3], pp_additive, Inf, 0) => 0.00288325,
+    ([2, 3], pp_additive, Inf, 1) => 0.0110296,
+    ([2, 3], pp_blur, 1, 0) => 0.261483,
+    ([2, 3], pp_blur, Inf, 0) => 0.0105534
 )
 
 batch_test_adversarial_example(nnparams, x0, expected_objective_values)

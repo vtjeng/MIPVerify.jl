@@ -170,26 +170,32 @@ function abs_strict(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_abs
 end
 
-function set_max_index(
-    x::Array{T, 1},
-    target_index::Integer;
-    tolerance::Real = 0,
-    invert_target_selection::Bool = false) where {T<:JuMP.AbstractJuMPScalar}
-    """
-    Imposes constraints ensuring that x[target_index] is the largest element of the array x.
-
-    If the model is solved, we guarantee that x[target_index] - x[i] >= tolerance for all 
-    i ≠ target_index.
-    """
-    set_max_index(x, [target_index], tolerance = tolerance, invert_target_selection = invert_target_selection)
+function get_target_indexes(
+    target_index::Integer,
+    array_length::Integer;
+    invert_target_selection::Bool = false)
     
+    get_target_indexes([target_index], array_length, invert_target_selection = invert_target_selection)
+
 end
 
-function set_max_index(
-    x::Array{T, 1},
-    target_indexes::Array{U, 1};
-    tolerance::Real = 0,
-    invert_target_selection::Bool = false) where {T<:JuMP.AbstractJuMPScalar, U<:Int}
+function get_target_indexes(
+    target_indexes::Array{<:Integer, 1},
+    array_length::Integer;
+    invert_target_selection::Bool = false)
+
+    @assert length(target_indexes) >= 1
+    @assert all(target_indexes .>= 1) && all(target_indexes .<= array_length)
+    
+    invert_target_selection ?
+        filter((x) -> x ∉ target_indexes, 1:array_length) :
+        target_indexes
+end
+
+function set_max_indexes(
+    x::Array{<:JuMP.AbstractJuMPScalar, 1},
+    target_indexes::Array{<:Integer, 1};
+    tolerance::Real = 0)
     """
     Imposes constraints ensuring that one of the elements at the target_indexes is the 
     largest element of the array x.
@@ -198,21 +204,14 @@ function set_max_index(
     j ∈ target_indexes and for all i ∉ target_indexes.
     """
     @assert length(x) >= 1
-    @assert length(target_indexes) >= 1
-    @assert all(target_indexes .>= 1) && all(target_indexes .<= length(x))
     model = ConditionalJuMP.getmodel(x[1])
 
-    selected_indexes = invert_target_selection ?
-        filter((x) -> x ∉ target_indexes, 1:length(x)) :
-        target_indexes
-    
-    target_vars = x[Bool[i∈selected_indexes for i = 1:length(x)]]
-    other_vars = x[Bool[i∉selected_indexes for i = 1:length(x)]]
+    target_vars = x[Bool[i∈target_indexes for i = 1:length(x)]]
+    other_vars = x[Bool[i∉target_indexes for i = 1:length(x)]]
 
     maximum_target_var = length(target_vars) == 1 ?
         target_vars[1] :    
-        MIPVerify.maximum(target_vars; tighten = true)
+        MIPVerify.maximum(target_vars; tighten = false)
 
     @constraint(model, other_vars - maximum_target_var .<= -tolerance)
-    return selected_indexes
 end

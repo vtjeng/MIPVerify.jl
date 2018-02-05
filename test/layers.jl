@@ -1,5 +1,5 @@
 using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters
-using MIPVerify: increment!, getsliceindex, getpoolview, pool, relu, set_max_index, get_max_index, matmul, tight_upperbound, tight_lowerbound
+using MIPVerify: increment!, getsliceindex, getpoolview, pool, relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound
 using Base.Test
 using Base.Test: @test_throws
 
@@ -187,14 +187,23 @@ end
         end
     end
 
-    @testset "set_max_index" begin
+    @testset "get_target_indexes" begin
+        @test get_target_indexes(1, 5)==[1]
+        @test get_target_indexes(1, 5, invert_target_selection = true)==[2, 3, 4, 5]
+        @test get_target_indexes([2, 4], 5)==[2, 4]
+        @test get_target_indexes([2, 4], 5, invert_target_selection = true)==[1, 3, 5]
+        @test_throws AssertionError get_target_indexes(6, 5)
+        @test_throws AssertionError get_target_indexes([1, 6], 5)
+    end
+
+    @testset "set_max_indexes" begin
         @testset "single target index" begin
             @testset "vanilla" begin
                 m = get_new_model()
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[2] == 5)
                 @constraint(m, x[3] == 1)
-                set_max_index(x, 1)
+                set_max_indexes(x, [1])
                 @objective(m, Min, x[1])
                 solve(m)
                 @test getvalue(x[1])≈5
@@ -205,24 +214,10 @@ end
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[2] == 5)
                 @constraint(m, x[3] == 1)
-                set_max_index(x, 1, tolerance = tolerance)
+                set_max_indexes(x, [1], tolerance = tolerance)
                 @objective(m, Min, x[1])
                 solve(m)
                 @test getvalue(x[1])≈5+tolerance
-            end
-            @testset "invert target selection" begin
-                m = get_new_model()
-                x = @variable(m, [i=1:3])
-                @constraint(m, x[1] == 5)
-                @constraint(m, x[2] >= 0)
-                @constraint(m, x[2] <= 10)
-                @constraint(m, x[3] >= -1)
-                @constraint(m, x[3] <= 10)
-                set_max_index(x, 1, invert_target_selection = true)
-                @objective(m, Min, x[2]+x[3])
-                solve(m)
-                @test getvalue(x[2])≈5
-                @test getvalue(x[3])≈-1
             end
         end
         @testset "multiple target indexes" begin
@@ -230,11 +225,11 @@ end
                 m = get_new_model()
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[1] == 5)
-                @constraint(m, x[2] >= 0)
-                @constraint(m, x[2] <= 10)
-                @constraint(m, x[3] >= -1)
-                @constraint(m, x[3] <= 10)
-                set_max_index(x, [2, 3])
+                setlowerbound(x[2], 0)
+                setupperbound(x[2], 10)
+                setlowerbound(x[3], -1)
+                setupperbound(x[3], 10)
+                set_max_indexes(x, [2, 3])
                 @objective(m, Min, x[2]+x[3])
                 solve(m)
                 @test getvalue(x[2])≈5
@@ -245,25 +240,15 @@ end
                 m = get_new_model()
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[1] == 5)
-                @constraint(m, x[2] >= 0)
-                @constraint(m, x[2] <= 10)
-                @constraint(m, x[3] >= -1)
-                @constraint(m, x[3] <= 10)
-                set_max_index(x, [2, 3], tolerance = tolerance)
+                setlowerbound(x[2], 0)
+                setupperbound(x[2], 10)
+                setlowerbound(x[3], -1)
+                setupperbound(x[3], 10)
+                set_max_indexes(x, [2, 3], tolerance = tolerance)
                 @objective(m, Min, x[2]+x[3])
                 solve(m)
                 @test getvalue(x[2])≈5+tolerance
                 @test getvalue(x[3])≈-1
-            end
-            @testset "invert target selection" begin
-                m = get_new_model()
-                x = @variable(m, [i=1:3])
-                @constraint(m, x[2] == 5)
-                @constraint(m, x[3] == 1)
-                set_max_index(x, [2, 3], invert_target_selection = true)
-                @objective(m, Min, x[1])
-                solve(m)
-                @test getvalue(x[1])≈5
             end
         end
     end

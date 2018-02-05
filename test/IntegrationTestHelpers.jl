@@ -28,7 +28,7 @@ Tests the `find_adversarial_example` function.
 function test_find_adversarial_example(
     nnparams::NeuralNetParameters, 
     x0::Array{T, N}, 
-    target_label::Int, 
+    target_selection::Union{Integer, Array{<:Integer, 1}}, 
     pp::PerturbationParameters, 
     norm_order::Real,
     tolerance::Real, 
@@ -36,7 +36,7 @@ function test_find_adversarial_example(
     solver_type::DataType,
     ) where {T<:Real, N} 
     d = find_adversarial_example(
-        nnparams, x0, target_label, solver_type, 
+        nnparams, x0, target_selection, solver_type, 
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
     if d[:SolveStatus] == :Infeasible
         @test isnan(expected_objective_value)
@@ -45,11 +45,12 @@ function test_find_adversarial_example(
             @test getobjectivevalue(d[:Model]) == 0
         else
             actual_objective_value = getobjectivevalue(d[:Model])
+            # @test actual_objective_value≈expected_objective_value
             @test actual_objective_value/expected_objective_value≈1 atol=5e-5
             
             perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
-            perturbed_target_output = perturbed_output[target_label]
-            maximum_perturbed_other_output = maximum(perturbed_output[1:end .!= target_label])
+            perturbed_target_output = maximum(perturbed_output[Bool[i∈d[:TargetIndexes] for i = 1:length(d[:Output])]])
+            maximum_perturbed_other_output = maximum(perturbed_output[Bool[i∉d[:TargetIndexes] for i = 1:length(d[:Output])]])
             @test perturbed_target_output/(maximum_perturbed_other_output+tolerance)≈1 atol=5e-5
         end
     end
@@ -61,20 +62,21 @@ indicated in `expected objective values`.
 
 # Arguments
 - `expected_objective_values::Dict`: 
-   d[(target_label, perturbation_parameter, norm_order, tolerance)] = expected_objective_value
-   `expected_objective_value` is `NaN` if model 
+   d[(target_selection, perturbation_parameter, norm_order, tolerance)] = expected_objective_value
+   `expected_objective_value` is `NaN` if there is no perturbation that brings the image
+   into the target category.
 """
 function batch_test_adversarial_example(
     nnparams::NeuralNetParameters, 
     x0::Array{T, N},
-    expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64}
+    expected_objective_values::Dict
 ) where {T<:Real, N}
     for (test_params, expected_objective_value) in expected_objective_values
-        (target_label, pp, norm_order, tolerance) = test_params
-        @testset "target label = $target_label, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
+        (target_selection, pp, norm_order, tolerance) = test_params
+        @testset "target label = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
             test_find_adversarial_example(
                 nnparams, x0, 
-                target_label, pp, norm_order, tolerance, expected_objective_value,
+                target_selection, pp, norm_order, tolerance, expected_objective_value,
                 Solver)
             end
         end
