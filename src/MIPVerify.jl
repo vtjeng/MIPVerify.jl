@@ -46,12 +46,13 @@ end
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{T, N},
-    target_label::Int,
+    target_label,
     solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     norm_order::Real = 1,
     tolerance = 0.0,
-    rebuild::Bool = true)::Dict where {T<:Real, N}
+    rebuild::Bool = true,
+    invert_target_selection::Bool = false)::Dict where {T<:Real, N}
 
     d = get_model(nnparams, input, pp, solver_type, rebuild)
     m = d[:Model]
@@ -59,8 +60,9 @@ function find_adversarial_example(
     @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
 
     # Set output constraint
-    set_max_index(d[:Output], target_label, tolerance)
-    info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target label is $target_label")
+    selected_indexes = set_max_index(d[:Output], target_label, tolerance=tolerance, invert_target_selection = invert_target_selection)
+
+    info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target labels are $selected_indexes")
     d[:SolveStatus] = solve(m)
     return d
 end

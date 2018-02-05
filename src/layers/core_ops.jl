@@ -172,18 +172,47 @@ end
 
 function set_max_index(
     x::Array{T, 1},
-    target_index::Integer,
-    tol::Real = 0) where {T<:JuMP.AbstractJuMPScalar}
+    target_index::Integer;
+    tolerance::Real = 0,
+    invert_target_selection::Bool = false) where {T<:JuMP.AbstractJuMPScalar}
     """
-    Sets the target index to be the maximum.
+    Imposes constraints ensuring that x[target_index] is the largest element of the array x.
 
-    Tolerance is the amount of gap between x[target_index] and the other elements.
+    If the model is solved, we guarantee that x[target_index] - x[i] >= tolerance for all 
+    i ≠ target_index.
+    """
+    set_max_index(x, [target_index], tolerance = tolerance, invert_target_selection = invert_target_selection)
+    
+end
+
+function set_max_index(
+    x::Array{T, 1},
+    target_indexes::Array{U, 1};
+    tolerance::Real = 0,
+    invert_target_selection::Bool = false) where {T<:JuMP.AbstractJuMPScalar, U<:Int}
+    """
+    Imposes constraints ensuring that one of the elements at the target_indexes is the 
+    largest element of the array x.
+
+    If the model is solved, we guarantee that x[j] - x[i] >= tolerance for some 
+    j ∈ target_indexes and for all i ∉ target_indexes.
     """
     @assert length(x) >= 1
-    @assert (target_index >= 1) && (target_index <= length(x))
+    @assert length(target_indexes) >= 1
+    @assert all(target_indexes .>= 1) && all(target_indexes .<= length(x))
     model = ConditionalJuMP.getmodel(x[1])
 
-    other_vars = [x[1:target_index-1]; x[target_index+1:end]]
-    @constraint(model, other_vars - x[target_index] .<= -tol)
+    selected_indexes = invert_target_selection ?
+        filter((x) -> x ∉ target_indexes, 1:length(x)) :
+        target_indexes
     
+    target_vars = x[Bool[i∈selected_indexes for i = 1:length(x)]]
+    other_vars = x[Bool[i∉selected_indexes for i = 1:length(x)]]
+
+    maximum_target_var = length(target_vars) == 1 ?
+        target_vars[1] :    
+        MIPVerify.maximum(target_vars; tighten = true)
+
+    @constraint(model, other_vars - maximum_target_var .<= -tolerance)
+    return selected_indexes
 end

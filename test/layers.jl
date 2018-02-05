@@ -188,26 +188,83 @@ end
     end
 
     @testset "set_max_index" begin
-        @testset "no tolerance" begin
-            m = get_new_model()
-            x = @variable(m, [i=1:3])
-            @constraint(m, x[2] == 5)
-            @constraint(m, x[3] == 1)
-            set_max_index(x, 1)
-            @objective(m, Min, x[1])
-            solve(m)
-            @test getvalue(x[1])≈5
+        @testset "single target index" begin
+            @testset "vanilla" begin
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[2] == 5)
+                @constraint(m, x[3] == 1)
+                set_max_index(x, 1)
+                @objective(m, Min, x[1])
+                solve(m)
+                @test getvalue(x[1])≈5
+            end
+            @testset "with tolerance" begin
+                tolerance = 3
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[2] == 5)
+                @constraint(m, x[3] == 1)
+                set_max_index(x, 1, tolerance = tolerance)
+                @objective(m, Min, x[1])
+                solve(m)
+                @test getvalue(x[1])≈5+tolerance
+            end
+            @testset "invert target selection" begin
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[1] == 5)
+                @constraint(m, x[2] >= 0)
+                @constraint(m, x[2] <= 10)
+                @constraint(m, x[3] >= -1)
+                @constraint(m, x[3] <= 10)
+                set_max_index(x, 1, invert_target_selection = true)
+                @objective(m, Min, x[2]+x[3])
+                solve(m)
+                @test getvalue(x[2])≈5
+                @test getvalue(x[3])≈-1
+            end
         end
-        @testset "with tolerance" begin
-            tolerance = 3
-            m = get_new_model()
-            x = @variable(m, [i=1:3])
-            @constraint(m, x[2] == 5)
-            @constraint(m, x[3] == 1)
-            set_max_index(x, 1, tolerance)
-            @objective(m, Min, x[1])
-            solve(m)
-            @test getvalue(x[1])≈5+tolerance
+        @testset "multiple target indexes" begin
+            @testset "vanilla" begin
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[1] == 5)
+                @constraint(m, x[2] >= 0)
+                @constraint(m, x[2] <= 10)
+                @constraint(m, x[3] >= -1)
+                @constraint(m, x[3] <= 10)
+                set_max_index(x, [2, 3])
+                @objective(m, Min, x[2]+x[3])
+                solve(m)
+                @test getvalue(x[2])≈5
+                @test getvalue(x[3])≈-1
+            end
+            @testset "with tolerance" begin
+                tolerance = 3
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[1] == 5)
+                @constraint(m, x[2] >= 0)
+                @constraint(m, x[2] <= 10)
+                @constraint(m, x[3] >= -1)
+                @constraint(m, x[3] <= 10)
+                set_max_index(x, [2, 3], tolerance = tolerance)
+                @objective(m, Min, x[2]+x[3])
+                solve(m)
+                @test getvalue(x[2])≈5+tolerance
+                @test getvalue(x[3])≈-1
+            end
+            @testset "invert target selection" begin
+                m = get_new_model()
+                x = @variable(m, [i=1:3])
+                @constraint(m, x[2] == 5)
+                @constraint(m, x[3] == 1)
+                set_max_index(x, [2, 3], invert_target_selection = true)
+                @objective(m, Min, x[1])
+                solve(m)
+                @test getvalue(x[1])≈5
+            end
         end
     end
 
