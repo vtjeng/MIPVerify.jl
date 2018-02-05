@@ -16,13 +16,11 @@ else
 end
 
 """
-    test_find_adversarial_example(nnparams, x0, target_label, pp, norm_order, tolerance, expected_objective_value, solver_type)
-
 Tests the `find_adversarial_example` function.
   - If `x0` is already classified in the target label, `expected_objective_value`
     should be 0.
-  - If there is no adversarial example for the specified parameters, `expected_objective_value`
-    should be NaN.
+  - If there is no adversarial example for the specified parameters, 
+    `expected_objective_value` should be NaN.
   - If there is an adversarial example, checks that the objective value is as expected,
     and that the perturbed output for the target label exceeds the perturbed 
     output for all other labels by `tolerance`.
@@ -58,41 +56,27 @@ function test_find_adversarial_example(
 end
 
 """
-    batch_test_adversarial_example(nnparams, x0, expected_objective_values)
-
 Runs tests on the neural net described by `nnparams` for input `x0` and the objective values
 indicated in `expected objective values`.
 
 # Arguments
 - `expected_objective_values::Dict`: 
-   d[target_label][perturbation_parameter][norm_order][tolerance] = expected_objective_value
+   d[(target_label, perturbation_parameter, norm_order, tolerance)] = expected_objective_value
    `expected_objective_value` is `NaN` if model 
 """
 function batch_test_adversarial_example(
     nnparams::NeuralNetParameters, 
     x0::Array{T, N},
-    expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}}
+    expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64}
 ) where {T<:Real, N}
-    for (target_label, d0) in expected_objective_values
-        @testset "target label = $target_label" begin
-        for (pp, d1) in d0
-            @testset "$(string(pp)) perturbation" begin
-            for (norm_order, d2) in d1
-                @testset "norm order = $norm_order" begin
-                for (tolerance, expected_objective_value) in d2
-                    @testset "tolerance = $tolerance" begin
-                    test_find_adversarial_example(
-                        nnparams, x0, 
-                        target_label, pp, norm_order, tolerance, expected_objective_value,
-                        Solver)
-                    end
-                end
-                end
+    for (test_params, expected_objective_value) in expected_objective_values
+        (target_label, pp, norm_order, tolerance) = test_params
+        @testset "target label = $target_label, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
+            test_find_adversarial_example(
+                nnparams, x0, 
+                target_label, pp, norm_order, tolerance, expected_objective_value,
+                Solver)
             end
-            end
-        end
         end
     end
-end
-
 end

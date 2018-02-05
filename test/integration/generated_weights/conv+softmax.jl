@@ -44,34 +44,22 @@ nnparams = StandardNeuralNetParameters(
     "tests.integration.generated_weights.conv+softmax"
 )
 
-expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
-    1 => Dict(
-        AdditivePerturbationParameters() => Dict(
-            1 => Dict(
-                0 => 1.50622,
-                0.1 => 1.58907,
-                1 => 2.34482
-            ),
-            Inf => Dict(
-                0 => 0.100834,
-                0.1 => 0.106183,
-                1 => 0.156280
-            )
-        ),
-        BlurPerturbationParameters((5, 5)) => Dict(
-            1 => Dict(
-                0 => 23.8680,
-                0.01 => 24.0720,
-                0.1 => NaN
-            ),
-            Inf => Dict(
-                0 => 0.923521,
-                0.01 => 0.928150,
-                0.1 => NaN
-            )
+pp_blur = BlurPerturbationParameters((5, 5))
+pp_additive = AdditivePerturbationParameters()
 
-        )
-    )
+expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+    (1, pp_additive, 1, 0) => 1.50622,
+    (1, pp_additive, 1, 0.1) => 1.58907,
+    (1, pp_additive, 1, 1) => 2.34482,
+    (1, pp_additive, Inf, 0) => 0.100834,
+    (1, pp_additive, Inf, 0.1) => 0.106183,
+    (1, pp_additive, Inf, 1) => 0.156280,
+    (1, pp_blur, 1, 0) => 23.8680,
+    (1, pp_blur, 1, 0.01) => 24.0720,
+    (1, pp_blur, 1, 0.1) => NaN,
+    (1, pp_blur, Inf, 0) => 0.923521,
+    (1, pp_blur, Inf, 0.01) => 0.928150,
+    (1, pp_blur, Inf, 0.1) => NaN
 )
 
 batch_test_adversarial_example(nnparams, x0, expected_objective_values)

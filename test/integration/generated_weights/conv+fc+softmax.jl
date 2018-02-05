@@ -53,55 +53,26 @@ nnparams = StandardNeuralNetParameters(
     "tests.integration.generated_weights.conv+fc+softmax"
 )
 
-expected_objective_values::Dict{Int, Dict{PerturbationParameters, Dict{Real, Dict{Real, Float64}}}} = Dict(
-    1 => Dict(
-        BlurPerturbationParameters((5, 5)) => Dict(
-            1 => Dict(
-                0 => 0
-            ),
-            Inf => Dict(
-                0 => 0
-            ),
-        )
-    ),
-    2 => Dict(
-        AdditivePerturbationParameters() => Dict(
-            1 => Dict(
-                0 => 2.98266,
-                0.1 => 3.03465,
-                1 => 3.57386
-            ),
-            Inf => Dict(
-                0 => 0.235631,
-                0.1 => 0.240124,
-                1 => 0.285365
-            )
-        ),
-        BlurPerturbationParameters((5, 5)) => Dict(
-            1 => Dict(
-                0 => NaN,
-            ),
-            Inf => Dict(
-                0 => NaN,
-            )
+pp_blur = BlurPerturbationParameters((5, 5))
+pp_additive = AdditivePerturbationParameters()
 
-        )
-    ),
-    3 => Dict(
-        BlurPerturbationParameters((5, 5)) => Dict(
-            1 => Dict(
-                0 => 0.261483,
-                1 => 0.826242,
-                10 => NaN
-            ),
-            Inf => Dict(
-                0 => 0.0105534,
-                1 => 0.0369686,
-                10 => NaN
-            )
-
-        )
-    )
+expected_objective_values::Dict{Tuple{Int, PerturbationParameters, Real, Real}, Float64} = Dict(
+    (1, pp_blur, 1, 0) => 0,
+    (1, pp_blur, Inf, 0) => 0,
+    (2, pp_additive, 1, 0) => 2.98266,
+    (2, pp_additive, 1, 0.1) => 3.03465,
+    (2, pp_additive, 1, 1) => 3.57386,
+    (2, pp_additive, Inf, 0) => 0.235631,
+    (2, pp_additive, Inf, 0.1) => 0.240124,
+    (2, pp_additive, Inf, 1) => 0.285365,
+    (2, pp_blur, 1, 0) => NaN,
+    (2, pp_blur, Inf, 0) => NaN,
+    (3, pp_blur, 1, 0) => 0.261483,
+    (3, pp_blur, 1, 1) => 0.826242,
+    (3, pp_blur, 1, 10) => NaN,
+    (3, pp_blur, Inf, 0) => 0.0105534,
+    (3, pp_blur, Inf, 1) => 0.0369686,
+    (3, pp_blur, Inf, 10) => NaN
 )
 
 batch_test_adversarial_example(nnparams, x0, expected_objective_values)

@@ -46,7 +46,7 @@ end
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{T, N},
-    target_label,
+    target_label::Union{Int, Array},
     solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     norm_order::Real = 1,
