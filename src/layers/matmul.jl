@@ -1,7 +1,7 @@
 function matmul(
-    x::Array{T, 1}, 
-    params::MatrixMultiplicationParameters) where {T<:JuMPReal}
+    x::Array{<:JuMPReal, 1}, 
+    params::MatrixMultiplicationParameters)
     return params.matrix.'*x .+ params.bias
 end
 
-(p::MatrixMultiplicationParameters)(x::Array{T, 1}) where {T<:JuMPReal} = matmul(x, p)
+(p::MatrixMultiplicationParameters)(x::Array{<:JuMPReal, 1}) = matmul(x, p)

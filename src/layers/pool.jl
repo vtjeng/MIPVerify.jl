@@ -61,4 +61,4 @@ function pool(
     return poolmap(params.pooling_function, input, params.strides)
 end
 
-(p::PoolParameters)(x::Array{T}) where {T<:JuMPReal} = pool(x, p)
+(p::PoolParameters)(x::Array{<:JuMPReal}) = pool(x, p)

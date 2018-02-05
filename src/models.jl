@@ -27,11 +27,11 @@ Base.string(pp::BlurPerturbationParameters) = "blur.$(pp.blur_kernel_size)"
 
 function get_model(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
+    input::Array{<:Real},
     pp::AdditivePerturbationParameters,
     solver_type::DataType,
     rebuild::Bool
-    )::Dict where {T<:Real, N}
+    )::Dict
     d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
     setsolver(d[:Model], solver_type())
     @constraint(d[:Model], d[:Input] .== input)
@@ -43,11 +43,11 @@ end
 
 function get_model(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
+    input::Array{<:Real},
     pp::BlurPerturbationParameters,
     solver_type::DataType,
     rebuild::Bool
-    )::Dict where {T<:Real, N}
+    )::Dict
     d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
     setsolver(d[:Model], solver_type())
     return d
@@ -55,23 +55,23 @@ end
 
 function model_hash(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
-    pp::AdditivePerturbationParameters)::UInt where {T<:Real, N}
+    input::Array{<:Real},
+    pp::AdditivePerturbationParameters)::UInt
     input_size = size(input)
     return hash(nn_params, hash(input_size, hash(pp)))
 end
 
 function model_hash(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
-    pp::BlurPerturbationParameters)::UInt where {T<:Real, N}
+    input::Array{<:Real},
+    pp::BlurPerturbationParameters)::UInt
     return hash(nn_params, hash(input, hash(pp)))
 end
 
 function model_filename(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
-    pp::PerturbationParameters)::String where {T<:Real, N}
+    input::Array{<:Real},
+    pp::PerturbationParameters)::String
     hash_val = model_hash(nn_params, input, pp)
     input_size = size(input)
     return "$(nn_params.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
@@ -79,11 +79,11 @@ end
 
 function get_reusable_model(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
+    input::Array{<:Real},
     pp::PerturbationParameters,
     solver_type::DataType,
     rebuild::Bool
-    )::Dict where {T<:Real, N}
+    )::Dict
 
     filename = model_filename(nn_params, input, pp)
     model_filepath = joinpath(model_dir, filename)
@@ -105,10 +105,10 @@ end
 
 function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
+    input::Array{<:Real},
     pp::AdditivePerturbationParameters,
     solver_type::DataType
-    )::Dict where {T<:Real, N}
+    )::Dict
 
     s = solver_type()
     MathProgBase.setparameters!(s, Silent = true, TimeLimit = 20)
@@ -137,10 +137,10 @@ end
 
 function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
-    input::Array{T, N},
+    input::Array{<:Real},
     pp::BlurPerturbationParameters,
     solver_type::DataType
-    )::Dict where {T<:Real, N}
+    )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 

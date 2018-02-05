@@ -27,14 +27,14 @@ Tests the `find_adversarial_example` function.
 """
 function test_find_adversarial_example(
     nnparams::NeuralNetParameters, 
-    x0::Array{T, N}, 
+    x0::Array{<:Real, N}, 
     target_selection::Union{Integer, Array{<:Integer, 1}}, 
     pp::PerturbationParameters, 
     norm_order::Real,
     tolerance::Real, 
     expected_objective_value::Real,
     solver_type::DataType,
-    ) where {T<:Real, N} 
+    ) where {N} 
     d = find_adversarial_example(
         nnparams, x0, target_selection, solver_type, 
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
@@ -68,9 +68,9 @@ indicated in `expected objective values`.
 """
 function batch_test_adversarial_example(
     nnparams::NeuralNetParameters, 
-    x0::Array{T, N},
+    x0::Array{<:Real, N},
     expected_objective_values::Dict
-) where {T<:Real, N}
+) where {N}
     for (test_params, expected_objective_value) in expected_objective_values
         (target_selection, pp, norm_order, tolerance) = test_params
         @testset "target label = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin

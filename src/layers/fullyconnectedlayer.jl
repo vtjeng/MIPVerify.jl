@@ -1,7 +1,7 @@
 function fullyconnectedlayer(
-    x::Array{T, 1}, 
-    params::FullyConnectedLayerParameters) where {T<:JuMPReal}
+    x::Array{<:JuMPReal, 1}, 
+    params::FullyConnectedLayerParameters)
     return relu.(x |> params.mmparams)
 end
 
-(p::FullyConnectedLayerParameters)(x::Array{T, 1}) where {T<:JuMPReal} = fullyconnectedlayer(x, p)
+(p::FullyConnectedLayerParameters)(x::Array{<:JuMPReal, 1}) = fullyconnectedlayer(x, p)

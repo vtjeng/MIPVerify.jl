@@ -83,4 +83,4 @@ function conv2d(
     return output
 end
 
-(p::Conv2DParameters)(x::Array{T, 4}) where {T<:JuMPReal} = conv2d(x, p)
+(p::Conv2DParameters)(x::Array{<:JuMPReal, 4}) = conv2d(x, p)

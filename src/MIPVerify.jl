@@ -24,15 +24,15 @@ include("utils/import_datasets.jl")
 include("logging.jl")
 
 function get_max_index(
-    x::Array{T, 1})::Integer where {T<:Real}
+    x::Array{<:Real, 1})::Integer
     return findmax(x)[2]
 end
 
-(p::SoftmaxParameters)(x::Array{T, 1}) where {T<:JuMPReal} = p.mmparams(x)
-(ps::Array{U, 1})(x::Array{T}) where {T<:JuMPReal, U<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}} = (
+(p::SoftmaxParameters)(x::Array{<:JuMPReal, 1}) = p.mmparams(x)
+(ps::Array{<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}, 1})(x::Array{<:JuMPReal}) = (
     length(ps) == 0 ? x : ps[2:end](ps[1](x))
 )
-(p::StandardNeuralNetParameters)(x::Array{T, 4}) where {T<:JuMPReal} = (
+(p::StandardNeuralNetParameters)(x::Array{<:JuMPReal, 4}) = (
     x |> p.convlayer_params |> MIPVerify.flatten |> p.fclayer_params |> p.softmax_params
 )
 
@@ -45,14 +45,14 @@ end
 
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
-    input::Array{T, N},
+    input::Array{<:Real},
     target_selection::Union{Integer, Array{<:Integer, 1}},
     solver_type::DataType;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     norm_order::Real = 1,
     tolerance = 0.0,
     rebuild::Bool = true,
-    invert_target_selection::Bool = false)::Dict where {T<:Real, N}
+    invert_target_selection::Bool = false)::Dict
 
     d = get_model(nnparams, input, pp, solver_type, rebuild)
     m = d[:Model]
@@ -69,7 +69,7 @@ function find_adversarial_example(
     return d
 end
 
-function get_label(y::Array{T, 1}, test_index::Int)::Int where {T<:Real}
+function get_label(y::Array{<:Real, 1}, test_index::Int)::Int
     return y[test_index]
 end
 
@@ -100,7 +100,7 @@ end
 
 function get_norm(
     norm_order::Real,
-    v::Array{T}) where {T<:Real}
+    v::Array{<:Real})
     if norm_order == 1
         return sum(abs.(v))
     elseif norm_order == 2
@@ -112,7 +112,7 @@ end
 
 function get_norm(
     norm_order::Real,
-    v::Array{T}) where {T<:JuMP.AbstractJuMPScalar}
+    v::Array{<:JuMP.AbstractJuMPScalar})
     if norm_order == 1
         abs_v = abs_ge.(v)
         return sum(abs_v)

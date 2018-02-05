@@ -84,11 +84,11 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_rect
 end
 
-function maximum(xs::AbstractArray{T, N})::T where {T<:Real, N}
+function maximum(xs::AbstractArray{T})::T where {T<:Real}
     return Base.maximum(xs)
 end
 
-function maximum(xs::AbstractArray{T, N}; tighten::Bool = true)::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar, N}
+function maximum(xs::AbstractArray{T}; tighten::Bool = true)::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
     @assert length(xs) >= 1
     model = ConditionalJuMP.getmodel(xs[1])
     ls = tight_lowerbound.(xs; tighten = tighten)
