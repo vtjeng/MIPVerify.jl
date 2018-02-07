@@ -1,7 +1,6 @@
 using MAT
 
 abstract type Dataset end
-Base.show(io::IO, dataset::Dataset) = print(Base.string(dataset))
 
 struct ImageDataset{T<:Real, U<:Int} <: Dataset
     images::Array{T, 4}
@@ -19,7 +18,7 @@ function ImageDataset(images::Array{T, 4}, labels::Array{U, 1})::ImageDataset wh
     ImageDataset{T, U}(images, labels)
 end
 
-function Base.string(dataset::ImageDataset)
+function Base.show(io::IO, dataset::ImageDataset)
     image_size = size(dataset.images[1, :, :, :])
     num_samples = size(dataset.labels)[1]
     min_pixel = minimum(dataset.images)
@@ -27,7 +26,7 @@ function Base.string(dataset::ImageDataset)
     min_label = minimum(dataset.labels)
     max_label = maximum(dataset.labels)
     num_unique_labels = length(unique(dataset.labels))
-    string(
+    print(io,
         "{ImageDataset}",
         "\n    `images`: $num_samples images of size $image_size, with pixels in [$min_pixel, $max_pixel].",
         "\n    `labels`: $num_samples corresponding labels, with $num_unique_labels unique labels in [$min_label, $max_label]."
@@ -40,8 +39,8 @@ struct NamedTrainTestDataset{T<:Dataset} <: Dataset
     test::T
 end
 
-function Base.string(dataset::NamedTrainTestDataset)
-    string(
+function Base.show(io::IO, dataset::NamedTrainTestDataset)
+    print(io, 
         "$(dataset.name):",
         "\n  `train`: $(dataset.train |> Base.string)",
         "\n  `test`: $(dataset.test |> Base.string)"
