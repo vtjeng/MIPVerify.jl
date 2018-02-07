@@ -29,15 +29,16 @@ function get_model(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
-    solver_type::DataType,
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
-    setsolver(d[:Model], solver_type())
+    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild)
+    setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
-    # NOTE (vtjeng): It is important to set the solver before attempting to add a constraint, as
-    # the saved model may have been saved with a different solver (or different)
-    # environment. Flipping the order of the two leads to test failures.
+    # NOTE (vtjeng): It is important to set the solver before attempting to add a 
+    # constraint, as the saved model may have been saved with a different solver (or 
+    # different) environment. Flipping the order of the two leads to test failures.
     return d
 end
 
@@ -45,11 +46,12 @@ function get_model(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
-    solver_type::DataType,
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, solver_type, rebuild)
-    setsolver(d[:Model], solver_type())
+    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild)
+    setsolver(d[:Model], main_solver)
     return d
 end
 
@@ -81,7 +83,7 @@ function get_reusable_model(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::PerturbationParameters,
-    solver_type::DataType,
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool
     )::Dict
 
@@ -95,7 +97,7 @@ function get_reusable_model(
         end
     else
         info(get_logger(current_module()), "Rebuilding model from scratch.")
-        d = build_reusable_model_uncached(nn_params, input, pp, solver_type)
+        d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver)
         open(model_filepath, "w") do f
             serialize(f, d)
         end
@@ -107,12 +109,10 @@ function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
-    solver_type::DataType
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
     )::Dict
 
-    s = solver_type()
-    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 20)
-    m = Model(solver = s)
+    m = Model(solver = model_build_solver)
 
     input_range = CartesianRange(size(input))
 
@@ -139,14 +139,12 @@ function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
-    solver_type::DataType
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
-    s = solver_type()
-    MathProgBase.setparameters!(s, Silent = true, TimeLimit = 20)
-    m = Model(solver = s)
+    m = Model(solver = model_build_solver)
 
     input_size = size(input)
     filter_size = (pp.blur_kernel_size..., 1, 1)

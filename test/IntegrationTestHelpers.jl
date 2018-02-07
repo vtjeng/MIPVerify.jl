@@ -6,13 +6,14 @@ using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNetParameters
 using MIPVerify: PerturbationParameters
 using Base.Test
+using MathProgBase
 
 if Pkg.installed("Gurobi") == nothing
     using Cbc
-    Solver = CbcSolver
+    solver = CbcSolver()
 else
     using Gurobi
-    Solver = GurobiSolver
+    solver = GurobiSolver()
 end
 
 """
@@ -33,10 +34,10 @@ function test_find_adversarial_example(
     norm_order::Real,
     tolerance::Real, 
     expected_objective_value::Real,
-    solver_type::DataType,
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     ) where {N} 
     d = find_adversarial_example(
-        nnparams, x0, target_selection, solver_type, 
+        nnparams, x0, target_selection, main_solver, 
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
     if d[:SolveStatus] == :Infeasible
         @test isnan(expected_objective_value)
@@ -77,7 +78,7 @@ function batch_test_adversarial_example(
             test_find_adversarial_example(
                 nnparams, x0, 
                 target_selection, pp, norm_order, tolerance, expected_objective_value,
-                Solver)
+                solver)
             end
         end
     end

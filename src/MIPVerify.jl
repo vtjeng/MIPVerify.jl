@@ -47,14 +47,24 @@ function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{<:Real},
     target_selection::Union{Integer, Array{<:Integer, 1}},
-    solver_type::DataType;
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     norm_order::Real = 1,
     tolerance = 0.0,
     rebuild::Bool = true,
-    invert_target_selection::Bool = false)::Dict
+    invert_target_selection::Bool = false,
+    model_build_solver::Union{<:MathProgBase.SolverInterface.AbstractMathProgSolver, Void} = nothing
+    )::Dict
 
-    d = get_model(nnparams, input, pp, solver_type, rebuild)
+    if model_build_solver === nothing
+        # User does not provide a solver to tighten bounds. We use a solver of the same
+        # type as the main solver, but silence the solver and set the time limit to 20
+        # seconds.
+        model_build_solver = typeof(main_solver)()
+        MathProgBase.setparameters!(model_build_solver, Silent = true, TimeLimit = 20)
+    end
+
+    d = get_model(nnparams, input, pp, main_solver, model_build_solver, rebuild)
     m = d[:Model]
 
     # Set output constraint
@@ -64,6 +74,8 @@ function find_adversarial_example(
     info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target labels are $(d[:TargetIndexes])")
 
     # Set perturbation objective
+    # NOTE (vtjeng): It is important to set the objective immediately before we carry out
+    # the solve. Functions like `set_max_indexes` can modify the objective.
     @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
     d[:SolveStatus] = solve(m)
     return d
