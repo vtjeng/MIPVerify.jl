@@ -1,4 +1,7 @@
-using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters, ConvolutionLayerParameters, MatrixMultiplicationParameters, SoftmaxParameters, FullyConnectedLayerParameters
+using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters
+using MIPVerify: ConvolutionLayerParameters, MatrixMultiplicationParameters
+using MIPVerify: SoftmaxParameters, FullyConnectedLayerParameters
+using MIPVerify: maximum
 using Base.Test
 using Base.Test: @test_throws
 
@@ -38,12 +41,24 @@ using JuMP
         p = Conv2DParameters(filter)
         @test p.filter == filter
     end
+    @testset "Base.show" begin
+        filter = rand(3, 3, 2, 5)
+        p = Conv2DParameters(filter)
+        io = IOBuffer()
+        Base.show(io, p)
+        @test String(take!(io)) == "applies 5 3x3 filters"
+    end
 end
 
 @testset "PoolParameters" begin
     strides = (1, 2, 2, 1)
-    p = PoolParameters(strides, x -> x)
+    p = PoolParameters(strides, MIPVerify.maximum)
     @test p.strides == strides
+    @testset "Base.show" begin
+        io = IOBuffer()
+        Base.show(io, p)
+        @test String(take!(io)) == "max pooling with a 2x2 filter and a stride of (2, 2)"
+    end
 end
 
 @testset "ConvolutionLayerParameters" begin
@@ -55,6 +70,11 @@ end
     @test p.conv2dparams.filter == filter
     @test p.conv2dparams.bias == bias
     @test p.maxpoolparams.strides == strides
+    @testset "Base.show" begin
+        io = IOBuffer()
+        Base.show(io, p)
+        @test String(take!(io)) == "convolution layer. applies 5 3x3 filters, followed by max pooling with a 2x2 filter and a stride of (2, 2), and a ReLU activation function."
+    end
 end
 
 @testset "MatrixMultiplicationParameters" begin
@@ -84,6 +104,11 @@ end
     p = SoftmaxParameters(matrix, bias)
     @test p.mmparams.matrix == matrix
     @test p.mmparams.bias == bias
+    @testset "Base.show" begin
+        io = IOBuffer()
+        Base.show(io, p)
+        @test String(take!(io)) == "softmax layer with 2 inputs and 10 output units."
+    end
 end
 
 @testset "FullyConnectedLayerParameters" begin
@@ -93,6 +118,11 @@ end
     p = FullyConnectedLayerParameters(matrix, bias)
     @test p.mmparams.matrix == matrix
     @test p.mmparams.bias == bias
+    @testset "Base.show" begin
+        io = IOBuffer()
+        Base.show(io, p)
+        @test String(take!(io)) == "fully connected layer with 2 inputs and 10 output units, and a ReLU activation function."
+    end
 end
 end
 end 
