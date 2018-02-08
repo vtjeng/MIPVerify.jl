@@ -7,10 +7,9 @@ using Base.Test: @test_throws
     MIPVerify.set_log_level("info")
     MIPVerify.remove_cached_models()
 
-    include("net_parameters.jl")
-    include("layers.jl")
-    include("integration.jl")
-    include("utils.jl")
+    include("integration/main.jl")
+    include("layers/main.jl")
+    include("utils/main.jl")
     
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])

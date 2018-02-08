@@ -1,12 +1,12 @@
-module IntegrationTestHelpers
+module TestHelpers
 
+using Base.Test
 using JuMP
+using MathProgBase
 
 using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNetParameters
 using MIPVerify: PerturbationParameters
-using Base.Test
-using MathProgBase
 
 if Pkg.installed("Gurobi") == nothing
     using Cbc
@@ -14,6 +14,11 @@ if Pkg.installed("Gurobi") == nothing
 else
     using Gurobi
     solver = GurobiSolver()
+end
+
+function get_new_model()::Model
+    MathProgBase.setparameters!(solver, Silent = true)
+    return Model(solver=solver)
 end
 
 """

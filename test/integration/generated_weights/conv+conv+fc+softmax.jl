@@ -1,8 +1,8 @@
+using Base.Test
 using MIPVerify: ConvolutionLayerParameters, SoftmaxParameters, FullyConnectedLayerParameters
 using MIPVerify: StandardNeuralNetParameters
-using MIPVerify: PerturbationParameters, AdditivePerturbationParameters, BlurPerturbationParameters
-using MIPVerify.IntegrationTestHelpers: batch_test_adversarial_example
-using Base.Test
+using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify.TestHelpers: batch_test_adversarial_example
 
 @testset "Conv + Conv + FC + Softmax" begin
 

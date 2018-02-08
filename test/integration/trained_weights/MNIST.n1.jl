@@ -1,12 +1,9 @@
-using MIPVerify: PerturbationParameters, AdditivePerturbationParameters, BlurPerturbationParameters
-using MIPVerify: get_example_network_params, read_datasets, get_image
-using MIPVerify.IntegrationTestHelpers: batch_test_adversarial_example
-using MIPVerify: remove_cached_models
-using MIPVerify: get_max_index
 using Base.Test
+using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify: get_example_network_params, read_datasets, get_image
+using MIPVerify.TestHelpers: batch_test_adversarial_example
 
 @testset "MNIST.n1" begin
-    # remove_cached_models()
     nnparams = get_example_network_params("MNIST.n1")
     mnist = read_datasets("MNIST")
 

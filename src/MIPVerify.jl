@@ -135,7 +135,7 @@ function get_norm(
     end
 end
 
-include("../test/IntegrationTestHelpers.jl")
+include("../test/TestHelpers.jl")
 
 end
 
