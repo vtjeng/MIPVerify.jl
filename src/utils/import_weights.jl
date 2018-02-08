@@ -59,6 +59,6 @@ function get_example_network_params(name::String)::NeuralNetParameters
         )
         return nnparams
     else
-        throw(ArgumentError("No example network named $name."))
+        throw(DomainError("No example network named $name."))
     end
 end
