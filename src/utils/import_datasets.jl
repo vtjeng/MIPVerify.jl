@@ -42,8 +42,8 @@ end
 function Base.show(io::IO, dataset::NamedTrainTestDataset)
     print(io, 
         "$(dataset.name):",
-        "\n  `train`: $(dataset.train |> Base.string)",
-        "\n  `test`: $(dataset.test |> Base.string)"
+        "\n  `train`: $(dataset.train)",
+        "\n  `test`: $(dataset.test)"
     )
 end
 

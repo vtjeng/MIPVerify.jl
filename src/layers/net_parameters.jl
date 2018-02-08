@@ -78,7 +78,7 @@ end
 
 function Base.show(io::IO, p::ConvolutionLayerParameters)
     print(io,
-        "convolution layer. $(p.conv2dparams |> Base.string), followed by $(p.maxpoolparams |> Base.string), and a ReLU activation function.",
+        "convolution layer. $(p.conv2dparams), followed by $(p.maxpoolparams), and a ReLU activation function.",
     )
 end
 
