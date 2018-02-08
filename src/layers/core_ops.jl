@@ -53,12 +53,12 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     u = tight_upperbound(x)
     l = tight_lowerbound(x)
 
-    if u < 0
+    if u <= 0
         # rectified value is always 0
         @constraint(model, x_rect == 0)
         setlowerbound(x_rect, 0)
         setupperbound(x_rect, 0)
-    elseif l > 0
+    elseif l >= 0
         # rectified value is always equal to x itself.
         @constraint(model, x_rect == x)
         setlowerbound(x_rect, l)
@@ -128,11 +128,11 @@ function abs_ge(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     x_abs = @variable(model)
     u = upperbound(x)
     l = lowerbound(x)
-    if u < 0
+    if u <= 0
         @constraint(model, x_abs == -x)
         setlowerbound(x_abs, -u)
         setupperbound(x_abs, -l)
-    elseif l > 0
+    elseif l >= 0
         @constraint(model, x_abs == x)
         setlowerbound(x_abs, l)
         setupperbound(x_abs, u)

@@ -1,30 +1,54 @@
 using Base.Test
 using Base.Test: @test_throws
 using JuMP
+using MathProgBase
 using MIPVerify: MatrixMultiplicationParameters
-using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound
+using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge
 using MIPVerify.TestHelpers: get_new_model
+
+function count_binary_variables(m::Model)
+    count(x -> x == :Bin, m.colCat)
+end
 
 @testset "core_ops.jl" begin
     @testset "maximum" begin
         @testset "Variable Input" begin
-            m = get_new_model()
-            x1 = @variable(m, lowerbound=0, upperbound=3)
-            x2 = @variable(m, lowerbound=4, upperbound=5)
-            x3 = @variable(m, lowerbound=2, upperbound=7)
-            x4 = @variable(m, lowerbound=-1, upperbound=1)
-            x5 = @variable(m, lowerbound=-3, upperbound=1)
-            xmax = MIPVerify.maximum([x1, x2, x3, x4, x5])
-            # elements of the input array are made to take their maximum value
-            @objective(m, Max, x1+x2+x3+x4+x5)
-            solve(m)
-            
-            solve_output = getvalue(xmax)
-            # an efficient implementation does not add binary variables for x1, x4 and x5
-            num_binary_variables = count(x -> x == :Bin, m.colCat)
+            @testset "no variables to maximize over" begin
+                xs::Array{JuMP.AbstractJuMPScalar} = []
+                @test_throws AssertionError MIPVerify.maximum(xs)
+            end
+            @testset "single variable to maximize over" begin
+                m = get_new_model()
+                x1 = @variable(m, lowerbound=0, upperbound=3)
+                xmax = MIPVerify.maximum([x1])
 
-            @test solve_output≈7
-            @test num_binary_variables<= 2
+                # no binary variables need to be introduced
+                @test count_binary_variables(m)==0
+
+                @objective(m, Max, x1)
+                solve(m)
+                solve_output = getvalue(xmax)
+                @test solve_output≈3
+            end
+            @testset "multiple variables to maximize over" begin
+                m = get_new_model()
+                x1 = @variable(m, lowerbound=0, upperbound=3)
+                x2 = @variable(m, lowerbound=4, upperbound=5)
+                x3 = @variable(m, lowerbound=2, upperbound=7)
+                x4 = @variable(m, lowerbound=-1, upperbound=1)
+                x5 = @variable(m, lowerbound=-3, upperbound=1)
+                xmax = MIPVerify.maximum([x1, x2, x3, x4, x5])
+                
+                # an efficient implementation does not add binary variables for x1, x4 and x5
+                @test count_binary_variables(m)<= 2
+                
+                # elements of the input array are made to take their maximum value
+                @objective(m, Max, x1+x2+x3+x4+x5)
+                solve(m)
+                
+                solve_output = getvalue(xmax)
+                @test solve_output≈7
+            end
         end
     end
 
@@ -36,7 +60,94 @@ using MIPVerify.TestHelpers: get_new_model
         end
         
         @testset "Variable Input" begin
-            @test 1==1
+            @testset "strictly non-negative" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=0, upperbound=1)
+                x_r = relu(x)
+                
+                # no binary variables should be introduced
+                @test count_binary_variables(m)==0
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈1
+            end
+            @testset "strictly non-positive" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=-1, upperbound=0)
+                x_r = relu(x)
+
+                # no binary variables should be introduced
+                @test count_binary_variables(m)==0
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈1
+            end
+            @testset "regular" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=-1, upperbound=2)
+                x_r = relu(x)
+
+                # at most one binary variable to be introduced
+                @test count_binary_variables(m)<=1
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈2
+            end
+        end
+    end
+
+    @testset "abs_ge" begin
+        @testset "strictly non-negative" begin
+            m = get_new_model()
+            x = @variable(m, lowerbound=0, upperbound=1)
+            x_a = abs_ge(x)
+            
+            # no binary variables should be introduced
+            @test count_binary_variables(m)==0
+            
+            @objective(m, Max, 2*x_a-x)
+            solve(m)
+            @test getobjectivevalue(m)≈1
+        end
+        @testset "strictly non-positive" begin
+            m = get_new_model()
+            x = @variable(m, lowerbound=-1, upperbound=0)
+            x_a = abs_ge(x)
+
+            # no binary variables should be introduced
+            @test count_binary_variables(m)==0
+
+            @objective(m, Max, 2*x_a-x)
+            solve(m)
+            @test getobjectivevalue(m)≈3
+        end
+        @testset "regular" begin
+            m = get_new_model()
+            x = @variable(m, lowerbound=-2, upperbound=2)
+            x_a = abs_ge(x)
+
+            # no binary variables should be introduced
+            @test count_binary_variables(m)==0
+
+            @objective(m, Max, 2*x_a-x)
+            solve(m)
+            @test getobjectivevalue(m)≈6
+        end
+        @testset "abs_ge is not strict" begin
+            # in particular we only need to satisfy the property |x_a| > x
+            m = get_new_model()
+            x = @variable(m, lowerbound=-4, upperbound=2)
+            x_a = abs_ge(x)
+
+            # no binary variables should be introduced
+            @test count_binary_variables(m)==0
+
+            @objective(m, Min, x_a-x)
+            solve(m)
+            @test getobjectivevalue(m)≈0
         end
     end
 
