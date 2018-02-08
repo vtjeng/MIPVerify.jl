@@ -43,6 +43,14 @@ function flatten(x::Array{T, N}) where {T, N}
     return permutedims(x, N:-1:1)[:]
 end
 
+function get_default_model_build_solver(
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
+    )::MathProgBase.SolverInterface.AbstractMathProgSolver
+    model_build_solver = typeof(main_solver)()
+    MathProgBase.setparameters!(model_build_solver, Silent = true, TimeLimit = 20)
+    return model_build_solver
+end
+
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{<:Real},
@@ -53,16 +61,8 @@ function find_adversarial_example(
     tolerance = 0.0,
     rebuild::Bool = true,
     invert_target_selection::Bool = false,
-    model_build_solver::Union{<:MathProgBase.SolverInterface.AbstractMathProgSolver, Void} = nothing
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_model_build_solver(main_solver)
     )::Dict
-
-    if model_build_solver === nothing
-        # User does not provide a solver to tighten bounds. We use a solver of the same
-        # type as the main solver, but silence the solver and set the time limit to 20
-        # seconds.
-        model_build_solver = typeof(main_solver)()
-        MathProgBase.setparameters!(model_build_solver, Silent = true, TimeLimit = 20)
-    end
 
     d = get_model(nnparams, input, pp, main_solver, model_build_solver, rebuild)
     m = d[:Model]
