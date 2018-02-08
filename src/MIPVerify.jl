@@ -118,7 +118,9 @@ function get_norm(
     elseif norm_order == 2
         return sqrt(sum(v.*v))
     elseif norm_order == Inf
-        return maximum(Iterators.flatten(abs.(v)))
+        return Base.maximum(Iterators.flatten(abs.(v)))
+    else
+        throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end
 end
 
@@ -132,6 +134,8 @@ function get_norm(
         return sum(v.*v)
     elseif norm_order == Inf
         return MIPVerify.maximum(abs_ge.(v) |> MIPVerify.flatten; tighten = false)
+    else
+        throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end
 end
 
