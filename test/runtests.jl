@@ -1,7 +1,7 @@
-using MIPVerify: set_log_level
-using MIPVerify: remove_cached_models
 using Base.Test
 using Base.Test: @test_throws
+using MIPVerify: set_log_level
+using MIPVerify: remove_cached_models
 
 @testset "MIPVerify" begin
     MIPVerify.set_log_level("info")
@@ -10,6 +10,7 @@ using Base.Test: @test_throws
     include("integration/main.jl")
     include("layers/main.jl")
     include("utils/main.jl")
+    include("models.jl")
     
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])

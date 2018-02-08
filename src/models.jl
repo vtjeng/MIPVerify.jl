@@ -17,13 +17,13 @@ end
 abstract type PerturbationParameters end
 
 struct AdditivePerturbationParameters <: PerturbationParameters end
-Base.string(pp::AdditivePerturbationParameters) = "additive"
+Base.show(io::IO, pp::AdditivePerturbationParameters) = print(io, "additive")
 Base.hash(a::AdditivePerturbationParameters, h::UInt) = hash(:AdditivePerturbationParameters, h)
 
 @auto_hash_equals struct BlurPerturbationParameters <: PerturbationParameters
     blur_kernel_size::NTuple{2}
 end
-Base.string(pp::BlurPerturbationParameters) = "blur.$(pp.blur_kernel_size)"
+Base.show(io::IO, pp::BlurPerturbationParameters) = print(io, "blur.$(pp.blur_kernel_size)")
 
 function get_model(
     nn_params::NeuralNetParameters,

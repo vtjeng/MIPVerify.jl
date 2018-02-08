@@ -1,11 +1,11 @@
+using Base.Test
+using Base.Test: @test_throws
+using JuMP
 using MIPVerify: Conv2DParameters, PoolParameters, MaxPoolParameters, AveragePoolParameters
 using MIPVerify: ConvolutionLayerParameters, MatrixMultiplicationParameters
 using MIPVerify: SoftmaxParameters, FullyConnectedLayerParameters
 using MIPVerify: maximum
-using Base.Test
-using Base.Test: @test_throws
 
-using JuMP
 
 @testset "net_parameters.jl" begin
 
