@@ -145,31 +145,6 @@ function abs_ge(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_abs
 end
 
-function abs_strict(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
-    model = ConditionalJuMP.getmodel(x)
-    x_abs = @variable(model)
-    u = upperbound(x)
-    l = lowerbound(x)
-    if u < 0
-        @constraint(model, x_abs == -x)
-        setlowerbound(x_abs, -u)
-        setupperbound(x_abs, -l)
-    elseif l > 0
-        @constraint(model, x_abs == x)
-        setlowerbound(x_abs, l)
-        setupperbound(x_abs, u)
-    else
-        a = @variable(model, category = :Bin)
-        @constraint(model, x_abs <= x + 2(-l)*(1-a))
-        @constraint(model, x_abs >= x)
-        @constraint(model, x_abs <= -x + 2*u*a)
-        @constraint(model, x_abs >= -x)
-        setlowerbound(x_abs, 0)
-        setupperbound(x_abs, max(-l, u))
-    end
-    return x_abs
-end
-
 function get_target_indexes(
     target_index::Integer,
     array_length::Integer;
