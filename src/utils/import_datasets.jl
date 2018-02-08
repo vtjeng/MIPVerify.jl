@@ -59,6 +59,6 @@ function read_datasets(name::String)::NamedTrainTestDataset
         test = ImageDataset(m_test["images"], m_test["labels"][:])
         return NamedTrainTestDataset(name, train, test)
     else
-        throw(ArgumentError("Dataset $name not supported."))
+        throw(DomainError("Dataset $name not supported."))
     end
 end

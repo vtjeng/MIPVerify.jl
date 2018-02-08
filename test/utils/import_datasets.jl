@@ -1,4 +1,5 @@
 using Base.Test
+using Base.Test: @test_throws
 using MIPVerify: read_datasets
 
 @testset "import_datasets.jl" begin
@@ -32,5 +33,9 @@ using MIPVerify: read_datasets
         @test size(d.train.images) == (55000, 28, 28, 1)
         @test d.test.images[1, 8, 9, 1] ≈ 0.62352943f0
         @test d.test.images[1, :, :, :] |> mean ≈ 0.09230693f0        
+    end
+
+    @testset "Unsupported dataset" begin
+        @test_throws DomainError read_datasets("the angry hippo of the nile")
     end
 end
