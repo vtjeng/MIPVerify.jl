@@ -8,4 +8,8 @@ using MIPVerify: get_example_network_params, num_correct
             @test num_correct(nnparams, "MNIST", 1000) == 970
         end
     end
+
+    @testset "Unrecognized example network" begin
+        @test_throws DomainError get_example_network_params("the social network")
+    end
 end
