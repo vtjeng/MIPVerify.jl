@@ -45,9 +45,13 @@ using JuMP
                 solve(m)
                 @test getobjectivevalue(m)≈6
 
-                @objective(m, Min, n_2)
-                solve(m)
-                @test getobjectivevalue(m)≈14
+                if Pkg.installed("Gurobi") != nothing
+                    # Skip these tests if Gurobi is not installed.
+                    # Cbc does not solve problems with quadratic objectives
+                    @objective(m, Min, n_2)
+                    solve(m)
+                    @test getobjectivevalue(m)≈14
+                end
 
                 @objective(m, Min, n_inf)
                 solve(m)
