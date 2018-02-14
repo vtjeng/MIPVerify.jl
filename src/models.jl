@@ -91,12 +91,12 @@ function get_reusable_model(
     model_filepath = joinpath(model_dir, filename)
 
     if isfile(model_filepath) && !rebuild
-        info(get_logger(current_module()), "Loading model from cache.")
+        info(MIPVerify.getlogger(), "Loading model from cache.")
         d = open(model_filepath, "r") do f
             deserialize(f)
         end
     else
-        info(get_logger(current_module()), "Rebuilding model from scratch.")
+        info(MIPVerify.getlogger(), "Rebuilding model from scratch.")
         d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver)
         open(model_filepath, "w") do f
             serialize(f, d)

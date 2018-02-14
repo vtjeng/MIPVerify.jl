@@ -36,7 +36,7 @@ function conv2d(
     params::Conv2DParameters{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
-        logger = get_logger(current_module())
+        logger = MIPVerify.getlogger()
         info(logger, "Specifying conv2d constraints ... ")
     end
     filter = params.filter

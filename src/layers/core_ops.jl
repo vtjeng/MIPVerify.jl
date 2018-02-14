@@ -16,7 +16,7 @@ function tight_upperbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
             log_gap(m)
         end
     end
-    debug(get_logger(current_module()), "  Δu = $(upperbound(x)-u)")
+    debug(MIPVerify.getlogger(), "  Δu = $(upperbound(x)-u)")
     return u
 end
 
@@ -34,13 +34,13 @@ function tight_lowerbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
             log_gap(m)
         end
     end
-    debug(get_logger(current_module()), "  Δl = $(l-lowerbound(x))")
+    debug(MIPVerify.getlogger(), "  Δl = $(l-lowerbound(x))")
     return l
 end
 
 function log_gap(m::JuMP.Model)
     gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
-    notice(get_logger(current_module()), "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
+    notice(MIPVerify.getlogger(), "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
 function relu(x::Real)::Real

@@ -71,7 +71,7 @@ function find_adversarial_example(
     d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
     set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
-    info(get_logger(current_module()), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target labels are $(d[:TargetIndexes])")
+    info(MIPVerify.getlogger(), "Attempting to find adversarial example. Neural net predicted label is $(input |> nnparams |> get_max_index), target labels are $(d[:TargetIndexes])")
 
     # Set perturbation objective
     # NOTE (vtjeng): It is important to set the objective immediately before we carry out
