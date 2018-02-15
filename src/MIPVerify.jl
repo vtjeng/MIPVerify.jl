@@ -44,7 +44,7 @@ function find_adversarial_example(
     pp::PerturbationParameters = AdditivePerturbationParameters(),
     norm_order::Real = 1,
     tolerance = 0.0,
-    rebuild::Bool = true,
+    rebuild::Bool = false,
     invert_target_selection::Bool = false,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_model_build_solver(main_solver)
     )::Dict
