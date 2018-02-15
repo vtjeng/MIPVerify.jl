@@ -1,5 +1,45 @@
 using JuMP
 
+@auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
+    filter::Array{T, 4}
+    bias::Array{U, 1}
+
+    function Conv2DParameters{T, U}(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
+        (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
+        bias_out_channels = length(bias)
+        @assert(
+            filter_out_channels == bias_out_channels,
+            "For the convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
+        )
+        return new(filter, bias)
+    end
+
+end
+
+function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
+    Conv2DParameters{T, U}(filter, bias)
+end
+
+function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
+    bias_out_channels::Int = size(filter)[4]
+    bias = zeros(bias_out_channels)
+    Conv2DParameters(filter, bias)
+end
+
+function check_size(params::Conv2DParameters, sizes::NTuple{4, Int})::Void
+    check_size(params.filter, sizes)
+    check_size(params.bias, (sizes[end], ))
+end
+
+function Base.show(io::IO, p::Conv2DParameters)
+    (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
+    print(io,
+        "applies $filter_out_channels $(filter_height)x$(filter_width) filters"
+    )
+end
+
+
+
 function increment!(s::Real, input_val::Real, filter_val::Real)
     return s + input_val*filter_val
 end
@@ -21,6 +61,8 @@ end
 function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.Variable)
     push!(s, Float64(input_val), filter_val)
 end
+
+
 
 """
 Computes a 2D-convolution given 4-D `input` and `filter` tensors.

@@ -11,7 +11,7 @@ using JuMP
     MIPVerify.remove_cached_models()
 
     include("integration/main.jl")
-    include("layers/main.jl")
+    include("net_components/main.jl")
     include("utils/main.jl")
     include("models.jl")
     

@@ -8,14 +8,7 @@ using AutoHashEquals
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
-include("layers/core_ops.jl")
-
-include("layers/net_parameters.jl")
-include("layers/conv2d.jl")
-include("layers/pool.jl")
-include("layers/matmul.jl")
-include("layers/convlayer.jl")
-include("layers/fullyconnectedlayer.jl")
+include("net_components/main.jl")
 
 include("models.jl")
 include("utils/prep_data_file.jl")
@@ -27,15 +20,6 @@ function get_max_index(
     x::Array{<:Real, 1})::Integer
     return findmax(x)[2]
 end
-
-(p::SoftmaxParameters)(x::Array{<:JuMPReal, 1}) = p.mmparams(x)
-# TODO (vtjeng): This is likely generalizable to other types of layers.
-(ps::Array{<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}, 1})(x::Array{<:JuMPReal}) = (
-    length(ps) == 0 ? x : ps[2:end](ps[1](x))
-)
-(p::StandardNeuralNetParameters)(x::Array{<:JuMPReal, 4}) = (
-    x |> p.convlayer_params |> MIPVerify.flatten |> p.fclayer_params |> p.softmax_params
-)
 
 """
 Permute dimensions of array because Python flattens arrays in the opposite order.

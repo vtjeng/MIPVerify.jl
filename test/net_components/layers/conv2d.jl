@@ -1,10 +1,54 @@
 using Base.Test
 using JuMP
-using MIPVerify: Conv2DParameters
-using MIPVerify: increment!
+using MIPVerify: Conv2DParameters, check_size, increment!
 using MIPVerify.TestHelpers: get_new_model
 
 @testset "conv2d.jl" begin
+
+    @testset "Conv2DParameters" begin
+        @testset "With Bias" begin
+            @testset "Matched Size" begin
+                out_channels = 5
+                filter = rand(3, 3, 2, out_channels)
+                bias = rand(out_channels)
+                p = Conv2DParameters(filter, bias)
+                @test p.filter == filter
+                @test p.bias == bias
+            end
+            @testset "Unmatched Size" begin
+                filter_out_channels = 4
+                bias_out_channels = 5
+                filter = rand(3, 3, 2, filter_out_channels)
+                bias = rand(bias_out_channels)
+                @test_throws AssertionError Conv2DParameters(filter, bias)
+            end
+        end
+        @testset "No Bias" begin
+            filter = rand(3, 3, 2, 5)
+            p = Conv2DParameters(filter)
+            @test p.filter == filter
+        end
+        @testset "JuMP Variables" begin
+            m = Model()
+            filter_size = (3, 3, 2, 5)
+            filter = map(_ -> @variable(m), CartesianRange(filter_size))
+            p = Conv2DParameters(filter)
+            @test p.filter == filter
+        end
+        @testset "Base.show" begin
+            filter = rand(3, 3, 2, 5)
+            p = Conv2DParameters(filter)
+            io = IOBuffer()
+            Base.show(io, p)
+            @test String(take!(io)) == "applies 5 3x3 filters"
+        end
+        @testset "check_size" begin
+            filter = rand(3, 3, 2, 5)
+            p = Conv2DParameters(filter)
+            @test check_size(p, (3, 3, 2, 5)) === nothing
+            @test_throws AssertionError check_size(p, (3, 3, 2, 4))
+        end
+    end
 
     @testset "increment!" begin
         @testset "Real * Real" begin

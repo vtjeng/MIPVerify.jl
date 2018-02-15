@@ -1,3 +1,30 @@
+struct PoolParameters{N} <: LayerParameters
+    strides::NTuple{N, Int}
+    pooling_function::Function
+end
+
+function Base.show(io::IO, p::PoolParameters)
+    (_, stride_height, stride_width, _) = p.strides
+    function_display_name = Dict(
+        MIPVerify.maximum => "max",
+        Base.mean => "average",
+    )
+    print(io,
+        "$(function_display_name[p.pooling_function]) pooling with a $(stride_height)x$(stride_width) filter and a stride of ($stride_height, $stride_width)"
+    )
+end
+
+Base.hash(a::PoolParameters, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:PoolParameters, h)))
+
+function MaxPoolParameters(strides::NTuple{N, Int}) where {N}
+    PoolParameters(strides, MIPVerify.maximum)
+end
+
+function AveragePoolParameters(strides::NTuple{N, Int}) where {N}
+    # TODO: pooling over variables not supported just yet
+    PoolParameters(strides, Base.mean)
+end
+
 """
 For pooling operations on an array where a given element in the output array
 corresponds to equal-sized blocks in the input array, returns (for a given

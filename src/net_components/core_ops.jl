@@ -84,6 +84,16 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_rect
 end
 
+function masked_relu(x::T, m::Real)::T where {T<:JuMPReal}
+    if m < 0
+        0
+    elseif m > 0
+        x
+    else
+        relu(x)
+    end
+end
+
 function maximum(xs::AbstractArray{T})::T where {T<:Real}
     return Base.maximum(xs)
 end

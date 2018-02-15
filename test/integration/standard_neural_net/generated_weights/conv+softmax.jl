@@ -41,7 +41,7 @@ nnparams = StandardNeuralNetParameters(
     [conv1params], 
     [],
     softmaxparams,
-    "tests.integration.generated_weights.conv+softmax"
+    "tests.integration.standard_net.generated_weights.conv+softmax"
 )
 
 pp_blur = BlurPerturbationParameters((5, 5))

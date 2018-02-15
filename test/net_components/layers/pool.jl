@@ -1,11 +1,23 @@
 using Base.Test
 using JuMP
-using MIPVerify: MaxPoolParameters, AveragePoolParameters
+using MIPVerify: PoolParameters, MaxPoolParameters, AveragePoolParameters
 using MIPVerify: getsliceindex, getpoolview, pool
 using MIPVerify.TestHelpers: get_new_model
 
 
 @testset "pool.jl" begin
+
+    @testset "PoolParameters" begin
+        strides = (1, 2, 2, 1)
+        p = PoolParameters(strides, MIPVerify.maximum)
+        @test p.strides == strides
+        @testset "Base.show" begin
+            io = IOBuffer()
+            Base.show(io, p)
+            @test String(take!(io)) == "max pooling with a 2x2 filter and a stride of (2, 2)"
+        end
+    end
+
     @testset "getsliceindex" begin
         @testset "inbounds" begin
             @test getsliceindex(10, 2, 3)==[5, 6]

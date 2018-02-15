@@ -1,10 +1,6 @@
 using Base.Test
 
 @testset "integration tests" begin
-    include("generated_weights/main.jl")
-    if Pkg.installed("Gurobi") != nothing
-        # Skip these tests if Gurobi is not installed.
-        # The corresponding networks are too large for CBC to deal with.
-        include("trained_weights/main.jl")
-    end
+    include("standard_neural_net/main.jl")
+    include("masked_fc_net/main.jl")
 end
