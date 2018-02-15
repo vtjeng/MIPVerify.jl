@@ -1,13 +1,13 @@
 using Base.Test
 using Base.Test: @test_throws
-using MIPVerify: set_log_level
+using MIPVerify: setloglevel!
 using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm
 using MIPVerify.TestHelpers: get_new_model
 using JuMP
 
 @testset "MIPVerify" begin
-    MIPVerify.set_log_level("info")
+    MIPVerify.setloglevel!("info")
     MIPVerify.remove_cached_models()
 
     include("integration/main.jl")
