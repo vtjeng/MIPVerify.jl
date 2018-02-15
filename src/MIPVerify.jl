@@ -29,6 +29,7 @@ function get_max_index(
 end
 
 (p::SoftmaxParameters)(x::Array{<:JuMPReal, 1}) = p.mmparams(x)
+# TODO (vtjeng): This is likely generalizable to other types of layers.
 (ps::Array{<:Union{ConvolutionLayerParameters, FullyConnectedLayerParameters}, 1})(x::Array{<:JuMPReal}) = (
     length(ps) == 0 ? x : ps[2:end](ps[1](x))
 )

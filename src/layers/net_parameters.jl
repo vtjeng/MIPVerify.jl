@@ -137,6 +137,48 @@ function Base.show(io::IO, p::FullyConnectedLayerParameters)
     )
 end
 
+"""
+Same as a fully connected layer, but with an additional mask that controls whether a ReLU
+is applied to each output. 
+
+  1) If the value of the mask is <0 (i.e. input is assumed to be always non-positive), the 
+     output is set at 0.
+  2) If the value of the mask is 0 (i.e. input can take both positive and negative values),
+     the output is rectified.
+  3) If the value of the mask is >0 (i.e. input is assumed to be always non-negative), the 
+     output is set as the value of the input, without any rectification.
+"""
+@auto_hash_equals struct PassThroughFullyConnectedLayerParameters{T<:Real, U<:Real, V<:Real} <: LayerParameters
+    mmparams::MatrixMultiplicationParameters{T, U}
+    mask::Array{V, 1}
+
+    function PassThroughFullyConnectedLayerParameters{T, U, V}(
+        mmparams::MatrixMultiplicationParameters{T, U},
+        mask::Array{V, 1}) where {T<:Real, U<:Real, V<:Real}
+        bias_height = size(mmparams.bias) 
+        mask_height = size(mask)
+        @assert(
+            bias_height == mask_height,
+            "Size of output layer, $bias_height, does not match size of provided mask, $mask_height."
+        )
+    end
+end
+
+function PassThroughFullyConnectedLayerParameters(matrix::Array{T, 2}, bias::Array{U, 1}, mask::Array{V, 1}) where {T<:Real, U<:Real, V<:Real}
+    PassThroughFullyConnectedLayerParameters(
+        MatrixMultiplicationParameters(matrix, bias),
+        mask
+    )
+end
+
+function Base.show(io::IO, p::PassThroughFullyConnectedLayerParameters)
+    num_zeroed_units = count(p.mask .< 0)
+    num_passthrough_units = count(p.mask .> 0)
+    print(io,
+        "pass-through fully connected layer with $(p.mmparams |> input_size) inputs and $(p.mmparams |> output_size) output units. $(num_zeroed_units) of the output is set to zero, $(num_passthrough_units) of the output is not rectified, and the remainder are rectified."
+    )
+end
+
 function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
     input_size = size(input)
     @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
