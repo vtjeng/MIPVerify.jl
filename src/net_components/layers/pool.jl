@@ -82,8 +82,7 @@ function pool(
     input::AbstractArray{T, N},
     params::PoolParameters{N}) where {T<:JuMPReal, N}
     if T<:JuMP.AbstractJuMPScalar
-        logger = MIPVerify.getlogger()
-        info(logger, "Specifying pooling constraints ... ")
+        notice(MIPVerify.LOGGER, "Specifying pooling constraints ... ")
     end
     return poolmap(params.pooling_function, input, params.strides)
 end

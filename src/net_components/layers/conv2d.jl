@@ -78,8 +78,7 @@ function conv2d(
     params::Conv2DParameters{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
-        logger = MIPVerify.getlogger()
-        info(logger, "Specifying conv2d constraints ... ")
+        notice(MIPVerify.LOGGER, "Specifying conv2d constraints ... ")
     end
     filter = params.filter
 

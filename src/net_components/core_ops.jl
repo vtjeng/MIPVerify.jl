@@ -9,14 +9,14 @@ function tight_upperbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
     end
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Max, x)
-    status = solve(m)
+    status = solve(m, suppress_warnings = true)
     if status == :Optimal || status == :UserLimit
         u = min(getobjectivebound(m), u)
         if status == :UserLimit
             log_gap(m)
         end
     end
-    debug(MIPVerify.getlogger(), "  Δu = $(upperbound(x)-u)")
+    debug(MIPVerify.LOGGER, "  Δu = $(upperbound(x)-u)")
     return u
 end
 
@@ -27,20 +27,20 @@ function tight_lowerbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
     end
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Min, x)
-    status = solve(m)
+    status = solve(m, suppress_warnings = true)
     if status == :Optimal || status == :UserLimit
         l = max(getobjectivebound(m), l)
         if status == :UserLimit
             log_gap(m)
         end
     end
-    debug(MIPVerify.getlogger(), "  Δl = $(l-lowerbound(x))")
+    debug(MIPVerify.LOGGER, "  Δl = $(l-lowerbound(x))")
     return l
 end
 
 function log_gap(m::JuMP.Model)
     gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
-    notice(MIPVerify.getlogger(), "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
+    info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
 function relu(x::Real)::Real

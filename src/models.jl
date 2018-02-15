@@ -91,12 +91,13 @@ function get_reusable_model(
     model_filepath = joinpath(model_dir, filename)
 
     if isfile(model_filepath) && !rebuild
-        info(MIPVerify.getlogger(), "Loading model from cache.")
+        notice(MIPVerify.LOGGER, "Loading model from cache.")
         d = open(model_filepath, "r") do f
             deserialize(f)
         end
     else
-        info(MIPVerify.getlogger(), "Rebuilding model from scratch.")
+        notice(MIPVerify.LOGGER, """
+        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=false.""")
         d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver)
         open(model_filepath, "w") do f
             serialize(f, d)
