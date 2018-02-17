@@ -21,17 +21,7 @@ See the companion paper for more details and results:
 _Vincent Tjeng, Russ Tedrake_
 https://arxiv.org/abs/1711.07356
 
-## Getting Started
-
-### Installing MIPVerify
-
-To install the latest tagged release of MIPVerify, simply run
-```
-Pkg.add("MIPVerify") 
-```
-
-### Example Code
-[`00_quickstart.ipynb`](examples/00_quickstart.ipynb) demonstrates how finding adversarial examples for a pre-trained example network on the MNIST dataset.
+See the latest stable documentation for a list of features, installation instructions, and a quick-start guide. Installation should only take a couple of minutes, including installing Julia itself. See the notebooks directory for some usage examples.
 
 ## Citing this library
 ```

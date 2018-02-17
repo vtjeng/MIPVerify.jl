@@ -13,3 +13,7 @@ deps/*
 
 # personal TODO file
 TODO.md
+
+# documentation files in /build and /site are fully specified by make.jl and soource
+docs/build/
+docs/site/

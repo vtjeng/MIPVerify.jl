@@ -5,6 +5,7 @@ using JuMP
 using ConditionalJuMP
 using Memento
 using AutoHashEquals
+using DocStringExtensions
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 

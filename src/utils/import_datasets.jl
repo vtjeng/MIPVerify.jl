@@ -33,6 +33,12 @@ function Base.show(io::IO, dataset::ImageDataset)
     )
 end
 
+"""
+$(TYPEDEF)
+
+Named dataset containing a training set and a test set which are expected to contain the
+same kind of data.
+"""
 struct NamedTrainTestDataset{T<:Dataset} <: Dataset
     name::String
     train::T
@@ -47,6 +53,14 @@ function Base.show(io::IO, dataset::NamedTrainTestDataset)
     )
 end
 
+"""
+$(SIGNATURES)
+
+Makes popular machine learning datasets available as a `NamedTrainTestDataset`.
+
+# Arguments
+* `name::String`: name of machine learning dataset. Available options are `MNIST`.
+"""
 function read_datasets(name::String)::NamedTrainTestDataset
     if name == "MNIST"
 
