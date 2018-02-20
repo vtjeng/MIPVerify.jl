@@ -47,6 +47,11 @@ function relu(x::Real)::Real
     return max(0, x)
 end
 
+"""
+$(SIGNATURES)
+Expresses a rectified-linearity constraint: output is constrained to be equal to 
+`max(x, 0)`.
+"""
 function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     model = ConditionalJuMP.getmodel(x)
     x_rect = @variable(model)
@@ -84,6 +89,16 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     return x_rect
 end
 
+"""
+$(SIGNATURES)
+Expresses a masked rectified-linearity constraint, with three possibilities depending on 
+the value of the mask. Output is constrained to be:
+```
+1) max(x, 0) if m=0, 
+2) 0 if m<0
+3) x if m>0
+```
+"""
 function masked_relu(x::T, m::Real)::T where {T<:JuMPReal}
     if m < 0
         0
@@ -98,6 +113,10 @@ function maximum(xs::AbstractArray{T})::T where {T<:Real}
     return Base.maximum(xs)
 end
 
+"""
+$(SIGNATURES)
+Expresses a maximization constraint: output is constrained to be equal to `max(xs)`.
+"""
 function maximum(xs::AbstractArray{T}; tighten::Bool = true)::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
     @assert length(xs) >= 1
     model = ConditionalJuMP.getmodel(xs[1])
@@ -133,6 +152,13 @@ function maximum(xs::AbstractArray{T}; tighten::Bool = true)::JuMP.Variable wher
     return x_max
 end
 
+"""
+$(SIGNATURES)
+Expresses a one-sided absolute-value constraint: output is constrained to be at least as
+large as `|x|`.
+
+Only use when you are minimizing over the output in the objective.
+"""
 function abs_ge(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
     model = ConditionalJuMP.getmodel(x)
     x_abs = @variable(model)
@@ -177,17 +203,18 @@ function get_target_indexes(
         target_indexes
 end
 
+"""
+$(SIGNATURES)
+
+Imposes constraints ensuring that one of the elements at the target_indexes is the 
+largest element of the array x. More specifically, we require `x[j] - x[i] ≥ tolerance` for
+some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
+"""
 function set_max_indexes(
     x::Array{<:JuMP.AbstractJuMPScalar, 1},
     target_indexes::Array{<:Integer, 1};
     tolerance::Real = 0)
-    """
-    Imposes constraints ensuring that one of the elements at the target_indexes is the 
-    largest element of the array x.
-
-    If the model is solved, we guarantee that x[j] - x[i] >= tolerance for some 
-    j ∈ target_indexes and for all i ∉ target_indexes.
-    """
+    
     @assert length(x) >= 1
     model = ConditionalJuMP.getmodel(x[1])
 

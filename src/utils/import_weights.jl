@@ -1,9 +1,30 @@
+export get_matrix_params, get_conv_params, get_example_network_params
+
+"""
+$(SIGNATURES)
+
+Helper function to import the parameters for a layer carrying out matrix multiplication 
+    (e.g. fully connected layer / softmax layer) from `param_dict` as a
+    [`MatrixMultiplicationParameters`](@ref) object.
+
+The default format for parameter names is `'layer_name/weight'` and `'layer_name/bias'`; 
+    you can customize this by passing in the named arguments `matrix_name` and `bias_name`
+    respectively.
+
+# Arguments
+* `param_dict::Dict{String}`: Dictionary mapping parameter names to array of weights
+    / biases.
+* `layer_name::String`: Identifies parameter in dictionary.
+* `expected_size::NTuple{2, Int}`: Tuple of length 2 corresponding to the expected size
+   of the weights of the layer.
+    
+"""
 function get_matrix_params(
     param_dict::Dict{String},
     layer_name::String,
     expected_size::NTuple{2, Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")
+    bias_name::String = "bias")::MatrixMultiplicationParameters
 
     params = MatrixMultiplicationParameters(
         param_dict["$layer_name/$matrix_name"],
@@ -15,12 +36,30 @@ function get_matrix_params(
     return params
 end
 
+"""
+$(SIGNATURES)
+
+Helper function to import the parameters for a convolution layer from `param_dict` as a
+    [`Conv2DParameters`](@ref) object.
+
+The default format for parameter names is `'layer_name/weight'` and `'layer_name/bias'`; 
+    you can customize this by passing in the named arguments `matrix_name` and `bias_name`
+    respectively.
+    
+# Arguments
+* `param_dict::Dict{String}`: Dictionary mapping parameter names to array of weights
+    / biases.
+* `layer_name::String`: Identifies parameter in dictionary.
+* `expected_size::NTuple{4, Int}`: Tuple of length 4 corresponding to the expected size
+    of the weights of the layer.
+    
+"""
 function get_conv_params(
     param_dict::Dict{String},
     layer_name::String,
     expected_size::NTuple{4, Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")
+    bias_name::String = "bias")::Conv2DParameters
 
     params = Conv2DParameters(
         param_dict["$layer_name/$matrix_name"],
@@ -32,6 +71,16 @@ function get_conv_params(
     return params
 end
 
+"""
+$(SIGNATURES)
+
+Makes named example neural networks available as a [`NeuralNetParameters`](@ref) object.
+
+# Arguments
+* `name::String`: Name of example neural network. Options:
+    * `'MNIST.n1'`: MNIST classification. Two fully connected layers with 40 and 20
+        units, and softmax layer with 10 units. No adversarial training.
+"""
 function get_example_network_params(name::String)::NeuralNetParameters
     if name == "MNIST.n1"
         in1_height = 28

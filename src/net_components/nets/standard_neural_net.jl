@@ -1,3 +1,20 @@
+export StandardNeuralNetParameters
+
+"""
+$(TYPEDEF)
+
+Represents a neural net consisting of multiple convolution layers (as an array of
+[`ConvolutionLayerParameters`](@ref)), followed by multiple fully-connected layers (as an
+array of [`FullyConnectedLayerParameters`](@ref)), followed by a softmax layer (as a
+[`SoftmaxParameters`](@ref)).
+
+You can leave the array `convlayer_params` empty if you do not have convolution layers,
+or conversely leave `fclayers_empty` if you do not have fully-connected layers. (Leaving
+_both_ empty doesn't make sense!)
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct StandardNeuralNetParameters <: NeuralNetParameters
     convlayer_params::Array{ConvolutionLayerParameters, 1}
     fclayer_params::Array{FullyConnectedLayerParameters, 1}

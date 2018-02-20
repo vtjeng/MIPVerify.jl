@@ -1,3 +1,15 @@
+export PoolParameters, MaxPoolParameters
+
+"""
+$(TYPEDEF)
+
+Stores parameters for a pooling operation.
+
+`p(x)` is shorthand for [`pool(x, p)`](@ref) when `p` is an instance of `PoolParameters`.
+
+## Fields:
+$(FIELDS)
+"""
 struct PoolParameters{N} <: LayerParameters
     strides::NTuple{N, Int}
     pooling_function::Function
@@ -16,6 +28,11 @@ end
 
 Base.hash(a::PoolParameters, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:PoolParameters, h)))
 
+"""
+$(SIGNATURES)
+
+Convenience function to create a [`PoolParameters`](@ref) struct for max-pooling.
+"""
 function MaxPoolParameters(strides::NTuple{N, Int}) where {N}
     PoolParameters(strides, MIPVerify.maximum)
 end
@@ -26,6 +43,8 @@ function AveragePoolParameters(strides::NTuple{N, Int}) where {N}
 end
 
 """
+$(SIGNATURES)
+
 For pooling operations on an array where a given element in the output array
 corresponds to equal-sized blocks in the input array, returns (for a given
 dimension) the index range in the input array corresponding to a particular
@@ -50,6 +69,8 @@ function getsliceindex(input_array_size::Int, stride::Int, output_index::Int)::A
 end
 
 """
+$(SIGNATURES)
+
 For pooling operations on an array, returns a view of the parent array
 corresponding to the `output_index` in the output array.
 """
@@ -60,6 +81,8 @@ function getpoolview(input_array::AbstractArray{T, N}, strides::NTuple{N, Int}, 
 end
 
 """
+$(SIGNATURES)
+
 For pooling operations on an array, returns the expected size of the output
 array.
 """
@@ -69,6 +92,8 @@ function getoutputsize(input_array::AbstractArray{T, N}, strides::NTuple{N, Int}
 end
 
 """
+$(SIGNATURES)
+
 Returns output from applying `f` to subarrays of `input_array`, with the windows
 determined by the `strides`.
 """
@@ -78,6 +103,12 @@ function poolmap(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{
     return ((I) -> f(getpoolview(input_array, strides, I.I))).(output_indices)
 end
 
+"""
+$(SIGNATURES)
+
+Computes the result of applying the pooling function `params.pooling_function` to 
+non-overlapping cells of `input` with sizes specified in `params.strides`.
+"""
 function pool(
     input::AbstractArray{T, N},
     params::PoolParameters{N}) where {T<:JuMPReal, N}

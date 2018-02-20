@@ -1,3 +1,17 @@
+export SoftmaxParameters
+
+"""
+$(TYPEDEF)
+
+Stores parameters for a softmax layer consisting of a matrix multiplication with _no_
+activation function.
+
+This simply wraps [`MatrixMultiplicationParameters`](@ref) to ensure that it is
+distinguishable as a softmax layer.
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct SoftmaxParameters{T<:Real, U<:Real} <: LayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end

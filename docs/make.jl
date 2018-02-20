@@ -7,8 +7,19 @@ makedocs(
     authors = "Vincent Tjeng and contributors.",
     pages = [
         "Home" => "index.md",
-        "Tutorials" => "tutorials.md"
-    ]
+        "Tutorials" => "tutorials.md",
+        "Working with Neural Net Parameters" => [
+            "net_components/overview.md",
+            "net_components/layers.md",
+            "net_components/nets.md",
+            "net_components/core_ops.md"
+        ],
+        "Importing" => [
+            "utils/import_weights.md",
+            "utils/import_datasets.md",
+        ]
+    ],
+checkdocs = :exports
 )
 
 deploydocs(

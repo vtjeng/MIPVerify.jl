@@ -1,13 +1,15 @@
-"""
-Same as a fully connected layer, but with an additional mask that controls whether a ReLU
-is applied to each output. 
+export MaskedFullyConnectedLayerParameters
 
-  1) If the value of the mask is <0 (i.e. input is assumed to be always non-positive), the 
-     output is set at 0.
-  2) If the value of the mask is 0 (i.e. input can take both positive and negative values),
-     the output is rectified.
-  3) If the value of the mask is >0 (i.e. input is assumed to be always non-negative), the 
-     output is set as the value of the input, without any rectification.
+"""
+$(TYPEDEF)
+
+Stores parameters for a fully connected layer consisting of a matrix multiplication 
+followed by a ReLU activation function that is activated selectively depending on the 
+corresponding value of the mask.
+
+`p(x)` is shorthand for [`masked_fully_connected_layer(x, p)`](@ref) when `p` is an
+instance of `MaskedFullyConnectedLayerParameters`.
+
 """
 @auto_hash_equals struct MaskedFullyConnectedLayerParameters{T<:Real, U<:Real, V<:Real} <: StackableLayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
@@ -42,6 +44,17 @@ function Base.show(io::IO, p::MaskedFullyConnectedLayerParameters)
     )
 end
 
+"""
+Similar to [`fully_connected_layer(x, params)`](@ref), but with an additional mask in
+`params` that controls whether a ReLU is applied to each output. 
+
+  1) If the value of the mask is <0 (i.e. input is assumed to be always non-positive), the 
+     output is set at 0.
+  2) If the value of the mask is 0 (i.e. input can take both positive and negative values),
+     the output is rectified.
+  3) If the value of the mask is >0 (i.e. input is assumed to be always non-negative), the 
+     output is set as the value of the input, without any rectification.
+"""
 function masked_fully_connected_layer(
     x::Array{<:JuMPReal, 1}, 
     params::MaskedFullyConnectedLayerParameters)

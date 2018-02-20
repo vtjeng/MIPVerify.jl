@@ -1,3 +1,17 @@
+export FullyConnectedLayerParameters
+
+"""
+$(TYPEDEF)
+
+Stores parameters for a fully connected layer consisting of a matrix multiplication 
+followed by a ReLU activation function.
+
+`p(x)` is shorthand for [`fully_connected_layer(x, p)`](@ref) when `p` is an instance of
+`FullyConnectedLayerParameters`.
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct FullyConnectedLayerParameters{T<:Real, U<:Real} <: StackableLayerParameters
     mmparams::MatrixMultiplicationParameters{T, U}
 end
@@ -12,6 +26,10 @@ function Base.show(io::IO, p::FullyConnectedLayerParameters)
     )
 end
 
+"""
+Computes the result of multiplying x by `params.mmparams`, and 
+passing the output through a ReLU activation function.
+"""
 function fully_connected_layer(
     x::Array{<:JuMPReal, 1}, 
     params::FullyConnectedLayerParameters)

@@ -1,5 +1,18 @@
 using JuMP
 
+export Conv2DParameters
+
+"""
+$(TYPEDEF)
+
+Stores parameters for a 2-D convolution operation.
+
+`p(x)` is shorthand for [`conv2d(x, p)`](@ref) when `p` is an instance of
+`Conv2DParameters`.
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
     filter::Array{T, 4}
     bias::Array{U, 1}
@@ -9,7 +22,7 @@ using JuMP
         bias_out_channels = length(bias)
         @assert(
             filter_out_channels == bias_out_channels,
-            "For the convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
+            "For this convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
         )
         return new(filter, bias)
     end
@@ -20,6 +33,12 @@ function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMP
     Conv2DParameters{T, U}(filter, bias)
 end
 
+"""
+$(SIGNATURES)
+
+Convenience function to create a [`Conv2DParameters`](@ref) struct with the specified filter
+and zero bias.
+"""
 function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
     bias_out_channels::Int = size(filter)[4]
     bias = zeros(bias_out_channels)
@@ -65,13 +84,15 @@ end
 
 
 """
-Computes a 2D-convolution given 4-D `input` and `filter` tensors.
+$(SIGNATURES)
 
-Mirrors `tf.nn.conv2d` from `tensorflow` package, with `strides` = [1, 1, 1, 1],
- `padding` = 'SAME'.
+Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
- # Throws
- * AssertionError if input and filter are not compatible.
+Mirrors `tf.nn.conv2d` from the `tensorflow` package, with `strides = [1, 1, 1, 1], 
+padding = 'SAME'`.
+
+# Throws
+* AssertionError if `input` and `filter` are not compatible.
 """
 function conv2d(
     input::Array{T, 4},

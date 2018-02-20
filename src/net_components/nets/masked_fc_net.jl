@@ -1,3 +1,15 @@
+export MaskedFullyConnectedNetParameters
+
+"""
+$(TYPEDEF)
+
+Represents a neural net consisting of multiple masked fully-connected layers (as an array
+of [`MaskedFullyConnectedLayerParameters`](@ref)), followed by a softmax layer (as a 
+[`SoftmaxParameters`](@ref)).
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct MaskedFullyConnectedNetParameters <: NeuralNetParameters
     masked_fclayer_params::Array{MaskedFullyConnectedLayerParameters, 1}
     softmax_params::SoftmaxParameters

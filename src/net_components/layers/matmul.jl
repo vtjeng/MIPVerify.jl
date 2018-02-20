@@ -1,3 +1,16 @@
+export MatrixMultiplicationParameters
+
+"""
+$(TYPEDEF)
+
+Stores parameters for a layer that does a simple matrix multiplication.
+
+`p(x)` is shorthand for [`matmul(x, p)`](@ref) when `p` is an instance of
+`MatrixMultiplicationParameters`.
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: LayerParameters
     matrix::Array{T, 2}
     bias::Array{U, 1}
@@ -26,6 +39,12 @@ end
 input_size(p::MatrixMultiplicationParameters) = size(p.matrix)[1]
 output_size(p::MatrixMultiplicationParameters) = size(p.matrix)[2]
 
+"""
+$(SIGNATURES)
+
+Computes the result of pre-multiplying `x` by the transpose of `params.matrix` and adding
+`params.bias`.
+"""
 function matmul(
     x::Array{<:JuMPReal, 1}, 
     params::MatrixMultiplicationParameters)

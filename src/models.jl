@@ -94,6 +94,7 @@ function get_reusable_model(
         notice(MIPVerify.LOGGER, "Loading model from cache.")
         d = open(model_filepath, "r") do f
             deserialize(f)
+            # TODO (vtjeng): Catch situations where the saved model has a different name.
         end
     else
         notice(MIPVerify.LOGGER, """

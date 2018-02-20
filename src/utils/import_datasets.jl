@@ -1,7 +1,16 @@
 using MAT
 
+export read_datasets
+
 abstract type Dataset end
 
+"""
+$(TYPEDEF)
+
+Dataset of images stored as a 4-dimensional array of size `(num_samples, image_height, 
+image_width, num_channels)`, with accompanying labels (sorted in the same order) of size
+`num_samples`.
+"""
 struct ImageDataset{T<:Real, U<:Int} <: Dataset
     images::Array{T, 4}
     labels::Array{U, 1}
@@ -59,7 +68,8 @@ $(SIGNATURES)
 Makes popular machine learning datasets available as a `NamedTrainTestDataset`.
 
 # Arguments
-* `name::String`: name of machine learning dataset. Available options are `MNIST`.
+* `name::String`: name of machine learning dataset. Options:
+    * `MNIST`: [The MNIST Database of handwritten digits](http://yann.lecun.com/exdb/mnist/)
 """
 function read_datasets(name::String)::NamedTrainTestDataset
     if name == "MNIST"
