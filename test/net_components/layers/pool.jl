@@ -2,7 +2,8 @@ using Base.Test
 using JuMP
 using MIPVerify: PoolParameters, MaxPoolParameters, AveragePoolParameters
 using MIPVerify: getsliceindex, getpoolview, pool
-using MIPVerify.TestHelpers: get_new_model
+isdefined(:TestHelpers) || include("../../TestHelpers.jl")
+using TestHelpers: get_new_model
 
 
 @testset "pool.jl" begin

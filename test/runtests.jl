@@ -3,8 +3,10 @@ using Base.Test: @test_throws
 using MIPVerify: setloglevel!
 using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm
-using MIPVerify.TestHelpers: get_new_model
 using JuMP
+
+isdefined(:TestHelpers) || include("TestHelpers.jl")
+using TestHelpers: get_new_model
 
 @testset "MIPVerify" begin
     MIPVerify.setloglevel!("info")

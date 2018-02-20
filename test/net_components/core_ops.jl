@@ -4,7 +4,8 @@ using JuMP
 using MathProgBase
 using MIPVerify: MatrixMultiplicationParameters
 using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge
-using MIPVerify.TestHelpers: get_new_model
+isdefined(:TestHelpers) || include("../TestHelpers.jl")
+using TestHelpers: get_new_model
 
 function count_binary_variables(m::Model)
     count(x -> x == :Bin, m.colCat)

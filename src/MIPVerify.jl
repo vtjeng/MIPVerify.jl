@@ -125,7 +125,5 @@ function get_norm(
     end
 end
 
-include("../test/TestHelpers.jl")
-
 end
 

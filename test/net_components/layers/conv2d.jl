@@ -1,7 +1,8 @@
 using Base.Test
 using JuMP
 using MIPVerify: Conv2DParameters, check_size, increment!
-using MIPVerify.TestHelpers: get_new_model
+isdefined(:TestHelpers) || include("../../TestHelpers.jl")
+using TestHelpers: get_new_model
 
 @testset "conv2d.jl" begin
 

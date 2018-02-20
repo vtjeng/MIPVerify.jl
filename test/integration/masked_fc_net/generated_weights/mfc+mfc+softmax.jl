@@ -2,7 +2,8 @@ using Base.Test
 using MIPVerify: MaskedFullyConnectedLayerParameters, SoftmaxParameters
 using MIPVerify: MaskedFullyConnectedNetParameters
 using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
-using MIPVerify.TestHelpers: batch_test_adversarial_example
+isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
+using TestHelpers: batch_test_adversarial_example
 
 @testset "mfc + mfc + softmax" begin
 

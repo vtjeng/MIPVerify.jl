@@ -1,7 +1,8 @@
 using Base.Test
 using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
 using MIPVerify: get_example_network_params, read_datasets, get_image
-using MIPVerify.TestHelpers: batch_test_adversarial_example
+isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
+using TestHelpers: batch_test_adversarial_example
 
 @testset "MNIST.n1" begin
     nnparams = get_example_network_params("MNIST.n1")
