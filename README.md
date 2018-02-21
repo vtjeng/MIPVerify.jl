@@ -1,6 +1,9 @@
 # MIPVerify.jl
 
-[![Build Status](https://travis-ci.org/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.org/vtjeng/MIPVerify.jl) [![codecov.io](http://codecov.io/github/vtjeng/MIPVerify.jl/coverage.svg?branch=master)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
+[![Build Status](https://travis-ci.org/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.org/vtjeng/MIPVerify.jl)
+[![codecov.io](http://codecov.io/github/vtjeng/MIPVerify.jl/coverage.svg?branch=master)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/latest)
 
 Recent work has shown that neural networks are vulnerable to _adversarial examples_, with small perturbations to input potentially leading to large changes in the output. In the context of image classification, the perturbed input is often indistinguishable from the original input, but can lead to misclassifications into any target category chosen by the adversary.
 
