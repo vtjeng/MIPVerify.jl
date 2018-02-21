@@ -36,6 +36,7 @@ function get_model(
     d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild)
     setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
+    delete!(d, :Input)
     # NOTE (vtjeng): It is important to set the solver before attempting to add a 
     # constraint, as the saved model may have been saved with a different solver (or 
     # different) environment. Flipping the order of the two leads to test failures.
