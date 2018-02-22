@@ -31,9 +31,10 @@ function get_model(
     pp::AdditivePerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    rebuild::Bool
+    rebuild::Bool,
+    tighten_bounds::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild)
+    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild, tighten_bounds)
     setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
@@ -49,9 +50,10 @@ function get_model(
     pp::BlurPerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    rebuild::Bool
+    rebuild::Bool,
+    tighten_bounds::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild)
+    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild, tighten_bounds)
     setsolver(d[:Model], main_solver)
     return d
 end
@@ -85,7 +87,8 @@ function get_reusable_model(
     input::Array{<:Real},
     pp::PerturbationParameters,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    rebuild::Bool
+    rebuild::Bool,
+    tighten_bounds::Bool
     )::Dict
 
     filename = model_filename(nn_params, input, pp)
@@ -100,7 +103,7 @@ function get_reusable_model(
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=false.""")
-        d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver)
+        d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver, tighten_bounds)
         open(model_filepath, "w") do f
             serialize(f, d)
         end
@@ -112,10 +115,12 @@ function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tighten_bounds::Bool
     )::Dict
 
     m = Model(solver = model_build_solver)
+    m.ext[:MIPVerify] = MIPVerifyExt(tighten_bounds)
 
     input_range = CartesianRange(size(input))
 
@@ -142,12 +147,14 @@ function build_reusable_model_uncached(
     nn_params::NeuralNetParameters,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
+    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tighten_bounds::Bool
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
     m = Model(solver = model_build_solver)
+    m.ext[:MIPVerify] = MIPVerifyExt(tighten_bounds)
 
     input_size = size(input)
     filter_size = (pp.blur_kernel_size..., 1, 1)
@@ -169,4 +176,8 @@ function build_reusable_model_uncached(
     )
 
     return d
+end
+
+struct MIPVerifyExt
+    tighten_bounds::Bool
 end

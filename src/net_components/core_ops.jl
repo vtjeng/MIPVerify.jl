@@ -2,7 +2,20 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
-function tight_upperbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
+function do_tighten_bounds(
+    x::JuMP.AbstractJuMPScalar)::Bool
+    m = ConditionalJuMP.getmodel(x)
+    if !haskey(m.ext, :MIPVerify)
+        # always tighten bounds if unspecified
+        return true
+    else
+        return m.ext[:MIPVerify].tighten_bounds
+    end
+end
+
+function tight_upperbound(
+    x::JuMP.AbstractJuMPScalar; 
+    tighten::Bool = do_tighten_bounds(x))
     u = upperbound(x)
     if !tighten
         return u
@@ -20,7 +33,9 @@ function tight_upperbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
     return u
 end
 
-function tight_lowerbound(x::JuMP.AbstractJuMPScalar; tighten::Bool = true)
+function tight_lowerbound(
+    x::JuMP.AbstractJuMPScalar;
+    tighten::Bool = do_tighten_bounds(x))
     l = lowerbound(x)
     if !tighten
         return l
@@ -137,8 +152,9 @@ end
 $(SIGNATURES)
 Expresses a maximization constraint: output is constrained to be equal to `max(xs)`.
 """
-function maximum(xs::AbstractArray{T}; tighten::Bool = true)::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
-    @assert length(xs) >= 1
+function maximum(
+    xs::AbstractArray{T}; 
+    tighten::Bool = do_tighten_bounds(xs[1]))::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
     model = ConditionalJuMP.getmodel(xs[1])
     ls = tight_lowerbound.(xs; tighten = tighten)
     us = tight_upperbound.(xs; tighten = tighten)

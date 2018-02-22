@@ -64,9 +64,13 @@ and for all `i ∉ target_selection`.
     bounds on input to each non-linear unit even if a cached model exists.
 + `invert_target_selection`: defaults to `false`. If `true`, sets `target_selection` to 
     be its complement.
-+ `model_build_solver`: Used to determine the upper and lower bounds on input to each 
-    non-linear unit. Defaults to the same type of solver as the `main_solver`, with a
-    time limit of 20s per solver and output suppressed. 
++ `tighten_bounds`: defaults to `true`. Determines how we determine the upper and lower
+    bounds on input to each nonlinear unit. 
+   If `true`, solves an MIP using the `model_build_solver`.
+   If `false`, uses interval arithmetic.
+   Bounds are tigther when `true` but the process can take more time. 
++ `model_build_solver`: Defaults to the same type of solver as
+    the `main_solver`, with a time limit of 20s per solver and output suppressed. 
 """
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
@@ -78,10 +82,11 @@ function find_adversarial_example(
     tolerance = 0.0,
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
+    tighten_bounds = true,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_model_build_solver(main_solver)
     )::Dict
 
-    d = get_model(nnparams, input, pp, main_solver, model_build_solver, rebuild)
+    d = get_model(nnparams, input, pp, main_solver, model_build_solver, rebuild, tighten_bounds)
     m = d[:Model]
 
     # Set output constraint

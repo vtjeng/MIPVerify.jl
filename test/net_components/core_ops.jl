@@ -14,10 +14,6 @@ end
 @testset "core_ops.jl" begin
     @testset "maximum" begin
         @testset "Variable Input" begin
-            @testset "no variables to maximize over" begin
-                xs::Array{JuMP.AbstractJuMPScalar} = []
-                @test_throws AssertionError MIPVerify.maximum(xs)
-            end
             @testset "single variable to maximize over" begin
                 m = get_new_model()
                 x1 = @variable(m, lowerbound=0, upperbound=3)
