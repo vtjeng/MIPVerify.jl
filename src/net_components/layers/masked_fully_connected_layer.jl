@@ -56,9 +56,22 @@ Similar to [`fully_connected_layer(x, params)`](@ref), but with an additional ma
      output is set as the value of the input, without any rectification.
 """
 function masked_fully_connected_layer(
-    x::Array{<:JuMPReal, 1}, 
-    params::MaskedFullyConnectedLayerParameters)
-    return masked_relu.(x |> params.mmparams, params.mask)
+    x::Array{<:JuMP.AbstractJuMPScalar, 1}, 
+    params::MaskedFullyConnectedLayerParameters)::Array{<:JuMP.AbstractJuMPScalar, 1}
+    info(MIPVerify.LOGGER, "Working on $(params)")
+    info(MIPVerify.LOGGER, "  Applying matrix multiplication...")
+    x1 = x |> params.mmparams
+    info(MIPVerify.LOGGER, "  Applying masked rectification...")
+    x2 = masked_relu.(x1, params.mask)
+    return x2
+end
+
+function masked_fully_connected_layer(
+    x::Array{<:Real, 1}, 
+    params::MaskedFullyConnectedLayerParameters)::Array{<:Real, 1}
+    x1 = x |> params.mmparams
+    x2 = masked_relu.(x1, params.mask)
+    return x2
 end
 
 (p::MaskedFullyConnectedLayerParameters)(x::Array{<:JuMPReal, 1}) = masked_fully_connected_layer(x, p)

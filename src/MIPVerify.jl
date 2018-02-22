@@ -6,6 +6,7 @@ using ConditionalJuMP
 using Memento
 using AutoHashEquals
 using DocStringExtensions
+using ProgressMeter
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
@@ -124,7 +125,7 @@ function frac_correct(
 
     num_correct = 0.0
     num_samples = min(num_samples, length(dataset.labels))
-    for sample_index in 1:num_samples
+    @showprogress 1 "Computing fraction correct..." for sample_index in 1:num_samples
         x0 = get_image(dataset.images, sample_index)
         actual_label = get_label(dataset.labels, sample_index)
         predicted_label = (x0 |> nnparams |> get_max_index) - 1

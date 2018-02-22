@@ -6,3 +6,4 @@ AutoHashEquals 0.1.2
 MAT 0.4.0
 MathProgBase 0.6
 DocStringExtensions 0.4.3
+ProgressMeter 0.5.4

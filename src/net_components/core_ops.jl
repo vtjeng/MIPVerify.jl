@@ -52,7 +52,7 @@ $(SIGNATURES)
 Expresses a rectified-linearity constraint: output is constrained to be equal to 
 `max(x, 0)`.
 """
-function relu(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
+function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
     model = ConditionalJuMP.getmodel(x)
     x_rect = @variable(model)
     u = tight_upperbound(x)
@@ -99,7 +99,27 @@ the value of the mask. Output is constrained to be:
 3) x if m>0
 ```
 """
-function masked_relu(x::T, m::Real)::T where {T<:JuMPReal}
+function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
+    if m < 0
+        # TODO (vtjeng): this is bad! we should be able to completely remove this
+        # extraneous variable.
+        model = ConditionalJuMP.getmodel(x)
+        x_0 = @variable(model)
+        JuMP.fix(x_0, 0)
+        return x_0
+    elseif m > 0
+        model = ConditionalJuMP.getmodel(x)
+        x_id = @variable(model)
+        @constraint(model, x_id == x)
+        setupperbound(x_id, upperbound(x))
+        setlowerbound(x_id, lowerbound(x))
+        return x_id
+    else
+        return relu(x)
+    end
+end
+
+function masked_relu(x::Real, m::Real)::Real
     if m < 0
         0
     elseif m > 0

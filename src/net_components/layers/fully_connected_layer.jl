@@ -31,9 +31,22 @@ Computes the result of multiplying x by `params.mmparams`, and
 passing the output through a ReLU activation function.
 """
 function fully_connected_layer(
-    x::Array{<:JuMPReal, 1}, 
-    params::FullyConnectedLayerParameters)
-    return relu.(x |> params.mmparams)
+    x::Array{<:JuMP.AbstractJuMPScalar, 1}, 
+    params::FullyConnectedLayerParameters)::Array{<:JuMP.AbstractJuMPScalar, 1}
+    info(MIPVerify.LOGGER, "Working on $(params)")
+    info(MIPVerify.LOGGER, "  Applying matrix multiplication...")
+    x1 = x |> params.mmparams
+    info(MIPVerify.LOGGER, "  Applying rectification...")
+    x2 = relu.(x1)
+    return x2
+end
+
+function fully_connected_layer(
+    x::Array{<:Real, 1}, 
+    params::FullyConnectedLayerParameters)::Array{<:Real, 1}
+    x1 = x |> params.mmparams
+    x2 = relu.(x1)
+    return x2
 end
 
 (p::FullyConnectedLayerParameters)(x::Array{<:JuMPReal, 1}) = fully_connected_layer(x, p)
