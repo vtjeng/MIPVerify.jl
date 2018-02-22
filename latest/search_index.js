@@ -105,6 +105,54 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "finding_adversarial_examples.html#",
+    "page": "Finding Adversarial Examples",
+    "title": "Finding Adversarial Examples",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "finding_adversarial_examples.html#Finding-Adversarial-Examples-1",
+    "page": "Finding Adversarial Examples",
+    "title": "Finding Adversarial Examples",
+    "category": "section",
+    "text": "find_adversarial_example is the core function that you will be calling to  find adversarial examples. To avoid spending time verifying the wrong network, we suggest that you check that the network gets reasonable performance on the test set using [frac_correct]."
+},
+
+{
+    "location": "finding_adversarial_examples.html#Index-1",
+    "page": "Finding Adversarial Examples",
+    "title": "Index",
+    "category": "section",
+    "text": "Pages   = [\"finding_adversarial_examples.md\"]\nOrder   = [:function, :type]"
+},
+
+{
+    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNetParameters,Array{#s6,N} where N where #s6<:Real,Union{Array{#s5,1} where #s5<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "page": "Finding Adversarial Examples",
+    "title": "MIPVerify.find_adversarial_example",
+    "category": "Method",
+    "text": "find_adversarial_example(nnparams, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, model_build_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nnparams classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: defaults to false. If true, sets target_selection to    be its complement.\nmodel_build_solver: Used to determine the upper and lower bounds on input to each    non-linear unit. Defaults to the same type of solver as the main_solver, with a   time limit of 20s per solver and output suppressed. \n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNetParameters,MIPVerify.ImageDataset,Int64}",
+    "page": "Finding Adversarial Examples",
+    "title": "MIPVerify.frac_correct",
+    "category": "Method",
+    "text": "frac_correct(nnparams, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnnparams::NeuralNetParameters: The parameters of the neural network.\ndataset::ImageDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples.html#Public-Interface-1",
+    "page": "Finding Adversarial Examples",
+    "title": "Public Interface",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"MIPVerify.jl\"]\nPrivate = false"
+},
+
+{
     "location": "net_components/overview.html#",
     "page": "Overview",
     "title": "Overview",
