@@ -337,7 +337,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.convolution_layer-Tuple{Array{#s104,4} where #s104<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.ConvolutionLayerParameters}",
+    "location": "net_components/layers.html#MIPVerify.convolution_layer-Tuple{Array{#s110,4} where #s110<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.ConvolutionLayerParameters}",
     "page": "Layers",
     "title": "MIPVerify.convolution_layer",
     "category": "Method",
@@ -345,7 +345,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.fully_connected_layer-Tuple{Array{#s104,1} where #s104<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.FullyConnectedLayerParameters}",
+    "location": "net_components/layers.html#MIPVerify.fully_connected_layer-Tuple{Array{#s109,1} where #s109<:JuMP.AbstractJuMPScalar,MIPVerify.FullyConnectedLayerParameters}",
     "page": "Layers",
     "title": "MIPVerify.fully_connected_layer",
     "category": "Method",
@@ -353,7 +353,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.masked_fully_connected_layer-Tuple{Array{#s103,1} where #s103<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.MaskedFullyConnectedLayerParameters}",
+    "location": "net_components/layers.html#MIPVerify.masked_fully_connected_layer-Tuple{Array{#s108,1} where #s108<:JuMP.AbstractJuMPScalar,MIPVerify.MaskedFullyConnectedLayerParameters}",
     "page": "Layers",
     "title": "MIPVerify.masked_fully_connected_layer",
     "category": "Method",
@@ -361,7 +361,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s103,1} where #s103<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.MatrixMultiplicationParameters}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s109,1} where #s109<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.MatrixMultiplicationParameters}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "Method",
@@ -497,7 +497,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Union{Tuple{T,Real}, Tuple{T}} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{JuMP.AbstractJuMPScalar,Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "Method",
@@ -521,7 +521,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s104,1} where #s104<:JuMP.AbstractJuMPScalar,Array{#s105,1} where #s105<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s110,1} where #s110<:JuMP.AbstractJuMPScalar,Array{#s111,1} where #s111<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "Method",
