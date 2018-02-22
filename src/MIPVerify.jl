@@ -17,6 +17,8 @@ include("utils/import_weights.jl")
 include("utils/import_datasets.jl")
 include("logging.jl")
 
+export find_adversarial_example, frac_correct
+
 function get_max_index(
     x::Array{<:Real, 1})::Integer
     return findmax(x)[2]
@@ -37,6 +39,34 @@ function get_default_model_build_solver(
     return model_build_solver
 end
 
+"""
+$(SIGNATURES)
+
+Finds the perturbed image closest to `input` such that the network described by `nnparams`
+classifies the perturbed image in one of the categories identified by the 
+indexes in `target_selection`.
+
+`main_solver` specifies the solver used.
+
+*Formal Definition*: If there are a total of `n` categories, the output vector `y` has 
+length `n`. We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
+and for all `i ∉ target_selection`.
+
+# Named Arguments:
++ `pp::PerturbationParameters`: Defaults to `AdditivePerturbationParameters()`. Determines
+    the family of perturbations over which we are searching for adversarial examples.
++ `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the 
+    distance from the perturbed image to the original. Supported options are `1`, `Inf` 
+    and `2` (if the `main_solver` used can solve MIQPs.)
++ `tolerance`: Defaults to `0.0`. As above.
++ `rebuild`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
+    bounds on input to each non-linear unit even if a cached model exists.
++ `invert_target_selection`: defaults to `false`. If `true`, sets `target_selection` to 
+    be its complement.
++ `model_build_solver`: Used to determine the upper and lower bounds on input to each 
+    non-linear unit. Defaults to the same type of solver as the `main_solver`, with a
+    time limit of 20s per solver and output suppressed. 
+"""
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
     input::Array{<:Real},
@@ -75,24 +105,34 @@ function get_image(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
-function num_correct(nnparams::NeuralNetParameters, dataset_name::String, num_samples::Int)::Int
-    """
-    Returns the number of correctly classified items our neural net obtains
-    of the first `num_samples` for the test set of the name dataset.
-    """
+"""
+$(SIGNATURES)
 
-    d = read_datasets(dataset_name)
+Returns the fraction of items the neural network correctly classifies of the first
+`num_samples` of the provided `dataset`. If there are fewer than
+`num_samples` items, we use all of the available samples.
 
-    num_correct = 0
+# Named Arguments:
++ `nnparams::NeuralNetParameters`: The parameters of the neural network.
++ `dataset::ImageDataset`:
++ `num_samples::Int`: Number of samples to use.
+"""
+function frac_correct(
+    nnparams::NeuralNetParameters, 
+    dataset::ImageDataset, 
+    num_samples::Int)::Real
+
+    num_correct = 0.0
+    num_samples = min(num_samples, length(dataset.labels))
     for sample_index in 1:num_samples
-        x0 = get_image(d.test.images, sample_index)
-        actual_label = get_label(d.test.labels, sample_index)
+        x0 = get_image(dataset.images, sample_index)
+        actual_label = get_label(dataset.labels, sample_index)
         predicted_label = (x0 |> nnparams |> get_max_index) - 1
         if actual_label == predicted_label
             num_correct += 1
         end
     end
-    return num_correct
+    return num_correct / num_samples
 end
 
 
