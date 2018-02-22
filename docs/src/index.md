@@ -18,4 +18,4 @@ Pkg.add("MIPVerify")
 ```
 
 ## Getting Started
-The best way to get started is to follow our [quickstart tutorial](../../examples/00_quickstart.ipynb), which demonstrates how to find adversarial examples for a pre-trained example network on the MNIST dataset. Once you're done with that, you can explore our other tutorials depending on your needs.
+The best way to get started is to follow our [quickstart tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), which demonstrates how to find adversarial examples for a pre-trained example network on the MNIST dataset. Once you're done with that, you can explore our other tutorials depending on your needs.

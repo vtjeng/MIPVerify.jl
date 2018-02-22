@@ -1,13 +1,13 @@
 # Tutorials
 
 ## Quickstart
-[A basic demonstration](../../examples/00_quickstart.ipynb) on how to find adversarial examples for a pre-trained example network on the MNIST dataset.
+[A basic demonstration](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb) on how to find adversarial examples for a pre-trained example network on the MNIST dataset.
 
 ## Importing your own neural net
-[Explains](../../examples/01_importing_your_own_neural_net.ipynb) how to import your own network for verification.
+[Explains](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/01_importing_your_own_neural_net.ipynb) how to import your own network for verification.
 
 ## Finding adversarial examples, in depth
-[Discusses](../../examples/02_finding_adversarial_examples_in_depth.ipynb) the various parameters you can select for `find_adversarial_example`. We explain how to
+[Discusses](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/02_finding_adversarial_examples_in_depth.ipynb) the various parameters you can select for `find_adversarial_example`. We explain how to
 
   + Better specify targeted labels for the perturbed image (including multiple targeted labels)
   + Have more precise control over the activations in the output layer
@@ -25,7 +25,7 @@ For Gurobi, we show how to specify solver settings to:
     + The gap between the upper and lower objective bounds falls below a selected threshold
 
 ## Interpreting the output of `find_adversarial_example`
-[Walks you through](../../examples/03_interpreting_the_output_of_find_adversarial_example.ipynb) the output dictionary produced by a call to `find_adversarial_example`.
+[Walks you through](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb) the output dictionary produced by a call to `find_adversarial_example`.
 
 ## Managing log output
-[Explains how](../../examples/04_managing_log_output.ipynb) getting more granular log settings and writing log output to file.
+[Explains how](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/04_managing_log_output.ipynb) getting more granular log settings and writing log output to file.
