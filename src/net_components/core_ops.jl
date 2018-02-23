@@ -58,7 +58,7 @@ function log_gap(m::JuMP.Model)
     info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
-function relu(x::Real)::Real
+function relu(x::T)::T where {T<:Real}
     return max(0, x)
 end
 
@@ -134,7 +134,7 @@ function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
     end
 end
 
-function masked_relu(x::Real, m::Real)::Real
+function masked_relu(x::T, m::Real)::T where {T<:Real}
     if m < 0
         0
     elseif m > 0
