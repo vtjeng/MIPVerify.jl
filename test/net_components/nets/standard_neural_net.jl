@@ -36,7 +36,7 @@ using MIPVerify: SoftmaxParameters, StandardNeuralNetParameters
         @test String(take!(io)) == """
             convolutional neural net testnet
               `convlayer_params` [1]:
-                convolution layer. applies 5 3x3 filters, followed by max pooling with a 2x2 filter and a stride of (2, 2), and a ReLU activation function.
+                convolution layer. applies 5 3x3 filters with stride 1, followed by max pooling with a 2x2 filter and a stride of (2, 2), and a ReLU activation function.
               `fclayer_params` [2]:
                 fully connected layer with 980 inputs and 40 output units, and a ReLU activation function.
                 fully connected layer with 40 inputs and 20 output units, and a ReLU activation function.

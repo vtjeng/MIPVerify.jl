@@ -13,24 +13,29 @@ Stores parameters for a 2-D convolution operation.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal} <: LayerParameters
+@auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal, V<:Int64} <: LayerParameters
     filter::Array{T, 4}
     bias::Array{U, 1}
+    stride::V
 
-    function Conv2DParameters{T, U}(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
+    function Conv2DParameters{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
             filter_out_channels == bias_out_channels,
             "For this convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
         )
-        return new(filter, bias)
+        return new(filter, bias, stride)
     end
 
 end
 
+function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    Conv2DParameters{T, U, V}(filter, bias, stride)
+end
+
 function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
-    Conv2DParameters{T, U}(filter, bias)
+    Conv2DParameters(filter, bias, 1)
 end
 
 """
@@ -52,12 +57,11 @@ end
 
 function Base.show(io::IO, p::Conv2DParameters)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
+    stride = p.stride
     print(io,
-        "applies $filter_out_channels $(filter_height)x$(filter_width) filters"
+        "applies $filter_out_channels $(filter_height)x$(filter_width) filters with stride $(stride)"
     )
 end
-
-
 
 function increment!(s::Real, input_val::Real, filter_val::Real)
     return s + input_val*filter_val
@@ -102,6 +106,7 @@ function conv2d(
         notice(MIPVerify.LOGGER, "Specifying conv2d constraints ... ")
     end
     filter = params.filter
+    stride = params.stride
 
     (batch, in_height, in_width, input_in_channels) = size(input)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
@@ -111,7 +116,9 @@ function conv2d(
         "Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."
     )
     
-    output_size = (batch, in_height, in_width, filter_out_channels)
+    out_height = round(Int, in_height/stride, RoundUp)
+    out_width = round(Int, in_width/stride, RoundUp)
+    output_size = (batch, out_height, out_width, filter_out_channels)
 
     # Considered using offset arrays here, but could not get it working.
 
@@ -128,8 +135,8 @@ function conv2d(
         s::W = 0
         @nloops 4 j filter begin
             if i_4 == j_4
-                x = i_2 + j_1 - filter_height_offset
-                y = i_3 + j_2 - filter_width_offset
+                x = (i_2-1)*stride+1 + j_1 - filter_height_offset
+                y = (i_3-1)*stride+1 + j_2 - filter_width_offset
                 if x > 0 && y > 0 && x<=in_height && y<=in_width
                     # Doing bounds check to make sure that we stay within bounds
                     # for input. This effectively zero-pads the input.

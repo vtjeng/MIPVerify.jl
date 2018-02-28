@@ -15,7 +15,7 @@ using MIPVerify: ConvolutionLayerParameters, check_size
     @testset "Base.show" begin
         io = IOBuffer()
         Base.show(io, p)
-        @test String(take!(io)) == "convolution layer. applies 5 3x3 filters, followed by max pooling with a 2x2 filter and a stride of (2, 2), and a ReLU activation function."
+        @test String(take!(io)) == "convolution layer. applies 5 3x3 filters with stride 1, followed by max pooling with a 2x2 filter and a stride of (2, 2), and a ReLU activation function."
     end
     @testset "check_size" begin
         @test check_size(p, (3, 3, 1, 5)) === nothing

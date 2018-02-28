@@ -41,7 +41,7 @@ using TestHelpers: get_new_model
             p = Conv2DParameters(filter)
             io = IOBuffer()
             Base.show(io, p)
-            @test String(take!(io)) == "applies 5 3x3 filters"
+            @test String(take!(io)) == "applies 5 3x3 filters with stride 1"
         end
         @testset "check_size" begin
             filter = rand(3, 3, 2, 5)
