@@ -133,7 +133,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.find_adversarial_example",
     "category": "Method",
-    "text": "find_adversarial_example(nnparams, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tighten_bounds, model_build_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nnparams classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: defaults to false. If true, sets target_selection to    be its complement.\ntighten_bounds: defaults to true. Determines how we determine the upper and lower   bounds on input to each nonlinear unit.   If true, solves an MIP using the model_build_solver.  If false, uses interval arithmetic.  Bounds are tigther when true but the process can take more time. \nmodel_build_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. \n\n\n\n"
+    "text": "find_adversarial_example(nnparams, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tighten_bounds, model_build_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nnparams classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: defaults to false. If true, sets target_selection to    be its complement.\ntighten_bounds: defaults to true. Determines how we determine the upper and lower   bounds on input to each nonlinear unit.   If true, solves an MIP using the model_build_solver.  If false, uses interval arithmetic.  Bounds are tighter when true but the process can take more time. \nmodel_build_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed.\n\n\n\n"
 },
 
 {
@@ -245,7 +245,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.Conv2DParameters",
     "category": "Type",
-    "text": "struct Conv2DParameters{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}} <: MIPVerify.LayerParameters\n\nStores parameters for a 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2DParameters.\n\nFields:\n\nfilter\nbias\n\n\n\n"
+    "text": "struct Conv2DParameters{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}, V<:Int64} <: MIPVerify.LayerParameters\n\nStores parameters for a 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2DParameters.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
 },
 
 {
@@ -329,7 +329,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2DParameters{U,V}}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2DParameters{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
     "page": "Layers",
     "title": "MIPVerify.conv2d",
     "category": "Method",
