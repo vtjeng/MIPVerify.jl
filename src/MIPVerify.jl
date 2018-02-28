@@ -68,9 +68,9 @@ and for all `i ∉ target_selection`.
     bounds on input to each nonlinear unit. 
    If `true`, solves an MIP using the `model_build_solver`.
    If `false`, uses interval arithmetic.
-   Bounds are tigther when `true` but the process can take more time. 
+   Bounds are tighter when `true` but the process can take more time. 
 + `model_build_solver`: Defaults to the same type of solver as
-    the `main_solver`, with a time limit of 20s per solver and output suppressed. 
+    the `main_solver`, with a time limit of 20s per solver and output suppressed.
 """
 function find_adversarial_example(
     nnparams::NeuralNetParameters, 
