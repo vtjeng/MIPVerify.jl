@@ -1,9 +1,8 @@
 using Base.Test
-using Base.Test: @test_throws
 using JuMP
 using MathProgBase
-using MIPVerify: MatrixMultiplicationParameters
-using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge
+using MIPVerify: Linear
+using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge, masked_relu
 isdefined(:TestHelpers) || include("../TestHelpers.jl")
 using TestHelpers: get_new_model
 
@@ -92,6 +91,83 @@ end
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈2
+            end
+        end
+    end
+
+    @testset "masked_relu" begin
+        @testset "Numerical Input" begin
+            @test masked_relu(5, -1)==0
+            @test masked_relu(0, -1)==0
+            @test masked_relu(-5, -1)==0
+            @test masked_relu(5, 0)==5
+            @test masked_relu(0, 0)==0
+            @test masked_relu(-5, 0)==0
+            @test masked_relu(5, 1)==5
+            @test masked_relu(0, 1)==0
+            @test masked_relu(-5, 1)==-5           
+        end
+        
+        @testset "Variable Input" begin
+            @testset "mask is negative" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=-1, upperbound=2)
+                x_r = masked_relu(x, -1)
+
+                # no binary variables to be introduced
+                @test count_binary_variables(m)==0
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈1
+                @test getvalue(x)≈-1
+                @test getvalue(x_r)≈0
+
+                @objective(m, Min, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈-2
+                @test getvalue(x)≈2
+                @test getvalue(x_r)≈0
+            end
+            @testset "mask is 0" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=-1, upperbound=2)
+                x_r = masked_relu(x, 0)
+
+                # at most one binary variable to be introduced
+                @test count_binary_variables(m)<=1
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈2
+                @test getvalue(x)≈2
+                @test getvalue(x_r)≈2
+
+                @objective(m, Min, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈0
+                @test getvalue(x)≈0
+                @test getvalue(x_r)≈0
+            end
+            @testset "mask is positive" begin
+                m = get_new_model()
+                x = @variable(m, lowerbound=-1, upperbound=2)
+                x_r = masked_relu(x, 1)
+
+                # no binary variables to be introduced
+                @test count_binary_variables(m)==0
+                
+                @objective(m, Max, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈2
+                @test getvalue(x)≈2
+                @test getvalue(x_r)≈2
+
+                @objective(m, Min, 2*x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈-1
+                @test getvalue(x)≈-1
+                @test getvalue(x_r)≈-1
             end
         end
     end
@@ -220,14 +296,14 @@ end
         
         A1 = [1 -0.5; -0.5 1]
         b1 = zeros(2)
-        p1 = MatrixMultiplicationParameters(A1, b1)
+        p1 = Linear(A1, b1)
         # naive bounds on our intermediate activations are [-1, 1]
         # for both, but the extremal values are not simultaneously
         # achievable
 
         A2 = [1 1].'
         b2 = zeros(1)
-        p2 = MatrixMultiplicationParameters(A2, b2)
+        p2 = Linear(A2, b2)
     
         output = matmul(matmul(x, p1), p2)[1]
         @test tight_upperbound(output)≈1

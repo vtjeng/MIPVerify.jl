@@ -1,5 +1,4 @@
 using Base.Test
-using Base.Test: @test_throws
 using MIPVerify: read_datasets
 
 @testset "import_datasets.jl" begin

@@ -5,7 +5,7 @@ using JuMP
 using MathProgBase
 
 using MIPVerify: find_adversarial_example
-using MIPVerify: NeuralNetParameters
+using MIPVerify: NeuralNet
 using MIPVerify: PerturbationParameters
 
 if Pkg.installed("Gurobi") == nothing
@@ -32,7 +32,7 @@ Tests the `find_adversarial_example` function.
     output for all other labels by `tolerance`.
 """
 function test_find_adversarial_example(
-    nnparams::NeuralNetParameters, 
+    nn::NeuralNet, 
     x0::Array{<:Real, N}, 
     target_selection::Union{Integer, Array{<:Integer, 1}}, 
     pp::PerturbationParameters, 
@@ -42,7 +42,7 @@ function test_find_adversarial_example(
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     ) where {N} 
     d = find_adversarial_example(
-        nnparams, x0, target_selection, main_solver, 
+        nn, x0, target_selection, main_solver, 
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
     if d[:SolveStatus] == :Infeasible
         @test isnan(expected_objective_value)
@@ -54,7 +54,7 @@ function test_find_adversarial_example(
             # @test actual_objective_value≈expected_objective_value
             @test actual_objective_value/expected_objective_value≈1 atol=5e-5
             
-            perturbed_output = getvalue(d[:PerturbedInput]) |> nnparams
+            perturbed_output = getvalue(d[:PerturbedInput]) |> nn
             perturbed_target_output = maximum(perturbed_output[Bool[i∈d[:TargetIndexes] for i = 1:length(d[:Output])]])
             maximum_perturbed_other_output = maximum(perturbed_output[Bool[i∉d[:TargetIndexes] for i = 1:length(d[:Output])]])
             @test perturbed_target_output/(maximum_perturbed_other_output+tolerance)≈1 atol=5e-5
@@ -63,7 +63,7 @@ function test_find_adversarial_example(
 end
 
 """
-Runs tests on the neural net described by `nnparams` for input `x0` and the objective values
+Runs tests on the neural net described by `nn` for input `x0` and the objective values
 indicated in `expected objective values`.
 
 # Arguments
@@ -73,7 +73,7 @@ indicated in `expected objective values`.
    into the target category.
 """
 function batch_test_adversarial_example(
-    nnparams::NeuralNetParameters, 
+    nn::NeuralNet, 
     x0::Array{<:Real, N},
     expected_objective_values::Dict
 ) where {N}
@@ -81,7 +81,7 @@ function batch_test_adversarial_example(
         (target_selection, pp, norm_order, tolerance) = test_params
         @testset "target label = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
             test_find_adversarial_example(
-                nnparams, x0, 
+                nn, x0, 
                 target_selection, pp, norm_order, tolerance, expected_objective_value,
                 solver)
             end

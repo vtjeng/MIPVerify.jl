@@ -1,6 +1,5 @@
 using Base.Test
-using MIPVerify: ConvolutionLayerParameters, SoftmaxParameters, FullyConnectedLayerParameters
-using MIPVerify: StandardNeuralNetParameters
+using MIPVerify
 using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
@@ -31,27 +30,23 @@ srand(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
 x0 = rand(input_size)
 
-conv1params = ConvolutionLayerParameters(
-    rand(filter1_height, filter1_width, in1_channels, out1_channels)*2-1,
-    rand(out1_channels)*2-1,
-    strides1
-)
+kernelc1 = rand(filter1_height, filter1_width, in1_channels, out1_channels)*2-1
+biasc1 = rand(out1_channels)*2-1
 
-fc1params = FullyConnectedLayerParameters(
-    rand(-10:10, A_width, A_height),
-    rand(-10:10, A_height)
-)
+kernelf1 = rand(-10:10, A_width, A_height)
+biasf1 = rand(-10:10, A_height)
 
-softmaxparams = SoftmaxParameters(
-    rand(B_width, B_height)*2-1,
-    rand(B_height)*2-1
-)
+kernelf2 = rand(B_width, B_height)*2-1
+biasf2 = rand(B_height)*2-1
 
-nnparams = StandardNeuralNetParameters(
-    [conv1params], 
-    [fc1params], 
-    softmaxparams,
-    "tests.integration.standard_net.generated_weights.conv+fc+softmax"
+nn = Sequential(
+    [
+        Conv2d(kernelc1, biasc1), MaxPool(strides1), ReLU(),
+        Flatten(4),
+        Linear(kernelf1, biasf1), ReLU(),
+        Linear(kernelf2, biasf2)
+    ],
+    "tests.integration.generated_weights.conv+fc+softmax"
 )
 
 pp_blur = BlurPerturbationParameters((5, 5))
@@ -62,19 +57,15 @@ expected_objective_values = Dict(
     (1, pp_blur, Inf, 0) => 0,
     (2, pp_additive, 1, 0) => 2.98266,
     (2, pp_additive, 1, 0.1) => 3.03465,
-    (2, pp_additive, 1, 1) => 3.57386,
     (2, pp_additive, Inf, 0) => 0.235631,
     (2, pp_additive, Inf, 0.1) => 0.240124,
-    (2, pp_additive, Inf, 1) => 0.285365,
     (2, pp_blur, 1, 0) => NaN,
     (2, pp_blur, Inf, 0) => NaN,
     (3, pp_additive, Inf, 0) => 0.00288325,
     (3, pp_additive, Inf, 1) => 0.0110296,
     (3, pp_blur, 1, 0) => 0.261483,
-    (3, pp_blur, 1, 1) => 0.826242,
     (3, pp_blur, 1, 10) => NaN,
     (3, pp_blur, Inf, 0) => 0.0105534,
-    (3, pp_blur, Inf, 1) => 0.0369686,
     (3, pp_blur, Inf, 10) => NaN,
     ([2, 3], pp_additive, Inf, 0) => 0.00288325,
     ([2, 3], pp_additive, Inf, 1) => 0.0110296,
@@ -82,6 +73,6 @@ expected_objective_values = Dict(
     ([2, 3], pp_blur, Inf, 0) => 0.0105534
 )
 
-batch_test_adversarial_example(nnparams, x0, expected_objective_values)
+batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end

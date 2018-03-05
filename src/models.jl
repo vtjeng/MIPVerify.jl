@@ -26,7 +26,7 @@ end
 Base.show(io::IO, pp::BlurPerturbationParameters) = print(io, "blur.$(pp.blur_kernel_size)")
 
 function get_model(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -45,7 +45,7 @@ function get_model(
 end
 
 function get_model(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -59,7 +59,7 @@ function get_model(
 end
 
 function model_hash(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters)::UInt
     input_size = size(input)
@@ -67,14 +67,14 @@ function model_hash(
 end
 
 function model_hash(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::BlurPerturbationParameters)::UInt
     return hash(nn_params, hash(input, hash(pp)))
 end
 
 function model_filename(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationParameters)::String
     hash_val = model_hash(nn_params, input, pp)
@@ -83,7 +83,7 @@ function model_filename(
 end
 
 function get_reusable_model(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationParameters,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -112,7 +112,7 @@ function get_reusable_model(
 end
 
 function build_reusable_model_uncached(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -144,7 +144,7 @@ function build_reusable_model_uncached(
 end
 
 function build_reusable_model_uncached(
-    nn_params::NeuralNetParameters,
+    nn_params::NeuralNet,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
     model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -162,7 +162,7 @@ function build_reusable_model_uncached(
     v_f = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(filter_size))
     @constraint(m, sum(v_f) == 1)
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(input_size))
-    @constraint(m, v_x0 .== input |> Conv2DParameters(v_f))
+    @constraint(m, v_x0 .== input |> Conv2d(v_f))
 
     v_output = v_x0 |> nn_params
 

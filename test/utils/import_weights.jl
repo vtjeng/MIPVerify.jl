@@ -4,9 +4,9 @@ using MIPVerify: get_example_network_params, read_datasets, frac_correct
 @testset "import_weights.jl" begin
     @testset "Example network params" begin
         @testset "MNIST.n1" begin
-            nnparams = get_example_network_params("MNIST.n1")
+            nn = get_example_network_params("MNIST.n1")
             mnist = read_datasets("MNIST")
-            @test frac_correct(nnparams, mnist.test, 1000) == 0.970
+            @test frac_correct(nn, mnist.test, 1000) == 0.970
         end
     end
 

@@ -6,8 +6,7 @@ Each network corresponds to an array of layers associated with a unique string i
 Modules = [MIPVerify]
 Order   = [:function, :type]
 Pages   = [
-    "net_components/nets/masked_fc_net.jl",
-    "net_components/nets/standard_neural_net.jl",
+    "net_components/nets/sequential.jl",
     ]
 Private = false
 ```
@@ -17,8 +16,7 @@ Private = false
 Modules = [MIPVerify]
 Order   = [:function, :type]
 Pages   = [
-    "net_components/nets/masked_fc_net.jl",
-    "net_components/nets/standard_neural_net.jl",
+    "net_components/nets/sequential.jl",
     ]
 Public  = false
 ```

@@ -2,9 +2,9 @@ using Base.Test
 
 @testset "layers/" begin
     include("conv2d.jl")
-    include("convolution_layer.jl")
-    include("fully_connected_layer.jl")
-    include("matmul.jl")
+    include("flatten.jl")
+    include("linear.jl")
+    include("masked_relu.jl")
     include("pool.jl")
-    include("softmax.jl")
+    include("relu.jl")
 end

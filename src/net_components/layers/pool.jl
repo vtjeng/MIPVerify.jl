@@ -1,21 +1,21 @@
-export PoolParameters, MaxPoolParameters
+export Pool, MaxPool
 
 """
 $(TYPEDEF)
 
 Stores parameters for a pooling operation.
 
-`p(x)` is shorthand for [`pool(x, p)`](@ref) when `p` is an instance of `PoolParameters`.
+`p(x)` is shorthand for [`pool(x, p)`](@ref) when `p` is an instance of `Pool`.
 
 ## Fields:
 $(FIELDS)
 """
-struct PoolParameters{N} <: LayerParameters
+struct Pool{N} <: Layer
     strides::NTuple{N, Int}
     pooling_function::Function
 end
 
-function Base.show(io::IO, p::PoolParameters)
+function Base.show(io::IO, p::Pool)
     (_, stride_height, stride_width, _) = p.strides
     function_display_name = Dict(
         MIPVerify.maximum => "max",
@@ -26,20 +26,20 @@ function Base.show(io::IO, p::PoolParameters)
     )
 end
 
-Base.hash(a::PoolParameters, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:PoolParameters, h)))
+Base.hash(a::Pool, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:Pool, h)))
 
 """
 $(SIGNATURES)
 
-Convenience function to create a [`PoolParameters`](@ref) struct for max-pooling.
+Convenience function to create a [`Pool`](@ref) struct for max-pooling.
 """
-function MaxPoolParameters(strides::NTuple{N, Int}) where {N}
-    PoolParameters(strides, MIPVerify.maximum)
+function MaxPool(strides::NTuple{N, Int}) where {N}
+    Pool(strides, MIPVerify.maximum)
 end
 
-function AveragePoolParameters(strides::NTuple{N, Int}) where {N}
+function AveragePool(strides::NTuple{N, Int}) where {N}
     # TODO: pooling over variables not supported just yet
-    PoolParameters(strides, Base.mean)
+    Pool(strides, Base.mean)
 end
 
 """
@@ -111,11 +111,11 @@ non-overlapping cells of `input` with sizes specified in `params.strides`.
 """
 function pool(
     input::AbstractArray{T, N},
-    params::PoolParameters{N}) where {T<:JuMPReal, N}
+    params::Pool{N}) where {T<:JuMPReal, N}
     if T<:JuMP.AbstractJuMPScalar
         notice(MIPVerify.LOGGER, "Specifying pooling constraints ... ")
     end
     return poolmap(params.pooling_function, input, params.strides)
 end
 
-(p::PoolParameters)(x::Array{<:JuMPReal}) = pool(x, p)
+(p::Pool)(x::Array{<:JuMPReal}) = pool(x, p)

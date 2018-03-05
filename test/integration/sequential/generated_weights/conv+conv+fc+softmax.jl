@@ -1,6 +1,5 @@
 using Base.Test
-using MIPVerify: ConvolutionLayerParameters, SoftmaxParameters, FullyConnectedLayerParameters
-using MIPVerify: StandardNeuralNetParameters
+using MIPVerify
 using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
@@ -44,33 +43,27 @@ srand(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
 x0 = rand(input_size)
 
-conv1params = ConvolutionLayerParameters(
-    rand(filter1_height, filter1_width, in1_channels, out1_channels)*2-1,
-    rand(out1_channels)*2-1,
-    strides1
-)
+kernelc1 = rand(filter1_height, filter1_width, in1_channels, out1_channels)*2-1
+biasc1 = rand(out1_channels)*2-1
 
-conv2params = ConvolutionLayerParameters(
-    rand(filter2_height, filter2_width, in2_channels, out2_channels)*2-1,
-    rand(out2_channels)*2-1,
-    strides2
-)
+kernelc2 = rand(filter2_height, filter2_width, in2_channels, out2_channels)*2-1
+biasc2 = rand(out2_channels)*2-1
 
-fc1params = FullyConnectedLayerParameters(
-    rand(A_width, A_height)*2-1,
-    rand(A_height)*2-1
-)
+kernelf1 = rand(A_width, A_height)*2-1
+biasf1 = rand(A_height)*2-1
 
-softmaxparams = SoftmaxParameters(
-    rand(B_width, B_height)*2-1,
-    rand(B_height)*2-1
-)
+kernelf2 = rand(B_width, B_height)*2-1
+biasf2 = rand(B_height)*2-1
 
-nnparams = StandardNeuralNetParameters(
-    [conv1params, conv2params], 
-    [fc1params], 
-    softmaxparams,
-    "tests.integration.standard_net.generated_weights.conv+conv+fc+softmax"
+nn = Sequential(
+    [
+        Conv2d(kernelc1, biasc1), MaxPool(strides1), ReLU(),
+        Conv2d(kernelc2, biasc2), MaxPool(strides2), ReLU(),
+        Flatten(4),
+        Linear(kernelf1, biasf1), ReLU(),
+        Linear(kernelf2, biasf2)
+    ],
+    "tests.integration.generated_weights.conv+conv+fc+softmax"
 )
 
 pp_blur = BlurPerturbationParameters((5, 5))
@@ -79,20 +72,16 @@ pp_additive = AdditivePerturbationParameters()
 expected_objective_values = Dict(
     (2, pp_additive, 1, 0.1) => 0.0,
     (2, pp_additive, 1, 1) => 0.991616,
-    (2, pp_additive, 1, 1.5) => 3.97464,
     (2, pp_additive, 1, 2) => NaN,
     (2, pp_additive, Inf, 0.1) => 0.0,
     (2, pp_additive, Inf, 1) => 0.0953527,
-    (2, pp_additive, Inf, 1.5) => 0.330050, # CBC: 0.3300592979616859, Gurobi: 0.3300495149023101
-    (2, pp_additive, Inf, 2) => NaN,
     (2, pp_blur, 1, 0.6) => 0.0,
     (2, pp_blur, 1, 0.625) => 1.40955,
     (2, pp_blur, 1, 0.65) => NaN,
     (2, pp_blur, Inf, 0.6) => 0.0,
-    (2, pp_blur, Inf, 0.625) => 0.0570452,
-    (2, pp_blur, Inf, 0.65) => NaN
+    (2, pp_blur, Inf, 0.625) => 0.0570452
 )
 
-batch_test_adversarial_example(nnparams, x0, expected_objective_values)
+batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end

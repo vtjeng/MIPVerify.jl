@@ -1,7 +1,6 @@
 using Base.Test
-using MIPVerify: MaskedFullyConnectedLayerParameters, SoftmaxParameters
-using MIPVerify: MaskedFullyConnectedNetParameters
-using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify
+using MIPVerify: BlurPerturbationParameters, AdditivePerturbationParameters
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
 
@@ -22,14 +21,16 @@ using TestHelpers: batch_test_adversarial_example
     C_height = 4
     C_width = B_height
     
-    fc1params = MaskedFullyConnectedLayerParameters(rand(A_width, A_height)-0.5, rand(A_height)-0.5, A_mask)
-    fc2params = MaskedFullyConnectedLayerParameters(rand(B_width, B_height)-0.5, rand(B_height)-0.5, B_mask)
-    softmaxparams = SoftmaxParameters(rand(C_width, C_height), rand(C_height))
-
-    nnparams = MaskedFullyConnectedNetParameters(
-        [fc1params, fc2params], 
-        softmaxparams,
-        "tests.integration.masked_fc_net.generated_weights.mfc+mfc+softmax"
+    nn = Sequential(
+        [
+            Flatten(4),
+            Linear(rand(A_width, A_height)-0.5, rand(A_height)-0.5), 
+            MaskedReLU(A_mask),
+            Linear(rand(B_width, B_height)-0.5, rand(B_height)-0.5),
+            MaskedReLU(B_mask),
+            Linear(rand(C_width, C_height), rand(C_height))
+        ],
+        "tests.integration.generated_weights.mfc+mfc+softmax"
     )
 
     pp_blur = BlurPerturbationParameters((5, 5))
@@ -49,6 +50,6 @@ using TestHelpers: batch_test_adversarial_example
         
     )
 
-    batch_test_adversarial_example(nnparams, x0, expected_objective_values)
+    batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end

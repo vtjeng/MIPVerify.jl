@@ -1,6 +1,6 @@
 using JuMP
 
-export Conv2DParameters
+export Conv2d
 
 """
 $(TYPEDEF)
@@ -8,17 +8,17 @@ $(TYPEDEF)
 Stores parameters for a 2-D convolution operation.
 
 `p(x)` is shorthand for [`conv2d(x, p)`](@ref) when `p` is an instance of
-`Conv2DParameters`.
+`Conv2d`.
 
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Conv2DParameters{T<:JuMPReal, U<:JuMPReal, V<:Int64} <: LayerParameters
+@auto_hash_equals struct Conv2d{T<:JuMPReal, U<:JuMPReal, V<:Int64} <: Layer
     filter::Array{T, 4}
     bias::Array{U, 1}
     stride::V
 
-    function Conv2DParameters{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    function Conv2d{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
@@ -30,36 +30,36 @@ $(FIELDS)
 
 end
 
-function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
-    Conv2DParameters{T, U, V}(filter, bias, stride)
+function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    Conv2d{T, U, V}(filter, bias, stride)
 end
 
-function Conv2DParameters(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
-    Conv2DParameters(filter, bias, 1)
+function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
+    Conv2d(filter, bias, 1)
 end
 
 """
 $(SIGNATURES)
 
-Convenience function to create a [`Conv2DParameters`](@ref) struct with the specified filter
+Convenience function to create a [`Conv2d`](@ref) struct with the specified filter
 and zero bias.
 """
-function Conv2DParameters(filter::Array{T, 4}) where {T<:JuMPReal}
+function Conv2d(filter::Array{T, 4}) where {T<:JuMPReal}
     bias_out_channels::Int = size(filter)[4]
     bias = zeros(bias_out_channels)
-    Conv2DParameters(filter, bias)
+    Conv2d(filter, bias)
 end
 
-function check_size(params::Conv2DParameters, sizes::NTuple{4, Int})::Void
+function check_size(params::Conv2d, sizes::NTuple{4, Int})::Void
     check_size(params.filter, sizes)
     check_size(params.bias, (sizes[end], ))
 end
 
-function Base.show(io::IO, p::Conv2DParameters)
+function Base.show(io::IO, p::Conv2d)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
     stride = p.stride
     print(io,
-        "applies $filter_out_channels $(filter_height)x$(filter_width) filters with stride $(stride)"
+        "Conv2d($filter_in_channels, $filter_out_channels, kernel_size=($(filter_height), $(filter_width)), stride=($(stride), $(stride)), padding=same)"
     )
 end
 
@@ -100,7 +100,7 @@ padding = 'SAME'`.
 """
 function conv2d(
     input::Array{T, 4},
-    params::Conv2DParameters{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
+    params::Conv2d{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMP.AbstractJuMPScalar || U<:JuMP.AbstractJuMPScalar || V<:JuMP.AbstractJuMPScalar
         notice(MIPVerify.LOGGER, "Specifying conv2d constraints ... ")
@@ -152,4 +152,4 @@ function conv2d(
     return output
 end
 
-(p::Conv2DParameters)(x::Array{<:JuMPReal, 4}) = conv2d(x, p)
+(p::Conv2d)(x::Array{<:JuMPReal, 4}) = conv2d(x, p)

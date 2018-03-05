@@ -1,6 +1,6 @@
 using Base.Test
 using JuMP
-using MIPVerify: PoolParameters, MaxPoolParameters, AveragePoolParameters
+using MIPVerify: Pool, MaxPool, AveragePool
 using MIPVerify: getsliceindex, getpoolview, pool
 isdefined(:TestHelpers) || include("../../TestHelpers.jl")
 using TestHelpers: get_new_model
@@ -8,9 +8,9 @@ using TestHelpers: get_new_model
 
 @testset "pool.jl" begin
 
-    @testset "PoolParameters" begin
+    @testset "Pool" begin
         strides = (1, 2, 2, 1)
-        p = PoolParameters(strides, MIPVerify.maximum)
+        p = Pool(strides, MIPVerify.maximum)
         @test p.strides == strides
         @testset "Base.show" begin
             io = IOBuffer()
@@ -48,7 +48,7 @@ using TestHelpers: get_new_model
             12 24 36
         ]
         @testset "Numerical Input" begin
-            @test pool(input_array, MaxPoolParameters((2, 2))) == true_output
+            @test pool(input_array, MaxPool((2, 2))) == true_output
         end
         @testset "Variable Input" begin
             m = get_new_model()
@@ -56,7 +56,7 @@ using TestHelpers: get_new_model
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array
             )
-            pool_v = pool(input_array_v, MaxPoolParameters((2, 2)))
+            pool_v = pool(input_array_v, MaxPool((2, 2)))
             # elements of the input array are made to take their maximum value
             @objective(m, Max, sum(input_array_v))
             solve(m)
@@ -73,7 +73,7 @@ using TestHelpers: get_new_model
                 6.5 18.5 30.5;
                 8.5 20.5 32.5
             ]
-            @test pool(input_array, AveragePoolParameters((2, 2))) == true_output
+            @test pool(input_array, AveragePool((2, 2))) == true_output
         end
     end
 

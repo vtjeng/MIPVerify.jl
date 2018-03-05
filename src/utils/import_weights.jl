@@ -5,7 +5,7 @@ $(SIGNATURES)
 
 Helper function to import the parameters for a layer carrying out matrix multiplication 
     (e.g. fully connected layer / softmax layer) from `param_dict` as a
-    [`MatrixMultiplicationParameters`](@ref) object.
+    [`Linear`](@ref) object.
 
 The default format for parameter names is `'layer_name/weight'` and `'layer_name/bias'`; 
     you can customize this by passing in the named arguments `matrix_name` and `bias_name`
@@ -24,9 +24,9 @@ function get_matrix_params(
     layer_name::String,
     expected_size::NTuple{2, Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")::MatrixMultiplicationParameters
+    bias_name::String = "bias")::Linear
 
-    params = MatrixMultiplicationParameters(
+    params = Linear(
         param_dict["$layer_name/$matrix_name"],
         squeeze(param_dict["$layer_name/$bias_name"], 1)
     )
@@ -40,7 +40,7 @@ end
 $(SIGNATURES)
 
 Helper function to import the parameters for a convolution layer from `param_dict` as a
-    [`Conv2DParameters`](@ref) object.
+    [`Conv2d`](@ref) object.
 
 The default format for parameter names is `'layer_name/weight'` and `'layer_name/bias'`; 
     you can customize this by passing in the named arguments `matrix_name` and `bias_name`
@@ -59,9 +59,9 @@ function get_conv_params(
     layer_name::String,
     expected_size::NTuple{4, Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")::Conv2DParameters
+    bias_name::String = "bias")::Conv2d
 
-    params = Conv2DParameters(
+    params = Conv2d(
         param_dict["$layer_name/$matrix_name"],
         squeeze(param_dict["$layer_name/$bias_name"], 1)
     )
@@ -74,14 +74,14 @@ end
 """
 $(SIGNATURES)
 
-Makes named example neural networks available as a [`NeuralNetParameters`](@ref) object.
+Makes named example neural networks available as a [`NeuralNet`](@ref) object.
 
 # Arguments
 * `name::String`: Name of example neural network. Options:
     * `'MNIST.n1'`: MNIST classification. Two fully connected layers with 40 and 20
         units, and softmax layer with 10 units. No adversarial training.
 """
-function get_example_network_params(name::String)::NeuralNetParameters
+function get_example_network_params(name::String)::NeuralNet
     if name == "MNIST.n1"
         in1_height = 28
         in1_width = 28
@@ -96,17 +96,20 @@ function get_example_network_params(name::String)::NeuralNetParameters
         C_width = B_height
         
         param_dict = prep_data_file(joinpath("weights", "mnist"), "n1.mat") |> matread
-        fc1params = get_matrix_params(param_dict, "fc1", (A_width, A_height)) |> FullyConnectedLayerParameters
-        fc2params = get_matrix_params(param_dict, "fc2", (B_width, B_height)) |> FullyConnectedLayerParameters
-        softmaxparams = get_matrix_params(param_dict, "logits", (C_width, C_height)) |> SoftmaxParameters
+        fc1 = get_matrix_params(param_dict, "fc1", (A_width, A_height))
+        fc2 = get_matrix_params(param_dict, "fc2", (B_width, B_height))
+        logits = get_matrix_params(param_dict, "logits", (C_width, C_height))
         
-        nnparams = StandardNeuralNetParameters(
-            ConvolutionLayerParameters[], 
-            [fc1params, fc2params], 
-            softmaxparams,
+        nn = Sequential( 
+            [
+                Flatten(4),
+                fc1, ReLU(),
+                fc2, ReLU(),
+                logits
+            ],
             name
         )
-        return nnparams
+        return nn
     else
         throw(DomainError("No example network named $name."))
     end

@@ -1,5 +1,5 @@
 # Overview
-A neural net consists of multiple layers, each of which (potentially) operates on input differently. We represent these objects with [`NeuralNetParameters`](@ref) and [`LayerParameters`](@ref).
+A neural net consists of multiple layers, each of which (potentially) operates on input differently. We represent these objects with [`NeuralNet`](@ref) and [`Layer`](@ref).
 
 ## Index
 ```@index
@@ -9,8 +9,8 @@ Order   = [:function, :type]
 
 ## PublicInterface
 ```@docs
-LayerParameters
-StackableLayerParameters
-NeuralNetParameters
+Layer
+Layer
+NeuralNet
 MIPVerify.JuMPReal
 ```
