@@ -42,4 +42,5 @@ function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Int}
     return permutedims(x, perm)[:]
 end
 
-(p::Flatten)(x::Array{<:JuMPReal}) = flatten(x, p.perm)
+(p::Flatten)(x::Array{<:Real}) = flatten(x, p.perm)
+(p::Flatten)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))

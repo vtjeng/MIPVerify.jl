@@ -1,7 +1,7 @@
 using Base.Test
 using JuMP
 using MathProgBase
-using MIPVerify: Linear
+using MIPVerify
 using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge, masked_relu
 isdefined(:TestHelpers) || include("../TestHelpers.jl")
 using TestHelpers: get_new_model
@@ -108,7 +108,7 @@ end
             @test masked_relu(-5, 1)==-5           
         end
         
-        @testset "Variable Input" begin
+        @testset "Variable Input, single" begin
             @testset "mask is negative" begin
                 m = get_new_model()
                 x = @variable(m, lowerbound=-1, upperbound=2)
@@ -168,6 +168,33 @@ end
                 @test getobjectivevalue(m)≈-1
                 @test getvalue(x)≈-1
                 @test getvalue(x_r)≈-1
+            end
+        end
+
+        @testset "Variable Input, array" begin
+            @testset "invalid mask" begin
+                m = get_new_model()
+                @variable(m, x[1:4], lowerbound=-1, upperbound=2)
+
+                @test_throws AssertionError masked_relu(x, [-1, 0, 1])
+            end
+            @testset "valid mask" begin
+                m = get_new_model()
+                @variable(m, x[1:3], lowerbound=-1, upperbound=2)
+
+                x_r = masked_relu(x, [-1, 0, 1])
+
+                @objective(m, Max, sum(2*x_r-x))
+                solve(m)
+                @test getobjectivevalue(m)≈5
+                @test getvalue(x)≈[-1, 2, 2]
+                @test getvalue(x_r)≈[0, 2, 2]
+
+                @objective(m, Min, sum(2*x_r-x))
+                solve(m)
+                @test getobjectivevalue(m)≈-3
+                @test getvalue(x)≈[2, 0, -1]
+                @test getvalue(x_r)≈[0, 0, -1]
             end
         end
     end
@@ -293,20 +320,30 @@ end
     @testset "Bounds" begin
         m = get_new_model()
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
-        
+            
         A1 = [1 -0.5; -0.5 1]
-        b1 = zeros(2)
+        b1 = [0, 0]
         p1 = Linear(A1, b1)
-        # naive bounds on our intermediate activations are [-1, 1]
-        # for both, but the extremal values are not simultaneously
-        # achievable
 
-        A2 = [1 1].'
-        b2 = zeros(1)
+        A2 = [1 -1; 1 -1]
+        b2 = [0, 0]
         p2 = Linear(A2, b2)
-    
-        output = matmul(matmul(x, p1), p2)[1]
-        @test tight_upperbound(output)≈1
-        @test tight_lowerbound(output)≈-1
+        
+        test_cases = [
+            (interval_arithmetic, -3.0, 3.0),
+            (lp, -2.0, 2.0),
+            (mip, -1.5, 1.5)
+        ]
+
+        for (algorithm, l, u) in test_cases
+            @testset "tightening with $(algorithm)" begin
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm)
+                output = (x |> p1 |> ReLU() |> p2)
+
+                @test tight_upperbound(output[1], tightening_algorithm=algorithm)≈u
+                @test tight_lowerbound(output[2], tightening_algorithm=algorithm)≈l
+            end
+        end
+
     end
 end

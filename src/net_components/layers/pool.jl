@@ -112,10 +112,8 @@ non-overlapping cells of `input` with sizes specified in `params.strides`.
 function pool(
     input::AbstractArray{T, N},
     params::Pool{N}) where {T<:JuMPReal, N}
-    if T<:JuMP.AbstractJuMPScalar
-        notice(MIPVerify.LOGGER, "Specifying pooling constraints ... ")
-    end
-    return poolmap(params.pooling_function, input, params.strides)
+    poolmap(params.pooling_function, input, params.strides)
 end
 
-(p::Pool)(x::Array{<:JuMPReal}) = pool(x, p)
+(p::Pool)(x::Array{<:Real}) = pool(x, p)
+(p::Pool)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); pool(x, p))

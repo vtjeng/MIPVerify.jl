@@ -59,11 +59,14 @@ function get_conv_params(
     layer_name::String,
     expected_size::NTuple{4, Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")::Conv2d
+    bias_name::String = "bias",
+    expected_stride::Int = 1
+    )::Conv2d
 
     params = Conv2d(
         param_dict["$layer_name/$matrix_name"],
-        squeeze(param_dict["$layer_name/$bias_name"], 1)
+        squeeze(param_dict["$layer_name/$bias_name"], 1),
+        expected_stride
     )
 
     check_size(params, expected_size)

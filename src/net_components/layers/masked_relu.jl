@@ -23,4 +23,5 @@ function Base.show(io::IO, p::MaskedReLU)
     )
 end
 
-(p::MaskedReLU)(x::Array{<:JuMPReal}) = masked_relu.(x, p.mask)
+(p::MaskedReLU)(x::Array{<:Real}) = masked_relu(x, p.mask)
+(p::MaskedReLU)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Applying $p ... "); masked_relu(x, p.mask))

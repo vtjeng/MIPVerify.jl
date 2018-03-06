@@ -44,9 +44,6 @@ function check_size(params::Linear, sizes::NTuple{2, Int})::Void
     check_size(params.bias, (sizes[end], ))
 end
 
-input_size(p::Linear) = size(p.matrix)[1]
-output_size(p::Linear) = size(p.matrix)[2]
-
 """
 $(SIGNATURES)
 
@@ -59,4 +56,7 @@ function matmul(
     return params.matrix.'*x .+ params.bias
 end
 
-(p::Linear)(x::Array{<:JuMPReal, 1}) = matmul(x, p)
+(p::Linear)(x::Array{<:JuMPReal}) = "Linear() layers work only on one-dimensional input. You likely forgot to add a Flatten() layer before your first linear layer." |> ArgumentError |> throw
+
+(p::Linear)(x::Array{<:Real, 1}) = matmul(x, p)
+(p::Linear)(x::Array{<:JuMP.AbstractJuMPScalar, 1}) = (info(MIPVerify.LOGGER, "Applying $p ... "); matmul(x, p))

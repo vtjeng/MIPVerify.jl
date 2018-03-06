@@ -2,27 +2,23 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
-function do_tighten_bounds(
-    x::JuMP.AbstractJuMPScalar)::Bool
+function get_tightening_algorithm(
+    x::JuMP.AbstractJuMPScalar)::TighteningAlgorithm
     m = ConditionalJuMP.getmodel(x)
-    if !haskey(m.ext, :MIPVerify)
-        # always tighten bounds if unspecified
-        return true
-    else
-        return m.ext[:MIPVerify].tighten_bounds
-    end
+    !haskey(m.ext, :MIPVerify) ? lp : m.ext[:MIPVerify].tightening_algorithm
 end
 
 function tight_upperbound(
     x::JuMP.AbstractJuMPScalar; 
-    tighten::Bool = do_tighten_bounds(x))
+    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
     u = upperbound(x)
-    if !tighten
+    if tightening_algorithm == interval_arithmetic
         return u
     end
+    relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Max, x)
-    status = solve(m, suppress_warnings = true)
+    status = solve(m, suppress_warnings = true, relaxation=relaxation)
     if status == :Optimal || status == :UserLimit
         u = min(getobjectivebound(m), u)
         if status == :UserLimit
@@ -35,14 +31,15 @@ end
 
 function tight_lowerbound(
     x::JuMP.AbstractJuMPScalar;
-    tighten::Bool = do_tighten_bounds(x))
+    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
     l = lowerbound(x)
-    if !tighten
+    if tightening_algorithm == interval_arithmetic
         return l
     end
+    relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Min, x)
-    status = solve(m, suppress_warnings = true)
+    status = solve(m, suppress_warnings = true, relaxation=relaxation)
     if status == :Optimal || status == :UserLimit
         l = max(getobjectivebound(m), l)
         if status == :UserLimit
@@ -58,20 +55,22 @@ function log_gap(m::JuMP.Model)
     info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
-function relu(x::T)::T where {T<:Real}
-    return max(0, x)
-end
-
 """
 $(SIGNATURES)
 Expresses a rectified-linearity constraint: output is constrained to be equal to 
 `max(x, 0)`.
 """
-function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
+function relu(x::T)::T where {T<:Real}
+    return max(zero(T), x)
+end
+
+function relu(x::AbstractArray{T}) where {T<:Real}
+    return relu.(x)
+end
+
+function relu(x::JuMP.AbstractJuMPScalar, l::Real, u::Real)::JuMP.AbstractJuMPScalar
     model = ConditionalJuMP.getmodel(x)
     x_rect = @variable(model)
-    u = tight_upperbound(x)
-    l = tight_lowerbound(x)
 
     if u <= 0
         # rectified value is always 0
@@ -104,6 +103,28 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
     return x_rect
 end
 
+function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
+    u = tight_upperbound(x)
+    l = tight_lowerbound(x)
+    relu(x, l, u)
+end
+
+function relu(x::AbstractArray{T}) where {T<:JuMP.AbstractJuMPScalar}
+    show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
+    if !show_progress_bar
+        u = tight_upperbound.(x)
+        l = tight_lowerbound.(x)
+        return relu.(x, l, u)
+    else
+        p1 = Progress(length(x), desc="  Calculating upper bounds: ")
+        u = map(v -> (next!(p1); tight_upperbound(v)), x)
+        p2 = Progress(length(x), desc="  Calculating lower bounds: ")
+        l = map(v -> (next!(p2); tight_lowerbound(v)), x)
+        p3 = Progress(length(x), desc="  Imposing relu constraint: ")
+        return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
+    end
+end
+
 """
 $(SIGNATURES)
 Expresses a masked rectified-linearity constraint, with three possibilities depending on 
@@ -114,10 +135,23 @@ the value of the mask. Output is constrained to be:
 3) x if m>0
 ```
 """
+function masked_relu(x::T, m::Real)::T where {T<:Real}
+    if m < 0
+        zero(T)
+    elseif m > 0
+        x
+    else
+        relu(x)
+    end
+end
+
+function masked_relu(x::AbstractArray{<:Real}, m::AbstractArray{<:Real})
+    masked_relu.(x, m)
+end
+
 function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
     if m < 0
-        # TODO (vtjeng): this is bad! we should be able to completely remove this
-        # extraneous variable.
+        # TODO (vtjeng): check if we can remove this extraneous variable.
         model = ConditionalJuMP.getmodel(x)
         x_0 = @variable(model)
         JuMP.fix(x_0, 0)
@@ -134,14 +168,12 @@ function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
     end
 end
 
-function masked_relu(x::T, m::Real)::T where {T<:Real}
-    if m < 0
-        0
-    elseif m > 0
-        x
-    else
-        relu(x)
-    end
+function masked_relu(x::AbstractArray{<:JuMP.AbstractJuMPScalar}, m::AbstractArray{<:Real})
+    @assert(size(x) == size(m))
+    s = size(m)
+    zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
+    d = Dict(zip(zero_idx, relu(x[zero_idx])))
+    return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianRange(s))
 end
 
 function maximum(xs::AbstractArray{T})::T where {T<:Real}
@@ -154,10 +186,11 @@ Expresses a maximization constraint: output is constrained to be equal to `max(x
 """
 function maximum(
     xs::AbstractArray{T}; 
-    tighten::Bool = do_tighten_bounds(xs[1]))::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
+    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(xs[1])
+    )::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
     model = ConditionalJuMP.getmodel(xs[1])
-    ls = tight_lowerbound.(xs; tighten = tighten)
-    us = tight_upperbound.(xs; tighten = tighten)
+    ls = tight_lowerbound.(xs; tightening_algorithm = tightening_algorithm)
+    us = tight_upperbound.(xs; tightening_algorithm = tightening_algorithm)
     l = Base.maximum(ls)
     u = Base.maximum(us)
     x_max = @variable(model,
@@ -259,7 +292,7 @@ function set_max_indexes(
 
     maximum_target_var = length(target_vars) == 1 ?
         target_vars[1] :    
-        MIPVerify.maximum(target_vars; tighten = false)
+        MIPVerify.maximum(target_vars; tightening_algorithm = interval_arithmetic)
 
     @constraint(model, other_vars - maximum_target_var .<= -tolerance)
 end

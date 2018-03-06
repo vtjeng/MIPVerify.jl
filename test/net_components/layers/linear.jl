@@ -27,6 +27,13 @@ using TestHelpers: get_new_model
             bias = rand(bias_height)
             @test_throws AssertionError Linear(matrix, bias)
         end
+        @testset "Multiplying by >1-dimensional array" begin
+            height = 15
+            matrix = rand(2, height)
+            bias = rand(height)
+            p = Linear(matrix, bias)
+            @test_throws ArgumentError p(rand(3, 5))
+        end
     end
 
     @testset "Base.show" begin

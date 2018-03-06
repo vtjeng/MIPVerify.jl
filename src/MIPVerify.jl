@@ -10,28 +10,28 @@ using ProgressMeter
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
+export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
+@enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
+
 include("net_components/main.jl")
-
 include("models.jl")
-include("utils/prep_data_file.jl")
-include("utils/import_weights.jl")
-include("utils/import_datasets.jl")
+include("utils/main.jl")
 include("logging.jl")
-
-export find_adversarial_example, frac_correct
 
 function get_max_index(
     x::Array{<:Real, 1})::Integer
     return findmax(x)[2]
 end
 
-function get_default_model_build_solver(
+function get_default_tightening_solver(
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
     )::MathProgBase.SolverInterface.AbstractMathProgSolver
-    model_build_solver = typeof(main_solver)()
-    MathProgBase.setparameters!(model_build_solver, Silent = true, TimeLimit = 20)
-    return model_build_solver
+    tightening_solver = typeof(main_solver)()
+    MathProgBase.setparameters!(tightening_solver, Silent = true, TimeLimit = 20)
+    return tightening_solver
 end
+
+
 
 """
 $(SIGNATURES)
@@ -55,15 +55,16 @@ and for all `i ∉ target_selection`.
 + `tolerance`: Defaults to `0.0`. As above.
 + `rebuild`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
     bounds on input to each non-linear unit even if a cached model exists.
-+ `invert_target_selection`: defaults to `false`. If `true`, sets `target_selection` to 
++ `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to 
     be its complement.
-+ `tighten_bounds`: defaults to `true`. Determines how we determine the upper and lower
-    bounds on input to each nonlinear unit. 
-   If `true`, solves an MIP using the `model_build_solver`.
-   If `false`, uses interval arithmetic.
-   Bounds are tighter when `true` but the process can take more time. 
-+ `model_build_solver`: Defaults to the same type of solver as
-    the `main_solver`, with a time limit of 20s per solver and output suppressed.
++ `tightening_algorithm`: Defaults to `lp`. Determines how we determine the upper and lower
+    bounds on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
+   (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
+   (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
+   (3) `mip` solves the full `mip` formulation.
++ `tightening_solver`: Defaults to the same type of solver as
+    the `main_solver`, with a time limit of 20s per solver and output suppressed. Used only
+    if the `tightening_algorithm` is `lp` or `mip`.
 """
 function find_adversarial_example(
     nn::NeuralNet, 
@@ -75,11 +76,11 @@ function find_adversarial_example(
     tolerance = 0.0,
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
-    tighten_bounds = true,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_model_build_solver(main_solver)
+    tightening_algorithm::TighteningAlgorithm = lp,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver)
     )::Dict
 
-    d = get_model(nn, input, pp, main_solver, model_build_solver, rebuild, tighten_bounds)
+    d = get_model(nn, input, pp, main_solver, tightening_solver, rebuild, tightening_algorithm)
     m = d[:Model]
 
     # Set output constraint
@@ -158,7 +159,7 @@ function get_norm(
     elseif norm_order == 2
         return sum(v.*v)
     elseif norm_order == Inf
-        return MIPVerify.maximum(abs_ge.(v) |> Flatten(N); tighten = false)
+        return MIPVerify.maximum(abs_ge.(v) |> Flatten(N); tightening_algorithm = interval_arithmetic)
     else
         throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end

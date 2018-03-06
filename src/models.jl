@@ -30,11 +30,11 @@ function get_model(
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
-    tighten_bounds::Bool
+    tightening_algorithm::TighteningAlgorithm
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild, tighten_bounds)
+    d = get_reusable_model(nn_params, input, pp, tightening_solver, rebuild, tightening_algorithm)
     setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
@@ -49,11 +49,11 @@ function get_model(
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
-    tighten_bounds::Bool
+    tightening_algorithm::TighteningAlgorithm 
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, model_build_solver, rebuild, tighten_bounds)
+    d = get_reusable_model(nn_params, input, pp, tightening_solver, rebuild, tightening_algorithm)
     setsolver(d[:Model], main_solver)
     return d
 end
@@ -86,9 +86,9 @@ function get_reusable_model(
     nn_params::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationParameters,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
-    tighten_bounds::Bool
+    tightening_algorithm::TighteningAlgorithm 
     )::Dict
 
     filename = model_filename(nn_params, input, pp)
@@ -103,7 +103,7 @@ function get_reusable_model(
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=false.""")
-        d = build_reusable_model_uncached(nn_params, input, pp, model_build_solver, tighten_bounds)
+        d = build_reusable_model_uncached(nn_params, input, pp, tightening_solver, tightening_algorithm)
         open(model_filepath, "w") do f
             serialize(f, d)
         end
@@ -115,12 +115,12 @@ function build_reusable_model_uncached(
     nn_params::NeuralNet,
     input::Array{<:Real},
     pp::AdditivePerturbationParameters,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tighten_bounds::Bool
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm 
     )::Dict
 
-    m = Model(solver = model_build_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tighten_bounds)
+    m = Model(solver = tightening_solver)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_range = CartesianRange(size(input))
 
@@ -147,14 +147,14 @@ function build_reusable_model_uncached(
     nn_params::NeuralNet,
     input::Array{<:Real},
     pp::BlurPerturbationParameters,
-    model_build_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tighten_bounds::Bool
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm 
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
-    m = Model(solver = model_build_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tighten_bounds)
+    m = Model(solver = tightening_solver)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_size = size(input)
     filter_size = (pp.blur_kernel_size..., 1, 1)
@@ -179,5 +179,5 @@ function build_reusable_model_uncached(
 end
 
 struct MIPVerifyExt
-    tighten_bounds::Bool
+    tightening_algorithm::TighteningAlgorithm
 end
