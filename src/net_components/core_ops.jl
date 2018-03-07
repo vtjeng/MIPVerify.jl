@@ -11,19 +11,18 @@ end
 function tight_upperbound(
     x::JuMP.AbstractJuMPScalar; 
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
-    u = upperbound(x)
     if tightening_algorithm == interval_arithmetic
-        return u
+        return upperbound(x)
     end
     relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Max, x)
     status = solve(m, suppress_warnings = true, relaxation=relaxation)
-    if status == :Optimal || status == :UserLimit
-        u = min(getobjectivebound(m), u)
-        if status == :UserLimit
-            log_gap(m)
-        end
+    if status == :Optimal
+        u = getobjectivevalue(m)
+    elseif status == :UserLimit
+        u = getobjectivebound(m)
+        log_gap(m)
     end
     debug(MIPVerify.LOGGER, "  Δu = $(upperbound(x)-u)")
     return u
@@ -32,19 +31,18 @@ end
 function tight_lowerbound(
     x::JuMP.AbstractJuMPScalar;
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
-    l = lowerbound(x)
     if tightening_algorithm == interval_arithmetic
-        return l
+        return lowerbound(x)
     end
     relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
     @objective(m, Min, x)
     status = solve(m, suppress_warnings = true, relaxation=relaxation)
-    if status == :Optimal || status == :UserLimit
-        l = max(getobjectivebound(m), l)
-        if status == :UserLimit
-            log_gap(m)
-        end
+    if status == :Optimal
+        l = getobjectivevalue(m)
+    elseif status == :UserLimit
+        l = getobjectivebound(m)
+        log_gap(m)
     end
     debug(MIPVerify.LOGGER, "  Δl = $(l-lowerbound(x))")
     return l
