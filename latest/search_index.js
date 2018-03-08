@@ -85,7 +85,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Tutorials",
     "title": "Finding adversarial examples, in depth",
     "category": "section",
-    "text": "Discusses the various parameters you can select for find_adversarial_example. We explain how toBetter specify targeted labels for the perturbed image (including multiple targeted labels)\nHave more precise control over the activations in the output layer\nRestrict the family of perturbations (for example to the blurring perturbations discussed in our paper)\nSelect whether you want to minimize the L_1, L_2 or L_infty norm of the perturbation.\nDetermine whether you are rebuilding the model expressing the constraints of the neural network from scratch, or loading the model from cache.\nModify the amount of time dedicated to building the model (by passing in a custom model_build_solver).For Gurobi, we show how to specify solver settings to:Mute output\nTerminate early if:\nA time limit is reached\nLower bounds on robustness are proved (that is, we prove that no adversarial example can exist closer than some threshold)\nAn adversarial example is found that is closer to the input than expected\nThe gap between the upper and lower objective bounds falls below a selected threshold"
+    "text": "Discusses the various parameters you can select for find_adversarial_example. We explain how toBetter specify targeted labels for the perturbed image (including multiple targeted labels)\nHave more precise control over the activations in the output layer\nRestrict the family of perturbations (for example to the blurring perturbations discussed in our paper)\nSelect whether you want to minimize the L_1, L_2 or L_infty norm of the perturbation.\nDetermine whether you are rebuilding the model expressing the constraints of the neural network from scratch, or loading the model from cache.\nModify the amount of time dedicated to building the model (by selecting the tightening_algorithm, and/or passing in a custom tightening_solver).For Gurobi, we show how to specify solver settings to:Mute output\nTerminate early if:\nA time limit is reached\nLower bounds on robustness are proved (that is, we prove that no adversarial example can exist closer than some threshold)\nAn adversarial example is found that is closer to the input than expected\nThe gap between the upper and lower objective bounds falls below a selected threshold"
 },
 
 {
@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Tutorials",
     "title": "Managing log output",
     "category": "section",
-    "text": "Explains how getting more granular log settings and writing log output to file."
+    "text": "Explains how to get more granular log settings and to write log output to file."
 },
 
 {
@@ -117,7 +117,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Finding Adversarial Examples",
     "title": "Finding Adversarial Examples",
     "category": "section",
-    "text": "find_adversarial_example is the core function that you will be calling to  find adversarial examples. To avoid spending time verifying the wrong network, we suggest that you check that the network gets reasonable performance on the test set using [frac_correct]."
+    "text": "find_adversarial_example is the core function that you will be calling to  find adversarial examples. To avoid spending time verifying the wrong network, we suggest that you check that the network gets reasonable performance on the test set using frac_correct."
 },
 
 {
@@ -129,19 +129,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNetParameters,Array{#s5,N} where N where #s5<:Real,Union{Array{#s4,1} where #s4<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s29,N} where N where #s29<:Real,Union{Array{#s26,1} where #s26<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.find_adversarial_example",
-    "category": "Method",
-    "text": "find_adversarial_example(nnparams, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tighten_bounds, model_build_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nnparams classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: defaults to false. If true, sets target_selection to    be its complement.\ntighten_bounds: defaults to true. Determines how we determine the upper and lower   bounds on input to each nonlinear unit.   If true, solves an MIP using the model_build_solver.  If false, uses interval arithmetic.  Bounds are tighter when true but the process can take more time. \nmodel_build_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed.\n\n\n\n"
+    "category": "method",
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm: Defaults to lp. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\n\n\n\n"
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNetParameters,MIPVerify.ImageDataset,Int64}",
+    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.ImageDataset,Int64}",
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.frac_correct",
-    "category": "Method",
-    "text": "frac_correct(nnparams, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnnparams::NeuralNetParameters: The parameters of the neural network.\ndataset::ImageDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
+    "category": "method",
+    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::ImageDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
 },
 
 {
@@ -165,7 +165,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Overview",
     "title": "Overview",
     "category": "section",
-    "text": "A neural net consists of multiple layers, each of which (potentially) operates on input differently. We represent these objects with NeuralNetParameters and LayerParameters."
+    "text": "A neural net consists of multiple layers, each of which (potentially) operates on input differently. We represent these objects with NeuralNet and Layer."
 },
 
 {
@@ -177,34 +177,26 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.LayerParameters",
+    "location": "net_components/overview.html#MIPVerify.Layer",
     "page": "Overview",
-    "title": "MIPVerify.LayerParameters",
-    "category": "Type",
-    "text": "abstract LayerParameters\n\nSupertype for all types storing the parameters of each layer. Inherit from this to specify your own custom type of layer. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided.\n\n\n\n"
+    "title": "MIPVerify.Layer",
+    "category": "type",
+    "text": "abstract Layer\n\nSupertype for all types storing the parameters of each layer. Inherit from this to specify your own custom type of layer. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided.\n\n\n\n"
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.StackableLayerParameters",
+    "location": "net_components/overview.html#MIPVerify.NeuralNet",
     "page": "Overview",
-    "title": "MIPVerify.StackableLayerParameters",
-    "category": "Type",
-    "text": "abstract StackableLayerParameters <: MIPVerify.LayerParameters\n\nSupertype for all LayerParameters that can be logically applied in sequence.\n\nAn array of StackableLayerParameters is interpreted as that array of layer being applied to the input sequentially, starting from the leftmost layer. (In functional programming terms, this can be thought of as a sort of fold).\n\n\n\n"
-},
-
-{
-    "location": "net_components/overview.html#MIPVerify.NeuralNetParameters",
-    "page": "Overview",
-    "title": "MIPVerify.NeuralNetParameters",
-    "category": "Type",
-    "text": "abstract NeuralNetParameters\n\nSupertype for all types storing the parameters of a neural net. Inherit from this to specify your own custom architecture of LayerParameters. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided\nHave a UUID field for the name of the neural network.\n\n\n\n"
+    "title": "MIPVerify.NeuralNet",
+    "category": "type",
+    "text": "abstract NeuralNet\n\nSupertype for all types storing the parameters of a neural net. Inherit from this to specify your own custom architecture. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided\nHave a UUID field for the name of the neural network.\n\n\n\n"
 },
 
 {
     "location": "net_components/overview.html#MIPVerify.JuMPReal",
     "page": "Overview",
     "title": "MIPVerify.JuMPReal",
-    "category": "Constant",
+    "category": "constant",
     "text": "\n\n"
 },
 
@@ -213,7 +205,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Overview",
     "title": "PublicInterface",
     "category": "section",
-    "text": "LayerParameters\nStackableLayerParameters\nNeuralNetParameters\nMIPVerify.JuMPReal"
+    "text": "Layer\nNeuralNet\nMIPVerify.JuMPReal"
 },
 
 {
@@ -241,83 +233,67 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.Conv2DParameters",
+    "location": "net_components/layers.html#MIPVerify.Conv2d",
     "page": "Layers",
-    "title": "MIPVerify.Conv2DParameters",
-    "category": "Type",
-    "text": "struct Conv2DParameters{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}, V<:Int64} <: MIPVerify.LayerParameters\n\nStores parameters for a 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2DParameters.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
+    "title": "MIPVerify.Conv2d",
+    "category": "type",
+    "text": "struct Conv2d{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}, V<:Int64} <: MIPVerify.Layer\n\nRepresents 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2d.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.Conv2DParameters-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.Conv2d-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
     "page": "Layers",
-    "title": "MIPVerify.Conv2DParameters",
-    "category": "Method",
-    "text": "Conv2DParameters(filter)\n\n\nConvenience function to create a Conv2DParameters struct with the specified filter and zero bias.\n\n\n\n"
+    "title": "MIPVerify.Conv2d",
+    "category": "method",
+    "text": "Conv2d(filter)\n\n\nConvenience function to create a Conv2d struct with the specified filter and zero bias.\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.ConvolutionLayerParameters",
+    "location": "net_components/layers.html#MIPVerify.Flatten",
     "page": "Layers",
-    "title": "MIPVerify.ConvolutionLayerParameters",
-    "category": "Type",
-    "text": "struct ConvolutionLayerParameters{T<:Real, U<:Real} <: MIPVerify.StackableLayerParameters\n\nStores parameters for a convolution layer consisting of a convolution, followed by max-pooling, and a ReLU activation function.\n\np(x) is shorthand for convolution_layer(x, p) when p is an instance of ConvolutionLayerParameters.\n\nFields:\n\nconv2dparams\nmaxpoolparams\n\n\n\n"
+    "title": "MIPVerify.Flatten",
+    "category": "type",
+    "text": "struct Flatten{T<:Int64} <: MIPVerify.Layer\n\nRepresents a flattening operation.\n\np(x) is shorthand for flatten(x, p.perm) when p is an instance of Flatten.\n\nFields:\n\nn_dim\nperm\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.ConvolutionLayerParameters-Union{Tuple{Array{T,4},Array{U,1},NTuple{4,Int64}}, Tuple{T}, Tuple{U}} where U<:Real where T<:Real",
+    "location": "net_components/layers.html#MIPVerify.Linear",
     "page": "Layers",
-    "title": "MIPVerify.ConvolutionLayerParameters",
-    "category": "Method",
-    "text": "ConvolutionLayerParameters(filter, bias, strides)\n\n\nConvenience function to create a ConvolutionLayerParameters struct with the specified filter, bias, and strides for the max-pooling operation. \n\n\n\n"
+    "title": "MIPVerify.Linear",
+    "category": "type",
+    "text": "struct Linear{T<:Real, U<:Real} <: MIPVerify.Layer\n\nRepresents matrix multiplication.\n\np(x) is shorthand for matmul(x, p) when p is an instance of Linear.\n\nFields:\n\nmatrix\nbias\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.FullyConnectedLayerParameters",
+    "location": "net_components/layers.html#MIPVerify.MaskedReLU",
     "page": "Layers",
-    "title": "MIPVerify.FullyConnectedLayerParameters",
-    "category": "Type",
-    "text": "struct FullyConnectedLayerParameters{T<:Real, U<:Real} <: MIPVerify.StackableLayerParameters\n\nStores parameters for a fully connected layer consisting of a matrix multiplication  followed by a ReLU activation function.\n\np(x) is shorthand for fully_connected_layer(x, p) when p is an instance of FullyConnectedLayerParameters.\n\nFields:\n\nmmparams\n\n\n\n"
+    "title": "MIPVerify.MaskedReLU",
+    "category": "type",
+    "text": "struct MaskedReLU{T<:Real} <: MIPVerify.Layer\n\nRepresents a masked ReLU activation, with mask controlling how the ReLU is applied to each output.\n\np(x) is shorthand for masked_relu(x, p.mask) when p is an instance of MaskedReLU.\n\nFields:\n\nmask\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.MaskedFullyConnectedLayerParameters",
+    "location": "net_components/layers.html#MIPVerify.MaxPool-Union{Tuple{N}, Tuple{Tuple{Vararg{Int64,N}}}} where N",
     "page": "Layers",
-    "title": "MIPVerify.MaskedFullyConnectedLayerParameters",
-    "category": "Type",
-    "text": "struct MaskedFullyConnectedLayerParameters{T<:Real, U<:Real, V<:Real} <: MIPVerify.StackableLayerParameters\n\nStores parameters for a fully connected layer consisting of a matrix multiplication  followed by a ReLU activation function that is activated selectively depending on the  corresponding value of the mask.\n\np(x) is shorthand for masked_fully_connected_layer(x, p) when p is an instance of MaskedFullyConnectedLayerParameters.\n\n\n\n"
+    "title": "MIPVerify.MaxPool",
+    "category": "method",
+    "text": "MaxPool(strides)\n\n\nConvenience function to create a Pool struct for max-pooling.\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.MatrixMultiplicationParameters",
+    "location": "net_components/layers.html#MIPVerify.Pool",
     "page": "Layers",
-    "title": "MIPVerify.MatrixMultiplicationParameters",
-    "category": "Type",
-    "text": "struct MatrixMultiplicationParameters{T<:Real, U<:Real} <: MIPVerify.LayerParameters\n\nStores parameters for a layer that does a simple matrix multiplication.\n\np(x) is shorthand for matmul(x, p) when p is an instance of MatrixMultiplicationParameters.\n\nFields:\n\nmatrix\nbias\n\n\n\n"
+    "title": "MIPVerify.Pool",
+    "category": "type",
+    "text": "struct Pool{N} <: MIPVerify.Layer\n\nRepresents a pooling operation.\n\np(x) is shorthand for pool(x, p) when p is an instance of Pool.\n\nFields:\n\nstrides\npooling_function\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.MaxPoolParameters-Union{Tuple{N}, Tuple{Tuple{Vararg{Int64,N}}}} where N",
+    "location": "net_components/layers.html#MIPVerify.ReLU",
     "page": "Layers",
-    "title": "MIPVerify.MaxPoolParameters",
-    "category": "Method",
-    "text": "MaxPoolParameters(strides)\n\n\nConvenience function to create a PoolParameters struct for max-pooling.\n\n\n\n"
-},
-
-{
-    "location": "net_components/layers.html#MIPVerify.PoolParameters",
-    "page": "Layers",
-    "title": "MIPVerify.PoolParameters",
-    "category": "Type",
-    "text": "struct PoolParameters{N} <: MIPVerify.LayerParameters\n\nStores parameters for a pooling operation.\n\np(x) is shorthand for pool(x, p) when p is an instance of PoolParameters.\n\nFields:\n\nstrides\npooling_function\n\n\n\n"
-},
-
-{
-    "location": "net_components/layers.html#MIPVerify.SoftmaxParameters",
-    "page": "Layers",
-    "title": "MIPVerify.SoftmaxParameters",
-    "category": "Type",
-    "text": "struct SoftmaxParameters{T<:Real, U<:Real} <: MIPVerify.LayerParameters\n\nStores parameters for a softmax layer consisting of a matrix multiplication with _no_ activation function.\n\nThis simply wraps MatrixMultiplicationParameters to ensure that it is distinguishable as a softmax layer.\n\nFields:\n\nmmparams\n\n\n\n"
+    "title": "MIPVerify.ReLU",
+    "category": "type",
+    "text": "struct ReLU <: MIPVerify.Layer\n\nRepresents a ReLU operation.\n\np(x) is shorthand for relu(x) when p is an instance of ReLU.\n\n\n\n"
 },
 
 {
@@ -325,46 +301,30 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "Public Interface",
     "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/layers/conv2d.jl\",\n    \"net_components/layers/convolution_layer.jl\",\n    \"net_components/layers/fully_connected_layer.jl\",\n    \"net_components/layers/masked_fully_connected_layer.jl\",\n    \"net_components/layers/matmul.jl\",\n    \"net_components/layers/pool.jl\",\n    \"net_components/layers/softmax.jl\"\n    ]\nPrivate = false"
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/layers/conv2d.jl\",\n    \"net_components/layers/flatten.jl\",\n    \"net_components/layers/linear.jl\",\n    \"net_components/layers/masked_relu.jl\",\n    \"net_components/layers/pool.jl\",\n    \"net_components/layers/relu.jl\"\n    ]\nPrivate = false"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2DParameters{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2d{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
     "page": "Layers",
     "title": "MIPVerify.conv2d",
-    "category": "Method",
+    "category": "method",
     "text": "conv2d(input, params)\n\n\nComputes the result of convolving input with the filter and bias stored in params.\n\nMirrors tf.nn.conv2d from the tensorflow package, with strides = [1, 1, 1, 1],  padding = \'SAME\'.\n\nThrows\n\nAssertionError if input and filter are not compatible.\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.convolution_layer-Tuple{Array{#s110,4} where #s110<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.ConvolutionLayerParameters}",
+    "location": "net_components/layers.html#MIPVerify.flatten-Union{Tuple{Array{T,N},AbstractArray{U,N} where N}, Tuple{N}, Tuple{T}, Tuple{U}} where U<:Int64 where N where T",
     "page": "Layers",
-    "title": "MIPVerify.convolution_layer",
-    "category": "Method",
-    "text": "convolution_layer(x, params)\n\n\nComputes the result of convolving x with params.conv2dparams, pooling the resulting output with the pooling function and strides specified in params.maxpoolparams, and passing the output through a ReLU activation function.\n\n\n\n"
+    "title": "MIPVerify.flatten",
+    "category": "method",
+    "text": "Permute dimensions of array in specified order, then flattens the array.\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.fully_connected_layer-Tuple{Array{#s109,1} where #s109<:JuMP.AbstractJuMPScalar,MIPVerify.FullyConnectedLayerParameters}",
-    "page": "Layers",
-    "title": "MIPVerify.fully_connected_layer",
-    "category": "Method",
-    "text": "Computes the result of multiplying x by params.mmparams, and  passing the output through a ReLU activation function.\n\n\n\n"
-},
-
-{
-    "location": "net_components/layers.html#MIPVerify.masked_fully_connected_layer-Tuple{Array{#s108,1} where #s108<:JuMP.AbstractJuMPScalar,MIPVerify.MaskedFullyConnectedLayerParameters}",
-    "page": "Layers",
-    "title": "MIPVerify.masked_fully_connected_layer",
-    "category": "Method",
-    "text": "Similar to fully_connected_layer(x, params), but with an additional mask in params that controls whether a ReLU is applied to each output. \n\nIf the value of the mask is <0 (i.e. input is assumed to be always non-positive), the  output is set at 0.\nIf the value of the mask is 0 (i.e. input can take both positive and negative values), the output is rectified.\nIf the value of the mask is >0 (i.e. input is assumed to be always non-negative), the  output is set as the value of the input, without any rectification.\n\n\n\n"
-},
-
-{
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s109,1} where #s109<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.MatrixMultiplicationParameters}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s133,1} where #s133<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
-    "category": "Method",
+    "category": "method",
     "text": "matmul(x, params)\n\n\nComputes the result of pre-multiplying x by the transpose of params.matrix and adding params.bias.\n\n\n\n"
 },
 
@@ -372,7 +332,7 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/layers.html#MIPVerify.getoutputsize-Union{Tuple{AbstractArray{T,N},Tuple{Vararg{Int64,N}}}, Tuple{N}, Tuple{T}} where N where T",
     "page": "Layers",
     "title": "MIPVerify.getoutputsize",
-    "category": "Method",
+    "category": "method",
     "text": "getoutputsize(input_array, strides)\n\n\nFor pooling operations on an array, returns the expected size of the output array.\n\n\n\n"
 },
 
@@ -380,7 +340,7 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/layers.html#MIPVerify.getpoolview-Union{Tuple{AbstractArray{T,N},Tuple{Vararg{Int64,N}},Tuple{Vararg{Int64,N}}}, Tuple{N}, Tuple{T}} where N where T",
     "page": "Layers",
     "title": "MIPVerify.getpoolview",
-    "category": "Method",
+    "category": "method",
     "text": "getpoolview(input_array, strides, output_index)\n\n\nFor pooling operations on an array, returns a view of the parent array corresponding to the output_index in the output array.\n\n\n\n"
 },
 
@@ -388,15 +348,15 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/layers.html#MIPVerify.getsliceindex-Tuple{Int64,Int64,Int64}",
     "page": "Layers",
     "title": "MIPVerify.getsliceindex",
-    "category": "Method",
+    "category": "method",
     "text": "getsliceindex(input_array_size, stride, output_index)\n\n\nFor pooling operations on an array where a given element in the output array corresponds to equal-sized blocks in the input array, returns (for a given dimension) the index range in the input array corresponding to a particular index output_index in the output array.\n\nReturns an empty array if the output_index does not correspond to any input indices.\n\nArguments\n\nstride::Integer: the size of the operating blocks along the active    dimension.\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.PoolParameters{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.Pool{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.AbstractJuMPScalar, Real}",
     "page": "Layers",
     "title": "MIPVerify.pool",
-    "category": "Method",
+    "category": "method",
     "text": "pool(input, params)\n\n\nComputes the result of applying the pooling function params.pooling_function to  non-overlapping cells of input with sizes specified in params.strides.\n\n\n\n"
 },
 
@@ -404,7 +364,7 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/layers.html#MIPVerify.poolmap-Union{Tuple{Function,AbstractArray{T,N},Tuple{Vararg{Int64,N}}}, Tuple{N}, Tuple{T}} where N where T",
     "page": "Layers",
     "title": "MIPVerify.poolmap",
-    "category": "Method",
+    "category": "method",
     "text": "poolmap(f, input_array, strides)\n\n\nReturns output from applying f to subarrays of input_array, with the windows determined by the strides.\n\n\n\n"
 },
 
@@ -413,7 +373,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "Internal",
     "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/layers/conv2d.jl\",\n    \"net_components/layers/convolution_layer.jl\",\n    \"net_components/layers/fully_connected_layer.jl\",\n    \"net_components/layers/masked_fully_connected_layer.jl\",\n    \"net_components/layers/matmul.jl\",\n    \"net_components/layers/pool.jl\",\n    \"net_components/layers/softmax.jl\"\n    ]\nPublic  = false"
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/layers/conv2d.jl\",\n    \"net_components/layers/flatten.jl\",\n    \"net_components/layers/linear.jl\",\n    \"net_components/layers/masked_relu.jl\",\n    \"net_components/layers/pool.jl\",\n    \"net_components/layers/relu.jl\"\n    ]\nPublic  = false"
 },
 
 {
@@ -433,19 +393,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/nets.html#MIPVerify.MaskedFullyConnectedNetParameters",
+    "location": "net_components/nets.html#MIPVerify.Sequential",
     "page": "Networks",
-    "title": "MIPVerify.MaskedFullyConnectedNetParameters",
-    "category": "Type",
-    "text": "struct MaskedFullyConnectedNetParameters <: MIPVerify.NeuralNetParameters\n\nRepresents a neural net consisting of multiple masked fully-connected layers (as an array of MaskedFullyConnectedLayerParameters), followed by a softmax layer (as a  SoftmaxParameters).\n\nFields:\n\nmasked_fclayer_params\nsoftmax_params\nUUID\n\n\n\n"
-},
-
-{
-    "location": "net_components/nets.html#MIPVerify.StandardNeuralNetParameters",
-    "page": "Networks",
-    "title": "MIPVerify.StandardNeuralNetParameters",
-    "category": "Type",
-    "text": "struct StandardNeuralNetParameters <: MIPVerify.NeuralNetParameters\n\nRepresents a neural net consisting of multiple convolution layers (as an array of ConvolutionLayerParameters), followed by multiple fully-connected layers (as an array of FullyConnectedLayerParameters), followed by a softmax layer (as a SoftmaxParameters).\n\nYou can leave the array convlayer_params empty if you do not have convolution layers, or conversely leave fclayers_empty if you do not have fully-connected layers. (Leaving _both_ empty doesn\'t make sense!)\n\nFields:\n\nconvlayer_params\nfclayer_params\nsoftmax_params\nUUID\n\n\n\n"
+    "title": "MIPVerify.Sequential",
+    "category": "type",
+    "text": "struct Sequential <: MIPVerify.NeuralNet\n\nRepresents a sequential (feed-forward) neural net, with layers ordered from input to output.\n\nFields:\n\nlayers\nUUID\n\n\n\n"
 },
 
 {
@@ -453,7 +405,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Networks",
     "title": "Public Interface",
     "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/nets/masked_fc_net.jl\",\n    \"net_components/nets/standard_neural_net.jl\",\n    ]\nPrivate = false"
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/nets/sequential.jl\",\n    ]\nPrivate = false"
 },
 
 {
@@ -461,7 +413,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Networks",
     "title": "Internal",
     "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/nets/masked_fc_net.jl\",\n    \"net_components/nets/standard_neural_net.jl\",\n    ]\nPublic  = false"
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/nets/sequential.jl\",\n    ]\nPublic  = false"
 },
 
 {
@@ -492,15 +444,15 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/core_ops.html#MIPVerify.abs_ge-Tuple{JuMP.AbstractJuMPScalar}",
     "page": "Core Operations",
     "title": "MIPVerify.abs_ge",
-    "category": "Method",
+    "category": "method",
     "text": "abs_ge(x)\n\n\nExpresses a one-sided absolute-value constraint: output is constrained to be at least as large as |x|.\n\nOnly use when you are minimizing over the output in the objective.\n\n\n\n"
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{JuMP.AbstractJuMPScalar,Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s30,N} where N where #s30<:JuMP.AbstractJuMPScalar,AbstractArray{#s29,N} where N where #s29<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
-    "category": "Method",
+    "category": "method",
     "text": "masked_relu(x, m)\n\n\nExpresses a masked rectified-linearity constraint, with three possibilities depending on  the value of the mask. Output is constrained to be:\n\n1) max(x, 0) if m=0, \n2) 0 if m<0\n3) x if m>0\n\n\n\n"
 },
 
@@ -508,23 +460,23 @@ var documenterSearchIndex = {"docs": [
     "location": "net_components/core_ops.html#MIPVerify.maximum-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
     "page": "Core Operations",
     "title": "MIPVerify.maximum",
-    "category": "Method",
-    "text": "maximum(xs; tighten)\n\n\nExpresses a maximization constraint: output is constrained to be equal to max(xs).\n\n\n\n"
+    "category": "method",
+    "text": "maximum(xs; tightening_algorithm)\n\n\nExpresses a maximization constraint: output is constrained to be equal to max(xs).\n\n\n\n"
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.relu-Tuple{JuMP.AbstractJuMPScalar}",
+    "location": "net_components/core_ops.html#MIPVerify.relu-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
     "page": "Core Operations",
     "title": "MIPVerify.relu",
-    "category": "Method",
-    "text": "relu(x)\n\n\nExpresses a rectified-linearity constraint: output is constrained to be equal to  max(x, 0).\n\n\n\n"
+    "category": "method",
+    "text": "relu(x)\nrelu(x)\n\n\nExpresses a rectified-linearity constraint: output is constrained to be equal to  max(x, 0).\n\n\n\n"
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s110,1} where #s110<:JuMP.AbstractJuMPScalar,Array{#s111,1} where #s111<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s134,1} where #s134<:JuMP.AbstractJuMPScalar,Array{#s135,1} where #s135<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
-    "category": "Method",
+    "category": "method",
     "text": "set_max_indexes(x, target_indexes; tolerance)\n\n\nImposes constraints ensuring that one of the elements at the target_indexes is the  largest element of the array x. More specifically, we require x[j] - x[i] ≥ tolerance for some j ∈ target_indexes and for all i ∉ target_indexes.\n\n\n\n"
 },
 
@@ -564,24 +516,24 @@ var documenterSearchIndex = {"docs": [
     "location": "utils/import_weights.html#MIPVerify.get_conv_params-Tuple{Dict{String,V} where V,String,NTuple{4,Int64}}",
     "page": "Importing Parameter Values",
     "title": "MIPVerify.get_conv_params",
-    "category": "Method",
-    "text": "get_conv_params(param_dict, layer_name, expected_size; matrix_name, bias_name)\n\n\nHelper function to import the parameters for a convolution layer from param_dict as a     Conv2DParameters object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{4, Int}: Tuple of length 4 corresponding to the expected size   of the weights of the layer.\n\n\n\n"
+    "category": "method",
+    "text": "get_conv_params(param_dict, layer_name, expected_size; matrix_name, bias_name, expected_stride)\n\n\nHelper function to import the parameters for a convolution layer from param_dict as a     Conv2d object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{4, Int}: Tuple of length 4 corresponding to the expected size   of the weights of the layer.\n\n\n\n"
 },
 
 {
     "location": "utils/import_weights.html#MIPVerify.get_example_network_params-Tuple{String}",
     "page": "Importing Parameter Values",
     "title": "MIPVerify.get_example_network_params",
-    "category": "Method",
-    "text": "get_example_network_params(name)\n\n\nMakes named example neural networks available as a NeuralNetParameters object.\n\nArguments\n\nname::String: Name of example neural network. Options:\n\'MNIST.n1\': MNIST classification. Two fully connected layers with 40 and 20   units, and softmax layer with 10 units. No adversarial training.\n\n\n\n"
+    "category": "method",
+    "text": "get_example_network_params(name)\n\n\nMakes named example neural networks available as a NeuralNet object.\n\nArguments\n\nname::String: Name of example neural network. Options:\n\'MNIST.n1\': MNIST classification. Two fully connected layers with 40 and 20   units, and softmax layer with 10 units. No adversarial training.\n\n\n\n"
 },
 
 {
     "location": "utils/import_weights.html#MIPVerify.get_matrix_params-Tuple{Dict{String,V} where V,String,Tuple{Int64,Int64}}",
     "page": "Importing Parameter Values",
     "title": "MIPVerify.get_matrix_params",
-    "category": "Method",
-    "text": "get_matrix_params(param_dict, layer_name, expected_size; matrix_name, bias_name)\n\n\nHelper function to import the parameters for a layer carrying out matrix multiplication      (e.g. fully connected layer / softmax layer) from param_dict as a     MatrixMultiplicationParameters object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{2, Int}: Tuple of length 2 corresponding to the expected size  of the weights of the layer.\n\n\n\n"
+    "category": "method",
+    "text": "get_matrix_params(param_dict, layer_name, expected_size; matrix_name, bias_name)\n\n\nHelper function to import the parameters for a layer carrying out matrix multiplication      (e.g. fully connected layer / softmax layer) from param_dict as a     Linear object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{2, Int}: Tuple of length 2 corresponding to the expected size  of the weights of the layer.\n\n\n\n"
 },
 
 {
@@ -628,7 +580,7 @@ var documenterSearchIndex = {"docs": [
     "location": "utils/import_datasets.html#MIPVerify.read_datasets-Tuple{String}",
     "page": "Importing External Datasets",
     "title": "MIPVerify.read_datasets",
-    "category": "Method",
+    "category": "method",
     "text": "read_datasets(name)\n\n\nMakes popular machine learning datasets available as a NamedTrainTestDataset.\n\nArguments\n\nname::String: name of machine learning dataset. Options:\nMNIST: The MNIST Database of handwritten digits\n\n\n\n"
 },
 
@@ -644,7 +596,7 @@ var documenterSearchIndex = {"docs": [
     "location": "utils/import_datasets.html#MIPVerify.ImageDataset",
     "page": "Importing External Datasets",
     "title": "MIPVerify.ImageDataset",
-    "category": "Type",
+    "category": "type",
     "text": "struct ImageDataset{T<:Real, U<:Int64} <: MIPVerify.Dataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
 },
 
@@ -652,7 +604,7 @@ var documenterSearchIndex = {"docs": [
     "location": "utils/import_datasets.html#MIPVerify.NamedTrainTestDataset",
     "page": "Importing External Datasets",
     "title": "MIPVerify.NamedTrainTestDataset",
-    "category": "Type",
+    "category": "type",
     "text": "struct NamedTrainTestDataset{T<:MIPVerify.Dataset} <: MIPVerify.Dataset\n\nNamed dataset containing a training set and a test set which are expected to contain the same kind of data.\n\n\n\n"
 },
 
