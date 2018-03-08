@@ -102,7 +102,7 @@ function get_reusable_model(
         end
     else
         notice(MIPVerify.LOGGER, """
-        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=false.""")
+        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
         d = build_reusable_model_uncached(nn_params, input, pp, tightening_solver, tightening_algorithm)
         open(model_filepath, "w") do f
             serialize(f, d)
