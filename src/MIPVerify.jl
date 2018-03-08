@@ -13,9 +13,9 @@ const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
 
-include("net_components/main.jl")
+include("net_components.jl")
 include("models.jl")
-include("utils/main.jl")
+include("utils.jl")
 include("logging.jl")
 
 function get_max_index(

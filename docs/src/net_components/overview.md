@@ -10,7 +10,6 @@ Order   = [:function, :type]
 ## PublicInterface
 ```@docs
 Layer
-Layer
 NeuralNet
 MIPVerify.JuMPReal
 ```

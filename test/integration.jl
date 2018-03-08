@@ -1,5 +1,5 @@
 using Base.Test
 
 @testset "integration tests" begin
-    include("sequential/main.jl")
+    include("integration/sequential.jl")
 end

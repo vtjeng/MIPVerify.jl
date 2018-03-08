@@ -14,7 +14,7 @@
   + Restrict the family of perturbations (for example to the blurring perturbations discussed in our paper)
   + Select whether you want to minimize the $L_1$, $L_2$ or $L_\infty$ norm of the perturbation.
   + Determine whether you are rebuilding the model expressing the constraints of the neural network from scratch, or loading the model from cache.
-  + Modify the amount of time dedicated to building the model (by passing in a custom `tightening_solver`).
+  + Modify the amount of time dedicated to building the model (by selecting the `tightening_algorithm`, and/or passing in a custom `tightening_solver`).
 
 For Gurobi, we show how to specify solver settings to:
   + Mute output
@@ -28,4 +28,4 @@ For Gurobi, we show how to specify solver settings to:
 [Walks you through](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb) the output dictionary produced by a call to `find_adversarial_example`.
 
 ## Managing log output
-[Explains how](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/04_managing_log_output.ipynb) getting more granular log settings and writing log output to file.
+[Explains how](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/04_managing_log_output.ipynb) to get more granular log settings and to write log output to file.

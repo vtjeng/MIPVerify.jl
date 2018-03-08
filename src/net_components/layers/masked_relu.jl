@@ -1,14 +1,16 @@
 export MaskedReLU
 
 """
-Applies a ReLU activation, with the `mask` controlling how the ReLU is applied to each output.
+$(TYPEDEF)
 
-  1) If the value of the mask is <0 (i.e. input is assumed to be always non-positive), the 
-     output is set at 0.
-  2) If the value of the mask is 0 (i.e. input can take both positive and negative values),
-     the output is rectified.
-  3) If the value of the mask is >0 (i.e. input is assumed to be always non-negative), the 
-     output is set as the value of the input, without any rectification.
+Represents a masked ReLU activation, with `mask` controlling how the ReLU is applied to
+each output.
+
+`p(x)` is shorthand for [`masked_relu(x, p.mask)`](@ref) when `p` is an instance of
+`MaskedReLU`.
+
+## Fields:
+$(FIELDS)
 """
 @auto_hash_equals struct MaskedReLU{T<:Real} <: Layer
     mask::Array{T}

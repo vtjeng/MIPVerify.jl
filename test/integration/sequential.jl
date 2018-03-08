@@ -1,10 +1,10 @@
 using Base.Test
 
 @testset "sequential" begin
-    include("generated_weights/main.jl")
+    include("sequential/generated_weights.jl")
     if Pkg.installed("Gurobi") != nothing
         # Skip these tests if Gurobi is not installed.
         # The corresponding networks are too large for CBC to deal with.
-        include("trained_weights/main.jl")
+        include("sequential/trained_weights.jl")
     end
 end

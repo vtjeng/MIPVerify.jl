@@ -3,7 +3,7 @@ export Pool, MaxPool
 """
 $(TYPEDEF)
 
-Stores parameters for a pooling operation.
+Represents a pooling operation.
 
 `p(x)` is shorthand for [`pool(x, p)`](@ref) when `p` is an instance of `Pool`.
 

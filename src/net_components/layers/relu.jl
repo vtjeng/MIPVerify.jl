@@ -1,5 +1,13 @@
 export ReLU
 
+"""
+$(TYPEDEF)
+
+Represents a ReLU operation.
+
+`p(x)` is shorthand for [`relu(x)`](@ref) when `p` is an instance of
+`ReLU`.
+"""
 struct ReLU <: Layer end
 
 Base.hash(a::ReLU, h::UInt) = hash(:ReLU, h)

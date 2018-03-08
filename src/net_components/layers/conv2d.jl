@@ -5,7 +5,7 @@ export Conv2d
 """
 $(TYPEDEF)
 
-Stores parameters for a 2-D convolution operation.
+Represents 2-D convolution operation.
 
 `p(x)` is shorthand for [`conv2d(x, p)`](@ref) when `p` is an instance of
 `Conv2d`.

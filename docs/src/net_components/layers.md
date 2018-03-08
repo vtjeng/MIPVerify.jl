@@ -18,12 +18,11 @@ Modules = [MIPVerify]
 Order   = [:function, :type]
 Pages   = [
     "net_components/layers/conv2d.jl",
-    "net_components/layers/convolution_layer.jl",
-    "net_components/layers/fully_connected_layer.jl",
-    "net_components/layers/masked_fully_connected_layer.jl",
-    "net_components/layers/matmul.jl",
+    "net_components/layers/flatten.jl",
+    "net_components/layers/linear.jl",
+    "net_components/layers/masked_relu.jl",
     "net_components/layers/pool.jl",
-    "net_components/layers/softmax.jl"
+    "net_components/layers/relu.jl"
     ]
 Private = false
 ```
@@ -34,12 +33,11 @@ Modules = [MIPVerify]
 Order   = [:function, :type]
 Pages   = [
     "net_components/layers/conv2d.jl",
-    "net_components/layers/convolution_layer.jl",
-    "net_components/layers/fully_connected_layer.jl",
-    "net_components/layers/masked_fully_connected_layer.jl",
-    "net_components/layers/matmul.jl",
+    "net_components/layers/flatten.jl",
+    "net_components/layers/linear.jl",
+    "net_components/layers/masked_relu.jl",
     "net_components/layers/pool.jl",
-    "net_components/layers/softmax.jl"
+    "net_components/layers/relu.jl"
     ]
 Public  = false
 ```

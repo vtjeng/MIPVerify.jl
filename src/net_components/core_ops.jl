@@ -53,11 +53,6 @@ function log_gap(m::JuMP.Model)
     info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
-"""
-$(SIGNATURES)
-Expresses a rectified-linearity constraint: output is constrained to be equal to 
-`max(x, 0)`.
-"""
 function relu(x::T)::T where {T<:Real}
     return max(zero(T), x)
 end
@@ -107,6 +102,11 @@ function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
     relu(x, l, u)
 end
 
+"""
+$(SIGNATURES)
+Expresses a rectified-linearity constraint: output is constrained to be equal to 
+`max(x, 0)`.
+"""
 function relu(x::AbstractArray{T}) where {T<:JuMP.AbstractJuMPScalar}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
@@ -123,16 +123,6 @@ function relu(x::AbstractArray{T}) where {T<:JuMP.AbstractJuMPScalar}
     end
 end
 
-"""
-$(SIGNATURES)
-Expresses a masked rectified-linearity constraint, with three possibilities depending on 
-the value of the mask. Output is constrained to be:
-```
-1) max(x, 0) if m=0, 
-2) 0 if m<0
-3) x if m>0
-```
-"""
 function masked_relu(x::T, m::Real)::T where {T<:Real}
     if m < 0
         zero(T)
@@ -166,6 +156,16 @@ function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
     end
 end
 
+"""
+$(SIGNATURES)
+Expresses a masked rectified-linearity constraint, with three possibilities depending on 
+the value of the mask. Output is constrained to be:
+```
+1) max(x, 0) if m=0, 
+2) 0 if m<0
+3) x if m>0
+```
+"""
 function masked_relu(x::AbstractArray{<:JuMP.AbstractJuMPScalar}, m::AbstractArray{<:Real})
     @assert(size(x) == size(m))
     s = size(m)

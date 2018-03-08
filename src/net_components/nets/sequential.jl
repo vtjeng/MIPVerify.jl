@@ -3,7 +3,8 @@ export Sequential
 """
 $(TYPEDEF)
 
-TODO
+Represents a sequential (feed-forward) neural net, with `layers` ordered from input
+to output.
 
 ## Fields:
 $(FIELDS)

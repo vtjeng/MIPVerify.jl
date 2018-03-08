@@ -8,7 +8,7 @@ $(TYPEDEF)
 """
 JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
 
-include("core_ops.jl")
+include("net_components/core_ops.jl")
 
 """
 $(TYPEDEF)
@@ -25,21 +25,16 @@ An array of `Layers` is interpreted as that array of layer being applied
 to the input sequentially, starting from the leftmost layer. (In functional programming
 terms, this can be thought of as a sort of `fold`).
 """
-(ps::Array{<:Layer, 1})(x::Array{<:JuMPReal}) = (
-    length(ps) == 0 ? x : ps[2:end](ps[1](x))
-)
+chain(x::Array{<:JuMPReal}, ps::Array{<:Layer, 1}) = length(ps) == 0 ? x : ps[2:end](ps[1](x))
+
+(ps::Array{<:Layer, 1})(x::Array{<:JuMPReal}) = chain(x, ps)
 
 function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
     input_size = size(input)
     @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
 end
 
-include("layers/conv2d.jl")
-include("layers/flatten.jl")
-include("layers/linear.jl")
-include("layers/masked_relu.jl")
-include("layers/pool.jl")
-include("layers/relu.jl")
+include("net_components/layers.jl")
 
 """
 $(TYPEDEF)
@@ -53,4 +48,4 @@ is expected to:
 """
 abstract type NeuralNet end
 
-include("nets/sequential.jl")
+include("net_components/nets.jl")

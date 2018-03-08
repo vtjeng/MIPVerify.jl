@@ -1,5 +1,16 @@
 export Flatten
 
+"""
+$(TYPEDEF)
+
+Represents a flattening operation.
+
+`p(x)` is shorthand for [`flatten(x, p.perm)`](@ref) when `p` is an instance of
+`Flatten`.
+
+## Fields:
+$(FIELDS)
+"""
 @auto_hash_equals struct Flatten{T<:Int} <: Layer
     n_dim::Int
     perm::AbstractArray{T}
@@ -35,10 +46,10 @@ function Base.show(io::IO, p::Flatten)
 end
 
 """
-Permute dimensions of array because Python flattens arrays in the opposite order.
+Permute dimensions of array in specified order, then flattens the array.
 """
 function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Int}
-    @assert length(perm) == N
+    @assert all(sort(perm) .== 1:N)
     return permutedims(x, perm)[:]
 end
 

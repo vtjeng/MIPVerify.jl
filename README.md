@@ -16,7 +16,7 @@ The package provides
   + Tight specification of non-linear constraints between decision variables, enabling efficient solves.
   + Support for restricting allowable perturbations to a specified families of perturbations [1].
 
-In addition, we provide utility functions to work with the MNIST dataset.
+In addition, we provide utility functions to work with the MNIST dataset and a sample neural network.
 
 See the companion paper for more details and results:
 
@@ -24,7 +24,7 @@ See the companion paper for more details and results:
 _Vincent Tjeng, Russ Tedrake_
 https://arxiv.org/abs/1711.07356
 
-See the latest stable documentation for a list of features, installation instructions, and a quick-start guide. Installation should only take a couple of minutes, including installing Julia itself. See the notebooks directory for some usage examples.
+See the latest stable documentation for a list of features, installation instructions, and a quick-start guide. Installation should only take a couple of minutes, including installing Julia itself. See the examples directory for usage examples
 
 ## Citing this library
 ```

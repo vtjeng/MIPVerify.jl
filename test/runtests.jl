@@ -11,9 +11,9 @@ using TestHelpers: get_new_model
     MIPVerify.setloglevel!("info")
     MIPVerify.remove_cached_models()
 
-    include("integration/main.jl")
-    include("net_components/main.jl")
-    include("utils/main.jl")
+    include("integration.jl")
+    include("net_components.jl")
+    include("utils.jl")
     include("models.jl")
     
     @testset "get_max_index" begin

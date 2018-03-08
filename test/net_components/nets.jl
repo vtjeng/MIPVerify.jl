@@ -1,5 +1,5 @@
 using Base.Test
 
 @testset "nets/" begin
-    include("sequential.jl")
+    include("nets/sequential.jl")
 end

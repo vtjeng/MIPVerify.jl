@@ -3,7 +3,7 @@ export Linear
 """
 $(TYPEDEF)
 
-Stores parameters for a layer that does a simple matrix multiplication.
+Represents matrix multiplication.
 
 `p(x)` is shorthand for [`matmul(x, p)`](@ref) when `p` is an instance of
 `Linear`.
