@@ -36,4 +36,4 @@ See the latest stable documentation for a list of features, installation instruc
 }
 ```
 
-[1] Currently, we have support for _additive_ perturbations, where every pixel can be modified independently, and _blurring_ perturbations, where the image is convolved with an adversarial blurrign kernel.
+[1] Currently, we have support for _unrestricted_ perturbations, where every pixel can be modified independently, and _blurring_ perturbations, where the image is convolved with an adversarial blurrign kernel.

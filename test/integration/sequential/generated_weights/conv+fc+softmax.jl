@@ -1,6 +1,6 @@
 using Base.Test
 using MIPVerify
-using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
 
@@ -49,26 +49,26 @@ nn = Sequential(
     "tests.integration.generated_weights.conv+fc+softmax"
 )
 
-pp_blur = BlurPerturbationParameters((5, 5))
-pp_additive = AdditivePerturbationParameters()
+pp_blur = BlurringPerturbationFamily((5, 5))
+pp_unrestricted = UnrestrictedPerturbationFamily()
 
 expected_objective_values = Dict(
     (1, pp_blur, 1, 0) => 0,
     (1, pp_blur, Inf, 0) => 0,
-    (2, pp_additive, 1, 0) => 2.98266,
-    (2, pp_additive, 1, 0.1) => 3.03465,
-    (2, pp_additive, Inf, 0) => 0.235631,
-    (2, pp_additive, Inf, 0.1) => 0.240124,
+    (2, pp_unrestricted, 1, 0) => 2.98266,
+    (2, pp_unrestricted, 1, 0.1) => 3.03465,
+    (2, pp_unrestricted, Inf, 0) => 0.235631,
+    (2, pp_unrestricted, Inf, 0.1) => 0.240124,
     (2, pp_blur, 1, 0) => NaN,
     (2, pp_blur, Inf, 0) => NaN,
-    (3, pp_additive, Inf, 0) => 0.00288325,
-    (3, pp_additive, Inf, 1) => 0.0110296,
+    (3, pp_unrestricted, Inf, 0) => 0.00288325,
+    (3, pp_unrestricted, Inf, 1) => 0.0110296,
     (3, pp_blur, 1, 0) => 0.261483,
     (3, pp_blur, 1, 10) => NaN,
     (3, pp_blur, Inf, 0) => 0.0105534,
     (3, pp_blur, Inf, 10) => NaN,
-    ([2, 3], pp_additive, Inf, 0) => 0.00288325,
-    ([2, 3], pp_additive, Inf, 1) => 0.0110296,
+    ([2, 3], pp_unrestricted, Inf, 0) => 0.00288325,
+    ([2, 3], pp_unrestricted, Inf, 1) => 0.0110296,
     ([2, 3], pp_blur, 1, 0) => 0.261483,
     ([2, 3], pp_blur, Inf, 0) => 0.0105534
 )

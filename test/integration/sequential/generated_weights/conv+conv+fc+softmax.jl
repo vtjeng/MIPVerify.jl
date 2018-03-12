@@ -1,6 +1,6 @@
 using Base.Test
 using MIPVerify
-using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
 
@@ -66,15 +66,15 @@ nn = Sequential(
     "tests.integration.generated_weights.conv+conv+fc+softmax"
 )
 
-pp_blur = BlurPerturbationParameters((5, 5))
-pp_additive = AdditivePerturbationParameters()
+pp_blur = BlurringPerturbationFamily((5, 5))
+pp_unrestricted = UnrestrictedPerturbationFamily()
 
 expected_objective_values = Dict(
-    (2, pp_additive, 1, 0.1) => 0.0,
-    (2, pp_additive, 1, 1) => 0.991616,
-    (2, pp_additive, 1, 2) => NaN,
-    (2, pp_additive, Inf, 0.1) => 0.0,
-    (2, pp_additive, Inf, 1) => 0.0953527,
+    (2, pp_unrestricted, 1, 0.1) => 0.0,
+    (2, pp_unrestricted, 1, 1) => 0.991616,
+    (2, pp_unrestricted, 1, 2) => NaN,
+    (2, pp_unrestricted, Inf, 0.1) => 0.0,
+    (2, pp_unrestricted, Inf, 1) => 0.0953527,
     (2, pp_blur, 1, 0.6) => 0.0,
     (2, pp_blur, 1, 0.625) => 1.40955,
     (2, pp_blur, 1, 0.65) => NaN,

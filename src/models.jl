@@ -14,21 +14,26 @@ function remove_cached_models()
     end
 end
 
-abstract type PerturbationParameters end
+"""
+Supertype for types encoding the family of perturbations allowed.
+"""
+abstract type PerturbationFamily end
 
-struct AdditivePerturbationParameters <: PerturbationParameters end
-Base.show(io::IO, pp::AdditivePerturbationParameters) = print(io, "additive")
-Base.hash(a::AdditivePerturbationParameters, h::UInt) = hash(:AdditivePerturbationParameters, h)
+struct UnrestrictedPerturbationFamily <: PerturbationFamily end
+Base.show(io::IO, pp::UnrestrictedPerturbationFamily) = print(io, "unrestricted")
+Base.hash(a::UnrestrictedPerturbationFamily, h::UInt) = hash(:UnrestrictedPerturbationFamily, h)
 
-@auto_hash_equals struct BlurPerturbationParameters <: PerturbationParameters
+abstract type RestrictedPerturbationFamily <: PerturbationFamily end
+
+@auto_hash_equals struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
     blur_kernel_size::NTuple{2}
 end
-Base.show(io::IO, pp::BlurPerturbationParameters) = print(io, "blur.$(pp.blur_kernel_size)")
+Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, "blur.$(pp.blur_kernel_size)")
 
 function get_model(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::AdditivePerturbationParameters,
+    pp::UnrestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
@@ -47,7 +52,7 @@ end
 function get_model(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::BlurPerturbationParameters,
+    pp::RestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
@@ -58,25 +63,40 @@ function get_model(
     return d
 end
 
+"""
+$(SIGNATURES)
+
+For `UnrestrictedPerturbationFamily`, the search space is simply [0,1] for each pixel.
+The model built can thus be re-used for any input with the same input size.
+"""
 function model_hash(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::AdditivePerturbationParameters)::UInt
+    pp::UnrestrictedPerturbationFamily)::UInt
     input_size = size(input)
     return hash(nn_params, hash(input_size, hash(pp)))
 end
 
+"""
+$(SIGNATURES)
+
+For `RestrictedPerturbationFamily`, we take advantage of the restricted input search space
+corresponding to each nominal (unperturbed) input by considering only activations to the 
+non-linear units which are possible for some input in the restricted search space. This 
+reduces solve times, but also means that the model must be rebuilt for each different
+nominal input.
+"""
 function model_hash(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::BlurPerturbationParameters)::UInt
+    pp::RestrictedPerturbationFamily)::UInt
     return hash(nn_params, hash(input, hash(pp)))
 end
 
 function model_filename(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::PerturbationParameters)::String
+    pp::PerturbationFamily)::String
     hash_val = model_hash(nn_params, input, pp)
     input_size = size(input)
     return "$(nn_params.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
@@ -85,7 +105,7 @@ end
 function get_reusable_model(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::PerturbationParameters,
+    pp::PerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     rebuild::Bool,
     tightening_algorithm::TighteningAlgorithm 
@@ -114,7 +134,7 @@ end
 function build_reusable_model_uncached(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::AdditivePerturbationParameters,
+    pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm 
     )::Dict
@@ -137,7 +157,7 @@ function build_reusable_model_uncached(
         :Perturbation => v_e,
         :Output => v_output,
         :Input => v_input,
-        :PerturbationParameters => pp
+        :PerturbationFamily => pp
     )
     
     return d
@@ -146,7 +166,7 @@ end
 function build_reusable_model_uncached(
     nn_params::NeuralNet,
     input::Array{<:Real},
-    pp::BlurPerturbationParameters,
+    pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm 
     )::Dict
@@ -172,7 +192,7 @@ function build_reusable_model_uncached(
         :Perturbation => v_x0 - input,
         :Output => v_output,
         :BlurKernel => v_f,
-        :PerturbationParameters => pp
+        :PerturbationFamily => pp
     )
 
     return d

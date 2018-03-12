@@ -1,18 +1,18 @@
 using Base.Test
-using MIPVerify: AdditivePerturbationParameters, BlurPerturbationParameters
+using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 
 @testset "models.jl" begin
-    @testset "AdditivePerturbationParameters" begin
+    @testset "UnrestrictedPerturbationFamily" begin
         @testset "Base.show" begin
-            p = AdditivePerturbationParameters()
+            p = UnrestrictedPerturbationFamily()
             io = IOBuffer()
             Base.show(io, p)
-            @test String(take!(io)) == "additive"
+            @test String(take!(io)) == "unrestricted"
         end
     end
-    @testset "BlurPerturbationParameters" begin
+    @testset "BlurringPerturbationFamily" begin
         @testset "Base.show" begin
-            p = BlurPerturbationParameters((5,5))
+            p = BlurringPerturbationFamily((5,5))
             io = IOBuffer()
             Base.show(io, p)
             @test String(take!(io)) == "blur.(5, 5)"

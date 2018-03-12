@@ -47,7 +47,7 @@ length `n`. We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target
 and for all `i ∉ target_selection`.
 
 # Named Arguments:
-+ `pp::PerturbationParameters`: Defaults to `AdditivePerturbationParameters()`. Determines
++ `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. Determines
     the family of perturbations over which we are searching for adversarial examples.
 + `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the 
     distance from the perturbed image to the original. Supported options are `1`, `Inf` 
@@ -71,7 +71,7 @@ function find_adversarial_example(
     input::Array{<:Real},
     target_selection::Union{Integer, Array{<:Integer, 1}},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
-    pp::PerturbationParameters = AdditivePerturbationParameters(),
+    pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance = 0.0,
     rebuild::Bool = false,

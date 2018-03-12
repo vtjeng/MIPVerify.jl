@@ -6,7 +6,7 @@ using MathProgBase
 
 using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNet
-using MIPVerify: PerturbationParameters
+using MIPVerify: PerturbationFamily
 
 if Pkg.installed("Gurobi") == nothing
     using Cbc
@@ -35,7 +35,7 @@ function test_find_adversarial_example(
     nn::NeuralNet, 
     x0::Array{<:Real, N}, 
     target_selection::Union{Integer, Array{<:Integer, 1}}, 
-    pp::PerturbationParameters, 
+    pp::PerturbationFamily, 
     norm_order::Real,
     tolerance::Real, 
     expected_objective_value::Real,
