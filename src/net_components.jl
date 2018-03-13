@@ -6,7 +6,8 @@ export Layer, NeuralNet
 """
 $(TYPEDEF)
 """
-JuMPReal = Union{Real, JuMP.AbstractJuMPScalar}
+JuMPLinearType = Union{JuMP.Variable, JuMP.AffExpr}
+JuMPReal = Union{Real, JuMPLinearType}
 
 include("net_components/core_ops.jl")
 
@@ -25,7 +26,7 @@ An array of `Layers` is interpreted as that array of layer being applied
 to the input sequentially, starting from the leftmost layer. (In functional programming
 terms, this can be thought of as a sort of `fold`).
 """
-chain(x::Array{<:JuMPReal}, ps::Array{<:Layer, 1}) = length(ps) == 0 ? x : ps[2:end](ps[1](x))
+chain(x::Array{<:JuMPReal}, ps::Array{<:Layer, 1}) = length(ps) == 0 ? x : chain(ps[1](x), ps[2:end])
 
 (ps::Array{<:Layer, 1})(x::Array{<:JuMPReal}) = chain(x, ps)
 

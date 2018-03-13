@@ -3,13 +3,13 @@ using ConditionalJuMP
 using Memento
 
 function get_tightening_algorithm(
-    x::JuMP.AbstractJuMPScalar)::TighteningAlgorithm
+    x::JuMPLinearType)::TighteningAlgorithm
     m = ConditionalJuMP.getmodel(x)
     !haskey(m.ext, :MIPVerify) ? lp : m.ext[:MIPVerify].tightening_algorithm
 end
 
 function tight_upperbound(
-    x::JuMP.AbstractJuMPScalar; 
+    x::JuMPLinearType; 
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
     if tightening_algorithm == interval_arithmetic
         return upperbound(x)
@@ -29,7 +29,7 @@ function tight_upperbound(
 end
 
 function tight_lowerbound(
-    x::JuMP.AbstractJuMPScalar;
+    x::JuMPLinearType;
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
     if tightening_algorithm == interval_arithmetic
         return lowerbound(x)
@@ -61,21 +61,18 @@ function relu(x::AbstractArray{T}) where {T<:Real}
     return relu.(x)
 end
 
-function relu(x::JuMP.AbstractJuMPScalar, l::Real, u::Real)::JuMP.AbstractJuMPScalar
-    model = ConditionalJuMP.getmodel(x)
-    x_rect = @variable(model)
-
+function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     if u <= 0
         # rectified value is always 0
-        @constraint(model, x_rect == 0)
-        setlowerbound(x_rect, 0)
-        setupperbound(x_rect, 0)
+        return zero(T)
+    elseif u==l
+        return one(T)*l
     elseif l >= 0
-        # rectified value is always equal to x itself.
-        @constraint(model, x_rect == x)
-        setlowerbound(x_rect, l)
-        setupperbound(x_rect, u)
+        # rectified value is always x
+        return x
     else
+        model = ConditionalJuMP.getmodel(x)
+        x_rect = @variable(model)
         a = @variable(model, category = :Bin)
 
         # refined big-M formulation that takes advantage of the knowledge
@@ -91,12 +88,11 @@ function relu(x::JuMP.AbstractJuMPScalar, l::Real, u::Real)::JuMP.AbstractJuMPSc
         # Manually set the bounds for x_rect so they can be used by downstream operations.
         setlowerbound(x_rect, 0)
         setupperbound(x_rect, u)
+        return x_rect
     end
-
-    return x_rect
 end
 
-function relu(x::JuMP.AbstractJuMPScalar)::JuMP.AbstractJuMPScalar
+function relu(x::JuMPLinearType)::JuMP.AffExpr
     u = tight_upperbound(x)
     l = tight_lowerbound(x)
     relu(x, l, u)
@@ -107,7 +103,7 @@ $(SIGNATURES)
 Expresses a rectified-linearity constraint: output is constrained to be equal to 
 `max(x, 0)`.
 """
-function relu(x::AbstractArray{T}) where {T<:JuMP.AbstractJuMPScalar}
+function relu(x::AbstractArray{T})::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x)
@@ -137,24 +133,30 @@ function masked_relu(x::AbstractArray{<:Real}, m::AbstractArray{<:Real})
     masked_relu.(x, m)
 end
 
-function masked_relu(x::JuMP.AbstractJuMPScalar, m::Real)::JuMP.Variable
+function identity(x::JuMP.Variable)::JuMP.Variable
+    return x
+end
+
+function identity(x::JuMP.AffExpr)::JuMP.Variable
+    model = ConditionalJuMP.getmodel(x)
+    x_id = @variable(model)
+    @constraint(model, x_id == x)
+    setupperbound(x_id, upperbound(x))
+    setlowerbound(x_id, lowerbound(x))
+    return x_id
+end
+
+function masked_relu(x::T, m::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     if m < 0
-        # TODO (vtjeng): check if we can remove this extraneous variable.
-        model = ConditionalJuMP.getmodel(x)
-        x_0 = @variable(model)
-        JuMP.fix(x_0, 0)
-        return x_0
+        zero(T)
     elseif m > 0
-        model = ConditionalJuMP.getmodel(x)
-        x_id = @variable(model)
-        @constraint(model, x_id == x)
-        setupperbound(x_id, upperbound(x))
-        setlowerbound(x_id, lowerbound(x))
-        return x_id
+        # NOTE (vtjeng): Compare 67fd6095 to 99b964f4 to see why we can't seem to simply pass x here if the next step is a matrix multiplication.
+        identity(x)        
     else
-        return relu(x)
+        relu(x)
     end
 end
+
 
 """
 $(SIGNATURES)
@@ -166,7 +168,7 @@ the value of the mask. Output is constrained to be:
 3) x if m>0
 ```
 """
-function masked_relu(x::AbstractArray{<:JuMP.AbstractJuMPScalar}, m::AbstractArray{<:Real})
+function masked_relu(x::AbstractArray{<:JuMPLinearType}, m::AbstractArray{<:Real})::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
     zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
@@ -185,15 +187,20 @@ Expresses a maximization constraint: output is constrained to be equal to `max(x
 function maximum(
     xs::AbstractArray{T}; 
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(xs[1])
-    )::JuMP.Variable where {T<:JuMP.AbstractJuMPScalar}
+    )::JuMP.AffExpr where {T<:JuMPLinearType}
+    if length(xs) == 1
+        return xs[1]
+    end
+
     model = ConditionalJuMP.getmodel(xs[1])
     ls = tight_lowerbound.(xs; tightening_algorithm = tightening_algorithm)
     us = tight_upperbound.(xs; tightening_algorithm = tightening_algorithm)
     l = Base.maximum(ls)
     u = Base.maximum(us)
-    x_max = @variable(model,
-        lowerbound = l,
-        upperbound = u)
+
+    if l==u
+        return one(T)*l
+    end
     
     xs_filtered::Array{T, 1} = map(
         t-> t[1], 
@@ -204,8 +211,11 @@ function maximum(
     )
 
     if length(xs_filtered) == 1
-        @constraint(model, x_max == xs_filtered[1])
+        return xs_filtered[1]
     else
+        x_max = @variable(model,
+            lowerbound = l,
+            upperbound = u)
         indicators = []
         for (i, x) in enumerate(xs_filtered)
             a = @variable(model, category =:Bin)
@@ -215,8 +225,8 @@ function maximum(
             push!(indicators, a)
         end
         @constraint(model, sum(indicators) == 1)
+        return x_max
     end
-    return x_max
 end
 
 """
@@ -226,26 +236,22 @@ large as `|x|`.
 
 Only use when you are minimizing over the output in the objective.
 """
-function abs_ge(x::JuMP.AbstractJuMPScalar)::JuMP.Variable
+function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
     model = ConditionalJuMP.getmodel(x)
-    x_abs = @variable(model)
     u = upperbound(x)
     l = lowerbound(x)
     if u <= 0
-        @constraint(model, x_abs == -x)
-        setlowerbound(x_abs, -u)
-        setupperbound(x_abs, -l)
+        return -x
     elseif l >= 0
-        @constraint(model, x_abs == x)
-        setlowerbound(x_abs, l)
-        setupperbound(x_abs, u)
+        return x
     else
+        x_abs = @variable(model)
         @constraint(model, x_abs >= x)
         @constraint(model, x_abs >= -x)
         setlowerbound(x_abs, 0)
         setupperbound(x_abs, max(-l, u))
+        return x_abs
     end
-    return x_abs
 end
 
 function get_target_indexes(
@@ -278,7 +284,7 @@ largest element of the array x. More specifically, we require `x[j] - x[i] ≥ t
 some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
 """
 function set_max_indexes(
-    x::Array{<:JuMP.AbstractJuMPScalar, 1},
+    x::Array{<:JuMPLinearType, 1},
     target_indexes::Array{<:Integer, 1};
     tolerance::Real = 0)
     

@@ -17,4 +17,4 @@ function Base.show(io::IO, p::ReLU)
 end
 
 (p::ReLU)(x::Array{<:Real}) = relu(x)
-(p::ReLU)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Applying $p ..."); relu(x))
+(p::ReLU)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Applying $p ..."); relu(x))

@@ -59,4 +59,4 @@ end
 (p::Linear)(x::Array{<:JuMPReal}) = "Linear() layers work only on one-dimensional input. You likely forgot to add a Flatten() layer before your first linear layer." |> ArgumentError |> throw
 
 (p::Linear)(x::Array{<:Real, 1}) = matmul(x, p)
-(p::Linear)(x::Array{<:JuMP.AbstractJuMPScalar, 1}) = (info(MIPVerify.LOGGER, "Applying $p ... "); matmul(x, p))
+(p::Linear)(x::Array{<:JuMPLinearType, 1}) = (info(MIPVerify.LOGGER, "Applying $p ... "); matmul(x, p))

@@ -152,7 +152,7 @@ end
 
 function get_norm(
     norm_order::Real,
-    v::Array{<:JuMP.AbstractJuMPScalar, N}) where {N}
+    v::Array{<:JuMPLinearType, N}) where {N}
     if norm_order == 1
         abs_v = abs_ge.(v)
         return sum(abs_v)

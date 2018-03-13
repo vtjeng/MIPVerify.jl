@@ -116,4 +116,4 @@ function pool(
 end
 
 (p::Pool)(x::Array{<:Real}) = pool(x, p)
-(p::Pool)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); pool(x, p))
+(p::Pool)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); pool(x, p))

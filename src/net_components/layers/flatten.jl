@@ -54,4 +54,4 @@ function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Int}
 end
 
 (p::Flatten)(x::Array{<:Real}) = flatten(x, p.perm)
-(p::Flatten)(x::Array{<:JuMP.AbstractJuMPScalar}) = (info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
+(p::Flatten)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
