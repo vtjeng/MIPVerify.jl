@@ -30,6 +30,19 @@ abstract type RestrictedPerturbationFamily <: PerturbationFamily end
 end
 Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, "blur.$(pp.blur_kernel_size)")
 
+@auto_hash_equals struct LInfNormBoundedPerturbationFamily <: RestrictedPerturbationFamily
+    norm_bound::Real
+
+    function LInfNormBoundedPerturbationFamily(norm_bound::Real)
+        @assert(
+            norm_bound > 0,
+            "Norm bound $(norm_bound) should be positive"
+        )
+        return new(norm_bound)
+    end
+end
+Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) = print(io, "norm-bounded.|ε|_∞ < $(pp.norm_bound)")
+
 function get_model(
     nn_params::NeuralNet,
     input::Array{<:Real},
@@ -195,6 +208,35 @@ function build_reusable_model_uncached(
         :PerturbationFamily => pp
     )
 
+    return d
+end
+
+function build_reusable_model_uncached(
+    nn_params::NeuralNet,
+    input::Array{<:Real},
+    pp::LInfNormBoundedPerturbationFamily,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm 
+    )::Dict
+
+    m = Model(solver = tightening_solver)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+
+    input_range = CartesianRange(size(input))
+    v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range) # perturbation added
+    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range) # perturbation + original image
+    @constraint(m, v_x0 .== input + v_e)
+
+    v_output = v_x0 |> nn_params
+
+    d = Dict(
+        :Model => m,
+        :PerturbedInput => v_x0,
+        :Perturbation => v_e,
+        :Output => v_output,
+        :PerturbationFamily => pp
+    )
+    
     return d
 end
 
