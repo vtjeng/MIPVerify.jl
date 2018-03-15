@@ -2,16 +2,28 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
+function is_constant(x::JuMP.AffExpr)
+    x.vars |> length == 0
+end
+
+function is_constant(x::JuMP.Variable)
+    false
+end
+
 function get_tightening_algorithm(
     x::JuMPLinearType)::TighteningAlgorithm
+    default = lp
+    if is_constant(x)
+        return interval_arithmetic
+    end
     m = ConditionalJuMP.getmodel(x)
-    !haskey(m.ext, :MIPVerify) ? lp : m.ext[:MIPVerify].tightening_algorithm
+    !haskey(m.ext, :MIPVerify) ? default : m.ext[:MIPVerify].tightening_algorithm
 end
 
 function tight_upperbound(
     x::JuMPLinearType; 
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
-    if tightening_algorithm == interval_arithmetic
+    if tightening_algorithm == interval_arithmetic || is_constant(x)
         return upperbound(x)
     end
     relaxation = (tightening_algorithm == lp)
@@ -31,7 +43,7 @@ end
 function tight_lowerbound(
     x::JuMPLinearType;
     tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
-    if tightening_algorithm == interval_arithmetic
+    if tightening_algorithm == interval_arithmetic || is_constant(x)
         return lowerbound(x)
     end
     relaxation = (tightening_algorithm == lp)
