@@ -210,30 +210,36 @@ function maximum(
     if l==u
         return one(T)*l
     end
-    
-    xs_filtered::Array{T, 1} = map(
-        t-> t[1], 
-        Iterators.filter(
-            t -> t[2]>l, 
-            zip(xs, us)
-        )
-    )
+    # at least one index will satisfy this property because of check above.
+    filtered_indexes = us .> l
 
-    if length(xs_filtered) == 1
-        return xs_filtered[1]
+    return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
+end
+
+function maximum(
+    xs::AbstractArray{T, 1},
+    ls::AbstractArray{<:Real, 1},
+    us::AbstractArray{<:Real, 1},
+    )::JuMP.AffExpr where {T<:JuMPLinearType}
+
+    @assert length(xs)>0
+    @assert length(xs)==length(ls)
+    @assert length(xs)==length(us)
+
+    model = ConditionalJuMP.getmodel(xs[1])
+    if length(xs) == 1
+        return first(xs)
     else
-        x_max = @variable(model,
-            lowerbound = l,
-            upperbound = u)
-        indicators = []
-        for (i, x) in enumerate(xs_filtered)
-            a = @variable(model, category =:Bin)
+        l = Base.maximum(ls)
+        u = Base.maximum(us)
+        x_max = @variable(model, lowerbound = l, upperbound=u)
+        a = @variable(model, [1:length(xs)], category =:Bin)
+        @constraint(model, sum(a) == 1)
+        for (i, x) in enumerate(xs)
             umaxi = Base.maximum(us[1:end .!= i])
-            @constraint(model, x_max <= x + (1-a)*(umaxi - ls[i]))
+            @constraint(model, x_max <= x + (1-a[i])*(umaxi - ls[i]))
             @constraint(model, x_max >= x)
-            push!(indicators, a)
         end
-        @constraint(model, sum(indicators) == 1)
         return x_max
     end
 end
