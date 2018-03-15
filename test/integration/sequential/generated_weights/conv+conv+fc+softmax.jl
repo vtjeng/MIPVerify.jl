@@ -1,6 +1,7 @@
 using Base.Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
+using MIPVerify: LInfNormBoundedPerturbationFamily
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
 using TestHelpers: batch_test_adversarial_example
 
@@ -75,6 +76,9 @@ expected_objective_values = Dict(
     (2, pp_unrestricted, 1, 2) => NaN,
     (2, pp_unrestricted, Inf, 0.1) => 0.0,
     (2, pp_unrestricted, Inf, 1) => 0.0953527,
+    (2, LInfNormBoundedPerturbationFamily(0.09), Inf, 1) => NaN,
+    (2, LInfNormBoundedPerturbationFamily(0.0954), Inf, 1) => 0.0953527,
+    (2, LInfNormBoundedPerturbationFamily(0.096), Inf, 1) => 0.0953527,
     (2, pp_blur, 1, 0.6) => 0.0,
     (2, pp_blur, 1, 0.625) => 1.40955,
     (2, pp_blur, 1, 0.65) => NaN,
