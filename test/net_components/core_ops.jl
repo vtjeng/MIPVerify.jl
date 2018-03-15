@@ -45,6 +45,23 @@ end
                 solve_output = getvalue(xmax)
                 @test solve_output≈7
             end
+            @testset "regression test to deal with indexing issue in v0.8.0" begin
+                m = get_new_model()
+                x1 = @variable(m, lowerbound=-2, upperbound=2) # upperbound of this variable is low enough that it gets filtered away 
+                x2 = @variable(m, lowerbound=2.5, upperbound=100)
+                x3 = @variable(m, lowerbound=3, upperbound=3.3)
+                xmax = MIPVerify.maximum([x1, x2, x3])
+                
+                # an efficient implementation does not add binary variables for x1, x4 and x5
+                @test count_binary_variables(m)<= 2
+                
+                # elements of the input array are made to take their maximum value
+                @objective(m, Max, xmax)
+                solve(m)
+                
+                solve_output = getvalue(xmax)
+                @test solve_output≈100
+            end
         end
     end
 
