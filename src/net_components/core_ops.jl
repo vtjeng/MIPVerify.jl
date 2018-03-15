@@ -82,9 +82,6 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         @constraint(model, x_rect <= u*a)
         @constraint(model, x_rect >= 0)
 
-        # model.ext[:objective] = get(model.ext, :objective, 0) + x_rect - x
-        model.ext[:objective] = get(model.ext, :objective, 0) + x_rect - x*u/(u-l)
-
         # Manually set the bounds for x_rect so they can be used by downstream operations.
         setlowerbound(x_rect, 0)
         setupperbound(x_rect, u)
