@@ -246,6 +246,21 @@ end
 
 """
 $(SIGNATURES)
+Expresses a one-sided maximization constraint: output is constrained to be at least 
+`max(xs)`.
+
+Only use when you are minimizing over the output in the objective.
+"""
+function maximum_ge(xs::AbstractArray{T})::JuMP.Variable where {T<:JuMPLinearType}
+    @assert length(xs)>0
+    model = ConditionalJuMP.getmodel(xs[1])
+    x_max = @variable(model)
+    @constraint(model, x_max .>= xs)
+    return x_max
+end
+
+"""
+$(SIGNATURES)
 Expresses a one-sided absolute-value constraint: output is constrained to be at least as
 large as `|x|`.
 

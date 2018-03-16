@@ -159,7 +159,7 @@ function get_norm(
     elseif norm_order == 2
         return sum(v.*v)
     elseif norm_order == Inf
-        return MIPVerify.maximum(flatten(abs_ge.(v), N:-1:1); tightening_algorithm = interval_arithmetic)
+        return MIPVerify.maximum_ge(flatten(abs_ge.(v), N:-1:1))
     else
         throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end

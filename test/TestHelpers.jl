@@ -44,7 +44,8 @@ function test_find_adversarial_example(
     d = find_adversarial_example(
         nn, x0, target_selection, main_solver, 
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
-    if d[:SolveStatus] == :Infeasible
+    println(d[:SolveStatus])
+    if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)
     else
         if expected_objective_value == 0
