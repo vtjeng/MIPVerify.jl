@@ -133,7 +133,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
-    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm: Defaults to lp. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\n\n\n\n"
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm: Defaults to lp. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\n\n\n\n"
 },
 
 {
@@ -177,30 +177,6 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.Layer",
-    "page": "Overview",
-    "title": "MIPVerify.Layer",
-    "category": "type",
-    "text": "abstract Layer\n\nSupertype for all types storing the parameters of each layer. Inherit from this to specify your own custom type of layer. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided.\n\n\n\n"
-},
-
-{
-    "location": "net_components/overview.html#MIPVerify.NeuralNet",
-    "page": "Overview",
-    "title": "MIPVerify.NeuralNet",
-    "category": "type",
-    "text": "abstract NeuralNet\n\nSupertype for all types storing the parameters of a neural net. Inherit from this to specify your own custom architecture. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided\nHave a UUID field for the name of the neural network.\n\n\n\n"
-},
-
-{
-    "location": "net_components/overview.html#MIPVerify.JuMPReal",
-    "page": "Overview",
-    "title": "MIPVerify.JuMPReal",
-    "category": "constant",
-    "text": "\n\n"
-},
-
-{
     "location": "net_components/overview.html#PublicInterface-1",
     "page": "Overview",
     "title": "PublicInterface",
@@ -237,11 +213,11 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.Conv2d",
     "category": "type",
-    "text": "struct Conv2d{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}, V<:Int64} <: MIPVerify.Layer\n\nRepresents 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2d.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
+    "text": "struct Conv2d{T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}, U<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}, V<:Int64} <: MIPVerify.Layer\n\nRepresents 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2d.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.Conv2d-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.Conv2d-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.Conv2d",
     "category": "method",
@@ -305,7 +281,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2d{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2d{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real} where U<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.conv2d",
     "category": "method",
@@ -321,7 +297,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s133,1} where #s133<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s119,1} where #s119<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -353,7 +329,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.Pool{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.Pool{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.pool",
     "category": "method",
@@ -441,7 +417,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.abs_ge-Tuple{JuMP.AbstractJuMPScalar}",
+    "location": "net_components/core_ops.html#MIPVerify.abs_ge-Tuple{Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}}",
     "page": "Core Operations",
     "title": "MIPVerify.abs_ge",
     "category": "method",
@@ -449,7 +425,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s30,N} where N where #s30<:JuMP.AbstractJuMPScalar,AbstractArray{#s29,N} where N where #s29<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s31,N} where N where #s31<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s30,N} where N where #s30<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -457,7 +433,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.maximum-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
+    "location": "net_components/core_ops.html#MIPVerify.maximum-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
     "page": "Core Operations",
     "title": "MIPVerify.maximum",
     "category": "method",
@@ -465,7 +441,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.relu-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
+    "location": "net_components/core_ops.html#MIPVerify.maximum_ge-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
+    "page": "Core Operations",
+    "title": "MIPVerify.maximum_ge",
+    "category": "method",
+    "text": "maximum_ge(xs)\n\n\nExpresses a one-sided maximization constraint: output is constrained to be at least  max(xs).\n\nOnly use when you are minimizing over the output in the objective.\n\n\n\n"
+},
+
+{
+    "location": "net_components/core_ops.html#MIPVerify.relu-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
     "page": "Core Operations",
     "title": "MIPVerify.relu",
     "category": "method",
@@ -473,7 +457,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s134,1} where #s134<:JuMP.AbstractJuMPScalar,Array{#s135,1} where #s135<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s120,1} where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s121,1} where #s121<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
