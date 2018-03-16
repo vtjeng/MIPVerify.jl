@@ -115,5 +115,5 @@ function pool(
     poolmap(params.pooling_function, input, params.strides)
 end
 
-(p::Pool)(x::Array{<:Real}) = pool(x, p)
-(p::Pool)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); pool(x, p))
+(p::Pool)(x::Array{<:Real}) = MIPVerify.pool(x, p)
+(p::Pool)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); MIPVerify.pool(x, p))

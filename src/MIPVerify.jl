@@ -7,11 +7,14 @@ using Memento
 using AutoHashEquals
 using DocStringExtensions
 using ProgressMeter
+using CSV
+using DataFrames
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
+@enum BatchRerunOption skip_existing=1 redo_existing=2 give_more_time=3
 
 include("net_components.jl")
 include("models.jl")
@@ -30,8 +33,6 @@ function get_default_tightening_solver(
     MathProgBase.setparameters!(tightening_solver, Silent = true, TimeLimit = 20)
     return tightening_solver
 end
-
-
 
 """
 $(SIGNATURES)
@@ -73,7 +74,7 @@ function find_adversarial_example(
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    tolerance = 0.0,
+    tolerance::Real = 0.0,
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
     tightening_algorithm::TighteningAlgorithm = lp,
@@ -123,7 +124,7 @@ function frac_correct(
     num_samples::Int)::Real
 
     num_correct = 0.0
-    num_samples = min(num_samples, length(dataset.labels))
+    num_samples = min(num_samples, MIPVerify.num_samples(dataset))
     @showprogress 1 "Computing fraction correct..." for sample_index in 1:num_samples
         x0 = get_image(dataset.images, sample_index)
         actual_label = get_label(dataset.labels, sample_index)
@@ -164,6 +165,8 @@ function get_norm(
         throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end
 end
+
+include("batch_processing_helpers.jl")
 
 end
 

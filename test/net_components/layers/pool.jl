@@ -1,7 +1,7 @@
 using Base.Test
 using JuMP
 using MIPVerify: Pool, MaxPool, AveragePool
-using MIPVerify: getsliceindex, getpoolview, pool
+using MIPVerify: getsliceindex, getpoolview
 isdefined(:TestHelpers) || include("../../TestHelpers.jl")
 using TestHelpers: get_new_model
 
@@ -48,7 +48,7 @@ using TestHelpers: get_new_model
             12 24 36
         ]
         @testset "Numerical Input" begin
-            @test pool(input_array, MaxPool((2, 2))) == true_output
+            @test MIPVerify.pool(input_array, MaxPool((2, 2))) == true_output
         end
         @testset "Variable Input" begin
             m = get_new_model()
@@ -56,7 +56,7 @@ using TestHelpers: get_new_model
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array
             )
-            pool_v = pool(input_array_v, MaxPool((2, 2)))
+            pool_v = MIPVerify.pool(input_array_v, MaxPool((2, 2)))
             # elements of the input array are made to take their maximum value
             @objective(m, Max, sum(input_array_v))
             solve(m)
@@ -73,7 +73,7 @@ using TestHelpers: get_new_model
                 6.5 18.5 30.5;
                 8.5 20.5 32.5
             ]
-            @test pool(input_array, AveragePool((2, 2))) == true_output
+            @test MIPVerify.pool(input_array, AveragePool((2, 2))) == true_output
         end
     end
 

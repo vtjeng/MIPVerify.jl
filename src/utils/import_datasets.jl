@@ -29,9 +29,13 @@ function LabelledImageDataset(images::Array{T, 4}, labels::Array{U, 1})::Labelle
     LabelledImageDataset{T, U}(images, labels)
 end
 
+function num_samples(dataset::LabelledDataset)
+    return length(dataset.labels)
+end
+
 function Base.show(io::IO, dataset::LabelledImageDataset)
     image_size = size(dataset.images[1, :, :, :])
-    num_samples = size(dataset.labels)[1]
+    num_samples = MIPVerify.num_samples(dataset)
     min_pixel = minimum(dataset.images)
     max_pixel = maximum(dataset.images)
     min_label = minimum(dataset.labels)
