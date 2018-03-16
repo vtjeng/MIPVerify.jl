@@ -114,12 +114,12 @@ Returns the fraction of items the neural network correctly classifies of the fir
 
 # Named Arguments:
 + `nn::NeuralNet`: The parameters of the neural network.
-+ `dataset::ImageDataset`:
++ `dataset::LabelledDataset`:
 + `num_samples::Int`: Number of samples to use.
 """
 function frac_correct(
     nn::NeuralNet, 
-    dataset::ImageDataset, 
+    dataset::LabelledDataset, 
     num_samples::Int)::Real
 
     num_correct = 0.0

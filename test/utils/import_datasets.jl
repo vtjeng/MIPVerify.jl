@@ -9,22 +9,22 @@ using MIPVerify: read_datasets
             Base.show(io, mnist)
             @test String(take!(io)) == """
                 MNIST:
-                  `train`: {ImageDataset}
+                  `train`: {LabelledImageDataset}
                     `images`: 55000 images of size (28, 28, 1), with pixels in [0.0, 1.0].
                     `labels`: 55000 corresponding labels, with 10 unique labels in [0, 9].
-                  `test`: {ImageDataset}
+                  `test`: {LabelledImageDataset}
                     `images`: 10000 images of size (28, 28, 1), with pixels in [0.0, 1.0].
                     `labels`: 10000 corresponding labels, with 10 unique labels in [0, 9]."""
         end
     end
 
-    @testset "ImageDataset" begin
+    @testset "LabelledImageDataset" begin
         @testset "Base.show" begin
             io = IOBuffer()
             mnist = read_datasets("MNIST")
             Base.show(io, mnist.train)
             @test String(take!(io)) == """
-                {ImageDataset}
+                {LabelledImageDataset}
                     `images`: 55000 images of size (28, 28, 1), with pixels in [0.0, 1.0].
                     `labels`: 55000 corresponding labels, with 10 unique labels in [0, 9]."""
         end
