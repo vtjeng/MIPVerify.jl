@@ -129,7 +129,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s29,N} where N where #s29<:Real,Union{Array{#s26,1} where #s26<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s53,N} where N where #s53<:Real,Union{Array{#s26,1} where #s26<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
@@ -137,11 +137,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.ImageDataset,Int64}",
+    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Int64}",
     "page": "Finding Adversarial Examples",
     "title": "MIPVerify.frac_correct",
     "category": "method",
-    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::ImageDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
+    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::LabelledDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
 },
 
 {
@@ -297,7 +297,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s119,1} where #s119<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s143,1} where #s143<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -425,7 +425,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s31,N} where N where #s31<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s30,N} where N where #s30<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s55,N} where N where #s55<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s54,N} where N where #s54<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -457,7 +457,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s120,1} where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s121,1} where #s121<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s144,1} where #s144<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s145,1} where #s145<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
@@ -577,11 +577,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "utils/import_datasets.html#MIPVerify.ImageDataset",
+    "location": "utils/import_datasets.html#MIPVerify.LabelledImageDataset",
     "page": "Importing External Datasets",
-    "title": "MIPVerify.ImageDataset",
+    "title": "MIPVerify.LabelledImageDataset",
     "category": "type",
-    "text": "struct ImageDataset{T<:Real, U<:Int64} <: MIPVerify.Dataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
+    "text": "struct LabelledImageDataset{T<:Real, U<:Int64} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
 },
 
 {
