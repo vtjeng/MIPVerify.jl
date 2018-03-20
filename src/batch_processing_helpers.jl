@@ -113,7 +113,7 @@ function run_on_sample(sample_number::Int, summary_dt::DataFrame, solve_rerun_op
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "Optimal") && !(last_objective_value |> isnan)
+        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
     else
         throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
