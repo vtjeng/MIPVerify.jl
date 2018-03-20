@@ -133,6 +133,7 @@ function get_reusable_model(
             deserialize(f)
             # TODO (vtjeng): Catch situations where the saved model has a different name.
         end
+        d[:TighteningApproach] = "loaded_from_cache"
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
@@ -170,7 +171,8 @@ function build_reusable_model_uncached(
         :Perturbation => v_e,
         :Output => v_output,
         :Input => v_input,
-        :PerturbationFamily => pp
+        :PerturbationFamily => pp,
+        :TighteningApproach => string(tightening_algorithm)
     )
     
     return d
@@ -205,7 +207,8 @@ function build_reusable_model_uncached(
         :Perturbation => v_x0 - input,
         :Output => v_output,
         :BlurKernel => v_f,
-        :PerturbationFamily => pp
+        :PerturbationFamily => pp,
+        :TighteningApproach => string(tightening_algorithm)
     )
 
     return d
@@ -234,7 +237,8 @@ function build_reusable_model_uncached(
         :PerturbedInput => v_x0,
         :Perturbation => v_e,
         :Output => v_output,
-        :PerturbationFamily => pp
+        :PerturbationFamily => pp,
+        :TighteningApproach => string(tightening_algorithm)
     )
     
     return d

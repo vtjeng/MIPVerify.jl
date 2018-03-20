@@ -14,7 +14,6 @@ const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
-@enum BatchRerunOption skip_existing=1 redo_existing=2 give_more_time=3
 
 include("net_components.jl")
 include("models.jl")
@@ -88,7 +87,9 @@ function find_adversarial_example(
     d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
     set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
-    notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(input |> nn |> get_max_index), target labels are $(d[:TargetIndexes])")
+    predicted_index = input |> nn |> get_max_index
+    notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
+    d[:PredictedIndex] = predicted_index
 
     # Set perturbation objective
     # NOTE (vtjeng): It is important to set the objective immediately before we carry out
