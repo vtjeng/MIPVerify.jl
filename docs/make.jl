@@ -8,7 +8,10 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Tutorials" => "tutorials.md",
-        "Finding Adversarial Examples" => "finding_adversarial_examples.md",
+        "Finding Adversarial Examples" => [
+            "finding_adversarial_examples/basic_usage.md",
+            "finding_adversarial_examples/batch_processing.md"
+        ],
         "Working with Neural Net Parameters" => [
             "net_components/overview.md",
             "net_components/layers.md",

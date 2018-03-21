@@ -1,3 +1,5 @@
+export batch_find_certificate
+
 @enum SolveRerunOption never=1 always=2 resolve_ambigious_cases=3 refine_insecure_cases=4
 
 struct BatchRunParameters
@@ -27,6 +29,7 @@ function extract_results_for_save(d::Dict)::Dict
     r[:SolveStatus] = d[:SolveStatus]
     r[:PredictedIndex] = d[:PredictedIndex]
     r[:TighteningApproach] = d[:TighteningApproach]
+    r[:TotalTime] = d[:TotalTime]
     if !isnan(r[:ObjectiveValue])
         r[:PerturbationValue] = d[:Perturbation] |> getvalue
         r[:PerturbedInputValue] = d[:PerturbedInput] |> getvalue
@@ -53,7 +56,8 @@ function generate_csv_summary_line(sample_number::Int, results_file_relative_pat
         r[:SolveStatus] |> is_infeasible,
         r[:ObjectiveValue],
         r[:ObjectiveBound],
-        r[:TighteningApproach]
+        r[:TighteningApproach],
+        r[:TotalTime]
     ] .|> string
 end
 
@@ -69,7 +73,8 @@ function create_summary_file_if_not_present(summary_file_path::String)
             "IsInfeasible",
             "ObjectiveValue",
             "ObjectiveBound",
-            "TighteningApproach"
+            "TighteningApproach",
+            "TotalTime"
         ]
 
         open(summary_file_path, "w") do file
@@ -93,7 +98,21 @@ end
 """
 $(SIGNATURES)
 
-Determines whether to run a solve on a sample 
+Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
+looking up information on the most recent completed solve. recorded in `summary_dt`
+
+`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
+and `:ObjectiveValue`. 
+
+Behavior for different choices of `solve_rerun_option`:
++ `never`: `true` if and only if there is no previous completed solve.
++ `always`: `true` always.
++ `resolve_ambigious_cases`: `true` if there is no previous completed solve, or if the 
+    most recent completed solve a) did not find a counter-example BUT b) the optimization
+    was not demosntrated to be infeasible.
++ `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
+    recent complete solve a) did find a counter-example BUT b) we did not reach a 
+    provably optimal solution.
 """
 function run_on_sample(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
     previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
@@ -125,6 +144,42 @@ function get_tightening_approach(
     string(tightening_algorithm)
 end
 
+"""
+$(SIGNATURES)
+
+Runs [`find_adversarial_example`](@ref) for the specified neural network `nn` and `dataset`
+for the `target_sample_numbers`, skipping `target_sample_numbers` based on the selected
+`solve_rerun_option`.
+
+It creates a named directory in `save_path`, with the name summarizing 
+  1) the name of the network in `nn`, 
+  2) the perturbation family `pp`, 
+  3) the `norm_order`
+  4) the `tolerance`.
+
+Within this directory, a summary of all the results is stored in `summary.csv`, and 
+results from individual runs are stored in the subfolder `run_results`.
+
+This functioned is designed so that it can be interrupted and restarted cleanly; it relies
+on the `summary.csv` file to determine what the results of previous runs are (so modifying
+this file manually can lead to unexpected behavior.)
+
+`main_solver` specifies the solver used.
+
+# Named Arguments:
+`pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver` are passed
+directly to [`find_adversarial_example`](@ref); see that documentation for more details.
+
++ `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. 
++ `norm_order::Real`: Defaults to `1`.
++ `tolerance::Real`: Defaults to `0.0`.
++ `rebuild::Bool`: Defaults to `false`.
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `lp`.
++ `tightening_solver`: 
++ `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
+  `never`, `always`, `resolve_ambigious_cases`, and `refine_insecure_cases`. 
+  See [`run_on_sample`](@ref) for more details.
+"""
 function batch_find_certificate(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
@@ -138,7 +193,7 @@ function batch_find_certificate(
     tightening_algorithm::MIPVerify.TighteningAlgorithm = lp,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never
-    )
+    )::Void
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
@@ -177,4 +232,5 @@ function batch_find_certificate(
             end
         end
     end
+    return nothing
 end

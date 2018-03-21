@@ -8,8 +8,8 @@ Order   = [:function, :type]
 ```
 
 ## PublicInterface
-```@docs
-Layer
-NeuralNet
-MIPVerify.JuMPReal
+```@autodocs
+Modules = [MIPVerify]
+Order   = [:function, :type]
+Pages   = ["net_components.jl"]
 ```

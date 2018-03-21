@@ -1,4 +1,4 @@
-# Finding Adversarial Examples
+# Basic Usage
 [`find_adversarial_example`](@ref) is the core function that you will be calling to 
 find adversarial examples. To avoid spending time verifying the wrong network, we suggest
 that you check that the network gets reasonable performance on the test set using
@@ -6,7 +6,7 @@ that you check that the network gets reasonable performance on the test set usin
 
 ## Index
 ```@index
-Pages   = ["finding_adversarial_examples.md"]
+Pages   = ["basic_usage.md"]
 Order   = [:function, :type]
 ```
 

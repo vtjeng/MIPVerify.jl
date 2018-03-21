@@ -13,6 +13,7 @@ using DataFrames
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
+
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
 
 include("net_components.jl")
@@ -52,12 +53,12 @@ and for all `i ∉ target_selection`.
 + `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the 
     distance from the perturbed image to the original. Supported options are `1`, `Inf` 
     and `2` (if the `main_solver` used can solve MIQPs.)
-+ `tolerance`: Defaults to `0.0`. As above.
-+ `rebuild`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
++ `tolerance::Real`: Defaults to `0.0`. See formal definition above.
++ `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
     bounds on input to each non-linear unit even if a cached model exists.
-+ `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to 
++ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to 
     be its complement.
-+ `tightening_algorithm`: Defaults to `lp`. Determines how we determine the upper and lower
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `lp`. Determines how we determine the upper and lower
     bounds on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
    (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
@@ -80,22 +81,25 @@ function find_adversarial_example(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver)
     )::Dict
 
-    d = get_model(nn, input, pp, main_solver, tightening_solver, rebuild, tightening_algorithm)
-    m = d[:Model]
+    total_time = @elapsed begin
+        d = get_model(nn, input, pp, main_solver, tightening_solver, rebuild, tightening_algorithm)
+        m = d[:Model]
 
-    # Set output constraint
-    d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
-    set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
+        # Set output constraint
+        d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
+        set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
-    predicted_index = input |> nn |> get_max_index
-    notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
-    d[:PredictedIndex] = predicted_index
+        predicted_index = input |> nn |> get_max_index
+        notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
+        d[:PredictedIndex] = predicted_index
 
-    # Set perturbation objective
-    # NOTE (vtjeng): It is important to set the objective immediately before we carry out
-    # the solve. Functions like `set_max_indexes` can modify the objective.
-    @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
-    d[:SolveStatus] = solve(m)
+        # Set perturbation objective
+        # NOTE (vtjeng): It is important to set the objective immediately before we carry out
+        # the solve. Functions like `set_max_indexes` can modify the objective.
+        @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
+        d[:SolveStatus] = solve(m)
+    end
+    d[:TotalTime] = total_time
     return d
 end
 
