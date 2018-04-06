@@ -105,51 +105,107 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples.html#",
-    "page": "Finding Adversarial Examples",
-    "title": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#",
+    "page": "Basic Usage",
+    "title": "Basic Usage",
     "category": "page",
     "text": ""
 },
 
 {
-    "location": "finding_adversarial_examples.html#Finding-Adversarial-Examples-1",
-    "page": "Finding Adversarial Examples",
-    "title": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#Basic-Usage-1",
+    "page": "Basic Usage",
+    "title": "Basic Usage",
     "category": "section",
     "text": "find_adversarial_example is the core function that you will be calling to  find adversarial examples. To avoid spending time verifying the wrong network, we suggest that you check that the network gets reasonable performance on the test set using frac_correct."
 },
 
 {
-    "location": "finding_adversarial_examples.html#Index-1",
-    "page": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#Index-1",
+    "page": "Basic Usage",
     "title": "Index",
     "category": "section",
-    "text": "Pages   = [\"finding_adversarial_examples.md\"]\nOrder   = [:function, :type]"
+    "text": "Pages   = [\"basic_usage.md\"]\nOrder   = [:function, :type]"
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s29,N} where N where #s29<:Real,Union{Array{#s26,1} where #s26<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
-    "page": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s26,N} where N where #s26<:Real,Union{Array{#s25,1} where #s25<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "page": "Basic Usage",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
-    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationParameters: Defaults to AdditivePerturbationParameters(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance: Defaults to 0.0. As above.\nrebuild: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm: Defaults to lp. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\n\n\n\n"
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver, cache_model)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to lp. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated (but does not remove)   existing cached model if false.\n\n\n\n"
 },
 
 {
-    "location": "finding_adversarial_examples.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.ImageDataset,Int64}",
-    "page": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Int64}",
+    "page": "Basic Usage",
     "title": "MIPVerify.frac_correct",
     "category": "method",
-    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::ImageDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
+    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::LabelledDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
 },
 
 {
-    "location": "finding_adversarial_examples.html#Public-Interface-1",
-    "page": "Finding Adversarial Examples",
+    "location": "finding_adversarial_examples/basic_usage.html#Public-Interface-1",
+    "page": "Basic Usage",
     "title": "Public Interface",
     "category": "section",
     "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"MIPVerify.jl\"]\nPrivate = false"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#",
+    "page": "Batch Processing",
+    "title": "Batch Processing",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#Batch-Processing-1",
+    "page": "Batch Processing",
+    "title": "Batch Processing",
+    "category": "section",
+    "text": "When running on multiple samples from a single dataset, batch_find_certificate  allows you to redo solves intelligently - redoing 1) no solves, 2) all solves, 3) only  solves where the sample status is indeterminate, or 4) only solves where the best counter-example is non-optimal."
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#Index-1",
+    "page": "Batch Processing",
+    "title": "Index",
+    "category": "section",
+    "text": "Pages   = [\"batch_processing.md\"]\nOrder   = [:function, :type]"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_certificate-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s29,N} where N where #s29<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "page": "Batch Processing",
+    "title": "MIPVerify.batch_find_certificate",
+    "category": "method",
+    "text": "batch_find_certificate(nn, dataset, target_sample_numbers, main_solver; save_path, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, solve_rerun_option, cache_model)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for the target_sample_numbers, skipping target_sample_numbers based on the selected solve_rerun_option.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nmain_solver specifies the solver used.\n\nNamed Arguments:\n\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver are passed directly to find_adversarial_example; see that documentation for more details.\n\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). \nnorm_order::Real: Defaults to 1.\ntolerance::Real: Defaults to 0.0.\nrebuild::Bool: Defaults to false.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to lp.\ntightening_solver: \nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample for more details.\n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#Public-Interface-1",
+    "page": "Batch Processing",
+    "title": "Public Interface",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"batch_processing_helpers.jl\"]\nPrivate = false"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample-Tuple{Int64,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
+    "page": "Batch Processing",
+    "title": "MIPVerify.run_on_sample",
+    "category": "method",
+    "text": "run_on_sample(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve. recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#Internal-1",
+    "page": "Batch Processing",
+    "title": "Internal",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"batch_processing_helpers.jl\"]\nPublic  = false"
 },
 
 {
@@ -193,11 +249,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.JuMPReal",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s120,N} where N where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s119,1} where #s119<:MIPVerify.Layer}",
     "page": "Overview",
-    "title": "MIPVerify.JuMPReal",
-    "category": "constant",
-    "text": "\n\n"
+    "title": "MIPVerify.chain",
+    "category": "method",
+    "text": "An array of Layers is interpreted as that array of layer being applied to the input sequentially, starting from the leftmost layer. (In functional programming terms, this can be thought of as a sort of fold).\n\n\n\n"
 },
 
 {
@@ -205,7 +261,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Overview",
     "title": "PublicInterface",
     "category": "section",
-    "text": "Layer\nNeuralNet\nMIPVerify.JuMPReal"
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"net_components.jl\"]"
 },
 
 {
@@ -237,11 +293,11 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.Conv2d",
     "category": "type",
-    "text": "struct Conv2d{T<:Union{JuMP.AbstractJuMPScalar, Real}, U<:Union{JuMP.AbstractJuMPScalar, Real}, V<:Int64} <: MIPVerify.Layer\n\nRepresents 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2d.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
+    "text": "struct Conv2d{T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}, U<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}, V<:Int64} <: MIPVerify.Layer\n\nRepresents 2-D convolution operation.\n\np(x) is shorthand for conv2d(x, p) when p is an instance of Conv2d.\n\nFields:\n\nfilter\nbias\nstride\n\n\n\n"
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.Conv2d-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.Conv2d-Union{Tuple{Array{T,4}}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.Conv2d",
     "category": "method",
@@ -305,7 +361,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2d{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.AbstractJuMPScalar, Real} where U<:Union{JuMP.AbstractJuMPScalar, Real} where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.conv2d-Union{Tuple{Array{T,4},MIPVerify.Conv2d{U,V,V} where V<:Int64}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real} where U<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.conv2d",
     "category": "method",
@@ -321,7 +377,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s133,1} where #s133<:Union{JuMP.AbstractJuMPScalar, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s119,1} where #s119<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -353,7 +409,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.Pool{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.AbstractJuMPScalar, Real}",
+    "location": "net_components/layers.html#MIPVerify.pool-Union{Tuple{AbstractArray{T,N},MIPVerify.Pool{N}}, Tuple{N}, Tuple{T}} where N where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real}",
     "page": "Layers",
     "title": "MIPVerify.pool",
     "category": "method",
@@ -441,7 +497,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.abs_ge-Tuple{JuMP.AbstractJuMPScalar}",
+    "location": "net_components/core_ops.html#MIPVerify.abs_ge-Tuple{Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}}",
     "page": "Core Operations",
     "title": "MIPVerify.abs_ge",
     "category": "method",
@@ -449,7 +505,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s30,N} where N where #s30<:JuMP.AbstractJuMPScalar,AbstractArray{#s29,N} where N where #s29<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s31,N} where N where #s31<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s30,N} where N where #s30<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -457,7 +513,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.maximum-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
+    "location": "net_components/core_ops.html#MIPVerify.maximum-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
     "page": "Core Operations",
     "title": "MIPVerify.maximum",
     "category": "method",
@@ -465,7 +521,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.relu-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:JuMP.AbstractJuMPScalar",
+    "location": "net_components/core_ops.html#MIPVerify.maximum_ge-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
+    "page": "Core Operations",
+    "title": "MIPVerify.maximum_ge",
+    "category": "method",
+    "text": "maximum_ge(xs)\n\n\nExpresses a one-sided maximization constraint: output is constrained to be at least  max(xs).\n\nOnly use when you are minimizing over the output in the objective.\n\n\n\n"
+},
+
+{
+    "location": "net_components/core_ops.html#MIPVerify.relu-Union{Tuple{AbstractArray{T,N} where N}, Tuple{T}} where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
     "page": "Core Operations",
     "title": "MIPVerify.relu",
     "category": "method",
@@ -473,7 +537,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s134,1} where #s134<:JuMP.AbstractJuMPScalar,Array{#s135,1} where #s135<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s120,1} where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s121,1} where #s121<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
@@ -593,11 +657,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "utils/import_datasets.html#MIPVerify.ImageDataset",
+    "location": "utils/import_datasets.html#MIPVerify.LabelledImageDataset",
     "page": "Importing External Datasets",
-    "title": "MIPVerify.ImageDataset",
+    "title": "MIPVerify.LabelledImageDataset",
     "category": "type",
-    "text": "struct ImageDataset{T<:Real, U<:Int64} <: MIPVerify.Dataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
+    "text": "struct LabelledImageDataset{T<:Real, U<:Int64} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
 },
 
 {
