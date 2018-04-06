@@ -1,6 +1,6 @@
 export batch_find_certificate
 
-@enum SolveRerunOption never=1 always=2 resolve_ambigious_cases=3 refine_insecure_cases=4
+@enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4
 
 struct BatchRunParameters
     nn::NeuralNet
@@ -107,7 +107,7 @@ and `:ObjectiveValue`.
 Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
 + `always`: `true` always.
-+ `resolve_ambigious_cases`: `true` if there is no previous completed solve, or if the 
++ `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the 
     most recent completed solve a) did not find a counter-example BUT b) the optimization
     was not demosntrated to be infeasible.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
@@ -125,7 +125,7 @@ function run_on_sample(sample_number::Int, summary_dt::DataFrame, solve_rerun_op
         return !(sample_number in summary_dt[:SampleNumber])
     elseif solve_rerun_option == MIPVerify.always
         return true
-    elseif solve_rerun_option == MIPVerify.resolve_ambigious_cases
+    elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
         return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
@@ -177,7 +177,7 @@ directly to [`find_adversarial_example`](@ref); see that documentation for more 
 + `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `lp`.
 + `tightening_solver`: 
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
-  `never`, `always`, `resolve_ambigious_cases`, and `refine_insecure_cases`. 
+  `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
   See [`run_on_sample`](@ref) for more details.
 """
 function batch_find_certificate(
