@@ -49,10 +49,11 @@ function get_model(
     pp::UnrestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    tightening_algorithm::TighteningAlgorithm
+    cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, tightening_solver, rebuild, tightening_algorithm)
+    d = get_reusable_model(nn_params, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
     setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
@@ -68,10 +69,11 @@ function get_model(
     pp::RestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    tightening_algorithm::TighteningAlgorithm 
+    cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, tightening_solver, rebuild, tightening_algorithm)
+    d = get_reusable_model(nn_params, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
     setsolver(d[:Model], main_solver)
     return d
 end
@@ -120,8 +122,9 @@ function get_reusable_model(
     input::Array{<:Real},
     pp::PerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    tightening_algorithm::TighteningAlgorithm 
+    cache_model::Bool
     )::Dict
 
     filename = model_filename(nn_params, input, pp)
@@ -136,10 +139,14 @@ function get_reusable_model(
         d[:TighteningApproach] = "loaded_from_cache"
     else
         notice(MIPVerify.LOGGER, """
-        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit. The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
+        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""")
         d = build_reusable_model_uncached(nn_params, input, pp, tightening_solver, tightening_algorithm)
-        open(model_filepath, "w") do f
-            serialize(f, d)
+        if cache_model
+            notice(MIPVerify.LOGGER, """
+            The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
+            open(model_filepath, "w") do f
+                 serialize(f, d)
+            end
         end
     end
     return d

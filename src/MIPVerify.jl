@@ -66,6 +66,8 @@ and for all `i ∉ target_selection`.
 + `tightening_solver`: Defaults to the same type of solver as
     the `main_solver`, with a time limit of 20s per solver and output suppressed. Used only
     if the `tightening_algorithm` is `lp` or `mip`.
++ `cache_model`: Defaults to `true`. If `true`, saves model generated (but does *not* remove)
+    existing cached model if `false`.
 """
 function find_adversarial_example(
     nn::NeuralNet, 
@@ -78,11 +80,12 @@ function find_adversarial_example(
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
     tightening_algorithm::TighteningAlgorithm = lp,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver)
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
+    cache_model::Bool = true
     )::Dict
 
     total_time = @elapsed begin
-        d = get_model(nn, input, pp, main_solver, tightening_solver, rebuild, tightening_algorithm)
+        d = get_model(nn, input, pp, main_solver, tightening_solver, tightening_algorithm, rebuild, cache_model)
         m = d[:Model]
 
         # Set output constraint
