@@ -192,7 +192,8 @@ function batch_find_certificate(
     rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = lp,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
-    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never
+    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
+    cache_model = true
     )::Void
     results_dir = "run_results"
     summary_file_name = "summary.csv"
@@ -217,7 +218,7 @@ function batch_find_certificate(
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
             true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
-            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver)
+            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model)
 
             r = extract_results_for_save(d)
             results_file_uuid = get_uuid()
