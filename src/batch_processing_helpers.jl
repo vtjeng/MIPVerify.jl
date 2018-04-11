@@ -174,7 +174,7 @@ directly to [`find_adversarial_example`](@ref); see that documentation for more 
 + `norm_order::Real`: Defaults to `1`.
 + `tolerance::Real`: Defaults to `0.0`.
 + `rebuild::Bool`: Defaults to `false`.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `lp`.
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`.
 + `tightening_solver`: 
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
@@ -190,7 +190,7 @@ function batch_find_certificate(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = lp,
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = mip,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     cache_model = true

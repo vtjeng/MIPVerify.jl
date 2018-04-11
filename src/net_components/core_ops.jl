@@ -12,7 +12,7 @@ end
 
 function get_tightening_algorithm(
     x::JuMPLinearType)::TighteningAlgorithm
-    default = lp
+    default = mip
     if is_constant(x)
         return interval_arithmetic
     end
@@ -180,8 +180,14 @@ the value of the mask. Output is constrained to be:
 function masked_relu(x::AbstractArray{<:JuMPLinearType}, m::AbstractArray{<:Real})::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
+    # We add the constraints corresponding to the active ReLUs to the model
     zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
     d = Dict(zip(zero_idx, relu(x[zero_idx])))
+
+    # We determine the output of the masked relu, which is either: 
+    #  1) the output of the relu that we have previously determined when adding the 
+    #     constraints to the model. 
+    #  2, 3) the result of applying the (elementwise) masked_relu function.
     return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianRange(s))
 end
 

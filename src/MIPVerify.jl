@@ -58,7 +58,7 @@ and for all `i ∉ target_selection`.
     bounds on input to each non-linear unit even if a cached model exists.
 + `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to 
     be its complement.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `lp`. Determines how we determine the upper and lower
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we determine the upper and lower
     bounds on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
    (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
@@ -79,7 +79,7 @@ function find_adversarial_example(
     tolerance::Real = 0.0,
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
-    tightening_algorithm::TighteningAlgorithm = lp,
+    tightening_algorithm::TighteningAlgorithm = mip,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     cache_model::Bool = true
     )::Dict
