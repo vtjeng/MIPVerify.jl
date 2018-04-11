@@ -48,12 +48,11 @@ function test_find_adversarial_example(
     if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)
     else
+        actual_objective_value = getobjectivevalue(d[:Model])
         if expected_objective_value == 0
-            @test getobjectivevalue(d[:Model]) == 0
+            @test isapprox(actual_objective_value, expected_objective_value; atol=1e-4)
         else
-            actual_objective_value = getobjectivevalue(d[:Model])
-            # @test actual_objective_value≈expected_objective_value
-            @test actual_objective_value/expected_objective_value≈1 atol=5e-5
+            @test isapprox(actual_objective_value, expected_objective_value; rtol=5e-5)
             
             perturbed_output = getvalue(d[:PerturbedInput]) |> nn
             perturbed_target_output = maximum(perturbed_output[Bool[i∈d[:TargetIndexes] for i = 1:length(d[:Output])]])
