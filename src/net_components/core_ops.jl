@@ -101,9 +101,17 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     end
 end
 
+"""
+Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
+the ReLU to be zero anyway.
+"""
+function lazy_tight_lowerbound(x::JuMPLinearType, u::Real)::Real
+    (u <= 0) ? u : tight_lowerbound(x)
+end
+
 function relu(x::JuMPLinearType)::JuMP.AffExpr
     u = tight_upperbound(x)
-    l = tight_lowerbound(x)
+    l = lazy_tight_lowerbound(x, u)
     relu(x, l, u)
 end
 
@@ -116,13 +124,13 @@ function relu(x::AbstractArray{T})::Array{JuMP.AffExpr} where {T<:JuMPLinearType
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x)
-        l = tight_lowerbound.(x)
+        l = lazy_tight_lowerbound.(x, u)
         return relu.(x, l, u)
     else
         p1 = Progress(length(x), desc="  Calculating upper bounds: ")
-        u = map(v -> (next!(p1); tight_upperbound(v)), x)
+        u = map(x_i -> (next!(p1); tight_upperbound(x_i)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); tight_lowerbound(v)), x)
+        l = map(v -> (next!(p2); lazy_tight_lowerbound(v...)), zip(x, u))
         p3 = Progress(length(x), desc="  Imposing relu constraint: ")
         return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
     end
