@@ -234,7 +234,7 @@ function build_reusable_model_uncached(
 
     input_range = CartesianRange(size(input))
     v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range) # perturbation added
-    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range) # perturbation + original image
+    v_x0 = map(i -> @variable(m, lowerbound = max(0, input[i] - pp.norm_bound), upperbound = min(1, input[i] + pp.norm_bound)), input_range) # perturbation + original image
     @constraint(m, v_x0 .== input + v_e)
 
     v_output = v_x0 |> nn_params
