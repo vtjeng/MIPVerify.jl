@@ -505,6 +505,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "net_components/core_ops.html#MIPVerify.lazy_tight_lowerbound-Tuple{Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Real}",
+    "page": "Core Operations",
+    "title": "MIPVerify.lazy_tight_lowerbound",
+    "category": "method",
+    "text": "Calculates the lowerbound only if u is positive; otherwise, returns u (since we expect) the ReLU to be zero anyway.\n\n\n\n"
+},
+
+{
     "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s31,N} where N where #s31<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s30,N} where N where #s30<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
