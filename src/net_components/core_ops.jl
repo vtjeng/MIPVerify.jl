@@ -1,6 +1,7 @@
 using JuMP
 using ConditionalJuMP
 using Memento
+using StatsBase
 
 function is_constant(x::JuMP.AffExpr)
     x.vars |> length == 0
@@ -101,9 +102,41 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     end
 end
 
+@enum ReLUType split=0 zero_output=-1 linear_in_input=1 constant_output=2
+
+function get_relu_type(l::Real, u::Real)::ReLUType
+    if u <= 0
+        return zero_output
+    elseif u==l
+        return constant_output
+    elseif l >= 0
+        return linear_in_input
+    else
+        return split
+    end
+end
+
+struct ReLUInfo
+    lowerbounds::Array{Real}
+    upperbounds::Array{Real}
+end
+
+function Base.show(io::IO, s::ReLUInfo)
+    relutypes = get_relu_type.(s.lowerbounds, s.upperbounds)
+    cm = countmap(relutypes)
+    print(io, "  Behavior of ReLUs - ")
+    for t in instances(ReLUType)
+        n = (t in cm.keys) ? cm[t] : 0
+        print(io, "$t: $n")
+        if t != last(instances(ReLUType))
+            print(io, ", ")
+        end
+    end
+end
+
 """
 Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
-the ReLU to be zero anyway.
+the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(x::JuMPLinearType, u::Real)::Real
     (u <= 0) ? u : tight_lowerbound(x)
@@ -131,6 +164,10 @@ function relu(x::AbstractArray{T})::Array{JuMP.AffExpr} where {T<:JuMPLinearType
         u = map(x_i -> (next!(p1); tight_upperbound(x_i)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
         l = map(v -> (next!(p2); lazy_tight_lowerbound(v...)), zip(x, u))
+
+        reluinfo = ReLUInfo(l, u)
+        info(MIPVerify.LOGGER, "$reluinfo")
+
         p3 = Progress(length(x), desc="  Imposing relu constraint: ")
         return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
     end
@@ -230,7 +267,7 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     end
     # at least one index will satisfy this property because of check above.
     filtered_indexes = us .> l
-
+    
     # TODO (vtjeng): Smarter debugging if maximum is being used more than once.
     info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
     
