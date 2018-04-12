@@ -85,7 +85,7 @@ function find_adversarial_example(
     )::Dict
 
     total_time = @elapsed begin
-        d = get_model(nn, input, pp, main_solver, tightening_solver, tightening_algorithm, rebuild, cache_model)
+        d = get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
         m = d[:Model]
 
         # Set output constraint
@@ -99,6 +99,7 @@ function find_adversarial_example(
         # Set perturbation objective
         # NOTE (vtjeng): It is important to set the objective immediately before we carry out
         # the solve. Functions like `set_max_indexes` can modify the objective.
+        setsolver(d[:Model], main_solver)
         @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
         d[:SolveStatus] = solve(m)
     end

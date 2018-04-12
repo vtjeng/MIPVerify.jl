@@ -47,14 +47,13 @@ function get_model(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
     cache_model::Bool
     )::Dict
     d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
-    setsolver(d[:Model], main_solver)
+    setsolver(d[:Model], tightening_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
     # NOTE (vtjeng): It is important to set the solver before attempting to add a 
@@ -67,14 +66,13 @@ function get_model(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::RestrictedPerturbationFamily,
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
     cache_model::Bool
     )::Dict
     d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
-    setsolver(d[:Model], main_solver)
+    setsolver(d[:Model], tightening_solver)
     return d
 end
 
