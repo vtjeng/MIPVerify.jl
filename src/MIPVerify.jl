@@ -88,13 +88,14 @@ function find_adversarial_example(
         d = get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
         m = d[:Model]
 
-        # Set output constraint
-        d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
-        set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
-
+        # Calculate predicted index
         predicted_index = input |> nn |> get_max_index
-        notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
         d[:PredictedIndex] = predicted_index
+
+        # Set target indexes
+        d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
+        notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
+        set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
         # Set perturbation objective
         # NOTE (vtjeng): It is important to set the objective immediately before we carry out
