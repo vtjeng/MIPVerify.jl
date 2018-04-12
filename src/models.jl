@@ -44,7 +44,7 @@ end
 Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) = print(io, "norm-bounded.|ε|_∞ < $(pp.norm_bound)")
 
 function get_model(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -53,7 +53,7 @@ function get_model(
     rebuild::Bool,
     cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
     setsolver(d[:Model], main_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
@@ -64,7 +64,7 @@ function get_model(
 end
 
 function get_model(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::RestrictedPerturbationFamily,
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -73,7 +73,7 @@ function get_model(
     rebuild::Bool,
     cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn_params, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
     setsolver(d[:Model], main_solver)
     return d
 end
@@ -85,11 +85,11 @@ For `UnrestrictedPerturbationFamily`, the search space is simply [0,1] for each 
 The model built can thus be re-used for any input with the same input size.
 """
 function model_hash(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily)::UInt
     input_size = size(input)
-    return hash(nn_params, hash(input_size, hash(pp)))
+    return hash(nn, hash(input_size, hash(pp)))
 end
 
 """
@@ -102,23 +102,23 @@ reduces solve times, but also means that the model must be rebuilt for each diff
 nominal input.
 """
 function model_hash(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::RestrictedPerturbationFamily)::UInt
-    return hash(nn_params, hash(input, hash(pp)))
+    return hash(nn, hash(input, hash(pp)))
 end
 
 function model_filename(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationFamily)::String
-    hash_val = model_hash(nn_params, input, pp)
+    hash_val = model_hash(nn, input, pp)
     input_size = size(input)
-    return "$(nn_params.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
+    return "$(nn.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
 end
 
 function get_reusable_model(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -127,7 +127,7 @@ function get_reusable_model(
     cache_model::Bool
     )::Dict
 
-    filename = model_filename(nn_params, input, pp)
+    filename = model_filename(nn, input, pp)
     model_filepath = joinpath(model_dir, filename)
 
     if isfile(model_filepath) && !rebuild
@@ -140,7 +140,7 @@ function get_reusable_model(
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""")
-        d = build_reusable_model_uncached(nn_params, input, pp, tightening_solver, tightening_algorithm)
+        d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
         if cache_model
             notice(MIPVerify.LOGGER, """
             The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
@@ -153,7 +153,7 @@ function get_reusable_model(
 end
 
 function build_reusable_model_uncached(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -170,7 +170,7 @@ function build_reusable_model_uncached(
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range) # perturbation + original image
     @constraint(m, v_x0 .== v_input + v_e)
 
-    v_output = v_x0 |> nn_params
+    v_output = v_x0 |> nn
 
     d = Dict(
         :Model => m,
@@ -186,7 +186,7 @@ function build_reusable_model_uncached(
 end
 
 function build_reusable_model_uncached(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -206,7 +206,7 @@ function build_reusable_model_uncached(
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(input_size))
     @constraint(m, v_x0 .== input |> Conv2d(v_f))
 
-    v_output = v_x0 |> nn_params
+    v_output = v_x0 |> nn
 
     d = Dict(
         :Model => m,
@@ -222,7 +222,7 @@ function build_reusable_model_uncached(
 end
 
 function build_reusable_model_uncached(
-    nn_params::NeuralNet,
+    nn::NeuralNet,
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
@@ -237,7 +237,7 @@ function build_reusable_model_uncached(
     v_x0 = map(i -> @variable(m, lowerbound = max(0, input[i] - pp.norm_bound), upperbound = min(1, input[i] + pp.norm_bound)), input_range) # perturbation + original image
     @constraint(m, v_x0 .== input + v_e)
 
-    v_output = v_x0 |> nn_params
+    v_output = v_x0 |> nn
 
     d = Dict(
         :Model => m,
