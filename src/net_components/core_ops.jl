@@ -207,26 +207,33 @@ end
 $(SIGNATURES)
 Expresses a maximization constraint: output is constrained to be equal to `max(xs)`.
 """
-function maximum(
-    xs::AbstractArray{T}; 
-    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(xs[1])
-    )::JuMP.AffExpr where {T<:JuMPLinearType}
+function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     if length(xs) == 1
         return xs[1]
     end
 
     model = ConditionalJuMP.getmodel(xs[1])
-    ls = tight_lowerbound.(xs; tightening_algorithm = tightening_algorithm)
-    us = tight_upperbound.(xs; tightening_algorithm = tightening_algorithm)
+
+    # TODO (vtjeng): [PERF] skip calculating lowerbound for index if upperbound is lower than
+    # largest current lowerbound.
+    p1 = Progress(length(xs), desc="  Calculating upper bounds: ")
+    us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
+    p2 = Progress(length(xs), desc="  Calculating lower bounds: ")
+    ls = map(x_i -> (next!(p2); tight_lowerbound(x_i)), xs)
+
     l = Base.maximum(ls)
     u = Base.maximum(us)
 
     if l==u
         return one(T)*l
+        info(MIPVerify.LOGGER, "Output of maximum is constant.")
     end
     # at least one index will satisfy this property because of check above.
     filtered_indexes = us .> l
 
+    # TODO (vtjeng): Smarter debugging if maximum is being used more than once.
+    info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
+    
     return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
 end
 
@@ -340,7 +347,7 @@ function set_max_indexes(
 
     maximum_target_var = length(target_vars) == 1 ?
         target_vars[1] :    
-        MIPVerify.maximum(target_vars; tightening_algorithm = interval_arithmetic)
+        MIPVerify.maximum(target_vars)
 
     @constraint(model, other_vars - maximum_target_var .<= -tolerance)
 end
