@@ -249,7 +249,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s144,N} where N where #s144<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s143,1} where #s143<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s139,N} where N where #s139<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s138,1} where #s138<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -325,7 +325,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.MaskedReLU",
     "category": "type",
-    "text": "struct MaskedReLU{T<:Real} <: MIPVerify.Layer\n\nRepresents a masked ReLU activation, with mask controlling how the ReLU is applied to each output.\n\np(x) is shorthand for masked_relu(x, p.mask) when p is an instance of MaskedReLU.\n\nFields:\n\nmask\n\n\n\n"
+    "text": "struct MaskedReLU{T<:Real} <: MIPVerify.Layer\n\nRepresents a masked ReLU activation, with mask controlling how the ReLU is applied to each output.\n\np(x) is shorthand for masked_relu(x, p.mask) when p is an instance of MaskedReLU.\n\nFields:\n\nmask\ntightening_algorithm\n\n\n\n"
 },
 
 {
@@ -377,7 +377,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s143,1} where #s143<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s138,1} where #s138<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -513,11 +513,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s88,N} where N where #s88<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s87,N} where N where #s87<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s91,N} where N where #s91<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s92,N} where N where #s92<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
-    "text": "masked_relu(x, m)\n\n\nExpresses a masked rectified-linearity constraint, with three possibilities depending on  the value of the mask. Output is constrained to be:\n\n1) max(x, 0) if m=0, \n2) 0 if m<0\n3) x if m>0\n\n\n\n"
+    "text": "masked_relu(x, m; nta)\n\n\nExpresses a masked rectified-linearity constraint, with three possibilities depending on  the value of the mask. Output is constrained to be:\n\n1) max(x, 0) if m=0, \n2) 0 if m<0\n3) x if m>0\n\n\n\n"
 },
 
 {
@@ -545,7 +545,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s144,1} where #s144<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s145,1} where #s145<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s139,1} where #s139<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s140,1} where #s140<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
