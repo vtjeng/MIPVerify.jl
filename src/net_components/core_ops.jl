@@ -195,25 +195,11 @@ function masked_relu(x::AbstractArray{<:Real}, m::AbstractArray{<:Real})
     masked_relu.(x, m)
 end
 
-function identity(x::JuMP.Variable)::JuMP.Variable
-    return x
-end
-
-function identity(x::JuMP.AffExpr)::JuMP.Variable
-    model = ConditionalJuMP.getmodel(x)
-    x_id = @variable(model)
-    @constraint(model, x_id == x)
-    setupperbound(x_id, upperbound(x))
-    setlowerbound(x_id, lowerbound(x))
-    return x_id
-end
-
 function masked_relu(x::T, m::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     if m < 0
         zero(T)
     elseif m > 0
-        # NOTE (vtjeng): Compare 67fd6095 to 99b964f4 to see why we can't seem to simply pass x here if the next step is a matrix multiplication.
-        identity(x)        
+        x
     else
         relu(x)
     end
