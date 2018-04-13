@@ -249,7 +249,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s120,N} where N where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s119,1} where #s119<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s144,N} where N where #s144<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s143,1} where #s143<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -349,7 +349,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.ReLU",
     "category": "type",
-    "text": "struct ReLU <: MIPVerify.Layer\n\nRepresents a ReLU operation.\n\np(x) is shorthand for relu(x) when p is an instance of ReLU.\n\n\n\n"
+    "text": "bitstype 64 ReLU <: MIPVerify.Layer\n\nRepresents a ReLU operation.\n\np(x) is shorthand for relu(x) when p is an instance of ReLU.\n\n\n\n"
 },
 
 {
@@ -377,7 +377,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s119,1} where #s119<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s143,1} where #s143<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -509,11 +509,11 @@ var documenterSearchIndex = {"docs": [
     "page": "Core Operations",
     "title": "MIPVerify.lazy_tight_lowerbound",
     "category": "method",
-    "text": "Calculates the lowerbound only if u is positive; otherwise, returns u (since we expect) the ReLU to be zero anyway.\n\n\n\n"
+    "text": "Calculates the lowerbound only if u is positive; otherwise, returns u (since we expect) the ReLU to be fixed to zero anyway.\n\n\n\n"
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s31,N} where N where #s31<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s30,N} where N where #s30<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s88,N} where N where #s88<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s87,N} where N where #s87<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -525,7 +525,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Core Operations",
     "title": "MIPVerify.maximum",
     "category": "method",
-    "text": "maximum(xs; tightening_algorithm)\n\n\nExpresses a maximization constraint: output is constrained to be equal to max(xs).\n\n\n\n"
+    "text": "maximum(xs)\n\n\nExpresses a maximization constraint: output is constrained to be equal to max(xs).\n\n\n\n"
 },
 
 {
@@ -541,11 +541,11 @@ var documenterSearchIndex = {"docs": [
     "page": "Core Operations",
     "title": "MIPVerify.relu",
     "category": "method",
-    "text": "relu(x)\nrelu(x)\n\n\nExpresses a rectified-linearity constraint: output is constrained to be equal to  max(x, 0).\n\n\n\n"
+    "text": "relu(x)\nrelu(x; nta)\n\n\nExpresses a rectified-linearity constraint: output is constrained to be equal to  max(x, 0).\n\n\n\n"
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s120,1} where #s120<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s121,1} where #s121<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s144,1} where #s144<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s145,1} where #s145<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
