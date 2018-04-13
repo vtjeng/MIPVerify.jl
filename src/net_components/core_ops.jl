@@ -11,18 +11,24 @@ function is_constant(x::JuMP.Variable)
 end
 
 function get_tightening_algorithm(
-    x::JuMPLinearType)::TighteningAlgorithm
+    x::JuMPLinearType,
+    nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
     default = mip
-    if is_constant(x)
-        return interval_arithmetic
+    if !isnull(nta)
+        return get(nta)
+    else
+        if is_constant(x)
+            return interval_arithmetic
+        end
+        m = ConditionalJuMP.getmodel(x)
+        return !haskey(m.ext, :MIPVerify) ? default : m.ext[:MIPVerify].tightening_algorithm
     end
-    m = ConditionalJuMP.getmodel(x)
-    !haskey(m.ext, :MIPVerify) ? default : m.ext[:MIPVerify].tightening_algorithm
 end
 
 function tight_upperbound(
     x::JuMPLinearType; 
-    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
+    tightening_algorithm = get_tightening_algorithm(x, nta)
     if tightening_algorithm == interval_arithmetic || is_constant(x)
         return upperbound(x)
     end
@@ -42,7 +48,8 @@ end
 
 function tight_lowerbound(
     x::JuMPLinearType;
-    tightening_algorithm::TighteningAlgorithm = get_tightening_algorithm(x))
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
+    tightening_algorithm = get_tightening_algorithm(x, nta)
     if tightening_algorithm == interval_arithmetic || is_constant(x)
         return lowerbound(x)
     end
@@ -136,8 +143,10 @@ end
 Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
 the ReLU to be fixed to zero anyway.
 """
-function lazy_tight_lowerbound(x::JuMPLinearType, u::Real)::Real
-    (u <= 0) ? u : tight_lowerbound(x)
+function lazy_tight_lowerbound(
+    x::JuMPLinearType, u::Real; 
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Real
+    (u <= 0) ? u : tight_lowerbound(x; nta = nta)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
@@ -151,17 +160,19 @@ $(SIGNATURES)
 Expresses a rectified-linearity constraint: output is constrained to be equal to 
 `max(x, 0)`.
 """
-function relu(x::AbstractArray{T})::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+function relu(
+    x::AbstractArray{T}; 
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
-        u = tight_upperbound.(x)
-        l = lazy_tight_lowerbound.(x, u)
+        u = tight_upperbound.(x, nta=nta)
+        l = lazy_tight_lowerbound.(x, u, nta=nta)
         return relu.(x, l, u)
     else
         p1 = Progress(length(x), desc="  Calculating upper bounds: ")
-        u = map(x_i -> (next!(p1); tight_upperbound(x_i)), x)
+        u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v...)), zip(x, u))
+        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta)), zip(x, u))
 
         reluinfo = ReLUInfo(l, u)
         info(MIPVerify.LOGGER, "$reluinfo")

@@ -357,8 +357,8 @@ end
                 m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm)
                 output = (x |> p1 |> ReLU() |> p2)
 
-                @test tight_upperbound(output[1], tightening_algorithm=algorithm)≈u
-                @test tight_lowerbound(output[2], tightening_algorithm=algorithm)≈l
+                @test tight_upperbound(output[1], nta=Nullable(algorithm))≈u
+                @test tight_lowerbound(output[2], nta=Nullable(algorithm))≈l
             end
         end
 
