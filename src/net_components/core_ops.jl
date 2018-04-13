@@ -1,7 +1,6 @@
 using JuMP
 using ConditionalJuMP
 using Memento
-using StatsBase
 
 function is_constant(x::JuMP.AffExpr)
     x.vars |> length == 0
@@ -123,10 +122,9 @@ end
 
 function Base.show(io::IO, s::ReLUInfo)
     relutypes = get_relu_type.(s.lowerbounds, s.upperbounds)
-    cm = countmap(relutypes)
     print(io, "  Behavior of ReLUs - ")
     for t in instances(ReLUType)
-        n = (t in cm.keys) ? cm[t] : 0
+        n = count(x -> x==t, relutypes)
         print(io, "$t: $n")
         if t != last(instances(ReLUType))
             print(io, ", ")
