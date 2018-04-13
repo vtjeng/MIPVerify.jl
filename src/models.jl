@@ -53,7 +53,6 @@ function get_model(
     cache_model::Bool
     )::Dict
     d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
-    setsolver(d[:Model], tightening_solver)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
     # NOTE (vtjeng): It is important to set the solver before attempting to add a 
@@ -72,7 +71,6 @@ function get_model(
     cache_model::Bool
     )::Dict
     d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
-    setsolver(d[:Model], tightening_solver)
     return d
 end
 
@@ -135,6 +133,7 @@ function get_reusable_model(
             # TODO (vtjeng): Catch situations where the saved model has a different name.
         end
         d[:TighteningApproach] = "loaded_from_cache"
+        d[:Model].ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""")
@@ -147,6 +146,7 @@ function get_reusable_model(
             end
         end
     end
+    setsolver(d[:Model], tightening_solver)
     return d
 end
 
