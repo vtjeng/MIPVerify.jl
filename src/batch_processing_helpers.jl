@@ -190,7 +190,7 @@ function batch_find_certificate(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = mip,
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     cache_model = true

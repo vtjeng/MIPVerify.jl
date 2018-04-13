@@ -13,7 +13,6 @@ end
 function get_tightening_algorithm(
     x::JuMPLinearType,
     nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
-    default = mip
     if !isnull(nta)
         return get(nta)
     else
@@ -21,7 +20,7 @@ function get_tightening_algorithm(
             return interval_arithmetic
         end
         m = ConditionalJuMP.getmodel(x)
-        return !haskey(m.ext, :MIPVerify) ? default : m.ext[:MIPVerify].tightening_algorithm
+        return !haskey(m.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM : m.ext[:MIPVerify].tightening_algorithm
     end
 end
 

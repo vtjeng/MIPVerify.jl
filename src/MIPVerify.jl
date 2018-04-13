@@ -15,6 +15,7 @@ const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
+const DEFAULT_TIGHTENING_ALGORITHM = mip
 
 include("net_components.jl")
 include("models.jl")
@@ -79,7 +80,7 @@ function find_adversarial_example(
     tolerance::Real = 0.0,
     rebuild::Bool = false,
     invert_target_selection::Bool = false,
-    tightening_algorithm::TighteningAlgorithm = mip,
+    tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     cache_model::Bool = true
     )::Dict
