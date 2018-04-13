@@ -205,7 +205,6 @@ function masked_relu(x::T, m::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     end
 end
 
-
 """
 $(SIGNATURES)
 Expresses a masked rectified-linearity constraint, with three possibilities depending on 
@@ -216,12 +215,15 @@ the value of the mask. Output is constrained to be:
 3) x if m>0
 ```
 """
-function masked_relu(x::AbstractArray{<:JuMPLinearType}, m::AbstractArray{<:Real})::Array{JuMP.AffExpr}
+function masked_relu(
+    x::AbstractArray{<:JuMPLinearType}, 
+    m::AbstractArray{<:Real}; 
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
     # We add the constraints corresponding to the active ReLUs to the model
     zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
-    d = Dict(zip(zero_idx, relu(x[zero_idx])))
+    d = Dict(zip(zero_idx, relu(x[zero_idx], nta=nta)))
 
     # We determine the output of the masked relu, which is either: 
     #  1) the output of the relu that we have previously determined when adding the 

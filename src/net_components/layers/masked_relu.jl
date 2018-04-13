@@ -14,6 +14,15 @@ $(FIELDS)
 """
 @auto_hash_equals struct MaskedReLU{T<:Real} <: Layer
     mask::Array{T}
+    tightening_algorithm::Nullable{TighteningAlgorithm}
+end
+
+function MaskedReLU(mask::Array{T}) where {T<:Real}
+    MaskedReLU{T}(mask, Nullable{TighteningAlgorithm}())
+end
+
+function MaskedReLU(mask::Array{T}, ta::TighteningAlgorithm) where {T<:Real}
+    MaskedReLU{T}(mask, Nullable{TighteningAlgorithm}(ta))
 end
 
 function Base.show(io::IO, p::MaskedReLU)
@@ -26,4 +35,4 @@ function Base.show(io::IO, p::MaskedReLU)
 end
 
 (p::MaskedReLU)(x::Array{<:Real}) = masked_relu(x, p.mask)
-(p::MaskedReLU)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Applying $p ... "); masked_relu(x, p.mask))
+(p::MaskedReLU)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Applying $p ... "); masked_relu(x, p.mask, nta = p.tightening_algorithm))
