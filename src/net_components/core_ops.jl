@@ -28,8 +28,9 @@ function tight_upperbound(
     x::JuMPLinearType; 
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
     tightening_algorithm = get_tightening_algorithm(x, nta)
+    u_0 = upperbound(x)
     if tightening_algorithm == interval_arithmetic || is_constant(x)
-        return upperbound(x)
+        return u_0
     end
     relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
@@ -40,8 +41,16 @@ function tight_upperbound(
     elseif status == :UserLimit
         u = getobjectivebound(m)
         log_gap(m)
+    else
+        warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
+        u = u_0
     end
-    debug(MIPVerify.LOGGER, "  Δu = $(upperbound(x)-u)")
+    du = u_0 - u
+    debug(MIPVerify.LOGGER, "  Δu = $(du)")
+    if du < 0
+        u = u_0
+        info(MIPVerify.LOGGER, "Tightening via interval_arithematic gives a better result than $(tightening_algorithm); using best bound found.")
+    end
     return u
 end
 
@@ -49,8 +58,9 @@ function tight_lowerbound(
     x::JuMPLinearType;
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
     tightening_algorithm = get_tightening_algorithm(x, nta)
+    l_0 = lowerbound(x)
     if tightening_algorithm == interval_arithmetic || is_constant(x)
-        return lowerbound(x)
+        return l_0
     end
     relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
@@ -61,8 +71,16 @@ function tight_lowerbound(
     elseif status == :UserLimit
         l = getobjectivebound(m)
         log_gap(m)
+    else
+        warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval arithmetic to obtain lowerbound.")
+        l = l_0
     end
-    debug(MIPVerify.LOGGER, "  Δl = $(l-lowerbound(x))")
+    dl = l - l_0
+    debug(MIPVerify.LOGGER, "  Δl = dl")
+    if dl < 0
+        l = l_0
+        info(MIPVerify.LOGGER, "Tightening via interval_arithematic gives a better result than $(tightening_algorithm); using best bound found.")
+    end
     return l
 end
 
@@ -85,6 +103,8 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         return zero(T)
     elseif u==l
         return one(T)*l
+    elseif u<l
+        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative")
     elseif l >= 0
         # rectified value is always x
         return x
