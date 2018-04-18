@@ -24,64 +24,61 @@ function get_tightening_algorithm(
     end
 end
 
-function tight_upperbound(
-    x::JuMPLinearType; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
+@enum BoundType lower_bound_type=-1 upper_bound_type=1
+bound_f = Dict(
+    lower_bound_type => lowerbound,
+    upper_bound_type => upperbound
+)
+bound_obj = Dict(
+    lower_bound_type => :Min,
+    upper_bound_type => :Max
+)
+bound_delta_f = Dict(
+    lower_bound_type => (b, b_0) -> b - b_0,
+    upper_bound_type => (b, b_0) -> b_0 - b
+)
+
+function tight_bound(
+    x::JuMPLinearType, 
+    nta::Nullable{TighteningAlgorithm},
+    bound_type::BoundType)
     tightening_algorithm = get_tightening_algorithm(x, nta)
-    u_0 = upperbound(x)
+    b_0 = bound_f[bound_type](x)
     if tightening_algorithm == interval_arithmetic || is_constant(x)
-        return u_0
+        return b_0
     end
     relaxation = (tightening_algorithm == lp)
     m = ConditionalJuMP.getmodel(x)
-    @objective(m, Max, x)
+    @objective(m, bound_obj[bound_type], x)
     status = solve(m, suppress_warnings = true, relaxation=relaxation)
     if status == :Optimal
-        u = getobjectivevalue(m)
+        b = getobjectivevalue(m)
     elseif status == :UserLimit
-        u = getobjectivebound(m)
+        b = getobjectivebound(m)
         log_gap(m)
     else
         warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
-        u = u_0
+        b = b_0
     end
-    du = u_0 - u
-    debug(MIPVerify.LOGGER, "  Δu = $(du)")
-    if du < 0
-        u = u_0
-        info(MIPVerify.LOGGER, "Tightening via interval_arithematic gives a better result than $(tightening_algorithm); using best bound found.")
+    db = bound_delta_f[bound_type](b, b_0)
+    debug(MIPVerify.LOGGER, "  Δu = $(db)")
+    if db < 0
+        b = b_0
+        info(MIPVerify.LOGGER, "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.")
     end
-    return u
+    return b
+end
+
+function tight_upperbound(
+    x::JuMPLinearType; 
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
+    tight_bound(x, nta, upper_bound_type)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
-    tightening_algorithm = get_tightening_algorithm(x, nta)
-    l_0 = lowerbound(x)
-    if tightening_algorithm == interval_arithmetic || is_constant(x)
-        return l_0
-    end
-    relaxation = (tightening_algorithm == lp)
-    m = ConditionalJuMP.getmodel(x)
-    @objective(m, Min, x)
-    status = solve(m, suppress_warnings = true, relaxation=relaxation)
-    if status == :Optimal
-        l = getobjectivevalue(m)
-    elseif status == :UserLimit
-        l = getobjectivebound(m)
-        log_gap(m)
-    else
-        warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval arithmetic to obtain lowerbound.")
-        l = l_0
-    end
-    dl = l - l_0
-    debug(MIPVerify.LOGGER, "  Δl = dl")
-    if dl < 0
-        l = l_0
-        info(MIPVerify.LOGGER, "Tightening via interval_arithematic gives a better result than $(tightening_algorithm); using best bound found.")
-    end
-    return l
+    tight_bound(x, nta, lower_bound_type)
 end
 
 function log_gap(m::JuMP.Model)
