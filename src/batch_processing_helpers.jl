@@ -1,6 +1,6 @@
 export batch_find_certificate
 
-@enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4
+@enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4 retarget_infeasible_cases=5
 
 struct BatchRunParameters
     nn::NeuralNet
@@ -114,7 +114,7 @@ Behavior for different choices of `solve_rerun_option`:
     recent complete solve a) did find a counter-example BUT b) we did not reach a 
     provably optimal solution.
 """
-function run_on_sample(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
+function run_on_sample_for_certificate(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
     previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
     if size(previous_solves)[1] == 0
         return true
@@ -212,7 +212,7 @@ function batch_find_certificate(
     dt = CSV.read(summary_file_path)
 
     for sample_number in target_sample_numbers
-        if run_on_sample(sample_number, dt, solve_rerun_option)
+        if run_on_sample_for_certificate(sample_number, dt, solve_rerun_option)
             # TODO (vtjeng): change images -> input IN DATASET
             # TODO (vtjeng): change function signature for get_image and get_label
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
@@ -230,6 +230,93 @@ function batch_find_certificate(
             open(summary_file_path, "a") do file
                 summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
                 writecsv(file, [summary_line])
+            end
+        end
+    end
+    return nothing
+end
+
+function run_on_sample_for_targeted_attack(sample_number::Int, target_label::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
+    match_sample_number = summary_dt[:SampleNumber].==sample_number
+    match_target_label = summary_dt[:TargetIndexes].=="[$(target_label)]"
+    match = match_sample_number .& match_target_label
+    previous_solves = summary_dt[match, :]
+    if size(previous_solves)[1] == 0
+        return true
+    end
+    # We now know that previous_solves has at least one element.
+
+    if solve_rerun_option == MIPVerify.never
+        return !(sample_number in summary_dt[:SampleNumber])
+    elseif solve_rerun_option == MIPVerify.always
+        return true
+    elseif solve_rerun_option == MIPVerify.retarget_infeasible_cases
+        last_solve_status = previous_solves[end, :SolveStatus]
+        return (last_solve_status == "Infeasible")
+    elseif solve_rerun_option == MIPVerify.refine_insecure_cases
+        last_solve_status = previous_solves[end, :SolveStatus]
+        last_objective_value = previous_solves[end, :ObjectiveValue]
+        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
+    else
+        throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
+    end
+end
+
+function batch_find_targeted_attack(
+    nn::NeuralNet,
+    dataset::MIPVerify.LabelledDataset,
+    target_sample_numbers::AbstractArray{<:Integer},
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    save_path::String = ".",
+    pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
+    norm_order::Real = 1,
+    tolerance::Real = 0.0,
+    rebuild = false,
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
+    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
+    cache_model = true
+    )::Void
+    results_dir = "run_results"
+    summary_file_name = "summary.csv"
+
+    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order, tolerance)
+    main_path = joinpath(save_path, batch_run_parameters |> string)
+
+    main_path |> mkpath_if_not_present
+    joinpath(main_path, results_dir) |> mkpath_if_not_present
+
+    summary_file_path = joinpath(main_path, summary_file_name)
+    summary_file_path|> create_summary_file_if_not_present
+
+    verify_target_sample_numbers(target_sample_numbers, dataset)
+    
+    dt = CSV.read(summary_file_path)
+
+    for sample_number in target_sample_numbers
+        for target_label in 1:10
+            if true
+                input = MIPVerify.get_image(dataset.images, sample_number)
+                true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
+                if true_one_indexed_label == target_label
+                    continue
+                end
+
+                info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
+            
+                d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model)
+
+                r = extract_results_for_save(d)
+                results_file_uuid = get_uuid()
+                results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
+                results_file_path = joinpath(main_path, results_file_relative_path)
+
+                matwrite(results_file_path, r)
+
+                open(summary_file_path, "a") do file
+                    summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
+                    writecsv(file, [summary_line])
+                end
             end
         end
     end
