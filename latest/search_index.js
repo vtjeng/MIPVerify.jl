@@ -193,11 +193,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample-Tuple{Int64,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample_for_certificate-Tuple{Int64,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
     "page": "Batch Processing",
-    "title": "MIPVerify.run_on_sample",
+    "title": "MIPVerify.run_on_sample_for_certificate",
     "category": "method",
-    "text": "run_on_sample(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve. recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
+    "text": "run_on_sample_for_certificate(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve. recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
 },
 
 {
