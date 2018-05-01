@@ -249,7 +249,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s161,N} where N where #s161<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s160,1} where #s160<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s163,N} where N where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s162,1} where #s162<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -377,7 +377,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s160,1} where #s160<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s162,1} where #s162<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -513,7 +513,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s113,N} where N where #s113<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s114,N} where N where #s114<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s115,N} where N where #s115<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s116,N} where N where #s116<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -545,7 +545,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s161,1} where #s161<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s162,1} where #s162<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s163,1} where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s164,1} where #s164<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
