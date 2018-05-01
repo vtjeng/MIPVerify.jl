@@ -95,13 +95,20 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+    if u<l
+        # TODO (vtjeng): This check necessitated by sample 4872 on the lp0.4 network.
+        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
+        u=upperbound(x)
+        l=lowerbound(x)
+    end
+
     if u <= 0
         # rectified value is always 0
         return zero(T)
     elseif u==l
         return one(T)*l
     elseif u<l
-        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative")
+        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u-l) is negative")
     elseif l >= 0
         # rectified value is always x
         return x
