@@ -101,14 +101,14 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     x_rect = @variable(model)
     a = @variable(model, category = :Bin)
     
-    @constraint(model, x_rect <= x + (-m)*(1-a))
+    @constraint(model, x_rect <= x + (-M)*(1-a))
     @constraint(model, x_rect >= x)
-    @constraint(model, x_rect <= m*a)
+    @constraint(model, x_rect <= M*a)
     @constraint(model, x_rect >= 0)
 
     # Manually set the bounds for x_rect so they can be used by downstream operations.
     setlowerbound(x_rect, 0)
-    setupperbound(x_rect, m)
+    setupperbound(x_rect, M)
     return x_rect
 end
 
