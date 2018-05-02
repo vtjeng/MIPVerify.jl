@@ -101,7 +101,7 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     x_rect = @variable(model)
     a = @variable(model, category = :Bin)
     
-    @constraint(model, x_rect <= x + (-M)*(1-a))
+    @constraint(model, x_rect <= x + M*(1-a))
     @constraint(model, x_rect >= x)
     @constraint(model, x_rect <= M*a)
     @constraint(model, x_rect >= 0)
