@@ -299,7 +299,7 @@ function batch_find_targeted_attack(
 
     for sample_number in target_sample_numbers
         for target_label in 1:10
-            if true
+            if run_on_sample_for_targeted_attack(sample_number, target_label, dt, solve_rerun_option)
                 input = MIPVerify.get_image(dataset.images, sample_number)
                 true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
                 if true_one_indexed_label == target_label
