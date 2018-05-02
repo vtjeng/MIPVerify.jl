@@ -143,19 +143,9 @@ function Base.show(io::IO, s::ReLUInfo)
     end
 end
 
-"""
-Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
-the ReLU to be fixed to zero anyway.
-"""
-function lazy_tight_lowerbound(
-    x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Real
-    (u <= 0) ? u : tight_lowerbound(x; nta = nta)
-end
-
 function relu(x::JuMPLinearType)::JuMP.AffExpr
     u = tight_upperbound(x)
-    l = lazy_tight_lowerbound(x, u)
+    l = tight_lowerbound(x)
     relu(x, l, u)
 end
 
@@ -170,13 +160,13 @@ function relu(
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x, nta=nta)
-        l = lazy_tight_lowerbound.(x, u, nta=nta)
+        l = tight_lowerbound.(x, nta=nta)
         return relu.(x, l, u)
     else
         p1 = Progress(length(x), desc="  Calculating upper bounds: ")
         u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta)), zip(x, u))
+        l = map(x_i -> (next!(p2); tight_lowerbound(x_i, nta=nta)), x)
 
         reluinfo = ReLUInfo(l, u)
         info(MIPVerify.LOGGER, "$reluinfo")
