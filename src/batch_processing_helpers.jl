@@ -253,6 +253,10 @@ function run_on_sample_for_targeted_attack(sample_number::Int, target_label::Int
     elseif solve_rerun_option == MIPVerify.retarget_infeasible_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         return (last_solve_status == "Infeasible")
+    elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
+        last_solve_status = previous_solves[end, :SolveStatus]
+        last_objective_value = previous_solves[end, :ObjectiveValue]
+        return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
