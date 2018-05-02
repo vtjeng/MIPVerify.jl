@@ -144,6 +144,25 @@ function get_tightening_approach(
     string(tightening_algorithm)
 end
 
+function batch_build_model(
+    nn::NeuralNet,
+    dataset::MIPVerify.LabelledDataset,
+    target_sample_numbers::AbstractArray{<:Integer},
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    )::Void
+
+    verify_target_sample_numbers(target_sample_numbers, dataset)
+
+    for sample_number in target_sample_numbers
+        info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+        input = MIPVerify.get_image(dataset.images, sample_number)
+        build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
+    end
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
