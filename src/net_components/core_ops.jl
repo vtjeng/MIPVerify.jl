@@ -95,7 +95,7 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
-    M = maximum(u, l, -u, -l)
+    M = max(u, l, -u, -l)
     
     model = ConditionalJuMP.getmodel(x)
     x_rect = @variable(model)
