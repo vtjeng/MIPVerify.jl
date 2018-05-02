@@ -95,40 +95,21 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
-    if u<l
-        # TODO (vtjeng): This check necessitated by sample 4872 on the lp0.4 network.
-        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
-        u=upperbound(x)
-        l=lowerbound(x)
-    end
+    M = maximum(u, l, -u, -l)
+    
+    model = ConditionalJuMP.getmodel(x)
+    x_rect = @variable(model)
+    a = @variable(model, category = :Bin)
+    
+    @constraint(model, x_rect <= x + (-m)*(1-a))
+    @constraint(model, x_rect >= x)
+    @constraint(model, x_rect <= m*a)
+    @constraint(model, x_rect >= 0)
 
-    if u <= 0
-        # rectified value is always 0
-        return zero(T)
-    elseif u==l
-        return one(T)*l
-    elseif u<l
-        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u-l) is negative")
-    elseif l >= 0
-        # rectified value is always x
-        return x
-    else
-        model = ConditionalJuMP.getmodel(x)
-        x_rect = @variable(model)
-        a = @variable(model, category = :Bin)
-
-        # refined big-M formulation that takes advantage of the knowledge
-        # that lower and upper bounds  are different.
-        @constraint(model, x_rect <= x + (-l)*(1-a))
-        @constraint(model, x_rect >= x)
-        @constraint(model, x_rect <= u*a)
-        @constraint(model, x_rect >= 0)
-
-        # Manually set the bounds for x_rect so they can be used by downstream operations.
-        setlowerbound(x_rect, 0)
-        setupperbound(x_rect, u)
-        return x_rect
-    end
+    # Manually set the bounds for x_rect so they can be used by downstream operations.
+    setlowerbound(x_rect, 0)
+    setupperbound(x_rect, m)
+    return x_rect
 end
 
 @enum ReLUType split=0 zero_output=-1 linear_in_input=1 constant_output=2
