@@ -61,6 +61,23 @@ function generate_csv_summary_line(sample_number::Int, results_file_relative_pat
     ] .|> string
 end
 
+function generate_csv_summary_line_optimal(sample_number::Int, d::Dict)
+    assert(d[:PredictedIndex] in d[:TargetIndexes])
+    [
+        sample_number, 
+        "",
+        d[:PredictedIndex],
+        d[:TargetIndexes],
+        0,
+        :Optimal,
+        false,
+        0,
+        0,
+        :NA,
+        d[:TotalTime]
+    ] .|> string
+end
+
 function create_summary_file_if_not_present(summary_file_path::String)
     if !isfile(summary_file_path)
         summary_header_line = [
@@ -163,6 +180,55 @@ function batch_build_model(
     return nothing
 end
 
+function initialize_batch_solve(
+    save_path::String,
+    nn::NeuralNet,
+    pp::MIPVerify.PerturbationFamily,
+    norm_order::Real,
+    tolerance::Real
+    )::Tuple{String,String,String,DataFrames.DataFrame}
+
+    results_dir = "run_results"
+    summary_file_name = "summary.csv"
+
+    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order, tolerance)
+    main_path = joinpath(save_path, batch_run_parameters |> string)
+
+    main_path |> mkpath_if_not_present
+    joinpath(main_path, results_dir) |> mkpath_if_not_present
+
+    summary_file_path = joinpath(main_path, summary_file_name)
+    summary_file_path|> create_summary_file_if_not_present
+    
+    dt = CSV.read(summary_file_path)
+    return (results_dir, main_path, summary_file_path, dt)
+end
+
+function save_to_disk(
+    sample_number::Int,
+    main_path::String,
+    results_dir::String,
+    summary_file_path::String,
+    d::Dict,
+    solve_if_predicted_in_targeted::Bool
+    )
+    if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
+        r = extract_results_for_save(d)
+        results_file_uuid = get_uuid()
+        results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
+        results_file_path = joinpath(main_path, results_file_relative_path)
+
+        matwrite(results_file_path, r)
+        summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
+    else
+        summary_line = generate_csv_summary_line_optimal(sample_number, d)
+    end
+
+    open(summary_file_path, "a") do file
+        writecsv(file, [summary_line])
+    end
+end
+
 """
 $(SIGNATURES)
 
@@ -212,23 +278,12 @@ function batch_find_certificate(
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
-    cache_model = true
+    cache_model = true,
+    solve_if_predicted_in_targeted = true
     )::Void
-    results_dir = "run_results"
-    summary_file_name = "summary.csv"
-
-    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order, tolerance)
-    main_path = joinpath(save_path, batch_run_parameters |> string)
-
-    main_path |> mkpath_if_not_present
-    joinpath(main_path, results_dir) |> mkpath_if_not_present
-
-    summary_file_path = joinpath(main_path, summary_file_name)
-    summary_file_path|> create_summary_file_if_not_present
-
-    verify_target_sample_numbers(target_sample_numbers, dataset)
     
-    dt = CSV.read(summary_file_path)
+    verify_target_sample_numbers(target_sample_numbers, dataset)
+    (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
     for sample_number in target_sample_numbers
         if run_on_sample_for_certificate(sample_number, dt, solve_rerun_option)
@@ -237,19 +292,9 @@ function batch_find_certificate(
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
             true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
-            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model)
+            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
-            r = extract_results_for_save(d)
-            results_file_uuid = get_uuid()
-            results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
-            results_file_path = joinpath(main_path, results_file_relative_path)
-
-            matwrite(results_file_path, r)
-
-            open(summary_file_path, "a") do file
-                summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
-                writecsv(file, [summary_line])
-            end
+            save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)
         end
     end
     return nothing
@@ -298,23 +343,14 @@ function batch_find_targeted_attack(
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
-    cache_model = true
+    cache_model = true,
+    solve_if_predicted_in_targeted = true
     )::Void
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
-    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order, tolerance)
-    main_path = joinpath(save_path, batch_run_parameters |> string)
-
-    main_path |> mkpath_if_not_present
-    joinpath(main_path, results_dir) |> mkpath_if_not_present
-
-    summary_file_path = joinpath(main_path, summary_file_name)
-    summary_file_path|> create_summary_file_if_not_present
-
     verify_target_sample_numbers(target_sample_numbers, dataset)
-    
-    dt = CSV.read(summary_file_path)
+    (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
     for sample_number in target_sample_numbers
         for target_label in 1:10
@@ -327,19 +363,9 @@ function batch_find_targeted_attack(
 
                 info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
             
-                d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model)
+                d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
-                r = extract_results_for_save(d)
-                results_file_uuid = get_uuid()
-                results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
-                results_file_path = joinpath(main_path, results_file_relative_path)
-
-                matwrite(results_file_path, r)
-
-                open(summary_file_path, "a") do file
-                    summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
-                    writecsv(file, [summary_line])
-                end
+                save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)
             end
         end
     end

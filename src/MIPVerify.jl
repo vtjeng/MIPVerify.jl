@@ -82,28 +82,41 @@ function find_adversarial_example(
     invert_target_selection::Bool = false,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
-    cache_model::Bool = true
+    cache_model::Bool = true,
+    solve_if_predicted_in_targeted = true
     )::Dict
 
     total_time = @elapsed begin
-        d = get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
-        m = d[:Model]
+        d = Dict()
 
         # Calculate predicted index
-        predicted_index = input |> nn |> get_max_index
+        predicted_output = input |> nn
+        num_possible_indexes = length(predicted_output)
+        predicted_index = predicted_output |> get_max_index
+
         d[:PredictedIndex] = predicted_index
 
         # Set target indexes
-        d[:TargetIndexes] = get_target_indexes(target_selection, length(d[:Output]), invert_target_selection = invert_target_selection)
+        d[:TargetIndexes] = get_target_indexes(target_selection, num_possible_indexes, invert_target_selection = invert_target_selection)
         notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
-        set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
-        # Set perturbation objective
-        # NOTE (vtjeng): It is important to set the objective immediately before we carry out
-        # the solve. Functions like `set_max_indexes` can modify the objective.
-        setsolver(d[:Model], main_solver)
-        @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
-        d[:SolveStatus] = solve(m)
+        # Only call solver if predicted index is not found among target indexes.
+        if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
+            merge!(
+                d,
+                get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+            )
+            m = d[:Model]
+
+            set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
+
+            # Set perturbation objective
+            # NOTE (vtjeng): It is important to set the objective immediately before we carry out
+            # the solve. Functions like `set_max_indexes` can modify the objective.
+            setsolver(d[:Model], main_solver)
+            @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
+            d[:SolveStatus] = solve(m)
+        end
     end
     d[:TotalTime] = total_time
     return d
