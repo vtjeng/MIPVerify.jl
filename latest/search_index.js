@@ -553,6 +553,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "net_components/core_ops.html#MIPVerify.tight_bound-Tuple{Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Nullable{MIPVerify.TighteningAlgorithm},MIPVerify.BoundType,Real}",
+    "page": "Core Operations",
+    "title": "MIPVerify.tight_bound",
+    "category": "method",
+    "text": "Calculates a tight bound of type bound_type on the variable x using the specified  tightening algorithm nta.\n\nIf an upper bound is proven to be below cutoff, or a lower bound is proven to above cutoff, the algorithm returns early with whatever value was found.\n\n\n\n"
+},
+
+{
     "location": "net_components/core_ops.html#Internal-1",
     "page": "Core Operations",
     "title": "Internal",
