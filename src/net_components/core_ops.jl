@@ -37,14 +37,26 @@ bound_delta_f = Dict(
     lower_bound_type => (b, b_0) -> b - b_0,
     upper_bound_type => (b, b_0) -> b_0 - b
 )
+bound_operator = Dict(
+    lower_bound_type => >=,
+    upper_bound_type => <=
+)
 
+"""
+Calculates a tight bound of type `bound_type` on the variable `x` using the specified 
+tightening algorithm `nta`.
+
+If an upper bound is proven to be below cutoff, or a lower bound is proven to above cutoff,
+the algorithm returns early with whatever value was found.
+"""
 function tight_bound(
     x::JuMPLinearType, 
     nta::Nullable{TighteningAlgorithm},
-    bound_type::BoundType)
+    bound_type::BoundType,
+    cutoff::Real)
     tightening_algorithm = get_tightening_algorithm(x, nta)
     b_0 = bound_f[bound_type](x)
-    if tightening_algorithm == interval_arithmetic || is_constant(x)
+    if tightening_algorithm == interval_arithmetic || is_constant(x) || bound_operator[bound_type](b_0, cutoff)
         return b_0
     end
     relaxation = (tightening_algorithm == lp)
@@ -71,14 +83,16 @@ end
 
 function tight_upperbound(
     x::JuMPLinearType; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
-    tight_bound(x, nta, upper_bound_type)
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    cutoff::Real = -Inf)
+    tight_bound(x, nta, upper_bound_type, cutoff)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())
-    tight_bound(x, nta, lower_bound_type)
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    cutoff::Real = Inf)
+    tight_bound(x, nta, lower_bound_type, cutoff)
 end
 
 function log_gap(m::JuMP.Model)
@@ -168,13 +182,15 @@ the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
     x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Real
-    (u <= 0) ? u : tight_lowerbound(x; nta = nta)
+    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    cutoff=0
+    )::Real
+    (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff=cutoff)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
-    u = tight_upperbound(x)
-    l = lazy_tight_lowerbound(x, u)
+    u = tight_upperbound(x, cutoff=0)
+    l = lazy_tight_lowerbound(x, u, cutoff=0)
     relu(x, l, u)
 end
 
@@ -188,14 +204,14 @@ function relu(
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
-        u = tight_upperbound.(x, nta=nta)
-        l = lazy_tight_lowerbound.(x, u, nta=nta)
+        u = tight_upperbound.(x, nta=nta, cutoff=0)
+        l = lazy_tight_lowerbound.(x, u, nta=nta, cutoff=0)
         return relu.(x, l, u)
     else
         p1 = Progress(length(x), desc="  Calculating upper bounds: ")
-        u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta)), x)
+        u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta, cutoff=0)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta)), zip(x, u))
+        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta, cutoff=0)), zip(x, u))
 
         reluinfo = ReLUInfo(l, u)
         info(MIPVerify.LOGGER, "$reluinfo")
