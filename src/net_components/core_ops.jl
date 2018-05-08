@@ -302,7 +302,7 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         info(MIPVerify.LOGGER, "Output of maximum is constant.")
     end
     # at least one index will satisfy this property because of check above.
-    filtered_indexes = us .> l
+    filtered_indexes = us .> -Inf
     
     # TODO (vtjeng): Smarter debugging if maximum is being used more than once.
     info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
