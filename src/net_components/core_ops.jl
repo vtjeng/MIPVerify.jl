@@ -109,40 +109,21 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
-    if u<l
-        # TODO (vtjeng): This check necessitated by sample 4872 on the lp0.4 network.
-        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
-        u=upperbound(x)
-        l=lowerbound(x)
-    end
+    M = max(u, l, -u, -l)
+  
+    model = ConditionalJuMP.getmodel(x)
+    x_rect = @variable(model)
+    a = @variable(model, category = :Bin)
 
-    if u <= 0
-        # rectified value is always 0
-        return zero(T)
-    elseif u==l
-        return one(T)*l
-    elseif u<l
-        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u-l) is negative")
-    elseif l >= 0
-        # rectified value is always x
-        return x
-    else
-        model = ConditionalJuMP.getmodel(x)
-        x_rect = @variable(model)
-        a = @variable(model, category = :Bin)
+    @constraint(model, x_rect <= x + M*(1-a))
+    @constraint(model, x_rect >= x)
+    @constraint(model, x_rect <= M*a)
+    @constraint(model, x_rect >= 0)
 
-        # refined big-M formulation that takes advantage of the knowledge
-        # that lower and upper bounds  are different.
-        @constraint(model, x_rect <= x + (-l)*(1-a))
-        @constraint(model, x_rect >= x)
-        @constraint(model, x_rect <= u*a)
-        @constraint(model, x_rect >= 0)
-
-        # Manually set the bounds for x_rect so they can be used by downstream operations.
-        setlowerbound(x_rect, 0)
-        setupperbound(x_rect, u)
-        return x_rect
-    end
+    # Manually set the bounds for x_rect so they can be used by downstream operations.
+    setlowerbound(x_rect, 0)
+    setupperbound(x_rect, M)
+    return x_rect
 end
 
 @enum ReLUType split=0 zero_output=-1 linear_in_input=1 constant_output=2
@@ -176,21 +157,9 @@ function Base.show(io::IO, s::ReLUInfo)
     end
 end
 
-"""
-Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
-the ReLU to be fixed to zero anyway.
-"""
-function lazy_tight_lowerbound(
-    x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
-    cutoff=0
-    )::Real
-    (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff=cutoff)
-end
-
 function relu(x::JuMPLinearType)::JuMP.AffExpr
     u = tight_upperbound(x, cutoff=0)
-    l = lazy_tight_lowerbound(x, u, cutoff=0)
+    l = tight_lowerbound(x, cutoff=0)
     relu(x, l, u)
 end
 
@@ -205,13 +174,13 @@ function relu(
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x, nta=nta, cutoff=0)
-        l = lazy_tight_lowerbound.(x, u, nta=nta, cutoff=0)
+        l = tight_lowerbound.(x, nta=nta, cutoff=0)
         return relu.(x, l, u)
     else
         p1 = Progress(length(x), desc="  Calculating upper bounds: ")
         u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta, cutoff=0)), x)
         p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta, cutoff=0)), zip(x, u))
+        l = map(x_i -> (next!(p2); tight_lowerbound(x_i, nta=nta)), x)
 
         reluinfo = ReLUInfo(l, u)
         info(MIPVerify.LOGGER, "$reluinfo")
