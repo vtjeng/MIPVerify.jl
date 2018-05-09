@@ -99,6 +99,11 @@ function find_adversarial_example(
         # Set target indexes
         d[:TargetIndexes] = get_target_indexes(target_selection, num_possible_indexes, invert_target_selection = invert_target_selection)
         notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
+        
+        if typeof(pp)<:LInfNormBoundedPerturbationFamily
+            pp_true = pp
+            pp = UnrestrictedPerturbationFamily()
+        end
 
         # Only call solver if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
@@ -114,6 +119,9 @@ function find_adversarial_example(
             # NOTE (vtjeng): It is important to set the objective immediately before we carry out
             # the solve. Functions like `set_max_indexes` can modify the objective.
             setsolver(d[:Model], main_solver)
+            if typeof(pp_true)<:LInfNormBoundedPerturbationFamily
+                @constraint(m, get_norm(Inf, d[:Perturbation]) <= pp_true.norm_bound)
+            end
             @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             d[:SolveStatus] = solve(m)
         end
