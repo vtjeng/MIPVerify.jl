@@ -100,8 +100,8 @@ function find_adversarial_example(
         d[:TargetIndexes] = get_target_indexes(target_selection, num_possible_indexes, invert_target_selection = invert_target_selection)
         notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
         
-        if typeof(pp)<:LInfNormBoundedPerturbationFamily
-            pp_true = pp
+        pp_true = pp
+        if typeof(pp_true)<:LInfNormBoundedPerturbationFamily
             pp = UnrestrictedPerturbationFamily()
         end
 
