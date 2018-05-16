@@ -85,14 +85,14 @@ function tight_upperbound(
     x::JuMPLinearType; 
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
     cutoff::Real = -Inf)
-    tight_bound(x, nta, upper_bound_type, cutoff)
+    tight_bound(x, nta, upper_bound_type, -Inf)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
     nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
     cutoff::Real = Inf)
-    tight_bound(x, nta, lower_bound_type, cutoff)
+    tight_bound(x, nta, lower_bound_type, Inf)
 end
 
 function log_gap(m::JuMP.Model)
