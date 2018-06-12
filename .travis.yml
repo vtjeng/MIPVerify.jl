@@ -23,7 +23,9 @@ matrix:
 
 sudo: required
 ## uncomment and modify the following lines to manually install system packages
-#addons:
+addons:
+  apt:
+    update: true
 #  apt: # apt-get for linux
 #    packages:
 #    - gfortran
