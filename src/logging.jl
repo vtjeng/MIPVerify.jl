@@ -9,19 +9,10 @@ const LOGGER = getlogger(current_module())   # or `getlogger(@__MODULE__)` on 0.
 # registered at runtime.
 __init__() = Memento.register(LOGGER)
 
-# function getlogger()::Memento.Logger
-#     Memento.getlogger(current_module())
-# end
-
 function setloglevel!(level::String)
     # Options correspond to Memento.jl's levels.
     # https://invenia.github.io/Memento.jl/latest/man/intro.html#Logging-levels-1
-    logger = MIPVerify.LOGGER
-    Memento.setlevel!(logger, level)
-    while logger.name != "root"
-        logger = Memento.getparent(logger.name)
-        Memento.setlevel!(logger, level)
-    end
+    Memento.config!(level; recursive=true)
 end
 
 setloglevel!("notice")
