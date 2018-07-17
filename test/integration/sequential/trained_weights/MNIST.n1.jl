@@ -7,7 +7,7 @@ using TestHelpers: batch_test_adversarial_example
 
 @testset "MNIST.n1" begin
     nn = get_example_network_params("MNIST.n1")
-    mnist = read_datasets("MNIST")
+    mnist = read_datasets("mnist")
 
     pp_blur = BlurringPerturbationFamily((5, 5))
     pp_unrestricted = UnrestrictedPerturbationFamily()
