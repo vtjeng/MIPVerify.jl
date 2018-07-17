@@ -9,9 +9,10 @@ struct BatchRunParameters
     tolerance::Real
 end
 
+# BatchRunParameters are used for result folder names
 function Base.show(io::IO, t::BatchRunParameters)
     print(io, 
-        "$(t.nn.UUID)_$(t.pp)_norm=$(t.norm_order)_tol=$(t.tolerance)"
+        "$(t.nn.UUID)__$(t.pp)__$(t.norm_order)__$(t.tolerance)"
     )
 end
 

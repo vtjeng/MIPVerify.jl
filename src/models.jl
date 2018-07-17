@@ -28,7 +28,7 @@ abstract type RestrictedPerturbationFamily <: PerturbationFamily end
 @auto_hash_equals struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
     blur_kernel_size::NTuple{2}
 end
-Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, "blur.$(pp.blur_kernel_size)")
+Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, filter(x -> !isspace(x), "blur-$(pp.blur_kernel_size)"))
 
 @auto_hash_equals struct LInfNormBoundedPerturbationFamily <: RestrictedPerturbationFamily
     norm_bound::Real
@@ -41,7 +41,7 @@ Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, "blur.$(pp.blur_ke
         return new(norm_bound)
     end
 end
-Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) = print(io, "norm-bounded.|ε|_∞ < $(pp.norm_bound)")
+Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) = print(io, "linf-norm-bounded-$(pp.norm_bound)")
 
 function get_model(
     nn::NeuralNet,
