@@ -129,7 +129,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s200,1} where #s200<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s201,1} where #s201<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Basic Usage",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
@@ -309,7 +309,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.Flatten",
     "category": "type",
-    "text": "struct Flatten{T<:Int64} <: MIPVerify.Layer\n\nRepresents a flattening operation.\n\np(x) is shorthand for flatten(x, p.perm) when p is an instance of Flatten.\n\nFields:\n\nn_dim\nperm\n\n\n\n"
+    "text": "struct Flatten{T<:Integer} <: MIPVerify.Layer\n\nRepresents a flattening operation.\n\np(x) is shorthand for flatten(x, p.perm) when p is an instance of Flatten.\n\nFields:\n\nn_dim\nperm\n\n\n\n"
 },
 
 {
@@ -369,7 +369,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.flatten-Union{Tuple{Array{T,N},AbstractArray{U,N} where N}, Tuple{N}, Tuple{T}, Tuple{U}} where U<:Int64 where N where T",
+    "location": "net_components/layers.html#MIPVerify.flatten-Union{Tuple{Array{T,N},AbstractArray{U,N} where N}, Tuple{N}, Tuple{T}, Tuple{U}} where U<:Integer where N where T",
     "page": "Layers",
     "title": "MIPVerify.flatten",
     "category": "method",
@@ -401,7 +401,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.getsliceindex-Tuple{Int64,Int64,Int64}",
+    "location": "net_components/layers.html#MIPVerify.getsliceindex-Tuple{Integer,Integer,Integer}",
     "page": "Layers",
     "title": "MIPVerify.getsliceindex",
     "category": "method",
@@ -677,7 +677,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Importing External Datasets",
     "title": "MIPVerify.LabelledImageDataset",
     "category": "type",
-    "text": "struct LabelledImageDataset{T<:Real, U<:Int64} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
+    "text": "struct LabelledImageDataset{T<:Real, U<:Integer} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
 },
 
 {
@@ -685,7 +685,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Importing External Datasets",
     "title": "MIPVerify.NamedTrainTestDataset",
     "category": "type",
-    "text": "struct NamedTrainTestDataset{T<:MIPVerify.Dataset} <: MIPVerify.Dataset\n\nNamed dataset containing a training set and a test set which are expected to contain the same kind of data.\n\n\n\n"
+    "text": "struct NamedTrainTestDataset{T<:MIPVerify.Dataset, U<:MIPVerify.Dataset} <: MIPVerify.Dataset\n\nNamed dataset containing a training set and a test set which are expected to contain the same kind of data.\n\n\n\n"
 },
 
 {
