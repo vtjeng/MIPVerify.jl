@@ -85,10 +85,10 @@ function read_datasets(name::String)::NamedTrainTestDataset
         # TODO (vtjeng): Specify that images range from 0 to 1
         MNIST_dir = joinpath("datasets", name)
 
-        m_train = prep_data_file(MNIST_dir, "$(name)_train.mat") |> matread
+        m_train = prep_data_file(MNIST_dir, "$(name)_int_train.mat") |> matread
         train = LabelledImageDataset(m_train["images"]/255, m_train["labels"][:])
 
-        m_test = prep_data_file(MNIST_dir, "$(name)_test.mat") |> matread
+        m_test = prep_data_file(MNIST_dir, "$(name)_int_test.mat") |> matread
         test = LabelledImageDataset(m_test["images"]/255, m_test["labels"][:])
         return NamedTrainTestDataset(name, train, test)
     else
