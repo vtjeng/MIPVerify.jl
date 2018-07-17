@@ -11,11 +11,11 @@ Represents a flattening operation.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Flatten{T<:Int} <: Layer
-    n_dim::Int
+@auto_hash_equals struct Flatten{T<:Integer} <: Layer
+    n_dim::Integer
     perm::AbstractArray{T}
 
-    function Flatten{T}(n_dim::Int, perm::AbstractArray{T}) where {T<:Int}
+    function Flatten{T}(n_dim::Integer, perm::AbstractArray{T}) where {T<:Integer}
         @assert(
             length(perm) == n_dim,
             "Number of dimensions to be permuted, $(length(perm)) does not match expected value, $(n_dim)."
@@ -24,15 +24,15 @@ $(FIELDS)
     end
 end
 
-function Flatten(n_dim::Int, perm::AbstractArray{T}) where {T<:Int}
+function Flatten(n_dim::Integer, perm::AbstractArray{T}) where {T<:Integer}
     Flatten{T}(n_dim, perm)
 end
 
-function Flatten(n_dim::Int)::Flatten
+function Flatten(n_dim::Integer)::Flatten
     Flatten(n_dim, n_dim:-1:1)
 end
 
-function Flatten(perm::AbstractArray{T})::Flatten where {T<:Int}
+function Flatten(perm::AbstractArray{T})::Flatten where {T<:Integer}
     if !all(sort(perm) .== 1:length(perm))
         throw(DomainError("$perm is not a valid permutation."))
     end
@@ -48,7 +48,7 @@ end
 """
 Permute dimensions of array in specified order, then flattens the array.
 """
-function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Int}
+function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Integer}
     @assert all(sort(perm) .== 1:N)
     return permutedims(x, perm)[:]
 end

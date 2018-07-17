@@ -58,7 +58,7 @@ indices.
      dimension.
 
 """
-function getsliceindex(input_array_size::Int, stride::Int, output_index::Int)::Array{Int, 1}
+function getsliceindex(input_array_size::Integer, stride::Integer, output_index::Integer)::Array{Int, 1}
     parent_start_index = (output_index-1)*stride+1
     parent_end_index = min((output_index)*stride, input_array_size)
     if parent_start_index > parent_end_index
