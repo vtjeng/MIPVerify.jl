@@ -15,7 +15,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
             p = BlurringPerturbationFamily((5,5))
             io = IOBuffer()
             Base.show(io, p)
-            @test String(take!(io)) == "blur.(5, 5)"
+            @test String(take!(io)) == "blur-(5,5)"
         end
     end
 end
