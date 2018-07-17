@@ -8,7 +8,7 @@ using MIPVerify: read_datasets
             mnist = read_datasets("MNIST")
             Base.show(io, mnist)
             @test String(take!(io)) == """
-                MNIST:
+                mnist:
                   `train`: {LabelledImageDataset}
                     `images`: 55000 images of size (28, 28, 1), with pixels in [0.0, 1.0].
                     `labels`: 55000 corresponding labels, with 10 unique labels in [0, 9].

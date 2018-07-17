@@ -54,10 +54,11 @@ $(TYPEDEF)
 Named dataset containing a training set and a test set which are expected to contain the
 same kind of data.
 """
-struct NamedTrainTestDataset{T<:Dataset} <: Dataset
+struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
     name::String
     train::T
-    test::T
+    test::U
+    # TODO: (vtjeng) train and test should be the same type of struct.
 end
 
 function Base.show(io::IO, dataset::NamedTrainTestDataset)
@@ -78,14 +79,16 @@ Makes popular machine learning datasets available as a `NamedTrainTestDataset`.
     * `MNIST`: [The MNIST Database of handwritten digits](http://yann.lecun.com/exdb/mnist/)
 """
 function read_datasets(name::String)::NamedTrainTestDataset
-    if name == "MNIST"
-        # TODO (vtjeng): Specify that images range from 0 to 1
-        MNIST_dir = joinpath("datasets", "mnist")
+    name = lowercase(name)
 
-        m_train = prep_data_file(MNIST_dir, "mnist_train.mat") |> matread
+    if name in ["mnist", "cifar10"]
+        # TODO (vtjeng): Specify that images range from 0 to 1
+        MNIST_dir = joinpath("datasets", name)
+
+        m_train = prep_data_file(MNIST_dir, "$(name)_train.mat") |> matread
         train = LabelledImageDataset(m_train["images"]/255, m_train["labels"][:])
 
-        m_test = prep_data_file(MNIST_dir, "mnist_test.mat") |> matread
+        m_test = prep_data_file(MNIST_dir, "$(name)_test.mat") |> matread
         test = LabelledImageDataset(m_test["images"]/255, m_test["labels"][:])
         return NamedTrainTestDataset(name, train, test)
     else
