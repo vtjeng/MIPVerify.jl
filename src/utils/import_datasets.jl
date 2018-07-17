@@ -13,7 +13,7 @@ Dataset of images stored as a 4-dimensional array of size `(num_samples, image_h
 image_width, num_channels)`, with accompanying labels (sorted in the same order) of size
 `num_samples`.
 """
-struct LabelledImageDataset{T<:Real, U<:Int} <: LabelledDataset
+struct LabelledImageDataset{T<:Real, U<:Integer} <: LabelledDataset
     images::Array{T, 4}
     labels::Array{U, 1}
 
@@ -79,14 +79,14 @@ Makes popular machine learning datasets available as a `NamedTrainTestDataset`.
 """
 function read_datasets(name::String)::NamedTrainTestDataset
     if name == "MNIST"
-
+        # TODO (vtjeng): Specify that images range from 0 to 1
         MNIST_dir = joinpath("datasets", "mnist")
 
         m_train = prep_data_file(MNIST_dir, "mnist_train.mat") |> matread
-        train = LabelledImageDataset(m_train["images"], m_train["labels"][:])
+        train = LabelledImageDataset(m_train["images"]/255, m_train["labels"][:])
 
         m_test = prep_data_file(MNIST_dir, "mnist_test.mat") |> matread
-        test = LabelledImageDataset(m_test["images"], m_test["labels"][:])
+        test = LabelledImageDataset(m_test["images"]/255, m_test["labels"][:])
         return NamedTrainTestDataset(name, train, test)
     else
         throw(DomainError("Dataset $name not supported."))
