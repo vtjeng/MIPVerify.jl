@@ -110,7 +110,8 @@ end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     if u<l
-        # TODO (vtjeng): This check necessitated by sample 4872 on the lp0.4 network.
+        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds. 
+        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
         warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
         u=upperbound(x)
         l=lowerbound(x)
@@ -304,7 +305,7 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # at least one index will satisfy this property because of check above.
     filtered_indexes = us .> l
     
-    # TODO (vtjeng): Smarter debugging if maximum is being used more than once.
+    # TODO (vtjeng): Smarter log output if maximum function is being used more than once (for example, in a max-pooling layer).
     info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
     
     return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])

@@ -117,3 +117,6 @@ function get_example_network_params(name::String)::NeuralNet
         throw(DomainError("No example network named $name."))
     end
 end
+
+# TODO (vtjeng): Add mnist networks by Wong/Kolter and Ragunathan/Steinhardt/Liang.
+# TODO (vtjeng): Make network naming case insensitive.

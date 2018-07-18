@@ -141,7 +141,7 @@ function conv2d(
                 if x > 0 && y > 0 && x<=in_height && y<=in_width
                     # Doing bounds check to make sure that we stay within bounds
                     # for input. This effectively zero-pads the input.
-                    # TODO: Use default checkbounds function here instead?
+                    # TODO (vtjeng): Use default checkbounds function here instead?
                     s = increment!(s, input[i_1, x, y, j_3], filter[j_1, j_2, j_3, j_4])
                 end
             end

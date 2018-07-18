@@ -38,7 +38,7 @@ function MaxPool(strides::NTuple{N, Int}) where {N}
 end
 
 function AveragePool(strides::NTuple{N, Int}) where {N}
-    # TODO: pooling over variables not supported just yet
+    # TODO (vtjeng): support average pooling across variables.
     Pool(strides, Base.mean)
 end
 

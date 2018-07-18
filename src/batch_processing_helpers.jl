@@ -288,7 +288,6 @@ function batch_find_certificate(
 
     for sample_number in target_sample_numbers
         if run_on_sample_for_certificate(sample_number, dt, solve_rerun_option)
-            # TODO (vtjeng): change images -> input IN DATASET
             # TODO (vtjeng): change function signature for get_image and get_label
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)

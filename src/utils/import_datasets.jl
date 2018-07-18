@@ -58,7 +58,7 @@ struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
     name::String
     train::T
     test::U
-    # TODO: (vtjeng) train and test should be the same type of struct.
+    # TODO (vtjeng): train and test should be the same type of struct (but might potentially have different parameters).
 end
 
 function Base.show(io::IO, dataset::NamedTrainTestDataset)
@@ -82,7 +82,7 @@ function read_datasets(name::String)::NamedTrainTestDataset
     name = lowercase(name)
 
     if name in ["mnist", "cifar10"]
-        # TODO (vtjeng): Specify that images range from 0 to 1
+        # TODO (vtjeng): specify in documentation that we normalize the images in these datasets to range from 0 to 1
         MNIST_dir = joinpath("datasets", name)
 
         m_train = prep_data_file(MNIST_dir, "$(name)_int_train.mat") |> matread

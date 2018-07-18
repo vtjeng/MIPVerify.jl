@@ -130,7 +130,7 @@ function get_reusable_model(
         notice(MIPVerify.LOGGER, "Loading model from cache.")
         d = open(model_filepath, "r") do f
             deserialize(f)
-            # TODO (vtjeng): Catch situations where the saved model has a different name.
+            # TODO (vtjeng): Identify situations where the saved model has a different name and throw and error.
         end
         d[:TighteningApproach] = "loaded_from_cache"
         d[:Model].ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
