@@ -1,6 +1,6 @@
 julia 0.6
-JuMP 0.18
-ConditionalJuMP 0.0.4
+JuMP 0.18.1
+ConditionalJuMP 0.0.5
 Memento 0.8.0
 AutoHashEquals 0.1.2
 MAT 0.4.0
