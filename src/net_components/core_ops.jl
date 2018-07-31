@@ -303,12 +303,12 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         info(MIPVerify.LOGGER, "Output of maximum is constant.")
     end
     # at least one index will satisfy this property because of check above.
-    filtered_indexes = us .> l
+    # filtered_indexes = us .> l
     
     # TODO (vtjeng): Smarter log output if maximum function is being used more than once (for example, in a max-pooling layer).
-    info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
+    info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(length(ls))")
     
-    return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
+    return maximum(xs, ls, us)
 end
 
 function maximum(
@@ -330,10 +330,15 @@ function maximum(
         x_max = @variable(model, lowerbound = l, upperbound=u)
         a = @variable(model, [1:length(xs)], category =:Bin)
         @constraint(model, sum(a) == 1)
+        M = -Inf
         for (i, x) in enumerate(xs)
             umaxi = Base.maximum(us[1:end .!= i])
-            @constraint(model, x_max <= x + (1-a[i])*(umaxi - ls[i]))
+            M_i = umaxi - ls[i]
+            M = Base.max(M, M_i)
             @constraint(model, x_max >= x)
+        end
+        for (i, x) in enumerate(xs)
+            @constraint(model, x_max <= x + (1-a[i])*M)
         end
         return x_max
     end
