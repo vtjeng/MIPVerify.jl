@@ -237,7 +237,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Overview",
     "title": "MIPVerify.Layer",
     "category": "type",
-    "text": "abstract Layer\n\nSupertype for all types storing the parameters of each layer. Inherit from this to specify your own custom type of layer. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided.\n\n\n\n"
+    "text": "abstract type Layer\n\nSupertype for all types storing the parameters of each layer. Inherit from this to specify your own custom type of layer. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided.\n\n\n\n"
 },
 
 {
@@ -245,7 +245,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Overview",
     "title": "MIPVerify.NeuralNet",
     "category": "type",
-    "text": "abstract NeuralNet\n\nSupertype for all types storing the parameters of a neural net. Inherit from this to specify your own custom architecture. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided\nHave a UUID field for the name of the neural network.\n\n\n\n"
+    "text": "abstract type NeuralNet\n\nSupertype for all types storing the parameters of a neural net. Inherit from this to specify your own custom architecture. Each implementation is expected to:\n\nImplement a callable specifying the output when any input of type JuMPReal is provided\nHave a UUID field for the name of the neural network.\n\n\n\n"
 },
 
 {
@@ -349,7 +349,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "MIPVerify.ReLU",
     "category": "type",
-    "text": "bitstype 64 ReLU <: MIPVerify.Layer\n\nRepresents a ReLU operation.\n\np(x) is shorthand for relu(x) when p is an instance of ReLU.\n\n\n\n"
+    "text": "primitive type ReLU <: MIPVerify.Layer 64\n\nRepresents a ReLU operation.\n\np(x) is shorthand for relu(x) when p is an instance of ReLU.\n\n\n\n"
 },
 
 {
