@@ -1,9 +1,20 @@
 using Base.Test
-using MIPVerify: ReLU
+using MIPVerify: ReLU, mip
 
 @testset "relu.jl" begin
 
 @testset "ReLU" begin
+    @testset "Initialize without tightening algorithm" begin
+        p = ReLU()
+        @test isnull(p.tightening_algorithm)
+    end
+
+    @testset "Initialize with tightening algorithm" begin
+        p = ReLU(mip)
+        @test !isnull(p.tightening_algorithm)
+        @test get(p.tightening_algorithm) == mip
+    end
+
     @testset "Base.show" begin
         p = ReLU()
         io = IOBuffer()
