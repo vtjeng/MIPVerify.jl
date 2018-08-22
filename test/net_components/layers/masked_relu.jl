@@ -1,11 +1,22 @@
 using Base.Test
-using MIPVerify: MaskedReLU
+using MIPVerify: MaskedReLU, mip
 
 @testset "masked_relu.jl" begin
 
 @testset "MaskedReLU" begin
+    mask = rand(MersenneTwister(0), [-1, 0, 1], 10)
+    @testset "Initialize without tightening algorithm" begin
+        p = MaskedReLU(mask)
+        @test isnull(p.tightening_algorithm)
+    end
+
+    @testset "Initialize with tightening algorithm" begin
+        p = MaskedReLU(mask, mip)
+        @test !isnull(p.tightening_algorithm)
+        @test get(p.tightening_algorithm) == mip
+    end
+
     @testset "Base.show" begin
-        mask = rand(MersenneTwister(0), [-1, 0, 1], 10)
         p = MaskedReLU(mask)
         io = IOBuffer()
         Base.show(io, p)
