@@ -15,6 +15,7 @@ using TestHelpers: get_new_model
     include("net_components.jl")
     include("utils.jl")
     include("models.jl")
+    include("batch_processing_helpers.jl")
     
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])
