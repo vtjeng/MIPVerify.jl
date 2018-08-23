@@ -113,72 +113,10 @@ function verify_target_sample_numbers(target_sample_numbers::AbstractArray{<:Int
     )
 end
 
-"""
-$(SIGNATURES)
-
-Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
-looking up information on the most recent completed solve. recorded in `summary_dt`
-
-`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
-and `:ObjectiveValue`. 
-
-Behavior for different choices of `solve_rerun_option`:
-+ `never`: `true` if and only if there is no previous completed solve.
-+ `always`: `true` always.
-+ `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the 
-    most recent completed solve a) did not find a counter-example BUT b) the optimization
-    was not demosntrated to be infeasible.
-+ `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
-    recent complete solve a) did find a counter-example BUT b) we did not reach a 
-    provably optimal solution.
-"""
-function run_on_sample_for_certificate(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
-    previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
-    if size(previous_solves)[1] == 0
-        return true
-    end
-    # We now know that previous_solves has at least one element.
-
-    if solve_rerun_option == MIPVerify.never
-        return !(sample_number in summary_dt[:SampleNumber])
-    elseif solve_rerun_option == MIPVerify.always
-        return true
-    elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
-    elseif solve_rerun_option == MIPVerify.refine_insecure_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
-    else
-        throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
-    end
-end
-
 function get_tightening_approach(
     nn::NeuralNet,
     tightening_algorithm::MIPVerify.TighteningAlgorithm)::String
     string(tightening_algorithm)
-end
-
-function batch_build_model(
-    nn::NeuralNet,
-    dataset::MIPVerify.LabelledDataset,
-    target_sample_numbers::AbstractArray{<:Integer},
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
-    pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    )::Void
-
-    verify_target_sample_numbers(target_sample_numbers, dataset)
-
-    for sample_number in target_sample_numbers
-        info(MIPVerify.LOGGER, "Working on index $(sample_number)")
-        input = MIPVerify.get_image(dataset.images, sample_number)
-        build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
-    end
-    return nothing
 end
 
 function initialize_batch_solve(
@@ -227,6 +165,49 @@ function save_to_disk(
 
     open(summary_file_path, "a") do file
         writecsv(file, [summary_line])
+    end
+end
+
+"""
+$(SIGNATURES)
+
+Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
+looking up information on the most recent completed solve. recorded in `summary_dt`
+
+`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
+and `:ObjectiveValue`. 
+
+Behavior for different choices of `solve_rerun_option`:
++ `never`: `true` if and only if there is no previous completed solve.
++ `always`: `true` always.
++ `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the 
+    most recent completed solve a) did not find a counter-example BUT b) the optimization
+    was not demosntrated to be infeasible.
++ `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
+    recent complete solve a) did find a counter-example BUT b) we did not reach a 
+    provably optimal solution.
+"""
+function run_on_sample_for_certificate(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
+    previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
+    if size(previous_solves)[1] == 0
+        return true
+    end
+    # We now know that previous_solves has at least one element.
+
+    if solve_rerun_option == MIPVerify.never
+        return !(sample_number in summary_dt[:SampleNumber])
+    elseif solve_rerun_option == MIPVerify.always
+        return true
+    elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
+        last_solve_status = previous_solves[end, :SolveStatus]
+        last_objective_value = previous_solves[end, :ObjectiveValue]
+        return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
+    elseif solve_rerun_option == MIPVerify.refine_insecure_cases
+        last_solve_status = previous_solves[end, :SolveStatus]
+        last_objective_value = previous_solves[end, :ObjectiveValue]
+        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
+    else
+        throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
 end
 
@@ -368,6 +349,25 @@ function batch_find_targeted_attack(
                 save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)
             end
         end
+    end
+    return nothing
+end
+
+function batch_build_model(
+    nn::NeuralNet,
+    dataset::MIPVerify.LabelledDataset,
+    target_sample_numbers::AbstractArray{<:Integer},
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    )::Void
+
+    verify_target_sample_numbers(target_sample_numbers, dataset)
+
+    for sample_number in target_sample_numbers
+        info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+        input = MIPVerify.get_image(dataset.images, sample_number)
+        build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
     end
     return nothing
 end
