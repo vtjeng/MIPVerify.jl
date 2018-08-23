@@ -159,7 +159,7 @@ function build_reusable_model_uncached(
     )::Dict
 
     m = Model(solver = tightening_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm) # TODO: consider writing as seperate function
 
     input_range = CartesianRange(size(input))
 

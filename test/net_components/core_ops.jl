@@ -2,7 +2,8 @@ using Base.Test
 using JuMP
 using MathProgBase
 using MIPVerify
-using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge, masked_relu
+using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge, masked_relu, is_constant, get_tightening_algorithm, mip, lp, interval_arithmetic, DEFAULT_TIGHTENING_ALGORITHM, TighteningAlgorithm, MIPVerifyExt
+using ConditionalJuMP
 isdefined(:TestHelpers) || include("../TestHelpers.jl")
 using TestHelpers: get_new_model
 
@@ -11,6 +12,60 @@ function count_binary_variables(m::Model)
 end
 
 @testset "core_ops.jl" begin
+    @testset "is_constant" begin
+        @testset "JuMP.AffExpr" begin
+            m = get_new_model()
+            @test is_constant(zero(JuMP.Variable))
+            @test is_constant(one(JuMP.Variable))
+            x = @variable(m)
+            y = @variable(m)
+            z = 2*x+3*y
+            @test !is_constant(z)
+        end
+        @testset "JuMP.Variable" begin
+            m = get_new_model()
+            x = @variable(m)
+            @test !is_constant(x)
+        end
+    end
+
+    @testset "get_tightening_algorithm" begin
+        m = get_new_model()
+        
+        tightening_algorithms = [interval_arithmetic, mip, lp]
+
+        @testset "if variable known to be constant, always use interval_arithmetic" begin
+            x = one(JuMP.Variable) # is_constant(x)==true
+            for alg in tightening_algorithms
+                @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}(alg)) == interval_arithmetic
+            end
+            @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}()) == interval_arithmetic
+        end
+
+        @testset "if variable not known to be constant" begin
+            @testset "use tightening algorithm if specified" begin
+                m = get_new_model()
+                y = @variable(m)
+                for alg in tightening_algorithms
+                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}(alg)) == alg
+                end
+            end
+            @testset "fall back to model-level tightening algorithm if specified" begin
+                m = get_new_model()
+                y = @variable(m)
+                for alg in tightening_algorithms
+                    m.ext[:MIPVerify] = MIPVerifyExt(alg)
+                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == alg
+                end
+            end
+            @testset "fall back to package default tightening algorithm as last resort" begin
+                m = get_new_model()
+                y = @variable(m)
+                @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == DEFAULT_TIGHTENING_ALGORITHM
+            end
+        end
+    end
+
     @testset "maximum" begin
         @testset "Variable Input" begin
             @testset "single variable to maximize over" begin
@@ -65,7 +120,7 @@ end
         end
     end
 
-    @testset "relu" begin
+    @testset "relu(x)" begin
         @testset "Numerical Input" begin
             @test relu(5)==5
             @test relu(0)==0
@@ -110,6 +165,35 @@ end
                 @test getobjectivevalue(m)≈2
             end
         end
+    end
+
+    @testset "relu(x, l, u)" begin
+        @testset "Variable Input" begin
+            @testset "strictly non-negative" begin
+                m = get_new_model()
+                x = @variable(m)
+                x_r=relu(x, 1, 2)
+                @test count_binary_variables(m)==0
+                
+                @objective(m, Max, x_r-x)
+                solve(m)
+                @test getobjectivevalue(m)≈0
+            end
+            @testset "strictly non-positive" begin
+                m = get_new_model()
+                x = @variable(m)
+                x_r = relu(x, -2, -1)
+                @test upperbound(x_r) == 0
+                @test lowerbound(x_r) == 0
+            end
+            @testset "constant" begin
+                m = get_new_model()
+                x = @variable(m)
+                x_r = relu(x, 2, 2)
+                @test upperbound(x_r) == 2
+                @test lowerbound(x_r) == 2
+            end
+        end        
     end
 
     @testset "masked_relu" begin

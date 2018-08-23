@@ -13,12 +13,11 @@ end
 function get_tightening_algorithm(
     x::JuMPLinearType,
     nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
-    if !isnull(nta)
+    if is_constant(x)
+        return interval_arithmetic
+    elseif !isnull(nta)
         return get(nta)
     else
-        if is_constant(x)
-            return interval_arithmetic
-        end
         m = ConditionalJuMP.getmodel(x)
         return !haskey(m.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM : m.ext[:MIPVerify].tightening_algorithm
     end
