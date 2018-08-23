@@ -81,42 +81,50 @@ Makes named example neural networks available as a [`NeuralNet`](@ref) object.
 
 # Arguments
 * `name::String`: Name of example neural network. Options:
-    * `'MNIST.n1'`: MNIST classification. Two fully connected layers with 40 and 20
-        units, and softmax layer with 10 units. No adversarial training.
+    * `'MNIST.n1'`: 
+        * Architecture: Two fully connected layers with 40 and 20 units, and 
+          softmax layer with 10 units. 
+        * Training: Trained regularly with no attempt to increase robustness.
+    * `'MNIST.WK17a_linf0.1_authors'`. 
+        * Architecture: Two convolutional layers (stride length 2) with 16 and 
+          32 filters respectively (size 4 × 4 in both layers), followed by a 
+          fully-connected layer with 100 units. 
+        * Training: Network trained to be robust to attacks with \$l_\\infty\$ norm
+          at most 0.1 via method in [Provable defenses against adversarial examples 
+          via the convex outer adversarial polytope](https://arxiv.org/abs/1711.00851). 
+          Is MNIST network for which results are reported in that paper.
 """
 function get_example_network_params(name::String)::NeuralNet
-    if name == "MNIST.n1"
-        in1_height = 28
-        in1_width = 28
-        
-        A_height = 40
-        A_width = in1_height*in1_width
-        
-        B_height = 20
-        B_width = A_height
-        
-        C_height = 10
-        C_width = B_height
-        
+    if name == "MNIST.n1"       
         param_dict = prep_data_file(joinpath("weights", "mnist"), "n1.mat") |> matread
-        fc1 = get_matrix_params(param_dict, "fc1", (A_width, A_height))
-        fc2 = get_matrix_params(param_dict, "fc2", (B_width, B_height))
-        logits = get_matrix_params(param_dict, "logits", (C_width, C_height))
+        fc1 = get_matrix_params(param_dict, "fc1", (784, 40))
+        fc2 = get_matrix_params(param_dict, "fc2", (40, 20))
+        logits = get_matrix_params(param_dict, "logits", (20, 10))
         
-        nn = Sequential( 
-            [
-                Flatten(4),
-                fc1, ReLU(),
-                fc2, ReLU(),
-                logits
-            ],
-            name
-        )
+        nn = Sequential([
+            Flatten(4),
+            fc1, ReLU(),
+            fc2, ReLU(),
+            logits], name)
+        return nn
+    elseif name == "MNIST.WK17a_linf0.1_authors"
+        param_dict = prep_data_file(joinpath("weights", "mnist", "WK17a", "linf0.1"), "master_seed_1_epochs_100.mat") |> matread
+        conv1 = get_conv_params(param_dict, "conv1", (4, 4, 1, 16), expected_stride = 2)
+        conv2 = get_conv_params(param_dict, "conv2", (4, 4, 16, 32), expected_stride = 2)
+        fc1 = get_matrix_params(param_dict, "fc1", (1568, 100))
+        logits = get_matrix_params(param_dict, "logits", (100, 10))
+        
+        nn = Sequential([
+            conv1, ReLU(),
+            conv2, ReLU(),
+            Flatten([1, 3, 2, 4]),
+            fc1, ReLU(),
+            logits], name)
         return nn
     else
         throw(DomainError("No example network named $name."))
     end
 end
 
-# TODO (vtjeng): Add mnist networks by Wong/Kolter and Ragunathan/Steinhardt/Liang.
+# TODO (vtjeng): Add mnist networks Ragunathan/Steinhardt/Liang.
 # TODO (vtjeng): Make network naming case insensitive.

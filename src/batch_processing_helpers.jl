@@ -245,7 +245,7 @@ directly to [`find_adversarial_example`](@ref); see that documentation for more 
 + `tightening_solver`: 
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
-  See [`run_on_sample`](@ref) for more details.
+  See [`run_on_sample_for_certificate`](@ref) for more details.
 """
 function batch_find_certificate(
     nn::NeuralNet,
