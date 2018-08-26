@@ -137,11 +137,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/single_image.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Int64}",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Integer}",
     "page": "Single Image",
     "title": "MIPVerify.frac_correct",
     "category": "method",
-    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::LabelledDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
+    "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::LabelledDataset:\nnum_samples::Integer: Number of samples to use.\n\n\n\n"
 },
 
 {
@@ -165,7 +165,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Batch Processing",
     "title": "Batch Processing",
     "category": "section",
-    "text": "batch_find_certificate enables users to run find_adversarial_example  for multiple samples from a single dataset, writing 1) a single summary .csv file  for the dataset, with a row of summary results per sample, and 2) a file per sample containing the output dictionary from find_adversarial_example.batch_find_certificate allows verification of a dataset to be resumed if the process is interrupted by intelligently determining whether to rerun find_adversarial_example on a sample based on the solve_rerun_option specified."
+    "text": "batch_find_untargeted_attack enables users to run find_adversarial_example  for multiple samples from a single dataset, writing 1) a single summary .csv file  for the dataset, with a row of summary results per sample, and 2) a file per sample containing the output dictionary from find_adversarial_example.batch_find_untargeted_attack allows verification of a dataset to be resumed if the process is interrupted by intelligently determining whether to rerun find_adversarial_example on a sample based on the solve_rerun_option specified."
 },
 
 {
@@ -177,11 +177,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_certificate-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s54,N} where N where #s54<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s54,N} where N where #s54<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
-    "title": "MIPVerify.batch_find_certificate",
+    "title": "MIPVerify.batch_find_untargeted_attack",
     "category": "method",
-    "text": "batch_find_certificate(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices. \n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_certificate for more details.\n\n\n\n"
+    "text": "batch_find_untargeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with the target labels for each sample set  to the complement of the true label.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_untargeted_attack for more details.\n\n\n\n"
 },
 
 {
@@ -193,11 +193,27 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample_for_certificate-Tuple{Int64,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s230,N} where N where #s230<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
-    "title": "MIPVerify.run_on_sample_for_certificate",
+    "title": "MIPVerify.batch_find_targeted_attack",
     "category": "method",
-    "text": "run_on_sample_for_certificate(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
+    "text": "batch_find_targeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, target_labels, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with each of the target labels in target_labels individually targeted.\n\nOtherwise same parameters as batch_find_untargeted_attack.\n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample_for_targeted_attack-Tuple{Integer,Integer,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
+    "page": "Batch Processing",
+    "title": "MIPVerify.run_on_sample_for_targeted_attack",
+    "category": "method",
+    "text": "run_on_sample_for_targeted_attack(sample_number, target_label, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve recorded in summary_dt matching sample_number.\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :TargetIndexes, :SolveStatus, and :ObjectiveValue.\n\n\n\n"
+},
+
+{
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.run_on_sample_for_untargeted_attack-Tuple{Integer,DataFrames.DataFrame,MIPVerify.SolveRerunOption}",
+    "page": "Batch Processing",
+    "title": "MIPVerify.run_on_sample_for_untargeted_attack",
+    "category": "method",
+    "text": "run_on_sample_for_untargeted_attack(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve recorded in summary_dt matching sample_number.\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
 },
 
 {
