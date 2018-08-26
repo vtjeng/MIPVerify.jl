@@ -4,19 +4,33 @@ using Base.Test
 using JuMP
 using MathProgBase
 
+using MIPVerify
 using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNet
 using MIPVerify: PerturbationFamily
 
+const TEST_DEFAULT_TIGHTENING_ALGORITHM = mip
+
 if Pkg.installed("Gurobi") == nothing
     using Cbc
-    solver = CbcSolver()
+    main_solver = CbcSolver(logLevel=0)
+    tightening_solver = CbcSolver(logLevel=0, seconds=20)
 else
     using Gurobi
-    solver = GurobiSolver()
+    main_solver = GurobiSolver(Gurobi.Env())
+    tightening_solver = GurobiSolver(Gurobi.Env(), OutputFlag=0, TimeLimit=20)
+end
+
+function get_main_solver()::MathProgBase.SolverInterface.AbstractMathProgSolver
+    main_solver
+end
+
+function get_tightening_solver()::MathProgBase.SolverInterface.AbstractMathProgSolver
+    tightening_solver
 end
 
 function get_new_model()::Model
+    solver = get_main_solver()
     MathProgBase.setparameters!(solver, Silent = true)
     return Model(solver=solver)
 end
@@ -39,11 +53,11 @@ function test_find_adversarial_example(
     norm_order::Real,
     tolerance::Real, 
     expected_objective_value::Real,
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     ) where {N} 
     d = find_adversarial_example(
-        nn, x0, target_selection, main_solver, 
-        pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false)
+        nn, x0, target_selection, get_main_solver(),
+        pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false, 
+        tightening_solver=get_tightening_solver(), tightening_algorithm=TEST_DEFAULT_TIGHTENING_ALGORITHM)
     println(d[:SolveStatus])
     if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)
@@ -82,8 +96,7 @@ function batch_test_adversarial_example(
         @testset "target label = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
             test_find_adversarial_example(
                 nn, x0, 
-                target_selection, pp, norm_order, tolerance, expected_objective_value,
-                solver)
+                target_selection, pp, norm_order, tolerance, expected_objective_value)
             end
         end
     end
