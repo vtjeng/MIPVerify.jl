@@ -1,5 +1,5 @@
-# Importing External Datasets
-For your convenience, the MNIST dataset is available as part of our package.
+# Datasets
+For your convenience, the MNIST and CIFAR10 dataset is available as part of our package.
 
 ## Index
 ```@index

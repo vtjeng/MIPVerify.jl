@@ -1,4 +1,5 @@
 # Tutorials
+We suggest getting started with the tutorials.
 
 ## Quickstart
 [A basic demonstration](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb) on how to find adversarial examples for a pre-trained example network on the MNIST dataset.

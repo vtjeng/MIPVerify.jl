@@ -1,8 +1,12 @@
 # Batch Processing
-When running on multiple samples from a single dataset, [`batch_find_certificate`](@ref) 
-allows you to redo solves intelligently - redoing 1) no solves, 2) all solves, 3) only 
-solves where the sample status is indeterminate, or 4) only solves where the best
-counter-example is non-optimal.
+[`batch_find_certificate`](@ref) enables users to run [`find_adversarial_example`](@ref) 
+for multiple samples from a single dataset, writing 1) a single summary `.csv` file 
+for the dataset, with a row of summary results per sample, and 2) a file per sample containing the
+output dictionary from [`find_adversarial_example`](@ref).
+
+[`batch_find_certificate`](@ref) allows verification of a dataset to be resumed if the
+process is interrupted by intelligently determining whether to rerun [`find_adversarial_example`](@ref)
+on a sample based on the `solve_rerun_option` specified.
 
 ## Index
 ```@index

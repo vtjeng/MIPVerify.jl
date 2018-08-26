@@ -42,13 +42,20 @@ Finds the perturbed image closest to `input` such that the network described by 
 classifies the perturbed image in one of the categories identified by the 
 indexes in `target_selection`.
 
-`main_solver` specifies the solver used.
+`main_solver` specifies the solver used to solve the MIP problem once it has been built.
 
-*Formal Definition*: If there are a total of `n` categories, the output vector `y` has 
-length `n`. We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
-and for all `i ∉ target_selection`.
+The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
+:Perturbation, :PerturbedInput, :Output`. 
+See the [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
+on what individual dictionary entries correspond to.
+
+*Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector 
+`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`. 
+We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
 
 # Named Arguments:
++ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to 
+    be its complement.
 + `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. Determines
     the family of perturbations over which we are searching for adversarial examples.
 + `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the 
@@ -57,29 +64,33 @@ and for all `i ∉ target_selection`.
 + `tolerance::Real`: Defaults to `0.0`. See formal definition above.
 + `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
     bounds on input to each non-linear unit even if a cached model exists.
-+ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to 
-    be its complement.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we determine the upper and lower
-    bounds on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
-   (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
-   (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
-   (3) `mip` solves the full `mip` formulation.
-+ `tightening_solver`: Defaults to the same type of solver as
-    the `main_solver`, with a time limit of 20s per solver and output suppressed. Used only
-    if the `tightening_algorithm` is `lp` or `mip`.
-+ `cache_model`: Defaults to `true`. If `true`, saves model generated (but does *not* remove)
-    existing cached model if `false`.
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we 
+    determine the upper and lower bounds on input to each nonlinear unit. 
+    Allowed options are `interval_arithmetic`, `lp`, `mip`.
+    (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
+    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
+    (3) `mip` solves the full `mip` formulation.
++ `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
+    Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver 
+    and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
++ `cache_model`: Defaults to `true`. If `true`, saves model generated. If `false`, does not save model
+    generated, but any existing cached model is retained.
++ `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
+    `input` can be determined efficiently. If the predicted index is one of the indexes in `target_selection`,
+    we can skip the relatively costly process of building the model for the MIP problem since we already have an
+    "adversarial example" --- namely, the input itself. We continue build the model and solve the (trivial) MIP
+    problem if and only if `solve_if_predicted_in_targeted` is `true`.
 """
 function find_adversarial_example(
     nn::NeuralNet, 
     input::Array{<:Real},
     target_selection::Union{Integer, Array{<:Integer, 1}},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    invert_target_selection::Bool = false,
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild::Bool = false,
-    invert_target_selection::Bool = false,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     cache_model::Bool = true,

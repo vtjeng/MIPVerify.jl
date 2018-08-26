@@ -53,10 +53,21 @@ $(TYPEDEF)
 
 Named dataset containing a training set and a test set which are expected to contain the
 same kind of data.
+
+$(FIELDS)
 """
 struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
-    name::String
+    """
+    Name of dataset.
+    """
+    name::String 
+    """
+    Training set.
+    """
     train::T
+    """
+    Test set.
+    """
     test::U
     # TODO (vtjeng): train and test should be the same type of struct (but might potentially have different parameters).
 end

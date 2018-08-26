@@ -1,8 +1,8 @@
 using Base.Test
 using MIPVerify: get_example_network_params, read_datasets, frac_correct
 
-@testset "import_weights.jl" begin
-    @testset "Example network params" begin
+@testset "import_example_nets.jl" begin
+    @testset "get_example_network_params" begin
         @testset "MNIST.n1" begin
             nn = get_example_network_params("MNIST.n1")
             mnist = read_datasets("mnist")
@@ -13,9 +13,14 @@ using MIPVerify: get_example_network_params, read_datasets, frac_correct
             mnist = read_datasets("mnist")
             @test frac_correct(nn, mnist.test, 10000) == 0.9811
         end
+        @testset "MNIST.RSL18a_linf0.1_authors" begin
+            nn = get_example_network_params("MNIST.RSL18a_linf0.1_authors")
+            mnist = read_datasets("mnist")
+            @test frac_correct(nn, mnist.test, 10000) == 0.9582
+        end
     end
 
-    @testset "Unrecognized example network" begin
+    @testset "unrecognized example network" begin
         @test_throws DomainError get_example_network_params("the social network")
     end
 end

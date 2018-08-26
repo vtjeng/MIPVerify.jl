@@ -101,14 +101,14 @@ function create_summary_file_if_not_present(summary_file_path::String)
     end
 end
 
-function verify_target_sample_numbers(target_sample_numbers::AbstractArray{<:Integer}, dataset::MIPVerify.LabelledDataset)
+function verify_target_indices(target_indices::AbstractArray{<:Integer}, dataset::MIPVerify.LabelledDataset)
     num_samples = MIPVerify.num_samples(dataset)
     @assert(
-        minimum(target_sample_numbers) >= 1,
+        minimum(target_indices) >= 1,
         "Target sample indexes must be 1 or larger."
     )
     @assert(
-        maximum(target_sample_numbers) <= num_samples,
+        maximum(target_indices) <= num_samples,
         "Target sample indexes must be no larger than the total number of samples $(num_samples)."
     )
 end
@@ -172,7 +172,7 @@ end
 $(SIGNATURES)
 
 Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
-looking up information on the most recent completed solve. recorded in `summary_dt`
+looking up information on the most recent completed solve recorded in `summary_dt`
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
 and `:ObjectiveValue`. 
@@ -215,9 +215,8 @@ end
 $(SIGNATURES)
 
 Runs [`find_adversarial_example`](@ref) for the specified neural network `nn` and `dataset`
-for the `target_sample_numbers`, skipping `target_sample_numbers` based on the selected
-`solve_rerun_option`.
-
+for samples identified by the `target_indices`. 
+    
 It creates a named directory in `save_path`, with the name summarizing 
   1) the name of the network in `nn`, 
   2) the perturbation family `pp`, 
@@ -231,18 +230,18 @@ This functioned is designed so that it can be interrupted and restarted cleanly;
 on the `summary.csv` file to determine what the results of previous runs are (so modifying
 this file manually can lead to unexpected behavior.)
 
-`main_solver` specifies the solver used.
+If the summary file already contains a result for a given target index, the 
+`solve_rerun_option` determines whether we rerun [`find_adversarial_example`](@ref) for this
+particular index.
+
+`main_solver` specifies the solver used to solve the MIP problem once it has been built.
 
 # Named Arguments:
-`pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver` are passed
-directly to [`find_adversarial_example`](@ref); see that documentation for more details.
-
-+ `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. 
-+ `norm_order::Real`: Defaults to `1`.
-+ `tolerance::Real`: Defaults to `0.0`.
-+ `rebuild::Bool`: Defaults to `false`.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`.
-+ `tightening_solver`: 
++ `save_path`: Directory where results will be saved. Defaults to current directory.
++ `pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model,
+  solve_if_predicted_in_targeted` are passed
+  through to [`find_adversarial_example`](@ref) and have the same default values; 
+  see documentation for that function for more details.
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
   See [`run_on_sample_for_certificate`](@ref) for more details.
@@ -250,24 +249,24 @@ directly to [`find_adversarial_example`](@ref); see that documentation for more 
 function batch_find_certificate(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
-    target_sample_numbers::AbstractArray{<:Integer},
+    target_indices::AbstractArray{<:Integer},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     save_path::String = ".",
+    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
-    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     cache_model = true,
     solve_if_predicted_in_targeted = true
     )::Void
     
-    verify_target_sample_numbers(target_sample_numbers, dataset)
+    verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
-    for sample_number in target_sample_numbers
+    for sample_number in target_indices
         if run_on_sample_for_certificate(sample_number, dt, solve_rerun_option)
             # TODO (vtjeng): change function signature for get_image and get_label
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
@@ -314,7 +313,7 @@ end
 function batch_find_targeted_attack(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
-    target_sample_numbers::AbstractArray{<:Integer},
+    target_indices::AbstractArray{<:Integer},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     save_path::String = ".",
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
@@ -330,10 +329,10 @@ function batch_find_targeted_attack(
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
-    verify_target_sample_numbers(target_sample_numbers, dataset)
+    verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
-    for sample_number in target_sample_numbers
+    for sample_number in target_indices
         for target_label in 1:10
             if run_on_sample_for_targeted_attack(sample_number, target_label, dt, solve_rerun_option)
                 input = MIPVerify.get_image(dataset.images, sample_number)
@@ -356,15 +355,15 @@ end
 function batch_build_model(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
-    target_sample_numbers::AbstractArray{<:Integer},
+    target_indices::AbstractArray{<:Integer},
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     )::Void
 
-    verify_target_sample_numbers(target_sample_numbers, dataset)
+    verify_target_indices(target_indices, dataset)
 
-    for sample_number in target_sample_numbers
+    for sample_number in target_indices
         info(MIPVerify.LOGGER, "Working on index $(sample_number)")
         input = MIPVerify.get_image(dataset.images, sample_number)
         build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
