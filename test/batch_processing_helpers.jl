@@ -3,17 +3,6 @@ using MIPVerify
 using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_not_present, create_summary_file_if_not_present, verify_target_indices
 
 @testset "batch_processing_helpers.jl" begin
-    base_test_directory = joinpath(Base.tempdir(), "julia", "MIPVerify", "test")
-    ispath(base_test_directory) ? rm(base_test_directory; recursive=true) : nothing
-
-    function find_empty_folder_path()
-        index = 1
-        while joinpath(base_test_directory, "$index") |> ispath
-            index +=1 
-        end
-        return joinpath(base_test_directory, "$index")
-    end
-
     @testset "BatchRunParameters" begin
         brp = BatchRunParameters(
             Sequential([], "name"),
@@ -27,23 +16,30 @@ using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_n
             @test String(take!(io)) == "name__unrestricted__1__0"
         end
     end
+
     @testset "mkpath_if_not_present" begin
-        path = find_empty_folder_path()
-        mkpath_if_not_present(path)
-        @test ispath(path)
-        mkpath_if_not_present(path)
-        @test ispath(path)
+        mktempdir() do dir
+            path = joinpath(dir, "1")
+            mkpath_if_not_present(path)
+            @test ispath(path)
+            mkpath_if_not_present(path)
+            @test ispath(path)
+        end
     end
+
     @testset "create_summary_file_if_not_present" begin
-        folder_path = find_empty_folder_path()
-        mkpath_if_not_present(folder_path)
-        file_path = joinpath(folder_path, "summary.csv")
-        create_summary_file_if_not_present(file_path)
-        @test isfile(file_path)
+        mktempdir() do dir
+            file_path = joinpath(dir, "summary.csv")
+            create_summary_file_if_not_present(file_path)
+            @test isfile(file_path)
+        end
     end
+    
     @testset "verify_target_indices" begin
         dataset = read_datasets("mnist").test
         @test_throws AssertionError verify_target_indices([0], dataset) 
         @test_throws AssertionError verify_target_indices([10001], dataset) 
     end
+
+    
 end
