@@ -1,5 +1,5 @@
 using Base.Test
-using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
+using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 
 @testset "models.jl" begin
     @testset "UnrestrictedPerturbationFamily" begin
@@ -16,6 +16,14 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
             io = IOBuffer()
             Base.show(io, p)
             @test String(take!(io)) == "blur-(5,5)"
+        end
+    end
+    @testset "LInfNormBoundedPerturbationFamily" begin
+        @testset "Base.show" begin
+            p = LInfNormBoundedPerturbationFamily(0.1)
+            io = IOBuffer()
+            Base.show(io, p)
+            @test String(take!(io)) == "linf-norm-bounded-0.1"
         end
     end
 end

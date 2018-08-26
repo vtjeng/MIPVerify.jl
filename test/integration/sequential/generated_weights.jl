@@ -1,6 +1,7 @@
 using Base.Test
 
 @testset "generated_weights" begin
+    include("generated_weights/fc+softmax.jl")
     include("generated_weights/mfc+mfc+softmax.jl")
     include("generated_weights/conv+fc+softmax.jl")
 

@@ -25,6 +25,11 @@ Base.hash(a::UnrestrictedPerturbationFamily, h::UInt) = hash(:UnrestrictedPertur
 
 abstract type RestrictedPerturbationFamily <: PerturbationFamily end
 
+"""
+For blurring perturbations, we currently allow colors to "bleed" across color channels - 
+that is, the value of the output of channel 1 can depend on the input to all channels.
+(This is something that is worth reconsidering if we are working on color input).
+"""
 @auto_hash_equals struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
     blur_kernel_size::NTuple{2}
 end
@@ -197,10 +202,11 @@ function build_reusable_model_uncached(
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_size = size(input)
-    filter_size = (pp.blur_kernel_size..., 1, 1)
+    num_channels = size(input)[4]
+    filter_size = (pp.blur_kernel_size..., num_channels, num_channels)
 
     v_f = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(filter_size))
-    @constraint(m, sum(v_f) == 1)
+    @constraint(m, sum(v_f) == num_channels)
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianRange(input_size))
     @constraint(m, v_x0 .== input |> Conv2d(v_f))
 
