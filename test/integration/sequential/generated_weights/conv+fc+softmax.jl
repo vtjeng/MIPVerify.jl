@@ -76,6 +76,18 @@ expected_objective_values = Dict(
     ([2, 3], pp_blur, Inf, 0) => 0.0105534
 )
 
+if Pkg.installed("Gurobi") == nothing
+    # Skip some tests if Gurobi is not installed.
+    selected_test_keys = [
+        (2, pp_unrestricted, Inf, 0),
+        (2, LInfNormBoundedPerturbationFamily(0.23), Inf, 0),
+        (2, LInfNormBoundedPerturbationFamily(0.236), Inf, 0),
+        (3, pp_blur, 1, 0),
+        ([2, 3], pp_blur, 1, 0)
+    ]
+    expected_objective_values = filter((k, v) -> k in selected_test_keys, expected_objective_values)
+end
+
 batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end
