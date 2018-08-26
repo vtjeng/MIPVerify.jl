@@ -59,7 +59,7 @@ using DataFrames
             MIPVerify.batch_find_untargeted_attack(
                 nn_wk17a, 
                 mnist.test, 
-                [1, 9, 248], # samples selected to be robust, non-robust, and misclassified.
+                [1], # robust sample
                 get_main_solver(), 
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
@@ -67,6 +67,23 @@ using DataFrames
                 rebuild=true, 
                 tightening_algorithm=lp, 
                 tightening_solver=get_tightening_solver(),
+                cache_model=false,
+                solve_if_predicted_in_targeted=false,
+                save_path=dir
+            )
+        end
+
+        mktempdir() do dir
+            MIPVerify.batch_find_untargeted_attack(
+                nn_wk17a, 
+                mnist.test, 
+                [9, 248], # non-robust and misclassified sample
+                get_main_solver(), 
+                solve_rerun_option=MIPVerify.never,
+                pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+                norm_order=Inf, 
+                rebuild=true, 
+                tightening_algorithm=interval_arithmetic,
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
                 save_path=dir
@@ -84,7 +101,7 @@ using DataFrames
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf,
-                tightening_algorithm=lp, 
+                tightening_algorithm=interval_arithmetic, 
                 tightening_solver=get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
@@ -102,7 +119,7 @@ using DataFrames
                 [1], 
                 get_tightening_solver(),
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-                tightening_algorithm=lp
+                tightening_algorithm=interval_arithmetic
             )
         end
     end   
