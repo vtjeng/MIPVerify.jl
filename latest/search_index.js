@@ -61,7 +61,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Tutorials",
     "title": "Tutorials",
     "category": "section",
-    "text": ""
+    "text": "We suggest getting started with the tutorials."
 },
 
 {
@@ -105,48 +105,48 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#",
-    "page": "Basic Usage",
-    "title": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#",
+    "page": "Single Image",
+    "title": "Single Image",
     "category": "page",
     "text": ""
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#Basic-Usage-1",
-    "page": "Basic Usage",
-    "title": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#Single-Image-1",
+    "page": "Single Image",
+    "title": "Single Image",
     "category": "section",
-    "text": "find_adversarial_example is the core function that you will be calling to  find adversarial examples. To avoid spending time verifying the wrong network, we suggest that you check that the network gets reasonable performance on the test set using frac_correct."
+    "text": "find_adversarial_example finds the closest adversarial example to a given input image for a particular NeuralNet.As a sanity check, we suggest that you verify that the NeuralNet  imported achieves the expected performance on the test set.  This can be done using frac_correct."
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#Index-1",
-    "page": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#Index-1",
+    "page": "Single Image",
     "title": "Index",
     "category": "section",
     "text": "Pages   = [\"basic_usage.md\"]\nOrder   = [:function, :type]"
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s201,1} where #s201<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
-    "page": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s201,1} where #s201<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "page": "Single Image",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
-    "text": "find_adversarial_example(nn, input, target_selection, main_solver; pp, norm_order, tolerance, rebuild, invert_target_selection, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used.\n\nFormal Definition: If there are a total of n categories, the output vector y has  length n. We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection  and for all i ∉ target_selection.\n\nNamed Arguments:\n\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we determine the upper and lower   bounds on input to each nonlinear unit. Allowed options are interval_arithmetic, lp, mip.  (1) interval_arithmetic looks at the bounds on the output to the previous layer.  (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.  (3) mip solves the full mip formulation.\ntightening_solver: Defaults to the same type of solver as   the main_solver, with a time limit of 20s per solver and output suppressed. Used only   if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated (but does not remove)   existing cached model if false.\n\n\n\n"
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; invert_target_selection, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nThe output dictionary has keys :Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :Perturbation, :PerturbedInput, :Output.  See the tutorial on what individual dictionary entries correspond to.\n\nFormal Definition: If there are a total of n categories, the (perturbed) output vector  y=d[:Output]=d[:PerturbedInput] |> nn has length n.  We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection and for all i ∉ target_selection.\n\nNamed Arguments:\n\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we    determine the upper and lower bounds on input to each nonlinear unit.    Allowed options are interval_arithmetic, lp, mip.   (1) interval_arithmetic looks at the bounds on the output to the previous layer.   (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.   (3) mip solves the full mip formulation.\ntightening_solver: Solver used to determine upper and lower bounds for input to nonlinear units.   Defaults to the same type of solver as the main_solver, with a time limit of 20s per solver    and output suppressed. Used only if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated. If false, does not save model   generated, but any existing cached model is retained.\nsolve_if_predicted_in_targeted: Defaults to true. The prediction that nn makes for the unperturbed   input can be determined efficiently. If the predicted index is one of the indexes in target_selection,   we can skip the relatively costly process of building the model for the MIP problem since we already have an   \"adversarial example\" –- namely, the input itself. We continue build the model and solve the (trivial) MIP   problem if and only if solve_if_predicted_in_targeted is true.\n\n\n\n"
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Int64}",
-    "page": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.frac_correct-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,Int64}",
+    "page": "Single Image",
     "title": "MIPVerify.frac_correct",
     "category": "method",
     "text": "frac_correct(nn, dataset, num_samples)\n\n\nReturns the fraction of items the neural network correctly classifies of the first num_samples of the provided dataset. If there are fewer than num_samples items, we use all of the available samples.\n\nNamed Arguments:\n\nnn::NeuralNet: The parameters of the neural network.\ndataset::LabelledDataset:\nnum_samples::Int: Number of samples to use.\n\n\n\n"
 },
 
 {
-    "location": "finding_adversarial_examples/basic_usage.html#Public-Interface-1",
-    "page": "Basic Usage",
+    "location": "finding_adversarial_examples/single_image.html#Public-Interface-1",
+    "page": "Single Image",
     "title": "Public Interface",
     "category": "section",
     "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"MIPVerify.jl\"]\nPrivate = false"
@@ -165,7 +165,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Batch Processing",
     "title": "Batch Processing",
     "category": "section",
-    "text": "When running on multiple samples from a single dataset, batch_find_certificate  allows you to redo solves intelligently - redoing 1) no solves, 2) all solves, 3) only  solves where the sample status is indeterminate, or 4) only solves where the best counter-example is non-optimal."
+    "text": "batch_find_certificate enables users to run find_adversarial_example  for multiple samples from a single dataset, writing 1) a single summary .csv file  for the dataset, with a row of summary results per sample, and 2) a file per sample containing the output dictionary from find_adversarial_example.batch_find_certificate allows verification of a dataset to be resumed if the process is interrupted by intelligently determining whether to rerun find_adversarial_example on a sample based on the solve_rerun_option specified."
 },
 
 {
@@ -181,7 +181,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_certificate",
     "category": "method",
-    "text": "batch_find_certificate(nn, dataset, target_sample_numbers, main_solver; save_path, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, solve_rerun_option, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for the target_sample_numbers, skipping target_sample_numbers based on the selected solve_rerun_option.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nmain_solver specifies the solver used.\n\nNamed Arguments:\n\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver are passed directly to find_adversarial_example; see that documentation for more details.\n\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). \nnorm_order::Real: Defaults to 1.\ntolerance::Real: Defaults to 0.0.\nrebuild::Bool: Defaults to false.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip.\ntightening_solver: \nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample for more details.\n\n\n\n"
+    "text": "batch_find_certificate(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices. \n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_certificate for more details.\n\n\n\n"
 },
 
 {
@@ -197,7 +197,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Batch Processing",
     "title": "MIPVerify.run_on_sample_for_certificate",
     "category": "method",
-    "text": "run_on_sample_for_certificate(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve. recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
+    "text": "run_on_sample_for_certificate(sample_number, summary_dt, solve_rerun_option)\n\n\nDetermines whether to run a solve on a sample depending on the solve_rerun_option by looking up information on the most recent completed solve recorded in summary_dt\n\nsummary_dt is expected to be a DataFrame with columns :SampleNumber, :SolveStatus, and :ObjectiveValue. \n\nBehavior for different choices of solve_rerun_option:\n\nnever: true if and only if there is no previous completed solve.\nalways: true always.\nresolve_ambiguous_cases: true if there is no previous completed solve, or if the    most recent completed solve a) did not find a counter-example BUT b) the optimization   was not demosntrated to be infeasible.\nrefine_insecure_cases: true if there is no previous completed solve, or if the most   recent complete solve a) did find a counter-example BUT b) we did not reach a    provably optimal solution.\n\n\n\n"
 },
 
 {
@@ -206,6 +206,174 @@ var documenterSearchIndex = {"docs": [
     "title": "Internal",
     "category": "section",
     "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"batch_processing_helpers.jl\"]\nPublic  = false"
+},
+
+{
+    "location": "utils/import_example_nets.html#",
+    "page": "Example Neural Networks",
+    "title": "Example Neural Networks",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "utils/import_example_nets.html#Example-Neural-Networks-1",
+    "page": "Example Neural Networks",
+    "title": "Example Neural Networks",
+    "category": "section",
+    "text": "get_example_network_params imports the weights of networks verified in our paper, as well as other networks of interest, as NeuralNets that can immediately be verified via our tools."
+},
+
+{
+    "location": "utils/import_example_nets.html#Index-1",
+    "page": "Example Neural Networks",
+    "title": "Index",
+    "category": "section",
+    "text": "Pages   = [\"import_example_nets.md\"]\nOrder   = [:function, :type]"
+},
+
+{
+    "location": "utils/import_example_nets.html#MIPVerify.get_example_network_params-Tuple{String}",
+    "page": "Example Neural Networks",
+    "title": "MIPVerify.get_example_network_params",
+    "category": "method",
+    "text": "get_example_network_params(name)\n\n\nMakes named example neural networks available as a NeuralNet object.\n\nArguments\n\nname::String: Name of example neural network. Options:\n\'MNIST.n1\': \nArchitecture: Two fully connected layers with 40 and 20 units.\nTraining: Trained regularly with no attempt to increase robustness.\n\'MNIST.WK17a_linf0.1_authors\'. \nArchitecture: Two convolutional layers (stride length 2) with 16 and  32 filters respectively (size 4 × 4 in both layers), followed by a  fully-connected layer with 100 units.\nTraining: Network trained to be robust to attacks with l_infty norm at most 0.1 via method in Provable defenses against adversarial examples  via the convex outer adversarial polytope.  Is MNIST network for which results are reported in that paper.\n\'MNIST.RSL18a_linf0.1_authors\'. \nArchitecture: One fully connected layer with 500 units. \nTraining: Network trained to be robust to attacks with l_infty norm at most 0.1 via method in Certified Defenses against Adversarial Examples .  Is MNIST network for which results are reported in that paper.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_example_nets.html#Public-Interface-1",
+    "page": "Example Neural Networks",
+    "title": "Public Interface",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_example_nets.jl\"]\nPrivate = false"
+},
+
+{
+    "location": "utils/import_example_nets.html#Internal-1",
+    "page": "Example Neural Networks",
+    "title": "Internal",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_example_nets.jl\"]\nPublic  = false"
+},
+
+{
+    "location": "utils/import_weights.html#",
+    "page": "Helpers for importing individual layers",
+    "title": "Helpers for importing individual layers",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "utils/import_weights.html#Helpers-for-importing-individual-layers-1",
+    "page": "Helpers for importing individual layers",
+    "title": "Helpers for importing individual layers",
+    "category": "section",
+    "text": "You\'re likely to want to import parameter values from your trained neural networks from outside of Julia. get_conv_params and get_matrix_params are helper functions enabling you to import individual layers."
+},
+
+{
+    "location": "utils/import_weights.html#Index-1",
+    "page": "Helpers for importing individual layers",
+    "title": "Index",
+    "category": "section",
+    "text": "Pages   = [\"import_weights.md\"]\nOrder   = [:function, :type]"
+},
+
+{
+    "location": "utils/import_weights.html#MIPVerify.get_conv_params-Tuple{Dict{String,V} where V,String,NTuple{4,Int64}}",
+    "page": "Helpers for importing individual layers",
+    "title": "MIPVerify.get_conv_params",
+    "category": "method",
+    "text": "get_conv_params(param_dict, layer_name, expected_size; matrix_name, bias_name, expected_stride)\n\n\nHelper function to import the parameters for a convolution layer from param_dict as a     Conv2d object.\n\nThe default format for the key is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively. The expected parameter names will then be \'layer_name/matrix_name\'     and \'layer_name/bias_name\'\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{4, Int}: Tuple of length 4 corresponding to the expected size   of the weights of the layer.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_weights.html#MIPVerify.get_matrix_params-Tuple{Dict{String,V} where V,String,Tuple{Int64,Int64}}",
+    "page": "Helpers for importing individual layers",
+    "title": "MIPVerify.get_matrix_params",
+    "category": "method",
+    "text": "get_matrix_params(param_dict, layer_name, expected_size; matrix_name, bias_name)\n\n\nHelper function to import the parameters for a layer carrying out matrix multiplication      (e.g. fully connected layer / softmax layer) from param_dict as a     Linear object.\n\nThe default format for the key is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively. The expected parameter names will then be \'layer_name/matrix_name\'     and \'layer_name/bias_name\'\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{2, Int}: Tuple of length 2 corresponding to the expected size  of the weights of the layer.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_weights.html#Public-Interface-1",
+    "page": "Helpers for importing individual layers",
+    "title": "Public Interface",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_weights.jl\"]\nPrivate = false"
+},
+
+{
+    "location": "utils/import_weights.html#Internal-1",
+    "page": "Helpers for importing individual layers",
+    "title": "Internal",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_weights.jl\"]\nPublic  = false"
+},
+
+{
+    "location": "utils/import_datasets.html#",
+    "page": "Datasets",
+    "title": "Datasets",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "utils/import_datasets.html#Datasets-1",
+    "page": "Datasets",
+    "title": "Datasets",
+    "category": "section",
+    "text": "For your convenience, the MNIST and CIFAR10 dataset is available as part of our package."
+},
+
+{
+    "location": "utils/import_datasets.html#Index-1",
+    "page": "Datasets",
+    "title": "Index",
+    "category": "section",
+    "text": "Pages   = [\"import_datasets.md\"]\nOrder   = [:function, :type]"
+},
+
+{
+    "location": "utils/import_datasets.html#MIPVerify.read_datasets-Tuple{String}",
+    "page": "Datasets",
+    "title": "MIPVerify.read_datasets",
+    "category": "method",
+    "text": "read_datasets(name)\n\n\nMakes popular machine learning datasets available as a NamedTrainTestDataset.\n\nArguments\n\nname::String: name of machine learning dataset. Options:\nMNIST: The MNIST Database of handwritten digits. Pixel values in original dataset are provided as uint8 (0 to 255), but are scaled to range from 0 to 1 here.\nCIFAR10: Labelled subset in 10 classes of 80 million tiny images dataset. Pixel values in original dataset are provided as uint8 (0 to 255), but are scaled to range from 0 to 1 here.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_datasets.html#Public-Interface-1",
+    "page": "Datasets",
+    "title": "Public Interface",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_datasets.jl\"]\nPrivate = false"
+},
+
+{
+    "location": "utils/import_datasets.html#MIPVerify.LabelledImageDataset",
+    "page": "Datasets",
+    "title": "MIPVerify.LabelledImageDataset",
+    "category": "type",
+    "text": "struct LabelledImageDataset{T<:Real, U<:Integer} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_datasets.html#MIPVerify.NamedTrainTestDataset",
+    "page": "Datasets",
+    "title": "MIPVerify.NamedTrainTestDataset",
+    "category": "type",
+    "text": "struct NamedTrainTestDataset{T<:MIPVerify.Dataset, U<:MIPVerify.Dataset} <: MIPVerify.Dataset\n\nNamed dataset containing a training set and a test set which are expected to contain the same kind of data.\n\nname\nName of dataset.\n\ntrain\nTraining set.\n\ntest\nTest set.\n\n\n\n"
+},
+
+{
+    "location": "utils/import_datasets.html#Internal-1",
+    "page": "Datasets",
+    "title": "Internal",
+    "category": "section",
+    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_datasets.jl\"]\nPublic  = false"
 },
 
 {
@@ -277,7 +445,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Layers",
     "title": "Layers",
     "category": "section",
-    "text": "Each layer in the neural net corresponds to a struct that simultaneously specifies: 1) the operation being carried out in the layer (recorded in the _type_ of the struct) and 2) the parameters for the operation (recorded in the values of the fields of the struct).When we pass an input array of real numbers to a layer struct, we get an output array of real numbers that is the result of the layer operating on the input.Conversely, when we pass an input array of JuMP variables, we get an output array of JuMP variables, with the appropriate mixed-integer constraints (as determined by the layer) imposed between the input and output."
+    "text": "Each layer in the neural net corresponds to a struct that simultaneously specifies: 1) the operation being carried out in the layer (recorded in the type of the struct) and 2) the parameters for the operation (recorded in the values of the fields of the struct).When we pass an input array of real numbers to a layer struct, we get an output array of real numbers that is the result of the layer operating on the input.Conversely, when we pass an input array of JuMP variables, we get an output array of JuMP variables, with the appropriate mixed-integer constraints (as determined by the layer) imposed between the input and output."
 },
 
 {
@@ -566,134 +734,6 @@ var documenterSearchIndex = {"docs": [
     "title": "Internal",
     "category": "section",
     "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\n    \"net_components/core_ops.jl\"\n    ]\nPublic  = false"
-},
-
-{
-    "location": "utils/import_weights.html#",
-    "page": "Importing Parameter Values",
-    "title": "Importing Parameter Values",
-    "category": "page",
-    "text": ""
-},
-
-{
-    "location": "utils/import_weights.html#Importing-Parameter-Values-1",
-    "page": "Importing Parameter Values",
-    "title": "Importing Parameter Values",
-    "category": "section",
-    "text": "You\'re likely to want to import parameter values from your trained neural networks from outside of Julia. get_example_network_params imports example networks provided as part of the package, while get_conv_params and get_matrix_params import individual layers."
-},
-
-{
-    "location": "utils/import_weights.html#Index-1",
-    "page": "Importing Parameter Values",
-    "title": "Index",
-    "category": "section",
-    "text": "Pages   = [\"import_weights.md\"]\nOrder   = [:function, :type]"
-},
-
-{
-    "location": "utils/import_weights.html#MIPVerify.get_conv_params-Tuple{Dict{String,V} where V,String,NTuple{4,Int64}}",
-    "page": "Importing Parameter Values",
-    "title": "MIPVerify.get_conv_params",
-    "category": "method",
-    "text": "get_conv_params(param_dict, layer_name, expected_size; matrix_name, bias_name, expected_stride)\n\n\nHelper function to import the parameters for a convolution layer from param_dict as a     Conv2d object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{4, Int}: Tuple of length 4 corresponding to the expected size   of the weights of the layer.\n\n\n\n"
-},
-
-{
-    "location": "utils/import_weights.html#MIPVerify.get_example_network_params-Tuple{String}",
-    "page": "Importing Parameter Values",
-    "title": "MIPVerify.get_example_network_params",
-    "category": "method",
-    "text": "get_example_network_params(name)\n\n\nMakes named example neural networks available as a NeuralNet object.\n\nArguments\n\nname::String: Name of example neural network. Options:\n\'MNIST.n1\': MNIST classification. Two fully connected layers with 40 and 20   units, and softmax layer with 10 units. No adversarial training.\n\n\n\n"
-},
-
-{
-    "location": "utils/import_weights.html#MIPVerify.get_matrix_params-Tuple{Dict{String,V} where V,String,Tuple{Int64,Int64}}",
-    "page": "Importing Parameter Values",
-    "title": "MIPVerify.get_matrix_params",
-    "category": "method",
-    "text": "get_matrix_params(param_dict, layer_name, expected_size; matrix_name, bias_name)\n\n\nHelper function to import the parameters for a layer carrying out matrix multiplication      (e.g. fully connected layer / softmax layer) from param_dict as a     Linear object.\n\nThe default format for parameter names is \'layer_name/weight\' and \'layer_name/bias\';      you can customize this by passing in the named arguments matrix_name and bias_name     respectively.\n\nArguments\n\nparam_dict::Dict{String}: Dictionary mapping parameter names to array of weights   / biases.\nlayer_name::String: Identifies parameter in dictionary.\nexpected_size::NTuple{2, Int}: Tuple of length 2 corresponding to the expected size  of the weights of the layer.\n\n\n\n"
-},
-
-{
-    "location": "utils/import_weights.html#Public-Interface-1",
-    "page": "Importing Parameter Values",
-    "title": "Public Interface",
-    "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_weights.jl\"]\nPrivate = false"
-},
-
-{
-    "location": "utils/import_weights.html#Internal-1",
-    "page": "Importing Parameter Values",
-    "title": "Internal",
-    "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_weights.jl\"]\nPublic  = false"
-},
-
-{
-    "location": "utils/import_datasets.html#",
-    "page": "Importing External Datasets",
-    "title": "Importing External Datasets",
-    "category": "page",
-    "text": ""
-},
-
-{
-    "location": "utils/import_datasets.html#Importing-External-Datasets-1",
-    "page": "Importing External Datasets",
-    "title": "Importing External Datasets",
-    "category": "section",
-    "text": "For your convenience, the MNIST dataset is available as part of our package."
-},
-
-{
-    "location": "utils/import_datasets.html#Index-1",
-    "page": "Importing External Datasets",
-    "title": "Index",
-    "category": "section",
-    "text": "Pages   = [\"import_datasets.md\"]\nOrder   = [:function, :type]"
-},
-
-{
-    "location": "utils/import_datasets.html#MIPVerify.read_datasets-Tuple{String}",
-    "page": "Importing External Datasets",
-    "title": "MIPVerify.read_datasets",
-    "category": "method",
-    "text": "read_datasets(name)\n\n\nMakes popular machine learning datasets available as a NamedTrainTestDataset.\n\nArguments\n\nname::String: name of machine learning dataset. Options:\nMNIST: The MNIST Database of handwritten digits\n\n\n\n"
-},
-
-{
-    "location": "utils/import_datasets.html#Public-Interface-1",
-    "page": "Importing External Datasets",
-    "title": "Public Interface",
-    "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_datasets.jl\"]\nPrivate = false"
-},
-
-{
-    "location": "utils/import_datasets.html#MIPVerify.LabelledImageDataset",
-    "page": "Importing External Datasets",
-    "title": "MIPVerify.LabelledImageDataset",
-    "category": "type",
-    "text": "struct LabelledImageDataset{T<:Real, U<:Integer} <: MIPVerify.LabelledDataset\n\nDataset of images stored as a 4-dimensional array of size (num_samples, image_height,  image_width, num_channels), with accompanying labels (sorted in the same order) of size num_samples.\n\n\n\n"
-},
-
-{
-    "location": "utils/import_datasets.html#MIPVerify.NamedTrainTestDataset",
-    "page": "Importing External Datasets",
-    "title": "MIPVerify.NamedTrainTestDataset",
-    "category": "type",
-    "text": "struct NamedTrainTestDataset{T<:MIPVerify.Dataset, U<:MIPVerify.Dataset} <: MIPVerify.Dataset\n\nNamed dataset containing a training set and a test set which are expected to contain the same kind of data.\n\n\n\n"
-},
-
-{
-    "location": "utils/import_datasets.html#Internal-1",
-    "page": "Importing External Datasets",
-    "title": "Internal",
-    "category": "section",
-    "text": "Modules = [MIPVerify]\nOrder   = [:function, :type]\nPages   = [\"utils/import_datasets.jl\"]\nPublic  = false"
 },
 
 ]}
