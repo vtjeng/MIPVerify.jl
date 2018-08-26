@@ -26,26 +26,25 @@ The package provides
     + Layers that are linear transformations (fully-connected, convolution, and average-pooling layers)
     + Layers that use piecewise-linear functions (ReLU and maximum-pooling layers)
   + Support for bounding perturbations to:
-    + Perturbations of bounded $l_\infty$ norm
+    + Perturbations of bounded l-infty norm
     + Perturbations where the image is convolved with an adversarial blurring kernel
   + Utility functions for:
-    + Evaluating the robustness of a network on multiple samples, with good support for pausing and resuming evaluation or running solvers with different parameters
-    + Working with the MNIST dataset
-  + Sample neural networks, including:
-    + A multi-layer perceptron with 2 fully-connected layers of 48 and 24 units respectively trained with a regular loss function.
+    + Evaluating the robustness of a network on multiple samples in a dataset, with good support for pausing and resuming evaluation or running solvers with different parameters
+  + MNIST and CIFAR10 datasets for verification
+  + Sample neural networks, including the networks verified in our paper.
 
 See the [latest documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for a list of features, installation instructions, a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/). Installation should only take a couple of minutes, including installing Julia itself.
 
 ## Results in brief
 Below is a modified version of Table 1 from our paper, where we report the adversarial error for classifiers to bounded perturbations with l-infinity norm-bound `eps`. For our verifier, a time limit of 120s per sample is imposed. Gaps between our bounds correspond to cases where the solver reached the time limit for some samples. Error is over the full MNIST test set of 10,000 samples.
 
-| Dataset | Training Approach | `eps` | Lower<br>Bound<br>(PGD Error) | Lower<br>Bound<br>(ours) | Upper<br>Bound<br>(SOA)\^ | Upper<br>Bound<br>(ours)| Name\* 
-|---|---|---|---|---|---|---|---|---|
-| MNIST | [Wong et al. (2017)](https://arxiv.org/abs/1711.00851) | 0.1 |  4.11% | **4.38%** | 5.82% | **4.38%** | `MNIST.WK17a_linf0.1_authors`
-| MNIST | [Ragunathan et al. (2018)](https://arxiv.org/abs/1801.09344) | 0.1 | 11.51% | **14.36%** | 34.77% | **30.81%** | `MNIST.RSL18a_linf0.1_authors`
+| Dataset | Training Approach | `eps` | Lower<br>Bound<br>(PGD Error) | Lower<br>Bound<br>(ours) | Upper<br>Bound<br>(SOA)\^ | Upper<br>Bound<br>(ours)| Name in package\* |
+|---|---|---|---|---|---|---|---|
+| MNIST | [Wong et al. (2017)](https://arxiv.org/abs/1711.00851) | 0.1 |  4.11% | **4.38%** | 5.82% | **4.38%** | `MNIST.WK17a_linf0.1_authors` |
+| MNIST | [Ragunathan et al. (2018)](https://arxiv.org/abs/1801.09344) | 0.1 | 11.51% | **14.36%** | 34.77% | **30.81%** | `MNIST.RSL18a_linf0.1_authors` |
 
-\^Values in this column represent previous state-of-the-art (SOA), as described in our paper.<br>
-\*Neural network available for import via listed name using `get_example_network_params`.
+\^ Values in this column represent previous state-of-the-art (SOA), as described in our paper.<br>
+\* Neural network available for import via listed name using `get_example_network_params`.
 
 ## Citing this library
 ```
