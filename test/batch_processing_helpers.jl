@@ -5,6 +5,9 @@ isdefined(:TestHelpers) || include("TestHelpers.jl")
 using TestHelpers: get_main_solver, get_tightening_solver
 
 @testset "batch_processing_helpers.jl" begin
+    mnist = read_datasets("MNIST")
+    nn_wk17a = get_example_network_params("MNIST.WK17a_linf0.1_authors")
+
     @testset "BatchRunParameters" begin
         brp = BatchRunParameters(
             Sequential([], "name"),
@@ -38,29 +41,61 @@ using TestHelpers: get_main_solver, get_tightening_solver
     end
     
     @testset "verify_target_indices" begin
-        dataset = read_datasets("mnist").test
-        @test_throws AssertionError verify_target_indices([0], dataset) 
-        @test_throws AssertionError verify_target_indices([10001], dataset) 
+        @test_throws AssertionError verify_target_indices([0], mnist.test) 
+        @test_throws AssertionError verify_target_indices([10001], mnist.test) 
     end
 
     # Remaining tests are "integration tests" of complex functionality
     @testset "batch_find_certificate" begin 
-        mnist = read_datasets("MNIST")
         mktempdir() do dir
             MIPVerify.batch_find_certificate(
-                get_example_network_params("MNIST.WK17a_linf0.1_authors"), 
+                nn_wk17a, 
                 mnist.test, 
-                1:3, 
+                [1, 9, 248], # samples selected to be robust, non-robust, and misclassified.
                 get_main_solver(), 
+                solve_rerun_option=MIPVerify.never,
+                pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf, 
-                tightening_algorithm=lp, 
                 rebuild=true, 
-                pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-                solve_rerun_option = MIPVerify.never,
-                tightening_solver = get_tightening_solver(),
+                tightening_algorithm=lp, 
+                tightening_solver=get_tightening_solver(),
                 cache_model=false,
+                solve_if_predicted_in_targeted=false,
                 save_path=dir
             )
         end
     end
+
+    @testset "batch_find_targeted_attack" begin 
+        mktempdir() do dir
+            MIPVerify.batch_find_targeted_attack(
+                nn_wk17a, 
+                mnist.test, 
+                [1], 
+                get_main_solver(), 
+                solve_rerun_option=MIPVerify.never,
+                pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+                norm_order=Inf,
+                tightening_algorithm=lp, 
+                tightening_solver=get_tightening_solver(),
+                cache_model=false,
+                solve_if_predicted_in_targeted=false,
+                save_path=dir
+            )
+        end
+    end
+
+    @testset "batch_build_model" begin 
+        mktempdir() do dir
+            MIPVerify.batch_build_model(
+                nn_wk17a, 
+                mnist.test, 
+                [1], 
+                get_tightening_solver(),
+                pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+                tightening_algorithm=lp
+            )
+        end
+    end   
+
 end

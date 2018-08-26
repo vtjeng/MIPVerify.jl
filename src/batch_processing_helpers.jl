@@ -119,12 +119,6 @@ function verify_target_indices(target_indices::AbstractArray{<:Integer}, dataset
     )
 end
 
-function get_tightening_approach(
-    nn::NeuralNet,
-    tightening_algorithm::MIPVerify.TighteningAlgorithm)::String
-    string(tightening_algorithm)
-end
-
 function initialize_batch_solve(
     save_path::String,
     nn::NeuralNet,
