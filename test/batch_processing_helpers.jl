@@ -1,6 +1,6 @@
 using Base.Test
 using MIPVerify
-using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_not_present, create_summary_file_if_not_present, verify_target_sample_numbers
+using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_not_present, create_summary_file_if_not_present, verify_target_indices
 
 @testset "batch_processing_helpers.jl" begin
     base_test_directory = joinpath(Base.tempdir(), "julia", "MIPVerify", "test")
@@ -41,9 +41,9 @@ using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_n
         create_summary_file_if_not_present(file_path)
         @test isfile(file_path)
     end
-    @testset "verify_target_sample_numbers" begin
+    @testset "verify_target_indices" begin
         dataset = read_datasets("mnist").test
-        @test_throws AssertionError verify_target_sample_numbers([0], dataset) 
-        @test_throws AssertionError verify_target_sample_numbers([10001], dataset) 
+        @test_throws AssertionError verify_target_indices([0], dataset) 
+        @test_throws AssertionError verify_target_indices([10001], dataset) 
     end
 end
