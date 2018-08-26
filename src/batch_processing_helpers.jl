@@ -23,7 +23,13 @@ end
 function extract_results_for_save(d::Dict)::Dict
     m = d[:Model]
     r = Dict()
-    r[:SolveTime] = getsolvetime(m)
+    # CBC solver, used for testing, does not implement `getsolvetime`.
+    r[:SolveTime] = try
+        getsolvetime(m)
+    catch err
+        isa(err, MethodError) || rethrow(err)
+        -1
+    end
     r[:ObjectiveBound] = getobjbound(m)
     r[:ObjectiveValue] = getobjectivevalue(m)
     r[:TargetIndexes] = d[:TargetIndexes]
