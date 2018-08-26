@@ -133,11 +133,11 @@ function find_adversarial_example(
     return d
 end
 
-function get_label(y::Array{<:Real, 1}, test_index::Int)::Int
+function get_label(y::Array{<:Real, 1}, test_index::Integer)::Int
     return y[test_index]
 end
 
-function get_image(x::Array{T, 4}, test_index::Int)::Array{T, 4} where {T<:Real}
+function get_image(x::Array{T, 4}, test_index::Integer)::Array{T, 4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
@@ -151,12 +151,12 @@ Returns the fraction of items the neural network correctly classifies of the fir
 # Named Arguments:
 + `nn::NeuralNet`: The parameters of the neural network.
 + `dataset::LabelledDataset`:
-+ `num_samples::Int`: Number of samples to use.
++ `num_samples::Integer`: Number of samples to use.
 """
 function frac_correct(
     nn::NeuralNet, 
     dataset::LabelledDataset, 
-    num_samples::Int)::Real
+    num_samples::Integer)::Real
 
     num_correct = 0.0
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))

@@ -1,4 +1,4 @@
-export batch_find_certificate
+export batch_find_untargeted_attack
 
 @enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4 retarget_infeasible_cases=5
 
@@ -52,7 +52,7 @@ function get_uuid()::String
     Dates.format(now(), "yyyy-mm-ddTHH.MM.SS.sss")
 end
 
-function generate_csv_summary_line(sample_number::Int, results_file_relative_path::String, r::Dict)
+function generate_csv_summary_line(sample_number::Integer, results_file_relative_path::String, r::Dict)
     [
         sample_number, 
         results_file_relative_path,
@@ -68,7 +68,7 @@ function generate_csv_summary_line(sample_number::Int, results_file_relative_pat
     ] .|> string
 end
 
-function generate_csv_summary_line_optimal(sample_number::Int, d::Dict)
+function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
     assert(d[:PredictedIndex] in d[:TargetIndexes])
     [
         sample_number, 
@@ -144,7 +144,7 @@ function initialize_batch_solve(
 end
 
 function save_to_disk(
-    sample_number::Int,
+    sample_number::Integer,
     main_path::String,
     results_dir::String,
     summary_file_path::String,
@@ -173,6 +173,7 @@ $(SIGNATURES)
 
 Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
 looking up information on the most recent completed solve recorded in `summary_dt`
+matching `sample_number`.
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
 and `:ObjectiveValue`. 
@@ -187,7 +188,7 @@ Behavior for different choices of `solve_rerun_option`:
     recent complete solve a) did find a counter-example BUT b) we did not reach a 
     provably optimal solution.
 """
-function run_on_sample_for_certificate(sample_number::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
+function run_on_sample_for_untargeted_attack(sample_number::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
     previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
     if size(previous_solves)[1] == 0
         return true
@@ -215,7 +216,8 @@ end
 $(SIGNATURES)
 
 Runs [`find_adversarial_example`](@ref) for the specified neural network `nn` and `dataset`
-for samples identified by the `target_indices`. 
+for samples identified by the `target_indices`, with the target labels for each sample set 
+to the complement of the true label.
     
 It creates a named directory in `save_path`, with the name summarizing 
   1) the name of the network in `nn`, 
@@ -244,9 +246,9 @@ particular index.
   see documentation for that function for more details.
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
-  See [`run_on_sample_for_certificate`](@ref) for more details.
+  See [`run_on_sample_for_untargeted_attack`](@ref) for more details.
 """
-function batch_find_certificate(
+function batch_find_untargeted_attack(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
     target_indices::AbstractArray{<:Integer},
@@ -267,7 +269,7 @@ function batch_find_certificate(
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
     for sample_number in target_indices
-        if run_on_sample_for_certificate(sample_number, dt, solve_rerun_option)
+        if run_on_sample_for_untargeted_attack(sample_number, dt, solve_rerun_option)
             # TODO (vtjeng): change function signature for get_image and get_label
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
@@ -280,7 +282,17 @@ function batch_find_certificate(
     return nothing
 end
 
-function run_on_sample_for_targeted_attack(sample_number::Int, target_label::Int, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
+"""
+$(SIGNATURES)
+
+Determines whether to run a solve on a sample depending on the `solve_rerun_option` by
+looking up information on the most recent completed solve recorded in `summary_dt`
+matching `sample_number`.
+
+`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:TargetIndexes`, `:SolveStatus`,
+and `:ObjectiveValue`.
+"""
+function run_on_sample_for_targeted_attack(sample_number::Integer, target_label::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
     match_sample_number = summary_dt[:SampleNumber].==sample_number
     match_target_label = summary_dt[:TargetIndexes].=="[$(target_label)]"
     match = match_sample_number .& match_target_label
@@ -310,19 +322,29 @@ function run_on_sample_for_targeted_attack(sample_number::Int, target_label::Int
     end
 end
 
+"""
+$(SIGNATURES)
+
+Runs [`find_adversarial_example`](@ref) for the specified neural network `nn` and `dataset`
+for samples identified by the `target_indices`, with each of the target labels in `target_labels`
+individually targeted.
+
+Otherwise same parameters as [`batch_find_untargeted_attack`](@ref).
+"""
 function batch_find_targeted_attack(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
     target_indices::AbstractArray{<:Integer},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     save_path::String = ".",
+    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
+    target_labels::AbstractArray{<:Integer} = [],
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
-    solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     cache_model = true,
     solve_if_predicted_in_targeted = true
     )::Void
@@ -333,7 +355,7 @@ function batch_find_targeted_attack(
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
     for sample_number in target_indices
-        for target_label in 1:10
+        for target_label in target_labels
             if run_on_sample_for_targeted_attack(sample_number, target_label, dt, solve_rerun_option)
                 input = MIPVerify.get_image(dataset.images, sample_number)
                 true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1

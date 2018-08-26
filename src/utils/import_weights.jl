@@ -62,7 +62,7 @@ function get_conv_params(
     expected_size::NTuple{4, Int};
     matrix_name::String = "weight",
     bias_name::String = "bias",
-    expected_stride::Int = 1
+    expected_stride::Integer = 1
     )::Conv2d
 
     params = Conv2d(

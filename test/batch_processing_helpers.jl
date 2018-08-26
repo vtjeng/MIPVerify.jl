@@ -3,6 +3,7 @@ using MIPVerify
 using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFamily, mkpath_if_not_present, create_summary_file_if_not_present, verify_target_indices
 isdefined(:TestHelpers) || include("TestHelpers.jl")
 using TestHelpers: get_main_solver, get_tightening_solver
+using DataFrames
 
 @testset "batch_processing_helpers.jl" begin
     mnist = read_datasets("MNIST")
@@ -45,10 +46,17 @@ using TestHelpers: get_main_solver, get_tightening_solver
         @test_throws AssertionError verify_target_indices([10001], mnist.test) 
     end
 
+    @testset "run_on_sample_for_untargeted_attack" begin
+        dt = DataFrame(
+            SampleNumber = [1, 2, 3],
+            SolveStatus = ["Optimal", "UserLimit", "Optimal"],
+            ObjectiveValue = [0.1, NaN, 0.2])
+    end
+
     # Remaining tests are "integration tests" of complex functionality
-    @testset "batch_find_certificate" begin 
+    @testset "batch_find_untargeted_attack" begin 
         mktempdir() do dir
-            MIPVerify.batch_find_certificate(
+            MIPVerify.batch_find_untargeted_attack(
                 nn_wk17a, 
                 mnist.test, 
                 [1, 9, 248], # samples selected to be robust, non-robust, and misclassified.
@@ -80,6 +88,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 tightening_solver=get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
+                target_labels=1:2,
                 save_path=dir
             )
         end
