@@ -32,7 +32,7 @@ function get_example_network_params(name::String)::NeuralNet
         
         nn = Sequential([
             Flatten(4),
-            fc1, ReLU(),
+            fc1, ReLU(interval_arithmetic),
             fc2, ReLU(),
             logits], name)
         return nn
@@ -44,7 +44,7 @@ function get_example_network_params(name::String)::NeuralNet
         logits = get_matrix_params(param_dict, "logits", (100, 10))
         
         nn = Sequential([
-            conv1, ReLU(),
+            conv1, ReLU(interval_arithmetic),
             conv2, ReLU(),
             Flatten([1, 3, 2, 4]),
             fc1, ReLU(),
@@ -57,7 +57,7 @@ function get_example_network_params(name::String)::NeuralNet
         
         nn = Sequential([
             Flatten([1, 3, 2, 4]),
-            fc1, ReLU(),
+            fc1, ReLU(interval_arithmetic),
             logits], name)
         return nn
     else
