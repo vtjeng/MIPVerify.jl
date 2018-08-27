@@ -689,6 +689,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "net_components/core_ops.html#MIPVerify.is_constant-Tuple{JuMP.GenericAffExpr{Float64,JuMP.Variable}}",
+    "page": "Core Operations",
+    "title": "MIPVerify.is_constant",
+    "category": "method",
+    "text": "is_constant(x)\n\n\nChecks whether a JuMPLinearType is constant (and thus has no model associated) with it. This can only be true if it is an affine expression with no stored variables.\n\n\n\n"
+},
+
+{
     "location": "net_components/core_ops.html#MIPVerify.lazy_tight_lowerbound-Tuple{Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Real}",
     "page": "Core Operations",
     "title": "MIPVerify.lazy_tight_lowerbound",
@@ -717,7 +725,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Core Operations",
     "title": "MIPVerify.maximum_ge",
     "category": "method",
-    "text": "maximum_ge(xs)\n\n\nExpresses a one-sided maximization constraint: output is constrained to be at least  max(xs).\n\nOnly use when you are minimizing over the output in the objective.\n\n\n\n"
+    "text": "maximum_ge(xs)\n\n\nExpresses a one-sided maximization constraint: output is constrained to be at least  max(xs).\n\nOnly use when you are minimizing over the output in the objective.\n\nNB: If all of xs are constant, we simply return the largest of them.\n\n\n\n"
 },
 
 {
@@ -729,11 +737,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{Array{#s163,1} where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s164,1} where #s164<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s163,1} where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s164,1} where #s164<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
-    "text": "set_max_indexes(x, target_indexes; tolerance)\n\n\nImposes constraints ensuring that one of the elements at the target_indexes is the  largest element of the array x. More specifically, we require x[j] - x[i] ≥ tolerance for some j ∈ target_indexes and for all i ∉ target_indexes.\n\n\n\n"
+    "text": "set_max_indexes(model, xs, target_indexes; tolerance)\n\n\nImposes constraints ensuring that one of the elements at the target_indexes is the  largest element of the array x. More specifically, we require x[j] - x[i] ≥ tolerance for some j ∈ target_indexes and for all i ∉ target_indexes.\n\n\n\n"
 },
 
 {
