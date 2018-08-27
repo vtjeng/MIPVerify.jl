@@ -2,12 +2,28 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
+"""
+$(SIGNATURES)
+
+Checks whether a JuMPLinearType is constant (and thus has no model associated)
+with it. This can only be true if it is an affine expression with no stored
+variables.
+"""
 function is_constant(x::JuMP.AffExpr)
     x.vars |> length == 0
 end
 
 function is_constant(x::JuMP.Variable)
     false
+end
+
+function getmodel(xs::Array{<:JuMPLinearType})
+    for x in xs
+        if !is_constant(x)
+            return ConditionalJuMP.getmodel(x)
+        end
+    end
+    throw(DomainError("None of the JuMPLinearTypes has an associated model."))
 end
 
 function get_tightening_algorithm(
@@ -18,8 +34,9 @@ function get_tightening_algorithm(
     elseif !isnull(nta)
         return get(nta)
     else
-        m = ConditionalJuMP.getmodel(x)
-        return !haskey(m.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM : m.ext[:MIPVerify].tightening_algorithm
+        # x is not constant, and thus x must have an associated model
+        model = ConditionalJuMP.getmodel(x)
+        return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM : model.ext[:MIPVerify].tightening_algorithm
     end
 end
 
@@ -59,14 +76,15 @@ function tight_bound(
         return b_0
     end
     relaxation = (tightening_algorithm == lp)
-    m = ConditionalJuMP.getmodel(x)
-    @objective(m, bound_obj[bound_type], x)
-    status = solve(m, suppress_warnings = true, relaxation=relaxation)
+    # x is not constant, and thus x must have an associated model
+    model = ConditionalJuMP.getmodel(x)
+    @objective(model, bound_obj[bound_type], x)
+    status = solve(model, suppress_warnings = true, relaxation=relaxation)
     if status == :Optimal
-        b = getobjectivevalue(m)
+        b = getobjectivevalue(model)
     elseif status == :UserLimit
-        b = getobjectivebound(m)
-        log_gap(m)
+        b = getobjectivebound(model)
+        log_gap(model)
     else
         warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
         b = b_0
@@ -127,6 +145,7 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         # rectified value is always x
         return x
     else
+        # since we know that u!=l, x is not constant, and thus x must have an associated model
         model = ConditionalJuMP.getmodel(x)
         x_rect = @variable(model)
         a = @variable(model, category = :Bin)
@@ -276,6 +295,12 @@ function maximum(xs::AbstractArray{T})::T where {T<:Real}
     return Base.maximum(xs)
 end
 
+function maximum_of_constants(xs::AbstractArray{T}) where {T<:JuMPLinearType}
+    @assert all(is_constant.(xs))
+    max_val = map(x -> x.constant, xs) |> maximum
+    return one(JuMP.Variable)*max_val
+end
+
 """
 $(SIGNATURES)
 Expresses a maximization constraint: output is constrained to be equal to `max(xs)`.
@@ -285,7 +310,11 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         return xs[1]
     end
 
-    model = ConditionalJuMP.getmodel(xs[1])
+    if all(is_constant.(xs))
+        return maximum_of_constants(xs)
+    end
+    # at least one of xs is not constant.
+    model = MIPVerify.getmodel(xs)
 
     # TODO (vtjeng): [PERF] skip calculating lowerbound for index if upperbound is lower than
     # largest current lowerbound.
@@ -319,8 +348,12 @@ function maximum(
     @assert length(xs)>0
     @assert length(xs)==length(ls)
     @assert length(xs)==length(us)
-
-    model = ConditionalJuMP.getmodel(xs[1])
+    
+    if all(is_constant.(xs))
+        return maximum_of_constants(xs)
+    end
+    # at least one of xs is not constant.
+    model = MIPVerify.getmodel(xs)
     if length(xs) == 1
         return first(xs)
     else
@@ -344,10 +377,16 @@ Expresses a one-sided maximization constraint: output is constrained to be at le
 `max(xs)`.
 
 Only use when you are minimizing over the output in the objective.
+
+NB: If all of xs are constant, we simply return the largest of them.
 """
 function maximum_ge(xs::AbstractArray{T})::JuMP.Variable where {T<:JuMPLinearType}
     @assert length(xs)>0
-    model = ConditionalJuMP.getmodel(xs[1])
+    if all(is_constant.(xs))
+        return maximum_of_constants(xs)
+    end
+    # at least one of xs is not constant.
+    model = MIPVerify.getmodel(xs)
     x_max = @variable(model)
     @constraint(model, x_max .>= xs)
     return x_max
@@ -361,6 +400,9 @@ large as `|x|`.
 Only use when you are minimizing over the output in the objective.
 """
 function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
+    if is_constant(x)
+        return one(JuMP.Variable)*abs(x.constant)
+    end
     model = ConditionalJuMP.getmodel(x)
     u = upperbound(x)
     l = lowerbound(x)
@@ -408,15 +450,15 @@ largest element of the array x. More specifically, we require `x[j] - x[i] ≥ t
 some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
 """
 function set_max_indexes(
-    x::Array{<:JuMPLinearType, 1},
+    model::Model,
+    xs::Array{<:JuMPLinearType, 1},
     target_indexes::Array{<:Integer, 1};
     tolerance::Real = 0)
-    
-    @assert length(x) >= 1
-    model = ConditionalJuMP.getmodel(x[1])
 
-    target_vars = x[Bool[i∈target_indexes for i = 1:length(x)]]
-    other_vars = x[Bool[i∉target_indexes for i = 1:length(x)]]
+    @assert length(xs) >= 1
+
+    target_vars = xs[Bool[i∈target_indexes for i = 1:length(xs)]]
+    other_vars = xs[Bool[i∉target_indexes for i = 1:length(xs)]]
 
     maximum_target_var = length(target_vars) == 1 ?
         target_vars[1] :    

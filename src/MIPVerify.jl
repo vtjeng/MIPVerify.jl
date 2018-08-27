@@ -119,7 +119,7 @@ function find_adversarial_example(
             )
             m = d[:Model]
 
-            set_max_indexes(d[:Output], d[:TargetIndexes], tolerance=tolerance)
+            set_max_indexes(d[:Model], d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
             # Set perturbation objective
             # NOTE (vtjeng): It is important to set the objective immediately before we carry out

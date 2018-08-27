@@ -29,6 +29,15 @@ end
         end
     end
 
+    @testset "getmodel" begin
+        m=get_new_model()
+        y1 = @variable(m)
+        x1 = one(JuMP.Variable)*1
+        x2 = one(JuMP.Variable)*2
+        @test MIPVerify.getmodel([x1, y1]) == m
+        @test_throws DomainError MIPVerify.getmodel([x1, x2])
+    end
+
     @testset "get_tightening_algorithm" begin
         m = get_new_model()
         
@@ -66,57 +75,119 @@ end
         end
     end
 
-    @testset "maximum" begin
-        @testset "Variable Input" begin
-            @testset "single variable to maximize over" begin
-                m = get_new_model()
-                x1 = @variable(m, lowerbound=0, upperbound=3)
-                xmax = MIPVerify.maximum([x1])
+    @testset "maximum(xs)" begin
+        @testset "single variable to maximize over" begin
+            m = get_new_model()
+            x1 = @variable(m, lowerbound=0, upperbound=3)
+            xmax = MIPVerify.maximum([x1])
 
-                # no binary variables need to be introduced
-                @test count_binary_variables(m)==0
+            # no binary variables need to be introduced
+            @test count_binary_variables(m)==0
 
-                @objective(m, Max, x1)
-                solve(m)
-                solve_output = getvalue(xmax)
-                @test solve_output≈3
-            end
-            @testset "multiple variables to maximize over" begin
-                m = get_new_model()
-                x1 = @variable(m, lowerbound=0, upperbound=3)
-                x2 = @variable(m, lowerbound=4, upperbound=5)
-                x3 = @variable(m, lowerbound=2, upperbound=7)
-                x4 = @variable(m, lowerbound=-1, upperbound=1)
-                x5 = @variable(m, lowerbound=-3, upperbound=1)
-                xmax = MIPVerify.maximum([x1, x2, x3, x4, x5])
-                
-                # an efficient implementation does not add binary variables for x1, x4 and x5
-                @test count_binary_variables(m)<= 2
-                
-                # elements of the input array are made to take their maximum value
-                @objective(m, Max, x1+x2+x3+x4+x5)
-                solve(m)
-                
-                solve_output = getvalue(xmax)
-                @test solve_output≈7
-            end
-            @testset "regression test to deal with indexing issue in v0.8.0" begin
-                m = get_new_model()
-                x1 = @variable(m, lowerbound=-2, upperbound=2) # upperbound of this variable is low enough that it gets filtered away 
-                x2 = @variable(m, lowerbound=2.5, upperbound=100)
-                x3 = @variable(m, lowerbound=3, upperbound=3.3)
-                xmax = MIPVerify.maximum([x1, x2, x3])
-                
-                # an efficient implementation does not add binary variables for x1, x4 and x5
-                @test count_binary_variables(m)<= 2
-                
-                # elements of the input array are made to take their maximum value
-                @objective(m, Max, xmax)
-                solve(m)
-                
-                solve_output = getvalue(xmax)
-                @test solve_output≈100
-            end
+            @objective(m, Max, x1)
+            solve(m)
+            solve_output = getvalue(xmax)
+            @test solve_output≈3
+        end
+        @testset "multiple variables to maximize over, some constant" begin
+            m = get_new_model()
+            x0 = one(JuMP.Variable) # add constant variable at start
+            x1 = @variable(m, lowerbound=0, upperbound=3)
+            x2 = @variable(m, lowerbound=4, upperbound=5)
+            x3 = @variable(m, lowerbound=2, upperbound=7)
+            x4 = @variable(m, lowerbound=-1, upperbound=1)
+            x5 = @variable(m, lowerbound=-3, upperbound=1)
+            xmax = MIPVerify.maximum([x0, x1, x2, x3, x4, x5])
+            
+            # an efficient implementation does not add binary variables for x1, x4 and x5
+            @test count_binary_variables(m)<= 2
+            
+            # elements of the input array are made to take their maximum value
+            @objective(m, Max, x1+x2+x3+x4+x5)
+            solve(m)
+            
+            solve_output = getvalue(xmax)
+            @test solve_output≈7
+        end
+        @testset "single variable to maximize over, constant" begin
+            m = get_new_model()
+            x1 = one(JuMP.Variable)*3
+            xmax = MIPVerify.maximum([x1])
+
+            # no binary variables need to be introduced
+            @test count_binary_variables(m)==0
+
+            solve_output = getvalue(xmax)
+            @test solve_output≈3
+        end
+        @testset "multiple variables to maximize over, all constant" begin
+            m = get_new_model()
+            x1 = one(JuMP.Variable)
+            x2 = one(JuMP.Variable)*2
+            xmax = MIPVerify.maximum([x1, x2])
+
+            # no binary variables need to be introduced
+            @test count_binary_variables(m)==0
+
+            solve_output = getvalue(xmax)
+            @test solve_output≈2
+        end
+        @testset "regression test to deal with indexing issue in v0.8.0" begin
+            m = get_new_model()
+            x1 = @variable(m, lowerbound=-2, upperbound=2) # upperbound of this variable is low enough that it gets filtered away 
+            x2 = @variable(m, lowerbound=2.5, upperbound=100)
+            x3 = @variable(m, lowerbound=3, upperbound=3.3)
+            xmax = MIPVerify.maximum([x1, x2, x3])
+            
+            # an efficient implementation does not add binary variables for x1, x4 and x5
+            @test count_binary_variables(m)<= 2
+            
+            # elements of the input array are made to take their maximum value
+            @objective(m, Max, xmax)
+            solve(m)
+            
+            solve_output = getvalue(xmax)
+            @test solve_output≈100
+        end
+    end
+
+    @testset "maximum(xs, ls, us)" begin
+        @testset "single variable to maximize over" begin
+            m = get_new_model()
+            x1 = @variable(m, lowerbound=0, upperbound=3)
+            xmax = MIPVerify.maximum([x1], [0], [1])
+
+            # no binary variables need to be introduced
+            @test count_binary_variables(m)==0
+
+            @objective(m, Max, x1)
+            solve(m)
+            solve_output = getvalue(xmax)
+            @test solve_output≈3
+        end
+        @testset "multiple variables to maximize over, all constant" begin
+            m = get_new_model()
+            x1 = one(JuMP.Variable)
+            x2 = one(JuMP.Variable)*2
+            xmax = MIPVerify.maximum([x1, x2], [1, 2], [1, 2])
+
+            # no binary variables need to be introduced
+            @test count_binary_variables(m)==0
+
+            solve_output = getvalue(xmax)
+            @test solve_output≈2
+        end
+    end
+
+    @testset "maximum_ge" begin
+        @testset "multiple variables to maximize over, all constant" begin
+            m = get_new_model()
+            x1 = one(JuMP.Variable)
+            x2 = one(JuMP.Variable)*2
+            xmax = MIPVerify.maximum([x1, x2])
+
+            solve_output = getvalue(xmax)
+            @test solve_output≈2
         end
     end
 
@@ -128,6 +199,12 @@ end
         end
         
         @testset "Variable Input" begin
+            @testset "constant" begin
+                x = one(JuMP.Variable)
+                x_r = relu(x)
+                @test MIPVerify.is_constant(x_r)
+                @test x_r.constant == x.constant
+            end
             @testset "strictly non-negative" begin
                 m = get_new_model()
                 x = @variable(m, lowerbound=0, upperbound=1)
@@ -368,7 +445,7 @@ end
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[2] == 5)
                 @constraint(m, x[3] == 1)
-                set_max_indexes(x, [1])
+                set_max_indexes(m, x, [1])
                 @objective(m, Min, x[1])
                 solve(m)
                 @test getvalue(x[1])≈5
@@ -379,7 +456,7 @@ end
                 x = @variable(m, [i=1:3])
                 @constraint(m, x[2] == 5)
                 @constraint(m, x[3] == 1)
-                set_max_indexes(x, [1], tolerance = tolerance)
+                set_max_indexes(m, x, [1], tolerance = tolerance)
                 @objective(m, Min, x[1])
                 solve(m)
                 @test getvalue(x[1])≈5+tolerance
@@ -394,7 +471,7 @@ end
                 setupperbound(x[2], 10)
                 setlowerbound(x[3], -1)
                 setupperbound(x[3], 10)
-                set_max_indexes(x, [2, 3])
+                set_max_indexes(m, x, [2, 3])
                 @objective(m, Min, x[2]+x[3])
                 solve(m)
                 @test getvalue(x[2])≈5
@@ -409,16 +486,55 @@ end
                 setupperbound(x[2], 10)
                 setlowerbound(x[3], -1)
                 setupperbound(x[3], 10)
-                set_max_indexes(x, [2, 3], tolerance = tolerance)
+                set_max_indexes(m, x, [2, 3], tolerance = tolerance)
                 @objective(m, Min, x[2]+x[3])
                 solve(m)
                 @test getvalue(x[2])≈5+tolerance
                 @test getvalue(x[3])≈-1
             end
+            @testset "first JuMPLinearType is constant" begin
+                @testset "selected variable has non-constant value, and can take the maximum value" begin
+                    m = get_new_model()
+                    x1 = one(JuMP.Variable)
+                    x2 = @variable(m, lowerbound=4, upperbound=5)
+                    set_max_indexes(m, [x1, x2], [2])
+                    @objective(m, Min, x2)
+                    solve(m)
+                    @test getvalue(x2)≈4
+                end
+                @testset "selected variable has non-constant value, and cannot take the maximum value" begin
+                    m = get_new_model()
+                    x1 = one(JuMP.Variable)
+                    x2 = @variable(m, lowerbound=-5, upperbound=-4)
+                    set_max_indexes(m, [x1, x2], [2])
+                    @objective(m, Min, x2)
+                    solve_status = solve(m)
+                    @test solve_status == :Infeasible
+                end
+                @testset "selected variable has constant value, and can take the maximum value" begin
+                    m = get_new_model()
+                    x1 = one(JuMP.Variable)
+                    x2 = @variable(m, lowerbound=-5, upperbound=-4)
+                    set_max_indexes(m, [x1, x2], [1])
+                    @objective(m, Min, x2)
+                    solve(m)
+                    @test getvalue(x2)≈-5
+                end
+                @testset "selected variable has constant value, and cannot take the maximum value" begin
+                    m = get_new_model()
+                    x1 = one(JuMP.Variable)
+                    x2 = @variable(m, lowerbound=4, upperbound=5)
+                    set_max_indexes(m, [x1, x2], [1])
+                    @objective(m, Min, x2)
+                    solve_status = solve(m)
+                    @test solve_status == :Infeasible
+                end
+            end
         end
     end
 
     @testset "Bounds" begin
+        @testset "Bounds on variables" begin
         m = get_new_model()
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
             
@@ -444,6 +560,13 @@ end
                 @test tight_upperbound(output[1], nta=Nullable(algorithm))≈u
                 @test tight_lowerbound(output[2], nta=Nullable(algorithm))≈l
             end
+        end
+        end
+
+        @testset "Bounds on constants" begin
+            x1 = one(JuMP.Variable)
+            @test tight_upperbound(x1) == 1
+            @test tight_lowerbound(x1) == 1
         end
 
     end
