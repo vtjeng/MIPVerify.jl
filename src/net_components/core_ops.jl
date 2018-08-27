@@ -17,7 +17,7 @@ function is_constant(x::JuMP.Variable)
     false
 end
 
-function getmodel(xs::Array{<:JuMPLinearType})
+function getmodel(xs::AbstractArray{T}) where {T<:JuMPLinearType}
     for x in xs
         if !is_constant(x)
             return ConditionalJuMP.getmodel(x)
