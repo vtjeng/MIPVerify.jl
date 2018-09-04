@@ -1,4 +1,4 @@
-julia 0.6
+julia 0.6 0.7
 JuMP 0.18.1
 ConditionalJuMP 0.0.5
 Memento 0.8.0
