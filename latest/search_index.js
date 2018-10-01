@@ -17,6 +17,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "index.html#Installation-1",
+    "page": "Home",
+    "title": "Installation",
+    "category": "section",
+    "text": ""
+},
+
+{
     "location": "index.html#Prerequisites-1",
     "page": "Home",
     "title": "Prerequisites",
