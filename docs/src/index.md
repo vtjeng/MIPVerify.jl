@@ -1,7 +1,8 @@
 # MIPVerify
 `MIPVerify.jl` enables users to verify neural networks that are piecewise affine by: 1) finding the closest adversarial example to a selected input, or 2) proving that no adversarial example exists for some bounded family of perturbations.
 
-## Prerequisites
+## Installation
+### Prerequisites
 To use our package, you require
 
    1. The Julia programming language
@@ -12,7 +13,7 @@ Our choice of solver is [Gurobi](http://www.gurobi.com/), but any supported opti
 
 **Platform compatibility:** Julia and Gurobi are available for 32-bit and 64-bit Windows, 64-bit macOS, and 64-bit Linux, but example code in this README is for Linux.
 
-### Installing Julia
+#### Installing Julia
 The latest release of this package requires [version 0.6](https://julialang.org/downloads/oldreleases.html) of Julia.
 
 !!! note
@@ -25,7 +26,7 @@ Platform-specific instructions can be found [here](https://julialang.org/downloa
 
     Do **not** use `apt-get` or `brew` to install Julia, as the versions provided by these package managers tend to be out of date.
 
-### On Ubuntu
+##### On Ubuntu
 ```console
 $ cd /your/path/here
   wget https://julialang-s3.julialang.org/bin/linux/x64/0.6/julia-0.6.4-linux-x86_64.tar.gz
@@ -40,10 +41,10 @@ Add the following lines to your startup file (e.g. `.bashrc` for the bash shell)
 export PATH="${PATH}:/your/path/here/julia-9d11f62bcb/bin"
 ```
 
-### Installing Gurobi
+#### Installing Gurobi
 Download the most recent version of the [Gurobi optimizer](http://www.gurobi.com/downloads/gurobi-optimizer). A license is required to use Gurobi; free academic licenses are [available](https://user.gurobi.com/download/licenses/free-academic).
 
-#### On Ubuntu
+##### On Ubuntu
 ```console
 $ cd /your/path/here
   wget https://packages.gurobi.com/8.0/gurobi8.0.1_linux64.tar.gz
@@ -63,7 +64,7 @@ Finally, install the license obtained on a terminal prompt
 $ grbgetkey abcd1234-1234-1234-1234-01234567890a
 ```
 
-### Installing `Gurobi.jl`
+#### Installing `Gurobi.jl`
 `Gurobi.jl` is a wrapper of the Gurobi solver accessible in Julia. Once you have installed Gurobi *and* activated the license, install the latest release of `Gurobi.jl`:
 ```julia
 julia> Pkg.add("Gurobi")
@@ -86,12 +87,12 @@ MathOptInterface Tests | 1415   1415
 INFO: Gurobi tests passed
 ```
 
-### Installing `HDF5`
+#### Installing `HDF5`
 ```julia
 julia> Pkg.add("HDF5")
 ```
 
-## Installing `MIPVerify`
+### Installing `MIPVerify`
 Once you have Julia, a mathematical programming solver, and the `HDF5` package installed, install the latest release of MIPVerify:
 ```julia
 julia> Pkg.add("MIPVerify")
@@ -103,8 +104,8 @@ julia> Pkg.test("MIPVerify")
 ```
 These tests do take a long time to run (~30 mins), but any issues generally cause early failures.
 
-## Troubleshooting your installation
-### Invalid Gurobi License
+### Troubleshooting your installation
+#### Invalid Gurobi License
 When running `Pkg.test("Gurobi")`:
 
 ```sh
@@ -117,7 +118,7 @@ No variables, no constraints: Error During Test
 
 **FIX:** The error message indicates that you have not installed your Gurobi license. If it has been installed, the license is saved as a file `gurobi.lic`, typically in either the `/home/ubuntu` or `opt/gurobi` directories.
 
-### HDF5 had build errors on Ubuntu
+#### HDF5 had build errors on Ubuntu
 When running `Pkg.add("HDF5")`:
 
 ```sh

@@ -33,7 +33,7 @@ The package provides
   + MNIST and CIFAR10 datasets for verification
   + Sample neural networks, including the networks verified in our paper.
 
-See the [latest documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for a list of features, installation instructions, a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/). Installation should only take a couple of minutes, including installing Julia itself.
+See the [documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for [installation instructions](https://vtjeng.github.io/MIPVerify.jl/latest/#Installation-1), a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/). Installation should only take a couple of minutes, including installing Julia itself.
 
 ## Results in brief
 Below is a modified version of Table 1 from our paper, where we report the adversarial error for classifiers to bounded perturbations with l-infinity norm-bound `eps`. For our verifier, a time limit of 120s per sample is imposed. Gaps between our bounds correspond to cases where the solver reached the time limit for some samples. Error is over the full MNIST test set of 10,000 samples.
