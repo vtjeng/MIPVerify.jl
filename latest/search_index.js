@@ -201,7 +201,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s201,1} where #s201<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s283,1} where #s283<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Single Image",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
@@ -265,7 +265,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s230,N} where N where #s230<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s312,N} where N where #s312<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_targeted_attack",
     "category": "method",
@@ -505,7 +505,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s163,N} where N where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s162,1} where #s162<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s223,N} where N where #s223<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s222,1} where #s222<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -633,7 +633,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s162,1} where #s162<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s222,1} where #s222<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -777,7 +777,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s115,N} where N where #s115<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s116,N} where N where #s116<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s137,N} where N where #s137<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s138,N} where N where #s138<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -809,7 +809,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s163,1} where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s164,1} where #s164<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s223,1} where #s223<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s224,1} where #s224<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
