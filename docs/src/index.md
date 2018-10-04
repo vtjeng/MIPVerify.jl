@@ -61,8 +61,31 @@ export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
 
 Finally, install the license obtained on a terminal prompt
 ```console
-$ grbgetkey abcd1234-1234-1234-1234-01234567890a
+$ grbgetkey aaaa0000-0000-0000-0000-000000000000
 ```
+
+!!! note
+    
+    You will have to obtain your own license number from the Gurobi site.
+
+```sh
+Sample output:
+
+info  : grbgetkey version 8.0.1, build v8.0.1rc0
+info  : Contacting Gurobi key server...
+info  : Key for license ID 000000 was successfully retrieved
+info  : License expires at the end of the day on 2019-09-30
+info  : Saving license key...
+
+In which directory would you like to store the Gurobi license key file?
+[hit Enter to store it in /home/ubuntu]:
+
+info  : License 000000 written to file /home/ubuntu/gurobi.lic
+```
+
+!!! note
+    
+    If you store the license file in a non-default location, you will have to add the environment variable `GRB_LICENSE_FILE` to your startup file: `export GRB_LICENSE_FILE="/your/path/here/gurobi.lic"`
 
 #### Installing `Gurobi.jl`
 `Gurobi.jl` is a wrapper of the Gurobi solver accessible in Julia. Once you have installed Gurobi *and* activated the license, install the latest release of `Gurobi.jl`:
