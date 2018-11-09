@@ -201,11 +201,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s283,1} where #s283<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s330,N} where N where #s330<:Real,Union{Array{#s331,1} where #s331<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Single Image",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
-    "text": "find_adversarial_example(nn, input, target_selection, main_solver; invert_target_selection, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nThe output dictionary has keys :Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :Perturbation, :PerturbedInput, :Output.  See the tutorial on what individual dictionary entries correspond to.\n\nFormal Definition: If there are a total of n categories, the (perturbed) output vector  y=d[:Output]=d[:PerturbedInput] |> nn has length n.  We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection and for all i ∉ target_selection.\n\nNamed Arguments:\n\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we    determine the upper and lower bounds on input to each nonlinear unit.    Allowed options are interval_arithmetic, lp, mip.   (1) interval_arithmetic looks at the bounds on the output to the previous layer.   (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.   (3) mip solves the full mip formulation.\ntightening_solver: Solver used to determine upper and lower bounds for input to nonlinear units.   Defaults to the same type of solver as the main_solver, with a time limit of 20s per solver    and output suppressed. Used only if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated. If false, does not save model   generated, but any existing cached model is retained.\nsolve_if_predicted_in_targeted: Defaults to true. The prediction that nn makes for the unperturbed   input can be determined efficiently. If the predicted index is one of the indexes in target_selection,   we can skip the relatively costly process of building the model for the MIP problem since we already have an   \"adversarial example\" –- namely, the input itself. We continue build the model and solve the (trivial) MIP   problem if and only if solve_if_predicted_in_targeted is true.\n\n\n\n"
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; invert_target_selection, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted, adversarial_example_objective)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nThe output dictionary has keys :Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :Perturbation, :PerturbedInput, :Output.  See the tutorial on what individual dictionary entries correspond to.\n\nFormal Definition: If there are a total of n categories, the (perturbed) output vector  y=d[:Output]=d[:PerturbedInput] |> nn has length n.  We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection and for all i ∉ target_selection.\n\nNamed Arguments:\n\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we    determine the upper and lower bounds on input to each nonlinear unit.    Allowed options are interval_arithmetic, lp, mip.   (1) interval_arithmetic looks at the bounds on the output to the previous layer.   (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.   (3) mip solves the full mip formulation.\ntightening_solver: Solver used to determine upper and lower bounds for input to nonlinear units.   Defaults to the same type of solver as the main_solver, with a time limit of 20s per solver    and output suppressed. Used only if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated. If false, does not save model   generated, but any existing cached model is retained.\nsolve_if_predicted_in_targeted: Defaults to true. The prediction that nn makes for the unperturbed   input can be determined efficiently. If the predicted index is one of the indexes in target_selection,   we can skip the relatively costly process of building the model for the MIP problem since we already have an   \"adversarial example\" –- namely, the input itself. We continue build the model and solve the (trivial) MIP   problem if and only if solve_if_predicted_in_targeted is true.\n\n\n\n"
 },
 
 {
@@ -249,11 +249,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s54,N} where N where #s54<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s81,N} where N where #s81<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_untargeted_attack",
     "category": "method",
-    "text": "batch_find_untargeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with the target labels for each sample set  to the complement of the true label.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_untargeted_attack for more details.\n\n\n\n"
+    "text": "batch_find_untargeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted, adversarial_example_objective)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with the target labels for each sample set  to the complement of the true label.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_untargeted_attack for more details.\n\n\n\n"
 },
 
 {
@@ -265,7 +265,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s312,N} where N where #s312<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s26,N} where N where #s26<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_targeted_attack",
     "category": "method",
@@ -505,7 +505,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s223,N} where N where #s223<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s222,1} where #s222<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s165,N} where N where #s165<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s164,1} where #s164<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -633,7 +633,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s222,1} where #s222<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s164,1} where #s164<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
@@ -777,7 +777,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s137,N} where N where #s137<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s138,N} where N where #s138<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s165,N} where N where #s165<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s166,N} where N where #s166<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -809,7 +809,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s223,1} where #s223<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s224,1} where #s224<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s25,1} where #s25<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s251,1} where #s251<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
