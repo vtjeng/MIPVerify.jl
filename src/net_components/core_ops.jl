@@ -444,8 +444,8 @@ end
 
 function get_vars_for_max_index(
     xs::Array{<:JuMPLinearType, 1},
-    target_indexes::Array{<:Integer, 1};
-    tolerance::Real = 0)
+    target_indexes::Array{<:Integer, 1},
+    tolerance::Real)
 
     @assert length(xs) >= 1
 

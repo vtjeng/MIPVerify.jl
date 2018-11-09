@@ -129,7 +129,7 @@ function find_adversarial_example(
                 # the solve. Functions like `set_max_indexes` can modify the objective.
                 @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             elseif adversarial_example_objective == worst
-                (maximum_target_var, other_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes], tolerance=tolerance)
+                (maximum_target_var, other_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes], tolerance)
                 maximum_other_var = maximum_ge(other_vars)
                 @objective(m, Max, maximum_target_var - maximum_other_var)    
             else
