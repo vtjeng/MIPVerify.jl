@@ -9,7 +9,7 @@ using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNet
 using MIPVerify: PerturbationFamily
 
-const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
+const TEST_DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE = (interval_arithmetic, lp)
 
 if Pkg.installed("Gurobi") == nothing
     using Cbc
@@ -57,7 +57,7 @@ function test_find_adversarial_example(
     d = find_adversarial_example(
         nn, x0, target_selection, get_main_solver(),
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false, 
-        tightening_solver=get_tightening_solver(), tightening_algorithm=TEST_DEFAULT_TIGHTENING_ALGORITHM)
+        tightening_solver=get_tightening_solver(), tightening_algorithms=TEST_DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE)
     println(d[:SolveStatus])
     if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)

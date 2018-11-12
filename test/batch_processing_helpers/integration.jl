@@ -18,7 +18,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf, 
                 rebuild=true, 
-                tightening_algorithm=lp, 
+                tightening_algorithms=(interval_arithmetic, lp), 
                 tightening_solver=get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
@@ -36,7 +36,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf, 
                 rebuild=true, 
-                tightening_algorithm=interval_arithmetic,
+                tightening_algorithms=(interval_arithmetic,),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
                 save_path=dir
@@ -54,7 +54,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf,
-                tightening_algorithm=interval_arithmetic, 
+                tightening_algorithms=(interval_arithmetic,), 
                 tightening_solver=get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
@@ -72,7 +72,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 [1], 
                 get_tightening_solver(),
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-                tightening_algorithm=interval_arithmetic
+                tightening_algorithms=(interval_arithmetic,)
             )
         end
     end   

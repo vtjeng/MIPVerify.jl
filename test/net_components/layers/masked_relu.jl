@@ -1,5 +1,5 @@
 using Base.Test
-using MIPVerify: MaskedReLU, mip
+using MIPVerify: MaskedReLU, mip, DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE
 
 @testset "masked_relu.jl" begin
 
@@ -7,13 +7,17 @@ using MIPVerify: MaskedReLU, mip
     mask = rand(MersenneTwister(0), [-1, 0, 1], 10)
     @testset "Initialize without tightening algorithm" begin
         p = MaskedReLU(mask)
-        @test isnull(p.tightening_algorithm)
+        @test p.tightening_algorithms == DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE
     end
 
-    @testset "Initialize with tightening algorithm" begin
+    @testset "Initialize with single tightening algorithm" begin
         p = MaskedReLU(mask, mip)
-        @test !isnull(p.tightening_algorithm)
-        @test get(p.tightening_algorithm) == mip
+        @test p.tightening_algorithms == (mip,)
+    end
+
+    @testset "Initialize with tightening algorithm sequence" begin
+        p = MaskedReLU(mask, (mip,))
+        @test p.tightening_algorithms == (mip,)
     end
 
     @testset "Base.show" begin

@@ -240,7 +240,7 @@ particular index.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model,
++ `pp, norm_order, tolerance, rebuild, tightening_algorithms, tightening_solver, cache_model,
   solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values; 
   see documentation for that function for more details.
@@ -259,7 +259,7 @@ function batch_find_untargeted_attack(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true,
@@ -275,7 +275,7 @@ function batch_find_untargeted_attack(
             info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
             true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
-            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted, adversarial_example_objective=adversarial_example_objective)
+            d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithms = tightening_algorithms, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted, adversarial_example_objective=adversarial_example_objective)
 
             save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)
         end
@@ -344,7 +344,7 @@ function batch_find_targeted_attack(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true
@@ -366,7 +366,7 @@ function batch_find_targeted_attack(
 
                 info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
             
-                d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
+                d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithms = tightening_algorithms, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
                 save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)
             end
@@ -381,7 +381,7 @@ function batch_build_model(
     target_indices::AbstractArray{<:Integer},
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
-    tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     )::Void
 
     verify_target_indices(target_indices, dataset)
@@ -389,7 +389,7 @@ function batch_build_model(
     for sample_number in target_indices
         info(MIPVerify.LOGGER, "Working on index $(sample_number)")
         input = MIPVerify.get_image(dataset.images, sample_number)
-        build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
+        build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithms)
     end
     return nothing
 end

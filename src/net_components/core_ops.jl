@@ -2,6 +2,8 @@ using JuMP
 using ConditionalJuMP
 using Memento
 
+@enum BoundType lower_t=-1 upper_t=1
+
 """
 $(SIGNATURES)
 
@@ -26,59 +28,125 @@ function getmodel(xs::AbstractArray{T}) where {T<:JuMPLinearType}
     throw(DomainError("None of the JuMPLinearTypes has an associated model."))
 end
 
-function get_tightening_algorithm(
-    x::JuMPLinearType,
-    nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
-    if is_constant(x)
-        return interval_arithmetic
-    elseif !isnull(nta)
-        return get(nta)
+function get_global_tightening_algorithm_sequence(
+    xs::Array{<:JuMPLinearType})::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    if length(xs) == 0
+        return DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE
     else
-        # x is not constant, and thus x must have an associated model
-        model = ConditionalJuMP.getmodel(x)
-        return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM : model.ext[:MIPVerify].tightening_algorithm
+        return get_global_tightening_algorithm_sequence(xs[1])
     end
 end
 
-@enum BoundType lower_bound_type=-1 upper_bound_type=1
-bound_f = Dict(
-    lower_bound_type => lowerbound,
-    upper_bound_type => upperbound
-)
-bound_obj = Dict(
-    lower_bound_type => :Min,
-    upper_bound_type => :Max
-)
-bound_delta_f = Dict(
-    lower_bound_type => (b, b_0) -> b - b_0,
-    upper_bound_type => (b, b_0) -> b_0 - b
-)
-bound_operator = Dict(
-    lower_bound_type => >=,
-    upper_bound_type => <=
-)
-
-"""
-Calculates a tight bound of type `bound_type` on the variable `x` using the specified 
-tightening algorithm `nta`.
-
-If an upper bound is proven to be below cutoff, or a lower bound is proven to above cutoff,
-the algorithm returns early with whatever value was found.
-"""
-function tight_bound(
-    x::JuMPLinearType, 
-    nta::Nullable{TighteningAlgorithm},
-    bound_type::BoundType,
-    cutoff::Real)
-    tightening_algorithm = get_tightening_algorithm(x, nta)
-    b_0 = bound_f[bound_type](x)
-    if tightening_algorithm == interval_arithmetic || is_constant(x) || bound_operator[bound_type](b_0, cutoff)
-        return b_0
+function get_global_tightening_algorithm_sequence(
+    x::JuMPLinearType)::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    if is_constant(x)
+        return (interval_arithmetic,)
+    else
+        model = ConditionalJuMP.getmodel(x)
+        return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE : model.ext[:MIPVerify].tightening_algorithms
     end
-    relaxation = (tightening_algorithm == lp)
+end
+
+"""
+Internal function
+"""
+function get_bounds_internal(
+    x::JuMPLinearType,
+    lower_bound_cutoff::Real,
+    upper_bound_cutoff::Real,
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
+)
+    if is_constant(x)
+        return (x.constant, x.constant)
+    end
+    l_best = -Inf
+    u_best = Inf
+    for ta in tas
+        u_cur = bound(x, upper_t, ta)
+        u_best = min(u_best, u_cur)
+        if u_best <= upper_bound_cutoff
+            return (l_best, u_best)
+        end
+        l_cur = bound(x, lower_t, ta)
+        l_best = max(l_best, l_cur)
+        if l_best >= lower_bound_cutoff
+            return (l_best, u_best)
+        end
+    end
+    return (l_best, u_best)
+end
+
+"""
+Returns tuple of valid lower and upper bounds on x.
+
+Early return if lower bound is shown to be greater than lower_bound_cutoff
+or upper bound is shown to be greater than upper_bound_cutoff.
+"""
+function get_bounds(
+    x::JuMPLinearType,
+    lower_bound_cutoff::Real,
+    upper_bound_cutoff::Real;
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
+) 
+    (l, u) = get_bounds_internal(x, lower_bound_cutoff, upper_bound_cutoff, tas)
+    if l>u
+        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds. 
+        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
+        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
+        l=lowerbound(x)
+        u=upperbound(x)
+    end
+    (l, u)
+end
+
+function get_bounds(
+    x::JuMPLinearType;
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
+)
+    get_bounds(x, Inf, -Inf, tas=tas)
+end
+
+function get_relu_bounds(
+    x::JuMPLinearType;
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
+)
+    get_bounds(x, 0, 0, tas=tas)
+end
+
+function bound(
+    x::JuMPLinearType,
+    bt::BoundType,
+)
+    bt == lower_t ? lowerbound(x) : upperbound(x)
+end
+
+function bound(
+    x::JuMPLinearType,
+    bt::BoundType,
+    ta::TighteningAlgorithm,
+)
+    if ta == interval_arithmetic
+        bound(x, bt)
+    elseif ta == lp
+        bound(x, bt, true)
+    elseif ta == mip
+        bound(x, bt, false)
+    else
+        throw(DomainError("Unknown TighteningAlgorithm $ta."))
+    end 
+end
+
+"""
+x is expected to be non-constant.
+"""
+function bound(
+    x::JuMPLinearType,
+    bound_type::BoundType,
+    relaxation::Bool)
     # x is not constant, and thus x must have an associated model
     model = ConditionalJuMP.getmodel(x)
-    @objective(model, bound_obj[bound_type], x)
+    bound_objective = bound_type == lower_t ? :Min : :Max
+    @objective(model, bound_objective, x)
     status = solve(model, suppress_warnings = true, relaxation=relaxation)
     if status == :Optimal
         b = getobjectivevalue(model)
@@ -86,30 +154,10 @@ function tight_bound(
         b = getobjectivebound(model)
         log_gap(model)
     else
-        warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
-        b = b_0
-    end
-    db = bound_delta_f[bound_type](b, b_0)
-    debug(MIPVerify.LOGGER, "  Δu = $(db)")
-    if db < 0
-        b = b_0
-        info(MIPVerify.LOGGER, "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.")
+        warn(MIPVerify.LOGGER, "Unexpected solve status $(status); using interval arithmetic to obtain bound.")
+        b = bound(x, bound_type)
     end
     return b
-end
-
-function tight_upperbound(
-    x::JuMPLinearType; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
-    cutoff::Real = -Inf)
-    tight_bound(x, nta, upper_bound_type, cutoff)
-end
-
-function tight_lowerbound(
-    x::JuMPLinearType;
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
-    cutoff::Real = Inf)
-    tight_bound(x, nta, lower_bound_type, cutoff)
 end
 
 function log_gap(m::JuMP.Model)
@@ -126,12 +174,8 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
-    if u<l
-        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds. 
-        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
-        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
-        u=upperbound(x)
-        l=lowerbound(x)
+    if l>u
+        throw(DomainError("Inconsistent upper and lower bounds: u-l = $(u-l) is negative."))
     end
 
     if u <= 0
@@ -139,8 +183,6 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         return zero(T)
     elseif u==l
         return one(T)*l
-    elseif u<l
-        error(MIPVerify.LOGGER, "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u-l) is negative")
     elseif l >= 0
         # rectified value is always x
         return x
@@ -179,12 +221,11 @@ function get_relu_type(l::Real, u::Real)::ReLUType
 end
 
 struct ReLUInfo
-    lowerbounds::Array{Real}
-    upperbounds::Array{Real}
+    bound_pairs::Array{Tuple{<:Real, <:Real}}
 end
 
 function Base.show(io::IO, s::ReLUInfo)
-    relutypes = get_relu_type.(s.lowerbounds, s.upperbounds)
+    relutypes = map(bound_pair -> MIPVerify.get_relu_type(bound_pair...), s.bound_pairs)
     print(io, "  Behavior of ReLUs - ")
     for t in instances(ReLUType)
         n = count(x -> x==t, relutypes)
@@ -195,22 +236,8 @@ function Base.show(io::IO, s::ReLUInfo)
     end
 end
 
-"""
-Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
-the ReLU to be fixed to zero anyway.
-"""
-function lazy_tight_lowerbound(
-    x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
-    cutoff=0
-    )::Real
-    (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff=cutoff)
-end
-
 function relu(x::JuMPLinearType)::JuMP.AffExpr
-    u = tight_upperbound(x, cutoff=0)
-    l = lazy_tight_lowerbound(x, u, cutoff=0)
-    relu(x, l, u)
+    relu(x, get_relu_bounds(x)...)
 end
 
 """
@@ -219,24 +246,24 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 `max(x, 0)`.
 """
 function relu(
-    x::AbstractArray{T}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    xs::AbstractArray{T}; 
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
-        u = tight_upperbound.(x, nta=nta, cutoff=0)
-        l = lazy_tight_lowerbound.(x, u, nta=nta, cutoff=0)
-        return relu.(x, l, u)
+        bs = get_relu_bounds.(xs, tas=tas)
+        return map(
+            e -> (x, b) = e; relu(x, b...), 
+            zip(xs, bs)
+        )
     else
-        p1 = Progress(length(x), desc="  Calculating upper bounds: ")
-        u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta=nta, cutoff=0)), x)
-        p2 = Progress(length(x), desc="  Calculating lower bounds: ")
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta, cutoff=0)), zip(x, u))
+        p = Progress(length(xs), desc="  Calculating bounds: ")
+        bs = map(x_i -> (next!(p); get_relu_bounds(x_i, tas=tas)), xs)
 
-        reluinfo = ReLUInfo(l, u)
+        reluinfo = ReLUInfo(bs)
         info(MIPVerify.LOGGER, "$reluinfo")
 
-        p3 = Progress(length(x), desc="  Imposing relu constraint: ")
-        return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
+        p2 = Progress(length(xs), desc="  Imposing relu constraint: ")
+        return map(e -> (next!(p2); (x, b) = e; relu(x, b...)), zip(xs, bs))
     end
 end
 
@@ -275,20 +302,20 @@ the value of the mask. Output is constrained to be:
 ```
 """
 function masked_relu(
-    x::AbstractArray{<:JuMPLinearType}, 
-    m::AbstractArray{<:Real}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr}
-    @assert(size(x) == size(m))
-    s = size(m)
+    xs::AbstractArray{<:JuMPLinearType}, 
+    ms::AbstractArray{<:Real}; 
+    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr}
+    @assert(size(xs) == size(ms))
+    s = size(ms)
     # We add the constraints corresponding to the active ReLUs to the model
-    zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
-    d = Dict(zip(zero_idx, relu(x[zero_idx], nta=nta)))
+    zero_idx = Iterators.filter(i -> ms[i]==0, CartesianRange(s)) |> collect
+    d = Dict(zip(zero_idx, relu(xs[zero_idx], tas=tas)))
 
     # We determine the output of the masked relu, which is either: 
     #  1) the output of the relu that we have previously determined when adding the 
     #     constraints to the model. 
     #  2, 3) the result of applying the (elementwise) masked_relu function.
-    return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianRange(s))
+    return map(i -> ms[i] == 0 ? d[i] : masked_relu(xs[i], ms[i]), CartesianRange(s))
 end
 
 function maximum(xs::AbstractArray{T})::T where {T<:Real}
@@ -318,10 +345,10 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
 
     # TODO (vtjeng): [PERF] skip calculating lowerbound for index if upperbound is lower than
     # largest current lowerbound.
-    p1 = Progress(length(xs), desc="  Calculating upper bounds: ")
-    us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
-    p2 = Progress(length(xs), desc="  Calculating lower bounds: ")
-    ls = map(x_i -> (next!(p2); tight_lowerbound(x_i)), xs)
+    p = Progress(length(xs), desc="  Calculating bounds: ")
+    bs = map(x_i -> (next!(p); get_bounds(x_i)), xs)
+    
+    ls, us = map(collect, zip(bs...))
 
     l = Base.maximum(ls)
     u = Base.maximum(us)

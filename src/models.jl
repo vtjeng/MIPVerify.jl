@@ -53,11 +53,11 @@ function get_model(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithms, rebuild, cache_model)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
     # NOTE (vtjeng): It is important to set the solver before attempting to add a 
@@ -71,11 +71,11 @@ function get_model(
     input::Array{<:Real},
     pp::RestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
-    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithms, rebuild, cache_model)
     return d
 end
 
@@ -123,7 +123,7 @@ function get_reusable_model(
     input::Array{<:Real},
     pp::PerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm,
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
@@ -138,11 +138,11 @@ function get_reusable_model(
             # TODO (vtjeng): Identify situations where the saved model has a different name and throw and error.
         end
         d[:TighteningApproach] = "loaded_from_cache"
-        d[:Model].ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+        d[:Model].ext[:MIPVerify] = MIPVerifyExt(tightening_algorithms)
     else
         notice(MIPVerify.LOGGER, """
         Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""")
-        d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
+        d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithms)
         if cache_model
             notice(MIPVerify.LOGGER, """
             The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
@@ -160,11 +160,11 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
     )::Dict
 
     m = Model(solver = tightening_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm) # TODO: consider writing as seperate function
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithms) # TODO: consider writing as seperate function
 
     input_range = CartesianRange(size(input))
 
@@ -182,7 +182,7 @@ function build_reusable_model_uncached(
         :Output => v_output,
         :Input => v_input,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithms)
     )
     
     return d
@@ -193,13 +193,13 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} 
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
     m = Model(solver = tightening_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithms)
 
     input_size = size(input)
     num_channels = size(input)[4]
@@ -219,7 +219,7 @@ function build_reusable_model_uncached(
         :Output => v_output,
         :BlurKernel => v_f,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithms)
     )
 
     return d
@@ -230,11 +230,11 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
     )::Dict
 
     m = Model(solver = tightening_solver)
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithms)
 
     input_range = CartesianRange(size(input))
     v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range) # perturbation added
@@ -249,12 +249,12 @@ function build_reusable_model_uncached(
         :Perturbation => v_e,
         :Output => v_output,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithms)
     )
     
     return d
 end
 
 struct MIPVerifyExt
-    tightening_algorithm::TighteningAlgorithm
+    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
 end

@@ -2,7 +2,7 @@ using Base.Test
 using JuMP
 using MathProgBase
 using MIPVerify
-using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, tight_upperbound, tight_lowerbound, abs_ge, masked_relu, is_constant, get_tightening_algorithm, mip, lp, interval_arithmetic, DEFAULT_TIGHTENING_ALGORITHM, TighteningAlgorithm, MIPVerifyExt
+using MIPVerify: relu, get_target_indexes, set_max_indexes, get_max_index, matmul, bound, upper_t, lower_t, abs_ge, masked_relu, is_constant, mip, lp, interval_arithmetic, DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE, TighteningAlgorithm, MIPVerifyExt, get_bounds
 using ConditionalJuMP
 isdefined(:TestHelpers) || include("../TestHelpers.jl")
 using TestHelpers: get_new_model
@@ -36,43 +36,6 @@ end
         x2 = one(JuMP.Variable)*2
         @test MIPVerify.getmodel([x1, y1]) == m
         @test_throws DomainError MIPVerify.getmodel([x1, x2])
-    end
-
-    @testset "get_tightening_algorithm" begin
-        m = get_new_model()
-        
-        tightening_algorithms = [interval_arithmetic, mip, lp]
-
-        @testset "if variable known to be constant, always use interval_arithmetic" begin
-            x = one(JuMP.Variable) # is_constant(x)==true
-            for alg in tightening_algorithms
-                @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}(alg)) == interval_arithmetic
-            end
-            @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}()) == interval_arithmetic
-        end
-
-        @testset "if variable not known to be constant" begin
-            @testset "use tightening algorithm if specified" begin
-                m = get_new_model()
-                y = @variable(m)
-                for alg in tightening_algorithms
-                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}(alg)) == alg
-                end
-            end
-            @testset "fall back to model-level tightening algorithm if specified" begin
-                m = get_new_model()
-                y = @variable(m)
-                for alg in tightening_algorithms
-                    m.ext[:MIPVerify] = MIPVerifyExt(alg)
-                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == alg
-                end
-            end
-            @testset "fall back to package default tightening algorithm as last resort" begin
-                m = get_new_model()
-                y = @variable(m)
-                @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == DEFAULT_TIGHTENING_ALGORITHM
-            end
-        end
     end
 
     @testset "maximum(xs)" begin
@@ -534,6 +497,17 @@ end
     end
 
     @testset "Bounds" begin
+        @testset "Basic Tests" begin
+        m = get_new_model()
+        x = @variable(m, lowerbound = 2, upperbound = 3)
+        for algorithm in instances(MIPVerify.TighteningAlgorithm)
+            @testset "tightening with $(algorithm)" begin
+                @test bound(x, upper_t, algorithm)≈3 
+                @test bound(x, lower_t, algorithm)≈2
+            end
+        end
+        end
+
         @testset "Bounds on variables" begin
         m = get_new_model()
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
@@ -554,19 +528,18 @@ end
 
         for (algorithm, l, u) in test_cases
             @testset "tightening with $(algorithm)" begin
-                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm)
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt((algorithm, ))
                 output = (x |> p1 |> ReLU() |> p2)
 
-                @test tight_upperbound(output[1], nta=Nullable(algorithm))≈u
-                @test tight_lowerbound(output[2], nta=Nullable(algorithm))≈l
+                @test bound(output[1], upper_t, algorithm)≈u
+                @test bound(output[2], lower_t, algorithm)≈l
             end
         end
         end
 
         @testset "Bounds on constants" begin
             x1 = one(JuMP.Variable)
-            @test tight_upperbound(x1) == 1
-            @test tight_lowerbound(x1) == 1
+            @test get_bounds(x1) == (1, 1)
         end
 
     end

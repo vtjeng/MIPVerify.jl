@@ -16,7 +16,7 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
 @enum AdversarialExampleObjective closest=1 worst=2
-const DEFAULT_TIGHTENING_ALGORITHM = mip
+const DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE = (interval_arithmetic, lp, mip)
 
 include("net_components.jl")
 include("models.jl")
@@ -65,15 +65,17 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
 + `tolerance::Real`: Defaults to `0.0`. See formal definition above.
 + `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
     bounds on input to each non-linear unit even if a cached model exists.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we 
-    determine the upper and lower bounds on input to each nonlinear unit. 
-    Allowed options are `interval_arithmetic`, `lp`, `mip`.
++ `tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}`: Defaults to 
+    `(interval_arithmetic, lp, mip)`. 
+    Determines how we determine the upper and lower bounds on input to each nonlinear unit. 
+    Allowed options are any tuple of `interval_arithmetic`, `lp`, `mip`; tightening algorithms will be
+    applied in the order.
     (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
     (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
     (3) `mip` solves the full `mip` formulation.
 + `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
     Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver 
-    and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
+    and output suppressed. Used only if the `tightening_algorithms` contains `lp` or `mip`.
 + `cache_model`: Defaults to `true`. If `true`, saves model generated. If `false`, does not save model
     generated, but any existing cached model is retained.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
@@ -92,7 +94,7 @@ function find_adversarial_example(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild::Bool = false,
-    tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
+    tightening_algorithms::Tuple{Vararg{TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     cache_model::Bool = true,
     solve_if_predicted_in_targeted = true,
@@ -117,7 +119,7 @@ function find_adversarial_example(
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
             merge!(
                 d,
-                get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+                get_model(nn, input, pp, tightening_solver, tightening_algorithms, rebuild, cache_model)
             )
             m = d[:Model]
             
