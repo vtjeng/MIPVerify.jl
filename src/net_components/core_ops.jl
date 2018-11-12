@@ -442,6 +442,23 @@ function get_target_indexes(
         target_indexes
 end
 
+function get_vars_for_max_index(
+    xs::Array{<:JuMPLinearType, 1},
+    target_indexes::Array{<:Integer, 1},
+    tolerance::Real)
+
+    @assert length(xs) >= 1
+
+    target_vars = xs[Bool[i∈target_indexes for i = 1:length(xs)]]
+    other_vars = xs[Bool[i∉target_indexes for i = 1:length(xs)]]
+
+    maximum_target_var = length(target_vars) == 1 ?
+        target_vars[1] :    
+        MIPVerify.maximum(target_vars)
+
+    return (maximum_target_var, other_vars)
+end
+
 """
 $(SIGNATURES)
 
@@ -455,14 +472,7 @@ function set_max_indexes(
     target_indexes::Array{<:Integer, 1};
     tolerance::Real = 0)
 
-    @assert length(xs) >= 1
-
-    target_vars = xs[Bool[i∈target_indexes for i = 1:length(xs)]]
-    other_vars = xs[Bool[i∉target_indexes for i = 1:length(xs)]]
-
-    maximum_target_var = length(target_vars) == 1 ?
-        target_vars[1] :    
-        MIPVerify.maximum(target_vars)
+    (maximum_target_var, other_vars) = get_vars_for_max_index(xs, target_indexes, tolerance)
 
     @constraint(model, other_vars - maximum_target_var .<= -tolerance)
 end

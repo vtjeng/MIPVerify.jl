@@ -15,6 +15,7 @@ const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
+@enum AdversarialExampleObjective closest=1 worst=2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
 include("net_components.jl")
@@ -94,7 +95,8 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     cache_model::Bool = true,
-    solve_if_predicted_in_targeted = true
+    solve_if_predicted_in_targeted = true,
+    adversarial_example_objective::AdversarialExampleObjective = closest
     )::Dict
 
     total_time = @elapsed begin
@@ -118,14 +120,22 @@ function find_adversarial_example(
                 get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
             )
             m = d[:Model]
+            
+            if adversarial_example_objective == closest
+                set_max_indexes(d[:Model], d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
-            set_max_indexes(d[:Model], d[:Output], d[:TargetIndexes], tolerance=tolerance)
-
-            # Set perturbation objective
-            # NOTE (vtjeng): It is important to set the objective immediately before we carry out
-            # the solve. Functions like `set_max_indexes` can modify the objective.
+                # Set perturbation objective
+                # NOTE (vtjeng): It is important to set the objective immediately before we carry out
+                # the solve. Functions like `set_max_indexes` can modify the objective.
+                @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
+            elseif adversarial_example_objective == worst
+                (maximum_target_var, other_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes], tolerance)
+                maximum_other_var = maximum_ge(other_vars)
+                @objective(m, Max, maximum_target_var - maximum_other_var)    
+            else
+                error("Unknown adversarial_example_objective $adversarial_example_objective")
+            end
             setsolver(d[:Model], main_solver)
-            @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             d[:SolveStatus] = solve(m)
         end
     end

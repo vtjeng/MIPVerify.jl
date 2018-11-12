@@ -53,12 +53,43 @@ Computes the result of pre-multiplying `x` by the transpose of `params.matrix` a
 `params.bias`.
 """
 function matmul(
-    x::Array{<:JuMPReal, 1}, 
+    x::Array{<:Real, 1}, 
     params::Linear)
     return params.matrix.'*x .+ params.bias
 end
 
+"""
+$(SIGNATURES)
+
+Computes the result of pre-multiplying `x` by the transpose of `params.matrix` and adding
+`params.bias`. We write the computation out by hand when working with `JuMPLinearType`
+so that we are able to simplify the output as the computation is carried out.
+"""
+function matmul(
+    x::Array{T, 1}, 
+    params::Linear{U, V}) where {T<:JuMPLinearType, U<:Real, V<:Real}
+    info(MIPVerify.LOGGER, "Applying $params ... ")
+    (matrix_height, matrix_width) = size(params.matrix)
+    (input_height, ) = size(x)
+    @assert(matrix_height == input_height,
+        "Number of values in input, $input_height, does not match number of values, $matrix_height that Linear operates on."
+    )
+    W = Base.promote_op(+, V, Base.promote_op(*, T, U))
+    output = Array{W}(matrix_width)
+
+    for i in 1:matrix_width
+        s::W = 0
+        for j in 1:matrix_height
+            s = increment!(s, x[j], params.matrix[j, i])
+        end
+        s += params.bias[i]
+        ConditionalJuMP.simplify!(s)
+        output[i] = s
+    end
+
+    return output
+end
+
 (p::Linear)(x::Array{<:JuMPReal}) = "Linear() layers work only on one-dimensional input. You likely forgot to add a Flatten() layer before your first linear layer." |> ArgumentError |> throw
 
-(p::Linear)(x::Array{<:Real, 1}) = matmul(x, p)
-(p::Linear)(x::Array{<:JuMPLinearType, 1}) = (info(MIPVerify.LOGGER, "Applying $p ... "); ConditionalJuMP.simplify!.(matmul(x, p)))
+(p::Linear)(x::Array{<:JuMPReal, 1}) = matmul(x, p)
