@@ -9,13 +9,13 @@ Represents a ReLU operation.
 `ReLU`.
 """
 struct ReLU <: Layer
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm}
 end
 
 ReLU() = ReLU(DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE)
 
 function ReLU(ta::MIPVerify.TighteningAlgorithm)
-    ReLU((ta,))
+    ReLU([ta])
 end
 
 Base.hash(a::ReLU, h::UInt) = hash(:ReLU, h)

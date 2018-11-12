@@ -11,12 +11,12 @@ using MIPVerify: ReLU, mip, DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE
 
     @testset "Initialize with single tightening algorithm" begin
         p = ReLU(mip)
-        @test p.tightening_algorithms == (mip,)
+        @test p.tightening_algorithms == [mip]
     end
 
     @testset "Initialize with tightening algorithm" begin
-        p = ReLU((mip, ))
-        @test p.tightening_algorithms == (mip,)
+        p = ReLU([mip])
+        @test p.tightening_algorithms == [mip]
     end
 
     @testset "Base.show" begin

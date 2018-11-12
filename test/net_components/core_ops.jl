@@ -528,7 +528,7 @@ end
 
         for (algorithm, l, u) in test_cases
             @testset "tightening with $(algorithm)" begin
-                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt((algorithm, ))
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt([algorithm])
                 output = (x |> p1 |> ReLU() |> p2)
 
                 @test bound(output[1], upper_t, algorithm)≈u

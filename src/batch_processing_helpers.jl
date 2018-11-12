@@ -259,7 +259,7 @@ function batch_find_untargeted_attack(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true,
@@ -344,7 +344,7 @@ function batch_find_targeted_attack(
     norm_order::Real = 1,
     tolerance::Real = 0.0,
     rebuild = false,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true
@@ -381,7 +381,7 @@ function batch_build_model(
     target_indices::AbstractArray{<:Integer},
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm} = DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE,
     )::Void
 
     verify_target_indices(target_indices, dataset)

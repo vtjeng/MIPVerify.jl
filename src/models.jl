@@ -53,7 +53,7 @@ function get_model(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
@@ -71,7 +71,7 @@ function get_model(
     input::Array{<:Real},
     pp::RestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
@@ -123,7 +123,7 @@ function get_reusable_model(
     input::Array{<:Real},
     pp::PerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm},
     rebuild::Bool,
     cache_model::Bool
     )::Dict
@@ -160,7 +160,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm}
     )::Dict
 
     m = Model(solver = tightening_solver)
@@ -193,7 +193,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} 
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm} 
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
@@ -230,7 +230,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm}
     )::Dict
 
     m = Model(solver = tightening_solver)
@@ -256,5 +256,5 @@ function build_reusable_model_uncached(
 end
 
 struct MIPVerifyExt
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm}
 end

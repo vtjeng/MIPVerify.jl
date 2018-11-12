@@ -14,7 +14,7 @@ $(FIELDS)
 """
 @auto_hash_equals struct MaskedReLU{T<:Real} <: Layer
     mask::Array{T}
-    tightening_algorithms::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    tightening_algorithms::AbstractArray{<:MIPVerify.TighteningAlgorithm}
 end
 
 function MaskedReLU(mask::Array{T}) where {T<:Real}
@@ -22,11 +22,11 @@ function MaskedReLU(mask::Array{T}) where {T<:Real}
 end
 
 function MaskedReLU(mask::Array{T}, ta::MIPVerify.TighteningAlgorithm) where {T<:Real}
-    MaskedReLU{T}(mask, (ta, ))
+    MaskedReLU{T}(mask, [ta])
 end
 
 # TODO (vtjeng): Remove
-# function MaskedReLU(mask::Array{T}, ta::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}) where {T<:Real}
+# function MaskedReLU(mask::Array{T}, ta::AbstractArray{<:MIPVerify.TighteningAlgorithm}) where {T<:Real}
 #     MaskedReLU{T}(mask, ta)
 # end
 

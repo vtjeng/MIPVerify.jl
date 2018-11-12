@@ -29,7 +29,7 @@ function getmodel(xs::AbstractArray{T}) where {T<:JuMPLinearType}
 end
 
 function get_global_tightening_algorithm_sequence(
-    xs::Array{<:JuMPLinearType})::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    xs::Array{<:JuMPLinearType})::Array{<:MIPVerify.TighteningAlgorithm}
     if length(xs) == 0
         return DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE
     else
@@ -38,9 +38,9 @@ function get_global_tightening_algorithm_sequence(
 end
 
 function get_global_tightening_algorithm_sequence(
-    x::JuMPLinearType)::Tuple{Vararg{MIPVerify.TighteningAlgorithm}}
+    x::JuMPLinearType)::Array{<:MIPVerify.TighteningAlgorithm}
     if is_constant(x)
-        return (interval_arithmetic,)
+        return [interval_arithmetic]
     else
         model = ConditionalJuMP.getmodel(x)
         return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM_SEQUENCE : model.ext[:MIPVerify].tightening_algorithms
@@ -54,8 +54,8 @@ function get_bounds_internal(
     x::JuMPLinearType,
     lower_bound_cutoff::Real,
     upper_bound_cutoff::Real,
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}},
-)
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm},
+)::Tuple{Real, Real}
     if is_constant(x)
         return (x.constant, x.constant)
     end
@@ -86,8 +86,8 @@ function get_bounds(
     x::JuMPLinearType,
     lower_bound_cutoff::Real,
     upper_bound_cutoff::Real;
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
-) 
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm} = get_global_tightening_algorithm_sequence(x),
+)::Tuple{Real, Real}
     (l, u) = get_bounds_internal(x, lower_bound_cutoff, upper_bound_cutoff, tas)
     if l>u
         # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds. 
@@ -101,22 +101,22 @@ end
 
 function get_bounds(
     x::JuMPLinearType;
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
-)
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm} = get_global_tightening_algorithm_sequence(x),
+)::Tuple{Real, Real}
     get_bounds(x, Inf, -Inf, tas=tas)
 end
 
 function get_relu_bounds(
     x::JuMPLinearType;
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(x),
-)
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm} = get_global_tightening_algorithm_sequence(x),
+)::Tuple{Real, Real}
     get_bounds(x, 0, 0, tas=tas)
 end
 
 function bound(
     x::JuMPLinearType,
     bt::BoundType,
-)
+)::Real
     bt == lower_t ? lowerbound(x) : upperbound(x)
 end
 
@@ -124,7 +124,7 @@ function bound(
     x::JuMPLinearType,
     bt::BoundType,
     ta::TighteningAlgorithm,
-)
+)::Real
     if ta == interval_arithmetic
         bound(x, bt)
     elseif ta == lp
@@ -142,7 +142,7 @@ x is expected to be non-constant.
 function bound(
     x::JuMPLinearType,
     bound_type::BoundType,
-    relaxation::Bool)
+    relaxation::Bool)::Real
     # x is not constant, and thus x must have an associated model
     model = ConditionalJuMP.getmodel(x)
     bound_objective = bound_type == lower_t ? :Min : :Max
@@ -247,7 +247,7 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 """
 function relu(
     xs::AbstractArray{T}; 
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         bs = get_relu_bounds.(xs, tas=tas)
@@ -304,7 +304,7 @@ the value of the mask. Output is constrained to be:
 function masked_relu(
     xs::AbstractArray{<:JuMPLinearType}, 
     ms::AbstractArray{<:Real}; 
-    tas::Tuple{Vararg{MIPVerify.TighteningAlgorithm}} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr}
+    tas::AbstractArray{<:MIPVerify.TighteningAlgorithm} = get_global_tightening_algorithm_sequence(xs))::Array{JuMP.AffExpr}
     @assert(size(xs) == size(ms))
     s = size(ms)
     # We add the constraints corresponding to the active ReLUs to the model
