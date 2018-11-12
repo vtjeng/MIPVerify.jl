@@ -156,5 +156,4 @@ function conv2d(
     return output
 end
 
-(p::Conv2d)(x::Array{<:Real, 4}) = conv2d(x, p)
-(p::Conv2d)(x::Array{<:JuMPLinearType, 4}) = conv2d(x, p)
+(p::Conv2d)(x::Array{<:JuMPReal, 4}) = conv2d(x, p)
