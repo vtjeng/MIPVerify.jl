@@ -147,11 +147,13 @@ function conv2d(
             end
         end
         s += params.bias[i_4]
+        if T<:JuMPLinearType
+            ConditionalJuMP.simplify!(s)
+        end
         (@nref 4 output i) = s
     end
 
     return output
 end
 
-(p::Conv2d)(x::Array{<:Real, 4}) = conv2d(x, p)
-(p::Conv2d)(x::Array{<:JuMPLinearType, 4}) = ConditionalJuMP.simplify!.(conv2d(x, p))
+(p::Conv2d)(x::Array{<:JuMPReal, 4}) = conv2d(x, p)
