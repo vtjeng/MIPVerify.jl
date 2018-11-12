@@ -633,11 +633,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s164,1} where #s164<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s164,1} where #s164<:Real,MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
     "text": "matmul(x, params)\n\n\nComputes the result of pre-multiplying x by the transpose of params.matrix and adding params.bias.\n\n\n\n"
+},
+
+{
+    "location": "net_components/layers.html#MIPVerify.matmul-Union{Tuple{Array{T,1},MIPVerify.Linear{U,V}}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Real where U<:Real where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
+    "page": "Layers",
+    "title": "MIPVerify.matmul",
+    "category": "method",
+    "text": "matmul(x, params)\n\n\nComputes the result of pre-multiplying x by the transpose of params.matrix and adding params.bias. We write the computation out by hand when working with JuMPLinearType so that we are able to simplify the output as the computation is carried out.\n\n\n\n"
 },
 
 {
