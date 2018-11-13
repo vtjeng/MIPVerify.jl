@@ -149,17 +149,18 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         model = ConditionalJuMP.getmodel(x)
         x_rect = @variable(model)
         a = @variable(model, category = :Bin)
+        
+        M=max(u, -l)
 
-        # refined big-M formulation that takes advantage of the knowledge
-        # that lower and upper bounds  are different.
-        @constraint(model, x_rect <= x + (-l)*(1-a))
+        # poor big-M formulation that takes the max of the bounds
+        @constraint(model, x_rect <= x + M*(1-a))
         @constraint(model, x_rect >= x)
-        @constraint(model, x_rect <= u*a)
+        @constraint(model, x_rect <= M*a)
         @constraint(model, x_rect >= 0)
 
         # Manually set the bounds for x_rect so they can be used by downstream operations.
         setlowerbound(x_rect, 0)
-        setupperbound(x_rect, u)
+        setupperbound(x_rect, M)
         return x_rect
     end
 end
