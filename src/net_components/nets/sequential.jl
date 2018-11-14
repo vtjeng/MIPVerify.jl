@@ -22,4 +22,4 @@ function Base.show(io::IO, p::Sequential)
     end
 end
 
-(p::Sequential)(x::Array{<:JuMPReal, 4}) = x |> p.layers
+(p::Sequential)(x::Array{<:JuMPReal}) = x |> p.layers
