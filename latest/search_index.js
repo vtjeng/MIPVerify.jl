@@ -201,7 +201,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s330,N} where N where #s330<:Real,Union{Array{#s331,1} where #s331<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s332,N} where N where #s332<:Real,Union{Array{#s333,1} where #s333<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Single Image",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
@@ -249,7 +249,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s81,N} where N where #s81<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s82,N} where N where #s82<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_untargeted_attack",
     "category": "method",
@@ -265,7 +265,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s26,N} where N where #s26<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s79,N} where N where #s79<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_targeted_attack",
     "category": "method",
