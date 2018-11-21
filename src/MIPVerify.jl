@@ -136,7 +136,12 @@ function find_adversarial_example(
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
             setsolver(d[:Model], main_solver)
-            d[:SolveStatus] = solve(m)
+            solve_time = @elapsed begin 
+                d[:SolveStatus] = solve(m)
+            end
+            if d[:SolveTime] == -1
+                d[:Solvetime] = solve_time
+            end
         end
     end
     d[:TotalTime] = total_time
