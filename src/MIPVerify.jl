@@ -122,7 +122,7 @@ function find_adversarial_example(
             m = d[:Model]
             
             if adversarial_example_objective == closest
-                set_max_indexes(d[:Model], d[:Output], d[:TargetIndexes], tolerance=tolerance)
+                set_max_indexes(m, d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
                 # Set perturbation objective
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry out
@@ -135,10 +135,20 @@ function find_adversarial_example(
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
-            setsolver(d[:Model], main_solver)
-            d[:SolveStatus] = solve(m)
+            setsolver(m, main_solver)
+            solve_time = @elapsed begin 
+                d[:SolveStatus] = solve(m)
+            end
+            d[:SolveTime] = try
+                getsolvetime(m)
+            catch err
+                # CBC solver, used for testing, does not implement `getsolvetime`.
+                isa(err, MethodError) || rethrow(err)
+                solve_time
+            end
         end
     end
+    
     d[:TotalTime] = total_time
     return d
 end
