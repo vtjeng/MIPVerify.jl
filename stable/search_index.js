@@ -13,7 +13,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "MIPVerify",
     "category": "section",
-    "text": "MIPVerify.jl enables users to verify neural networks that are piecewise affine by finding the closest adversarial example to a selected input."
+    "text": "MIPVerify.jl enables users to verify neural networks that are piecewise affine by: 1) finding the closest adversarial example to a selected input, or 2) proving that no adversarial example exists for some bounded family of perturbations."
 },
 
 {
@@ -25,11 +25,59 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "index.html#Prerequisites-1",
+    "page": "Home",
+    "title": "Prerequisites",
+    "category": "section",
+    "text": "To use our package, you requireThe Julia programming language\nAn optimization solver supported by JuMP\nThe Julia package for working with that solverOur choice of solver is Gurobi, but any supported optimization solver will work.Platform compatibility: Julia and Gurobi are available for 32-bit and 64-bit Windows, 64-bit macOS, and 64-bit Linux, but example code in this README is for Linux."
+},
+
+{
     "location": "index.html#Installing-Julia-1",
     "page": "Home",
     "title": "Installing Julia",
     "category": "section",
-    "text": "Download links and more detailed instructions are available on the Julia website. The latest release of this package requires version 0.6 of Julia.warning: Warning\nDo not use apt-get or brew to install Julia, as the versions provided by these package managers tend to be out of date."
+    "text": "The latest release of this package requires version 0.6 of Julia.note: Note\nMIPVerify is not currently supported on version 0.7 or 1.0 of Julia.Platform-specific instructions can be found here. To complete your installation, ensure that you are able to call julia REPL from the command line.warning: Warning\nDo not use apt-get or brew to install Julia, as the versions provided by these package managers tend to be out of date."
+},
+
+{
+    "location": "index.html#On-Ubuntu-1",
+    "page": "Home",
+    "title": "On Ubuntu",
+    "category": "section",
+    "text": "$ cd /your/path/here\n  wget https://julialang-s3.julialang.org/bin/linux/x64/0.6/julia-0.6.4-linux-x86_64.tar.gz\n  tar -xvf julia-0.6.4-linux-x86_64.tar.gzJulia will be extracted to a folder named julia-hash_number. (For example, v0.6.4 is julia-9d11f62bcb). Add the following lines to your startup file (e.g. .bashrc for the bash shell) to add Julia\'s bin folder to your system PATH environment variable.export PATH=\"${PATH}:/your/path/here/julia-9d11f62bcb/bin\""
+},
+
+{
+    "location": "index.html#Installing-Gurobi-1",
+    "page": "Home",
+    "title": "Installing Gurobi",
+    "category": "section",
+    "text": "Download the most recent version of the Gurobi optimizer. A license is required to use Gurobi; free academic licenses are available."
+},
+
+{
+    "location": "index.html#On-Ubuntu-2",
+    "page": "Home",
+    "title": "On Ubuntu",
+    "category": "section",
+    "text": "$ cd /your/path/here\n  wget https://packages.gurobi.com/8.0/gurobi8.0.1_linux64.tar.gz\n  tar -xvf gurobi8.0.1_linux64.tar.gzAdd the following environment variables to your startup fileexport GUROBI_HOME=\"/your/path/here/gurobi801/linux64\"\nexport PATH=\"${PATH}:${GUROBI_HOME}/bin\"\nexport LD_LIBRARY_PATH=\"${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib\"Finally, install the license obtained on a terminal prompt$ grbgetkey aaaa0000-0000-0000-0000-000000000000note: Note\nYou will have to obtain your own license number from the Gurobi site.Sample output:\n\ninfo  : grbgetkey version 8.0.1, build v8.0.1rc0\ninfo  : Contacting Gurobi key server...\ninfo  : Key for license ID 000000 was successfully retrieved\ninfo  : License expires at the end of the day on 2019-09-30\ninfo  : Saving license key...\n\nIn which directory would you like to store the Gurobi license key file?\n[hit Enter to store it in /home/ubuntu]:\n\ninfo  : License 000000 written to file /home/ubuntu/gurobi.licnote: Note\nIf you store the license file in a non-default location, you will have to add the environment variable GRB_LICENSE_FILE to your startup file: export GRB_LICENSE_FILE=\"/your/path/here/gurobi.lic\""
+},
+
+{
+    "location": "index.html#Installing-Gurobi.jl-1",
+    "page": "Home",
+    "title": "Installing Gurobi.jl",
+    "category": "section",
+    "text": "Gurobi.jl is a wrapper of the Gurobi solver accessible in Julia. Once you have installed Gurobi and activated the license, install the latest release of Gurobi.jl:julia> Pkg.add(\"Gurobi\")You can test Gurobi.jl by runningjulia> Pkg.test(\"Gurobi\")Sample output:INFO: Testing Gurobi\nAcademic license - for non-commercial use only\n...\nTest Summary: | Pass  Total\nC API         |   19     19\n...\nTest Summary:          | Pass  Total\nMathOptInterface Tests | 1415   1415\nINFO: Gurobi tests passed"
+},
+
+{
+    "location": "index.html#Installing-HDF5-1",
+    "page": "Home",
+    "title": "Installing HDF5",
+    "category": "section",
+    "text": "julia> Pkg.add(\"HDF5\")"
 },
 
 {
@@ -37,7 +85,31 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Installing MIPVerify",
     "category": "section",
-    "text": "Once you have Julia installed, install the latest tagged release of MIPVerify by runningPkg.add(\"MIPVerify\")"
+    "text": "Once you have Julia, a mathematical programming solver, and the HDF5 package installed, install the latest release of MIPVerify:julia> Pkg.add(\"MIPVerify\")You can test MIPVerify by runningjulia> Pkg.test(\"MIPVerify\")These tests do take a long time to run (~30 mins), but any issues generally cause early failures."
+},
+
+{
+    "location": "index.html#Troubleshooting-your-installation-1",
+    "page": "Home",
+    "title": "Troubleshooting your installation",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "index.html#Invalid-Gurobi-License-1",
+    "page": "Home",
+    "title": "Invalid Gurobi License",
+    "category": "section",
+    "text": "When running Pkg.test(\"Gurobi\"):INFO: Testing Gurobi\nNo variables, no constraints: Error During Test\n  Got an exception of type ErrorException outside of a @test\n  Invalid Gurobi license\n  ...FIX: The error message indicates that you have not installed your Gurobi license. If it has been installed, the license is saved as a file gurobi.lic, typically in either the /home/ubuntu or opt/gurobi directories."
+},
+
+{
+    "location": "index.html#HDF5-had-build-errors-on-Ubuntu-1",
+    "page": "Home",
+    "title": "HDF5 had build errors on Ubuntu",
+    "category": "section",
+    "text": "When running Pkg.add(\"HDF5\"):...\nINFO: Building HDF5\n...\n=======================================[ ERROR: HDF5 ]=======================================\n\nLoadError: failed process: Process(`sudo apt-get install hdf5-tools`, ProcessExited(1)) [1]\nwhile loading /home/ubuntu/.julia/v0.6/HDF5/deps/build.jl, in expression starting on line 41\n\n=============================================================================================\n...FIX:$ sudo apt-get install hdf5-toolsNext,julia> Pkg.build(\"HDF5\")INFO: Building CMakeWrapper\nINFO: Building Blosc\nINFO: Building HDF5"
 },
 
 {
@@ -129,11 +201,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s25,N} where N where #s25<:Real,Union{Array{#s201,1} where #s201<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/single_image.html#MIPVerify.find_adversarial_example-Tuple{MIPVerify.NeuralNet,Array{#s332,N} where N where #s332<:Real,Union{Array{#s333,1} where #s333<:Integer, Integer},MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Single Image",
     "title": "MIPVerify.find_adversarial_example",
     "category": "method",
-    "text": "find_adversarial_example(nn, input, target_selection, main_solver; invert_target_selection, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nThe output dictionary has keys :Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :Perturbation, :PerturbedInput, :Output.  See the tutorial on what individual dictionary entries correspond to.\n\nFormal Definition: If there are a total of n categories, the (perturbed) output vector  y=d[:Output]=d[:PerturbedInput] |> nn has length n.  We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection and for all i ∉ target_selection.\n\nNamed Arguments:\n\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we    determine the upper and lower bounds on input to each nonlinear unit.    Allowed options are interval_arithmetic, lp, mip.   (1) interval_arithmetic looks at the bounds on the output to the previous layer.   (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.   (3) mip solves the full mip formulation.\ntightening_solver: Solver used to determine upper and lower bounds for input to nonlinear units.   Defaults to the same type of solver as the main_solver, with a time limit of 20s per solver    and output suppressed. Used only if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated. If false, does not save model   generated, but any existing cached model is retained.\nsolve_if_predicted_in_targeted: Defaults to true. The prediction that nn makes for the unperturbed   input can be determined efficiently. If the predicted index is one of the indexes in target_selection,   we can skip the relatively costly process of building the model for the MIP problem since we already have an   \"adversarial example\" –- namely, the input itself. We continue build the model and solve the (trivial) MIP   problem if and only if solve_if_predicted_in_targeted is true.\n\n\n\n"
+    "text": "find_adversarial_example(nn, input, target_selection, main_solver; invert_target_selection, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted, adversarial_example_objective)\n\n\nFinds the perturbed image closest to input such that the network described by nn classifies the perturbed image in one of the categories identified by the  indexes in target_selection.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nThe output dictionary has keys :Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :Perturbation, :PerturbedInput, :Output.  See the tutorial on what individual dictionary entries correspond to.\n\nFormal Definition: If there are a total of n categories, the (perturbed) output vector  y=d[:Output]=d[:PerturbedInput] |> nn has length n.  We guarantee that y[j] - y[i] ≥ tolerance for some j ∈ target_selection and for all i ∉ target_selection.\n\nNamed Arguments:\n\ninvert_target_selection::Bool: Defaults to false. If true, sets target_selection to    be its complement.\npp::PerturbationFamily: Defaults to UnrestrictedPerturbationFamily(). Determines   the family of perturbations over which we are searching for adversarial examples.\nnorm_order::Real: Defaults to 1. Determines the distance norm used to determine the    distance from the perturbed image to the original. Supported options are 1, Inf    and 2 (if the main_solver used can solve MIQPs.)\ntolerance::Real: Defaults to 0.0. See formal definition above.\nrebuild::Bool: Defaults to false. If true, rebuilds model by determining upper and lower   bounds on input to each non-linear unit even if a cached model exists.\ntightening_algorithm::MIPVerify.TighteningAlgorithm: Defaults to mip. Determines how we    determine the upper and lower bounds on input to each nonlinear unit.    Allowed options are interval_arithmetic, lp, mip.   (1) interval_arithmetic looks at the bounds on the output to the previous layer.   (2) lp solves an lp corresponding to the mip formulation, but with any integer constraints relaxed.   (3) mip solves the full mip formulation.\ntightening_solver: Solver used to determine upper and lower bounds for input to nonlinear units.   Defaults to the same type of solver as the main_solver, with a time limit of 20s per solver    and output suppressed. Used only if the tightening_algorithm is lp or mip.\ncache_model: Defaults to true. If true, saves model generated. If false, does not save model   generated, but any existing cached model is retained.\nsolve_if_predicted_in_targeted: Defaults to true. The prediction that nn makes for the unperturbed   input can be determined efficiently. If the predicted index is one of the indexes in target_selection,   we can skip the relatively costly process of building the model for the MIP problem since we already have an   \"adversarial example\" –- namely, the input itself. We continue build the model and solve the (trivial) MIP   problem if and only if solve_if_predicted_in_targeted is true.\n\n\n\n"
 },
 
 {
@@ -177,11 +249,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s54,N} where N where #s54<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_untargeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s82,N} where N where #s82<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_untargeted_attack",
     "category": "method",
-    "text": "batch_find_untargeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with the target labels for each sample set  to the complement of the true label.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_untargeted_attack for more details.\n\n\n\n"
+    "text": "batch_find_untargeted_attack(nn, dataset, target_indices, main_solver; save_path, solve_rerun_option, pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted, adversarial_example_objective)\n\n\nRuns find_adversarial_example for the specified neural network nn and dataset for samples identified by the target_indices, with the target labels for each sample set  to the complement of the true label.\n\nIt creates a named directory in save_path, with the name summarizing \n\nthe name of the network in nn, \nthe perturbation family pp, \nthe norm_order\nthe tolerance.\n\nWithin this directory, a summary of all the results is stored in summary.csv, and  results from individual runs are stored in the subfolder run_results.\n\nThis functioned is designed so that it can be interrupted and restarted cleanly; it relies on the summary.csv file to determine what the results of previous runs are (so modifying this file manually can lead to unexpected behavior.)\n\nIf the summary file already contains a result for a given target index, the  solve_rerun_option determines whether we rerun find_adversarial_example for this particular index.\n\nmain_solver specifies the solver used to solve the MIP problem once it has been built.\n\nNamed Arguments:\n\nsave_path: Directory where results will be saved. Defaults to current directory.\npp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model, solve_if_predicted_in_targeted are passed through to find_adversarial_example and have the same default values;  see documentation for that function for more details.\nsolve_rerun_option::MIPVerify.SolveRerunOption: Options are  never, always, resolve_ambiguous_cases, and refine_insecure_cases.  See run_on_sample_for_untargeted_attack for more details.\n\n\n\n"
 },
 
 {
@@ -193,7 +265,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s230,N} where N where #s230<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
+    "location": "finding_adversarial_examples/batch_processing.html#MIPVerify.batch_find_targeted_attack-Tuple{MIPVerify.NeuralNet,MIPVerify.LabelledDataset,AbstractArray{#s79,N} where N where #s79<:Integer,MathProgBase.SolverInterface.AbstractMathProgSolver}",
     "page": "Batch Processing",
     "title": "MIPVerify.batch_find_targeted_attack",
     "category": "method",
@@ -433,7 +505,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s163,N} where N where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s162,1} where #s162<:MIPVerify.Layer}",
+    "location": "net_components/overview.html#MIPVerify.chain-Tuple{Array{#s165,N} where N where #s165<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},Array{#s164,1} where #s164<:MIPVerify.Layer}",
     "page": "Overview",
     "title": "MIPVerify.chain",
     "category": "method",
@@ -561,11 +633,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s162,1} where #s162<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable, Real},MIPVerify.Linear}",
+    "location": "net_components/layers.html#MIPVerify.matmul-Tuple{Array{#s164,1} where #s164<:Real,MIPVerify.Linear}",
     "page": "Layers",
     "title": "MIPVerify.matmul",
     "category": "method",
     "text": "matmul(x, params)\n\n\nComputes the result of pre-multiplying x by the transpose of params.matrix and adding params.bias.\n\n\n\n"
+},
+
+{
+    "location": "net_components/layers.html#MIPVerify.matmul-Union{Tuple{Array{T,1},MIPVerify.Linear{U,V}}, Tuple{T}, Tuple{U}, Tuple{V}} where V<:Real where U<:Real where T<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable}",
+    "page": "Layers",
+    "title": "MIPVerify.matmul",
+    "category": "method",
+    "text": "matmul(x, params)\n\n\nComputes the result of pre-multiplying x by the transpose of params.matrix and adding params.bias. We write the computation out by hand when working with JuMPLinearType so that we are able to simplify the output as the computation is carried out.\n\n\n\n"
 },
 
 {
@@ -705,7 +785,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s115,N} where N where #s115<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s116,N} where N where #s116<:Real}",
+    "location": "net_components/core_ops.html#MIPVerify.masked_relu-Tuple{AbstractArray{#s165,N} where N where #s165<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},AbstractArray{#s166,N} where N where #s166<:Real}",
     "page": "Core Operations",
     "title": "MIPVerify.masked_relu",
     "category": "method",
@@ -737,7 +817,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s163,1} where #s163<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s164,1} where #s164<:Integer}",
+    "location": "net_components/core_ops.html#MIPVerify.set_max_indexes-Tuple{JuMP.Model,Array{#s25,1} where #s25<:Union{JuMP.GenericAffExpr{Float64,JuMP.Variable}, JuMP.Variable},Array{#s251,1} where #s251<:Integer}",
     "page": "Core Operations",
     "title": "MIPVerify.set_max_indexes",
     "category": "method",
