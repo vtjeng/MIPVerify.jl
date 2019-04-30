@@ -3,7 +3,7 @@ export get_matrix_params, get_conv_params, get_example_network_params
 """
 $(SIGNATURES)
 
-Helper function to import the parameters for a layer carrying out matrix multiplication 
+Helper function to import the parameters for a layer carrying out matrix multiplication
     (e.g. fully connected layer / softmax layer) from `param_dict` as a
     [`Linear`](@ref) object.
 
@@ -62,13 +62,15 @@ function get_conv_params(
     expected_size::NTuple{4, Int};
     matrix_name::String = "weight",
     bias_name::String = "bias",
-    expected_stride::Integer = 1
+    expected_stride::Integer = 1,
+    padding::Padding = same
     )::Conv2d
 
     params = Conv2d(
         param_dict["$layer_name/$matrix_name"],
         squeeze(param_dict["$layer_name/$bias_name"], 1),
-        expected_stride
+        expected_stride,
+        padding
     )
 
     check_size(params, expected_size)

@@ -2,6 +2,9 @@ using JuMP
 using ConditionalJuMP
 
 export Conv2d
+export Padding
+
+@enum Padding same=1 valid=2
 
 """
 $(TYPEDEF)
@@ -18,25 +21,30 @@ $(FIELDS)
     filter::Array{T, 4}
     bias::Array{U, 1}
     stride::V
+    padding::Padding
 
-    function Conv2d{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    function Conv2d{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V, padding::Padding) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
             filter_out_channels == bias_out_channels,
             "For this convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
         )
-        return new(filter, bias, stride)
+        return new(filter, bias, stride, padding)
     end
 
 end
 
+function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V, padding::Padding) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    Conv2d{T, U, V}(filter, bias, stride, padding)
+end
+
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
-    Conv2d{T, U, V}(filter, bias, stride)
+    Conv2d{T, U, V}(filter, bias, stride, same)
 end
 
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
-    Conv2d(filter, bias, 1)
+    Conv2d(filter, bias, 1, same)
 end
 
 """
@@ -59,8 +67,9 @@ end
 function Base.show(io::IO, p::Conv2d)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
     stride = p.stride
+    padding = p.padding
     print(io,
-        "Conv2d($filter_in_channels, $filter_out_channels, kernel_size=($(filter_height), $(filter_width)), stride=($(stride), $(stride)), padding=same)"
+        "Conv2d($filter_in_channels, $filter_out_channels, kernel_size=($(filter_height), $(filter_width)), stride=($(stride), $(stride)), padding=$(padding))"
     )
 end
 
@@ -108,27 +117,33 @@ function conv2d(
     end
     filter = params.filter
     stride = params.stride
+    padding = params.padding
 
     (batch, in_height, in_width, input_in_channels) = size(input)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
     
     @assert(
-        input_in_channels == filter_in_channels, 
+        input_in_channels == filter_in_channels,
         "Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."
     )
-    
-    out_height = round(Int, in_height/stride, RoundUp)
-    out_width = round(Int, in_width/stride, RoundUp)
-    output_size = (batch, out_height, out_width, filter_out_channels)
 
     # Considered using offset arrays here, but could not get it working.
 
-    # Calculating appropriate offsets so that center of kernel is matched with
-    # cell at which correlation is being calculated. Note that tensorflow
-    # chooses a specific convention for a dimension with even size which we
-    # replicate here.
-    filter_height_offset = round(Int, filter_height/2, RoundUp)
-    filter_width_offset = round(Int, filter_width/2, RoundUp)
+    if padding == same
+        out_height = round(Int, in_height/stride, RoundUp)
+        out_width = round(Int, in_width/stride, RoundUp)
+        output_size = (batch, out_height, out_width, filter_out_channels)
+        filter_height_offset = round(Int, filter_height/2, RoundUp)
+        filter_width_offset = round(Int, filter_width/2, RoundUp)
+    else
+        @assert(padding == valid)
+        out_height = round(Int, (in_height + 1 - filter_height) / stride, RoundUp)
+        out_width = round(Int, (in_width + 1 - filter_width) / stride, RoundUp)
+        output_size = (batch, out_height, out_width, filter_out_channels)
+        filter_height_offset = 1
+        filter_width_offset = 1
+    end
+
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
     output = Array{W}(output_size)
 
