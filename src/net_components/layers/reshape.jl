@@ -13,7 +13,7 @@ struct Reshape <: Layer
 end
 
 function Base.show(io::IO, p::Reshape)
-    print(io, "Reshape(shape: $(p.shape)")
+    print(io, "Reshape(shape: $(p.dims)")
 end
 
 function apply(x::Array{<:JuMPReal}, p::Reshape)
