@@ -3,10 +3,7 @@ export Reshape
 """
 $(TYPEDEF)
 
-Represents a ReLU operation.
-
-`p(x)` is shorthand for [`relu(x)`](@ref) when `p` is an instance of
-`ReLU`.
+Represents a Reshape operation.
 """
 struct Reshape <: Layer
     dims::Dims
