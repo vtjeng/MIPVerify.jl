@@ -9,16 +9,16 @@ Represents a ReLU operation.
 `ReLU`.
 """
 struct Reshape <: Layer
-    shape::Array{Integer, 1}
+    dims::Dims
 end
 
 function Base.show(io::IO, p::Reshape)
     print(io, "Reshape(shape: $(p.shape)")
 end
 
-function apply(p::Reshape, x::Array{<:JuMPReal})
-    m = reshape(x, p.shape)
+function apply(x::Array{<:JuMPReal}, p::Reshape)
+    m = reshape(x, p.dims)
     return m
 end
 
-(p::Reshape)(x::Array{<:JuMPReal}) = apply(p, x)
+(p::Reshape)(x::Array{<:JuMPReal}) = apply(x, p)
