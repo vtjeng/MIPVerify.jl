@@ -11,7 +11,7 @@ using MIPVerify: PerturbationFamily
 
 const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
 
-if Pkg.installed("Gurobi") == nothing
+if Base.find_package("Gurobi") == nothing
     using Cbc
     main_solver = CbcSolver(logLevel=0)
     tightening_solver = CbcSolver(logLevel=0, seconds=20)

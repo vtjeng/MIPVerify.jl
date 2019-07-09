@@ -47,7 +47,7 @@ using TestHelpers: get_new_model
                 solve(m)
                 @test getobjectivevalue(m)≈6
 
-                if Pkg.installed("Gurobi") != nothing
+                if Base.find_package("Gurobi") != nothing
                     # Skip these tests if Gurobi is not installed.
                     # Cbc does not solve problems with quadratic objectives
                     @objective(m, Min, n_2)

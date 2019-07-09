@@ -76,7 +76,7 @@ expected_objective_values = Dict(
     ([2, 3], pp_blur, Inf, 0) => 0.0105534
 )
 
-if Pkg.installed("Gurobi") == nothing
+if Base.find_package("Gurobi") == nothing
     # Skip some tests if Gurobi is not installed.
     selected_test_keys = [
         (2, pp_unrestricted, Inf, 0),

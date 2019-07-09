@@ -5,7 +5,7 @@ using Test
     include("generated_weights/mfc+mfc+softmax.jl")
     include("generated_weights/conv+fc+softmax.jl")
 
-    if Pkg.installed("Gurobi") != nothing
+    if Base.find_package("Gurobi") != nothing
         # Skip these tests if Gurobi is not installed.
         include("generated_weights/conv+conv+fc+softmax.jl")
     end
