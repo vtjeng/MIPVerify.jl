@@ -1,7 +1,7 @@
 using AutoHashEquals
 using MathProgBase
 
-const module_tempdir = joinpath(Base.tempdir(), "julia", string(module_name(current_module())))
+const module_tempdir = joinpath(Base.tempdir(), "julia", string(nameof(@__MODULE__)))
 const model_dir = joinpath(module_tempdir, "models")
 if !ispath(model_dir)
     mkpath(model_dir)

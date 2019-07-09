@@ -1,7 +1,7 @@
 using Memento
 
 # Create our module level logger (this will get precompiled)
-const LOGGER = getlogger(current_module())   # or `getlogger(@__MODULE__)` on 0.7
+const LOGGER = getlogger(@__MODULE__)
 
 # Register the module level logger at runtime so that folks can access the logger via 
 # `getlogger(MyModule)`
