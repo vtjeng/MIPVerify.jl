@@ -2,8 +2,7 @@ using Test
 using MIPVerify
 using MIPVerify: BlurringPerturbationFamily, UnrestrictedPerturbationFamily
 using MIPVerify: LInfNormBoundedPerturbationFamily
-isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
-using TestHelpers: batch_test_adversarial_example
+@isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "mfc + mfc + softmax" begin
 
@@ -55,6 +54,6 @@ using TestHelpers: batch_test_adversarial_example
         
     )
 
-    batch_test_adversarial_example(nn, x0, expected_objective_values)
+    TestHelpers.batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end

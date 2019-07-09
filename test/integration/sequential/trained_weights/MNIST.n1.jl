@@ -2,8 +2,7 @@ using Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 using MIPVerify: get_example_network_params, read_datasets, get_image
-isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
-using TestHelpers: batch_test_adversarial_example
+@isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "MNIST.n1" begin
     nn = get_example_network_params("MNIST.n1")
@@ -31,7 +30,7 @@ using TestHelpers: batch_test_adversarial_example
             (6, pp_blur, Inf, 0) => NaN
         )
     
-        batch_test_adversarial_example(nn, x0, expected_objective_values)
+        TestHelpers.batch_test_adversarial_example(nn, x0, expected_objective_values)
     end
 
     sample_index = 3
@@ -45,7 +44,7 @@ using TestHelpers: batch_test_adversarial_example
             (8, pp_blur, Inf, 0) => 0.277525
         )
         
-        batch_test_adversarial_example(nn, x0, expected_objective_values)
+        TestHelpers.batch_test_adversarial_example(nn, x0, expected_objective_values)
     end
     
 end

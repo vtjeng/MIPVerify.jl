@@ -1,8 +1,7 @@
 using Test
 using MIPVerify
 using MIPVerify: BlurringPerturbationFamily
-isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
-using TestHelpers: batch_test_adversarial_example
+@isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "FC + Softmax" begin
 
@@ -44,7 +43,7 @@ nn = Sequential([Flatten(4),
         (3, pp_blur, Inf, 0) => 0.4151904104813
     )
 
-    batch_test_adversarial_example(nn, x0, expected_objective_values)
+    TestHelpers.batch_test_adversarial_example(nn, x0, expected_objective_values)
 end
 
 end

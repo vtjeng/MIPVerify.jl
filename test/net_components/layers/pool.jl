@@ -2,9 +2,7 @@ using Test
 using JuMP
 using MIPVerify: Pool, MaxPool, AveragePool
 using MIPVerify: getsliceindex, getpoolview
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
-
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "pool.jl" begin
 
@@ -51,7 +49,7 @@ using TestHelpers: get_new_model
             @test MIPVerify.pool(input_array, MaxPool((2, 2))) == true_output
         end
         @testset "Variable Input" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             input_array_v = map(
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array

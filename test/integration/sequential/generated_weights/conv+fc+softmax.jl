@@ -2,8 +2,7 @@ using Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 using MIPVerify: LInfNormBoundedPerturbationFamily
-isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
-using TestHelpers: batch_test_adversarial_example
+@isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "Conv + FC + Softmax" begin
 
@@ -88,6 +87,6 @@ if Base.find_package("Gurobi") == nothing
     expected_objective_values = filter((k, v) -> k in selected_test_keys, expected_objective_values)
 end
 
-batch_test_adversarial_example(nn, x0, expected_objective_values)
+TestHelpers.batch_test_adversarial_example(nn, x0, expected_objective_values)
 
 end

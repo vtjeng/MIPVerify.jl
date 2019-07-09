@@ -2,8 +2,7 @@ using Test
 using JuMP
 using MIPVerify
 using MIPVerify: check_size, increment!
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "conv2d.jl" begin
 
@@ -57,7 +56,7 @@ using TestHelpers: get_new_model
             @test 7 == increment!(1, 2, 3)
         end
         @testset "JuMP.AffExpr * Real" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             x = @variable(m, start=100)
             y = @variable(m, start=1)
             s = 5*x+3*y
@@ -94,7 +93,7 @@ using TestHelpers: get_new_model
             @test evaluated_output == true_output
         end
         @testset "Numerical Input, Variable Layer Parameters" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
             bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
             p_v = Conv2d(filter_v, bias_v)
@@ -107,7 +106,7 @@ using TestHelpers: get_new_model
             @test solve_output≈true_output
         end
         @testset "Variable Input, Numerical Layer Parameters" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             input_v = map(_ -> @variable(m), CartesianRange(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)

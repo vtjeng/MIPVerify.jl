@@ -1,8 +1,6 @@
 using Test
 using JuMP
 using MIPVerify
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
 
 @testset "flatten.jl" begin
 

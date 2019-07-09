@@ -4,8 +4,7 @@ using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm
 using JuMP
 
-isdefined(:TestHelpers) || include("TestHelpers.jl")
-using TestHelpers: get_new_model
+@isdefined(TestHelpers) || include("TestHelpers.jl")
 
 @testset "MIPVerify" begin
     MIPVerify.setloglevel!("info")
@@ -34,7 +33,7 @@ using TestHelpers: get_new_model
         end
         @testset "variable-valued arrays" begin
             @testset "l1" begin
-                m = get_new_model()
+                m = TestHelpers.get_new_model()
                 x1 = @variable(m, lowerbound=1, upperbound=5)
                 x2 = @variable(m, lowerbound=-8, upperbound=-2)
                 x3 = @variable(m, lowerbound=3, upperbound=10)

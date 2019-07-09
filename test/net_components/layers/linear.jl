@@ -1,8 +1,7 @@
 using Test
 using JuMP
 using MIPVerify: Linear, check_size
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "linear.jl" begin
 
@@ -54,7 +53,7 @@ using TestHelpers: get_new_model
             @test p([7, 8]) == [28, 59]
         end
         @testset "JuMP.AffExpr * Real" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             x = @variable(m, start=7)
             y = @variable(m, start=8)
             @test getvalue(p([x, y])) == [28, 59]
