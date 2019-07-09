@@ -6,13 +6,13 @@ using MIPVerify: ReLU, mip
 @testset "ReLU" begin
     @testset "Initialize without tightening algorithm" begin
         p = ReLU()
-        @test isnull(p.tightening_algorithm)
+        @test p.tightening_algorithm === nothing
     end
 
     @testset "Initialize with tightening algorithm" begin
         p = ReLU(mip)
-        @test !isnull(p.tightening_algorithm)
-        @test get(p.tightening_algorithm) == mip
+        @test !(p.tightening_algorithm === nothing)
+        @test p.tightening_algorithm == mip
     end
 
     @testset "Base.show" begin

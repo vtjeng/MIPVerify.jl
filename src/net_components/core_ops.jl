@@ -28,11 +28,11 @@ end
 
 function get_tightening_algorithm(
     x::JuMPLinearType,
-    nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
+    nta::Union{TighteningAlgorithm, Nothing})::TighteningAlgorithm
     if is_constant(x)
         return interval_arithmetic
-    elseif !isnull(nta)
-        return get(nta)
+    elseif !(nta === nothing)
+        return nta
     else
         # x is not constant, and thus x must have an associated model
         model = ConditionalJuMP.getmodel(x)
@@ -67,7 +67,7 @@ the algorithm returns early with whatever value was found.
 """
 function tight_bound(
     x::JuMPLinearType, 
-    nta::Nullable{TighteningAlgorithm},
+    nta::Union{TighteningAlgorithm, Nothing},
     bound_type::BoundType,
     cutoff::Real)
     tightening_algorithm = get_tightening_algorithm(x, nta)
@@ -100,14 +100,14 @@ end
 
 function tight_upperbound(
     x::JuMPLinearType; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff::Real = -Inf)
     tight_bound(x, nta, upper_bound_type, cutoff)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff::Real = Inf)
     tight_bound(x, nta, lower_bound_type, cutoff)
 end
@@ -201,7 +201,7 @@ the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
     x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff=0
     )::Real
     (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff=cutoff)
@@ -220,7 +220,7 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 """
 function relu(
     x::AbstractArray{T}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    nta::Union{TighteningAlgorithm, Nothing} = nothing)::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x, nta=nta, cutoff=0)
@@ -277,7 +277,7 @@ the value of the mask. Output is constrained to be:
 function masked_relu(
     x::AbstractArray{<:JuMPLinearType}, 
     m::AbstractArray{<:Real}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr}
+    nta::Union{TighteningAlgorithm, Nothing} = nothing)::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
     # We add the constraints corresponding to the active ReLUs to the model

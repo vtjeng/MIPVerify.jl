@@ -14,15 +14,15 @@ $(FIELDS)
 """
 @auto_hash_equals struct MaskedReLU{T<:Real} <: Layer
     mask::Array{T}
-    tightening_algorithm::Nullable{TighteningAlgorithm}
+    tightening_algorithm::Union{TighteningAlgorithm, Nothing}
 end
 
 function MaskedReLU(mask::Array{T}) where {T<:Real}
-    MaskedReLU{T}(mask, Nullable{TighteningAlgorithm}())
+    MaskedReLU{T}(mask, nothing)
 end
 
 function MaskedReLU(mask::Array{T}, ta::TighteningAlgorithm) where {T<:Real}
-    MaskedReLU{T}(mask, Nullable{TighteningAlgorithm}(ta))
+    MaskedReLU{T}(mask, ta)
 end
 
 function Base.show(io::IO, p::MaskedReLU)

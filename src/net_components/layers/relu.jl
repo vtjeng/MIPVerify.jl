@@ -9,7 +9,7 @@ Represents a ReLU operation.
 `ReLU`.
 """
 struct ReLU <: Layer
-    tightening_algorithm::Nullable{TighteningAlgorithm}
+    tightening_algorithm::Union{TighteningAlgorithm, Nothing}
 end
 
 ReLU() = ReLU(nothing)

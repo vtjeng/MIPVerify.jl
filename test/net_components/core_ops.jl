@@ -46,9 +46,9 @@ end
         @testset "if variable known to be constant, always use interval_arithmetic" begin
             x = one(JuMP.Variable) # is_constant(x)==true
             for alg in tightening_algorithms
-                @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}(alg)) == interval_arithmetic
+                @test get_tightening_algorithm(x, alg) == interval_arithmetic
             end
-            @test get_tightening_algorithm(x, Nullable{TighteningAlgorithm}()) == interval_arithmetic
+            @test get_tightening_algorithm(x, nothing) == interval_arithmetic
         end
 
         @testset "if variable not known to be constant" begin
@@ -56,7 +56,7 @@ end
                 m = get_new_model()
                 y = @variable(m)
                 for alg in tightening_algorithms
-                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}(alg)) == alg
+                    @test get_tightening_algorithm(y, alg) == alg
                 end
             end
             @testset "fall back to model-level tightening algorithm if specified" begin
@@ -64,13 +64,13 @@ end
                 y = @variable(m)
                 for alg in tightening_algorithms
                     m.ext[:MIPVerify] = MIPVerifyExt(alg)
-                    @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == alg
+                    @test get_tightening_algorithm(y, nothing) == alg
                 end
             end
             @testset "fall back to package default tightening algorithm as last resort" begin
                 m = get_new_model()
                 y = @variable(m)
-                @test get_tightening_algorithm(y, Nullable{TighteningAlgorithm}()) == DEFAULT_TIGHTENING_ALGORITHM
+                @test get_tightening_algorithm(y, nothing) == DEFAULT_TIGHTENING_ALGORITHM
             end
         end
     end
@@ -557,8 +557,8 @@ end
                 m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm)
                 output = (x |> p1 |> ReLU() |> p2)
 
-                @test tight_upperbound(output[1], nta=Nullable(algorithm))≈u
-                @test tight_lowerbound(output[2], nta=Nullable(algorithm))≈l
+                @test tight_upperbound(output[1], nta=algorithm)≈u
+                @test tight_lowerbound(output[2], nta=algorithm)≈l
             end
         end
         end
