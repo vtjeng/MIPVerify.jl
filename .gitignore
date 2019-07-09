@@ -1,3 +1,4 @@
+## Standard options for all users
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
@@ -8,12 +9,17 @@ deps/*
 # checkpoint files for notebook examples are volatile
 *.ipynb_checkpoints
 
-# log files are only used for debugging
-*.log
-
-# personal TODO file
-TODO.md
-
 # documentation files in /build and /site are fully specified by make.jl and soource
 docs/build/
 docs/site/
+
+## Additional ignored files for personal use
+# personal TODO file
+TODO.md
+
+# log files are only used for debugging
+*.log
+
+# vscode options
+
+.vscode/*
