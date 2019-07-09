@@ -8,3 +8,4 @@ MathProgBase 0.7.7
 DocStringExtensions 0.8.0
 ProgressMeter 1.0.0
 CSV 0.4.3
+DataFrames 0.17.1
