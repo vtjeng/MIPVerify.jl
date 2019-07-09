@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 using MIPVerify: get_example_network_params, read_datasets, get_image

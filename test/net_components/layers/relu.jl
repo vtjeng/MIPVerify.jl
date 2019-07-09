@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify: ReLU, mip
 
 @testset "relu.jl" begin

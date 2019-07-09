@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 @testset "utils" begin
     include("utils/import_datasets.jl")

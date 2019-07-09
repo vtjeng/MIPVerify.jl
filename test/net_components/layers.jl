@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 @testset "layers/" begin
     include("layers/conv2d.jl")

@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 @testset "generated_weights" begin
     include("generated_weights/fc+softmax.jl")

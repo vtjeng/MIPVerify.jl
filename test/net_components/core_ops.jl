@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using JuMP
 using MathProgBase
 using MIPVerify

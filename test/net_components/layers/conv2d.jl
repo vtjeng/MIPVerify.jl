@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using JuMP
 using MIPVerify
 using MIPVerify: check_size, increment!

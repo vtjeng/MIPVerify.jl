@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify: MaskedReLU, mip
 
 @testset "masked_relu.jl" begin

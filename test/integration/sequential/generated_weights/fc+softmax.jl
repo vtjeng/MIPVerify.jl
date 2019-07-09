@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify
 using MIPVerify: BlurringPerturbationFamily
 isdefined(:TestHelpers) || include("../../../TestHelpers.jl")

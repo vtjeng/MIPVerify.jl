@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using JuMP
 using MIPVerify: Pool, MaxPool, AveragePool
 using MIPVerify: getsliceindex, getpoolview

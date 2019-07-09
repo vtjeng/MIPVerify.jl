@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 @testset "net_components/" begin
     include("net_components/core_ops.jl")

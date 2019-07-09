@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify: setloglevel!
 using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm

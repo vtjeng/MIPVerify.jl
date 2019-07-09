@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 
 @testset "sequential" begin
     include("sequential/generated_weights.jl")

@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using JuMP
 using MIPVerify
 isdefined(:TestHelpers) || include("../../TestHelpers.jl")

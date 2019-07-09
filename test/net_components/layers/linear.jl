@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using JuMP
 using MIPVerify: Linear, check_size
 isdefined(:TestHelpers) || include("../../TestHelpers.jl")
