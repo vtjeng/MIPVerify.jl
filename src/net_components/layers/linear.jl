@@ -55,7 +55,7 @@ Computes the result of pre-multiplying `x` by the transpose of `params.matrix` a
 function matmul(
     x::Array{<:Real, 1}, 
     params::Linear)
-    return params.matrix.'*x .+ params.bias
+    return transpose(params.matrix)*x .+ params.bias
 end
 
 """
