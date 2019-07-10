@@ -116,4 +116,4 @@ function pool(
 end
 
 (p::Pool)(x::Array{<:Real}) = MIPVerify.pool(x, p)
-(p::Pool)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); MIPVerify.pool(x, p))
+(p::Pool)(x::Array{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Specifying $p ... "); MIPVerify.pool(x, p))

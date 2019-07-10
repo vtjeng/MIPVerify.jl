@@ -68,7 +68,7 @@ so that we are able to simplify the output as the computation is carried out.
 function matmul(
     x::Array{T, 1}, 
     params::Linear{U, V}) where {T<:JuMPLinearType, U<:Real, V<:Real}
-    info(MIPVerify.LOGGER, "Applying $params ... ")
+    Memento.info(MIPVerify.LOGGER, "Applying $params ... ")
     (matrix_height, matrix_width) = size(params.matrix)
     (input_height, ) = size(x)
     @assert(matrix_height == input_height,

@@ -104,7 +104,7 @@ function conv2d(
     params::Conv2d{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMPLinearType || U<:JuMPLinearType || V<:JuMPLinearType
-        info(MIPVerify.LOGGER, "Applying $(params) ... ")
+        Memento.info(MIPVerify.LOGGER, "Applying $(params) ... ")
     end
     filter = params.filter
     stride = params.stride

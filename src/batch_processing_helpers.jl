@@ -266,7 +266,7 @@ function batch_find_untargeted_attack(
     for sample_number in target_indices
         if run_on_sample_for_untargeted_attack(sample_number, dt, solve_rerun_option)
             # TODO (vtjeng): change function signature for get_image and get_label
-            info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+            Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
             true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
             d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted, adversarial_example_objective=adversarial_example_objective)
@@ -358,7 +358,7 @@ function batch_find_targeted_attack(
                     continue
                 end
 
-                info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
+                Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
             
                 d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
@@ -381,7 +381,7 @@ function batch_build_model(
     verify_target_indices(target_indices, dataset)
 
     for sample_number in target_indices
-        info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+        Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number)")
         input = MIPVerify.get_image(dataset.images, sample_number)
         build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
     end
