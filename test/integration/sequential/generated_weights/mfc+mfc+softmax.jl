@@ -2,11 +2,12 @@ using Test
 using MIPVerify
 using MIPVerify: BlurringPerturbationFamily, UnrestrictedPerturbationFamily
 using MIPVerify: LInfNormBoundedPerturbationFamily
+using Random
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "mfc + mfc + softmax" begin
 
-    srand(5)
+    Random.seed!(5)
 
     x0 = rand(1, 4, 8, 1)
 

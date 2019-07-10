@@ -2,6 +2,7 @@ using Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily
 using MIPVerify: LInfNormBoundedPerturbationFamily
+using Random
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "Conv + Conv + FC + Softmax" begin
@@ -39,7 +40,7 @@ B_height = 3
 B_width = A_height
 
 ### Choosing data to be used
-srand(5)
+Random.seed!(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
 x0 = rand(input_size)
 

@@ -1,6 +1,7 @@
 using Test
 using JuMP
 using MIPVerify
+using Random
 
 @testset "flatten.jl" begin
 
@@ -27,7 +28,7 @@ using MIPVerify
     end
 
     @testset "flatten" begin
-        srand(31415)
+        Random.seed!(31415)
         xs = rand(1:5, (2, 2, 2, 2))
         p1 = Flatten([3, 1, 2, 4])
         @test all(p1(xs) .== [4, 3, 3, 1, 4, 5, 3, 5, 2, 4, 5, 5, 4, 2, 5, 4])
