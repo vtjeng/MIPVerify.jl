@@ -7,8 +7,8 @@ using JuMP
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
 @testset "MIPVerify" begin
-    MIPVerify.setloglevel!("info")
-    MIPVerify.remove_cached_models()
+    setloglevel!("info")
+    remove_cached_models()
 
     include("integration.jl")
     include("net_components.jl")
