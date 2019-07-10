@@ -1,5 +1,6 @@
 using AutoHashEquals
 using MathProgBase
+using Serialization
 
 const module_tempdir = joinpath(Base.tempdir(), "julia", string(nameof(@__MODULE__)))
 const model_dir = joinpath(module_tempdir, "models")
