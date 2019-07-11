@@ -5,7 +5,8 @@ using Random
 @testset "masked_relu.jl" begin
 
 @testset "MaskedReLU" begin
-    mask = rand(Random.MersenneTwister(0), [-1, 0, 1], 10)
+    Random.seed!(0)
+    mask = rand([-1, 0, 1], 10)
     @testset "Initialize without tightening algorithm" begin
         p = MaskedReLU(mask)
         @test p.tightening_algorithm === nothing

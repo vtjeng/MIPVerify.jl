@@ -1,5 +1,6 @@
 using Test
 using JuMP
+using Random
 using MIPVerify
 using MIPVerify: check_size, increment!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
