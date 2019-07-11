@@ -9,8 +9,8 @@ using MIPVerify: Linear, check_size
     @testset "With Bias" begin
         @testset "Matched Size" begin
             height = 10
-            matrix = rand(Float64, 2, height)
-            bias = rand(Float64, height)
+            matrix = ones(2, height)
+            bias = ones(height)
             p = Linear(matrix, bias)
             @test p.matrix == matrix
             @test p.bias == bias
@@ -22,23 +22,23 @@ using MIPVerify: Linear, check_size
         @testset "Unmatched Size" begin
             matrix_height = 10
             bias_height = 5
-            matrix = rand(Float64, 2, matrix_height)
-            bias = rand(Float64, bias_height)
+            matrix = ones(2, matrix_height)
+            bias = ones(bias_height)
             @test_throws AssertionError Linear(matrix, bias)
         end
         @testset "Multiplying by >1-dimensional array" begin
             height = 15
-            matrix = rand(Float64, 2, height)
-            bias = rand(Float64, height)
+            matrix = ones(2, height)
+            bias = ones(height)
             p = Linear(matrix, bias)
-            @test_throws ArgumentError p(rand(Float64, 3, 5))
+            @test_throws ArgumentError p(ones(3, 5))
         end
     end
 
     @testset "Base.show" begin
         height = 13
-        matrix = rand(Float64, 37, height)
-        bias = rand(Float64, height)
+        matrix = ones(37, height)
+        bias = ones(height)
         p = Linear(matrix, bias)
         io = IOBuffer()
         Base.show(io, p)
