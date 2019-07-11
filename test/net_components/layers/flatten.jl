@@ -1,7 +1,6 @@
 using Test
 using JuMP
 using MIPVerify
-using Random
 
 @testset "flatten.jl" begin
 
@@ -28,12 +27,13 @@ using Random
     end
 
     @testset "flatten" begin
-        Random.seed!(31415)
-        xs = rand(1:5, (2, 2, 2, 2))
+        xs = reshape(1:16, (2, 2, 2, 2))
         p1 = Flatten([3, 1, 2, 4])
-        @test all(p1(xs) .== [4, 3, 3, 1, 4, 5, 3, 5, 2, 4, 5, 5, 4, 2, 5, 4])
+        @test p1(xs) == [1, 5, 2, 6, 3, 7, 4, 8, 9, 13, 10, 14, 11, 15, 12, 16]
         p2 = Flatten([1, 3, 4, 2])
-        @test p2(xs) == [4, 3, 3, 1, 2, 5, 4, 5, 4, 3, 5, 5, 4, 5, 2, 4]
+        @test p2(xs) == [1, 2, 5, 6, 9, 10, 13, 14, 3, 4, 7, 8, 11, 12, 15, 16]
+        p3 = Flatten([1, 2, 3, 4])
+        @test p3(xs) == [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]
     end
 
 end

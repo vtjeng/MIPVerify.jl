@@ -48,10 +48,10 @@ end
 """
 Permute dimensions of array in specified order, then flattens the array.
 """
-function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Integer}
+function flatten(x::AbstractArray{T, N}, perm::AbstractArray{U}) where {T, N, U<:Integer}
     @assert all(sort(perm) .== 1:N)
     return permutedims(x, perm)[:]
 end
 
-(p::Flatten)(x::Array{<:Real}) = flatten(x, p.perm)
-(p::Flatten)(x::Array{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
+(p::Flatten)(x::AbstractArray{<:Real}) = flatten(x, p.perm)
+(p::Flatten)(x::AbstractArray{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
