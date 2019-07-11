@@ -1,6 +1,5 @@
 using Test
 using JuMP
-using Random
 using MIPVerify
 using MIPVerify: check_size, increment!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
@@ -9,7 +8,7 @@ using MIPVerify: check_size, increment!
 
     @testset "Conv2d" begin
         @testset "Base.show" begin
-            filter = rand(Float64, 3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             io = IOBuffer()
             Base.show(io, p)
@@ -18,8 +17,8 @@ using MIPVerify: check_size, increment!
         @testset "With Bias" begin
             @testset "Matched Size" begin
                 out_channels = 5
-                filter = rand(Float64, 3, 3, 2, out_channels)
-                bias = rand(Float64, out_channels)
+                filter = ones(3, 3, 2, out_channels)
+                bias = ones(out_channels)
                 p = Conv2d(filter, bias)
                 @test p.filter == filter
                 @test p.bias == bias
@@ -27,13 +26,13 @@ using MIPVerify: check_size, increment!
             @testset "Unmatched Size" begin
                 filter_out_channels = 4
                 bias_out_channels = 5
-                filter = rand(Float64, 3, 3, 2, filter_out_channels)
-                bias = rand(Float64, bias_out_channels)
+                filter = ones(3, 3, 2, filter_out_channels)
+                bias = ones(bias_out_channels)
                 @test_throws AssertionError Conv2d(filter, bias)
             end
         end
         @testset "No Bias" begin
-            filter = rand(Float64, 3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             @test p.filter == filter
         end
@@ -45,7 +44,7 @@ using MIPVerify: check_size, increment!
             @test p.filter == filter
         end
         @testset "check_size" begin
-            filter = rand(Float64, 3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             @test check_size(p, (3, 3, 2, 5)) === nothing
             @test_throws AssertionError check_size(p, (3, 3, 2, 4))
@@ -74,18 +73,17 @@ using MIPVerify: check_size, increment!
     end
 
     @testset "conv2d" begin
-        Random.seed!(1)
         input_size = (1, 4, 4, 2)
-        input = rand(0:5, input_size)
+        input = reshape(collect(1:prod(input_size)), input_size) .- 16
         filter_size = (3, 3, 2, 1)
-        filter = rand(0:5, filter_size)
+        filter = reshape(collect(1:prod(filter_size)), filter_size) .- 9
         bias_size = (1, )
-        bias = rand(0:5, bias_size)
+        bias = [1]
         true_output_raw = [
-            49 74 90 56;
-            67 118 140 83;
-            66 121 134 80;
-            56 109 119 62            
+            225  381  405  285;
+            502  787  796  532;
+            550  823  832  532;
+            301  429  417  249;      
         ]
         true_output = reshape(transpose(true_output_raw), (1, 4, 4, 1))
         p = Conv2d(filter, bias)
