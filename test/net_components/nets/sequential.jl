@@ -1,6 +1,7 @@
 using Test
 using JuMP
 using MIPVerify
+using Random
 
 @testset "sequential.jl" begin
 
@@ -10,7 +11,7 @@ using MIPVerify
             ReLU(),
             Flatten([3, 4, 1, 2]),
             Linear(rand(1000, 50), rand(50)),
-            MaskedReLU(rand(MersenneTwister(0), [-1, 0, 1], 50)),
+            MaskedReLU(rand(Random.MersenneTwister(0), [-1, 0, 1], 50)),
             Linear(rand(50, 10), rand(10))
         ], "testnet")
         io = IOBuffer()
@@ -21,7 +22,7 @@ using MIPVerify
           (2) ReLU()
           (3) Flatten(): flattens 4 dimensional input, with dimensions permuted according to the order [3, 4, 1, 2]
           (4) Linear(1000 -> 50)
-          (5) MaskedReLU with expected input size (50,). (18 zeroed, 17 as-is, 15 rectified).
+          (5) MaskedReLU with expected input size (50,). (16 zeroed, 17 as-is, 17 rectified).
           (6) Linear(50 -> 10)
         """
     end
