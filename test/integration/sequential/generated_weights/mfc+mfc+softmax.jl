@@ -25,9 +25,9 @@ using Random
     nn = Sequential(
         [
             Flatten(4),
-            Linear(rand(A_width, A_height)-0.5, rand(A_height)-0.5), 
+            Linear(rand(A_width, A_height) .- 0.5, rand(A_height) .- 0.5), 
             MaskedReLU(A_mask),
-            Linear(rand(B_width, B_height)-0.5, rand(B_height)-0.5),
+            Linear(rand(B_width, B_height) .- 0.5, rand(B_height) .- 0.5),
             MaskedReLU(B_mask),
             Linear(rand(C_width, C_height), rand(C_height))
         ],

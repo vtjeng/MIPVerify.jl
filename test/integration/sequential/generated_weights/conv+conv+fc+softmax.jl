@@ -44,17 +44,17 @@ Random.seed!(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
 x0 = rand(input_size)
 
-kernelc1 = rand(filter1_height, filter1_width, in1_channels, out1_channels)*2-1
-biasc1 = rand(out1_channels)*2-1
+kernelc1 = rand(filter1_height, filter1_width, in1_channels, out1_channels)*2 .- 1
+biasc1 = rand(out1_channels)*2 .- 1
 
-kernelc2 = rand(filter2_height, filter2_width, in2_channels, out2_channels)*2-1
-biasc2 = rand(out2_channels)*2-1
+kernelc2 = rand(filter2_height, filter2_width, in2_channels, out2_channels)*2 .- 1
+biasc2 = rand(out2_channels)*2 .- 1
 
-kernelf1 = rand(A_width, A_height)*2-1
-biasf1 = rand(A_height)*2-1
+kernelf1 = rand(A_width, A_height)*2 .- 1
+biasf1 = rand(A_height)*2 .- 1
 
-kernelf2 = rand(B_width, B_height)*2-1
-biasf2 = rand(B_height)*2-1
+kernelf2 = rand(B_width, B_height)*2 .- 1
+biasf2 = rand(B_height)*2 .- 1
 
 nn = Sequential(
     [
