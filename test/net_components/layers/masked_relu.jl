@@ -1,12 +1,10 @@
 using Test
 using MIPVerify: MaskedReLU, mip
-using Random
 
 @testset "masked_relu.jl" begin
 
 @testset "MaskedReLU" begin
-    Random.seed!(0)
-    mask = rand([-1, 0, 1], 10)
+    mask = [-1, 1, 0, 0, 1, 1]
     @testset "Initialize without tightening algorithm" begin
         p = MaskedReLU(mask)
         @test p.tightening_algorithm === nothing
@@ -22,7 +20,7 @@ using Random
         p = MaskedReLU(mask)
         io = IOBuffer()
         Base.show(io, p)
-        @test String(take!(io)) == "MaskedReLU with expected input size (10,). (4 zeroed, 3 as-is, 3 rectified)."
+        @test String(take!(io)) == "MaskedReLU with expected input size (6,). (1 zeroed, 3 as-is, 2 rectified)."
     end
 end
 
