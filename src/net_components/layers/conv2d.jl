@@ -130,7 +130,7 @@ function conv2d(
     filter_height_offset = round(Int, filter_height/2, RoundUp)
     filter_width_offset = round(Int, filter_width/2, RoundUp)
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
-    output = Array{W}(output_size)
+    output = Array{W}(undef, output_size)
 
     @nloops 4 i output begin
         s::W = 0

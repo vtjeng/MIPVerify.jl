@@ -75,7 +75,7 @@ function matmul(
         "Number of values in input, $input_height, does not match number of values, $matrix_height that Linear operates on."
     )
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
-    output = Array{W}(matrix_width)
+    output = Array{W}(undef, matrix_width)
 
     for i in 1:matrix_width
         s::W = 0
