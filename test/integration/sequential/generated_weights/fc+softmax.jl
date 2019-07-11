@@ -20,7 +20,7 @@ B_width = A_height
 
 Random.seed!(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
-x0 = rand(input_size)
+x0 = rand(Float64, input_size)
 
 kernelf1 = rand(-10:10, A_width, A_height)
 biasf1 = rand(-10:10, A_height)

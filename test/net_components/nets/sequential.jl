@@ -7,12 +7,12 @@ using Random
 
     @testset "Sequential" begin
         nnparams = Sequential([
-            Conv2d(rand(1, 4, 4, 16), rand(16), 2),
+            Conv2d(rand(Float64, 1, 4, 4, 16), rand(Float64, 16), 2),
             ReLU(),
             Flatten([3, 4, 1, 2]),
-            Linear(rand(1000, 50), rand(50)),
+            Linear(rand(Float64, 1000, 50), rand(Float64, 50)),
             MaskedReLU(rand(Random.MersenneTwister(0), [-1, 0, 1], 50)),
-            Linear(rand(50, 10), rand(10))
+            Linear(rand(Float64, 50, 10), rand(Float64, 10))
         ], "testnet")
         io = IOBuffer()
         Base.show(io, nnparams)

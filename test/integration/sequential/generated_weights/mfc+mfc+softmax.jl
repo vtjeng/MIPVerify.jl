@@ -9,7 +9,7 @@ using Random
 
     Random.seed!(5)
 
-    x0 = rand(1, 4, 8, 1)
+    x0 = rand(Float64, 1, 4, 8, 1)
 
     A_height = 16
     A_width = length(x0)
@@ -25,11 +25,11 @@ using Random
     nn = Sequential(
         [
             Flatten(4),
-            Linear(rand(A_width, A_height) .- 0.5, rand(A_height) .- 0.5), 
+            Linear(rand(Float64, A_width, A_height) .- 0.5, rand(Float64, A_height) .- 0.5), 
             MaskedReLU(A_mask),
-            Linear(rand(B_width, B_height) .- 0.5, rand(B_height) .- 0.5),
+            Linear(rand(Float64, B_width, B_height) .- 0.5, rand(Float64, B_height) .- 0.5),
             MaskedReLU(B_mask),
-            Linear(rand(C_width, C_height), rand(C_height))
+            Linear(rand(Float64, C_width, C_height), rand(Float64, C_height))
         ],
         "tests.integration.generated_weights.mfc+mfc+softmax"
     )

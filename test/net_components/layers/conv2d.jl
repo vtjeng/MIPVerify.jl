@@ -8,7 +8,7 @@ using MIPVerify: check_size, increment!
 
     @testset "Conv2d" begin
         @testset "Base.show" begin
-            filter = rand(3, 3, 2, 5)
+            filter = rand(Float64, 3, 3, 2, 5)
             p = Conv2d(filter)
             io = IOBuffer()
             Base.show(io, p)
@@ -17,8 +17,8 @@ using MIPVerify: check_size, increment!
         @testset "With Bias" begin
             @testset "Matched Size" begin
                 out_channels = 5
-                filter = rand(3, 3, 2, out_channels)
-                bias = rand(out_channels)
+                filter = rand(Float64, 3, 3, 2, out_channels)
+                bias = rand(Float64, out_channels)
                 p = Conv2d(filter, bias)
                 @test p.filter == filter
                 @test p.bias == bias
@@ -26,13 +26,13 @@ using MIPVerify: check_size, increment!
             @testset "Unmatched Size" begin
                 filter_out_channels = 4
                 bias_out_channels = 5
-                filter = rand(3, 3, 2, filter_out_channels)
-                bias = rand(bias_out_channels)
+                filter = rand(Float64, 3, 3, 2, filter_out_channels)
+                bias = rand(Float64, bias_out_channels)
                 @test_throws AssertionError Conv2d(filter, bias)
             end
         end
         @testset "No Bias" begin
-            filter = rand(3, 3, 2, 5)
+            filter = rand(Float64, 3, 3, 2, 5)
             p = Conv2d(filter)
             @test p.filter == filter
         end
@@ -44,7 +44,7 @@ using MIPVerify: check_size, increment!
             @test p.filter == filter
         end
         @testset "check_size" begin
-            filter = rand(3, 3, 2, 5)
+            filter = rand(Float64, 3, 3, 2, 5)
             p = Conv2d(filter)
             @test check_size(p, (3, 3, 2, 5)) === nothing
             @test_throws AssertionError check_size(p, (3, 3, 2, 4))
@@ -73,7 +73,7 @@ using MIPVerify: check_size, increment!
     end
 
     @testset "conv2d" begin
-        srand(1)
+        Random.seed!(1)
         input_size = (1, 4, 4, 2)
         input = rand(0:5, input_size)
         filter_size = (3, 3, 2, 1)

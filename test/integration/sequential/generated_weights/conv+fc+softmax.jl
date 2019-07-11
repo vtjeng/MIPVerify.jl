@@ -29,16 +29,16 @@ B_width = A_height
 
 Random.seed!(5)
 input_size = (batch, in1_height, in1_width, in1_channels)
-x0 = rand(input_size)
+x0 = rand(Float64, input_size)
 
-kernelc1 = rand(filter1_height, filter1_width, in1_channels, out1_channels)*2 .- 1
-biasc1 = rand(out1_channels)*2 .- 1
+kernelc1 = rand(Float64, filter1_height, filter1_width, in1_channels, out1_channels)*2 .- 1
+biasc1 = rand(Float64, out1_channels)*2 .- 1
 
 kernelf1 = rand(-10:10, A_width, A_height)
 biasf1 = rand(-10:10, A_height)
 
-kernelf2 = rand(B_width, B_height)*2 .- 1
-biasf2 = rand(B_height)*2 .- 1
+kernelf2 = rand(Float64, B_width, B_height)*2 .- 1
+biasf2 = rand(Float64, B_height)*2 .- 1
 
 nn = Sequential(
     [
