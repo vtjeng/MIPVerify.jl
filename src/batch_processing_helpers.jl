@@ -258,7 +258,7 @@ function batch_find_untargeted_attack(
     cache_model = true,
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest
-    )::Void
+    )::Nothing
     
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
@@ -342,7 +342,7 @@ function batch_find_targeted_attack(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true
-    )::Void
+    )::Nothing
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
@@ -376,7 +376,7 @@ function batch_build_model(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    )::Void
+    )::Nothing
 
     verify_target_indices(target_indices, dataset)
 

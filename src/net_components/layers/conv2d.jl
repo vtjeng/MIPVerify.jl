@@ -51,7 +51,7 @@ function Conv2d(filter::Array{T, 4}) where {T<:JuMPReal}
     Conv2d(filter, bias)
 end
 
-function check_size(params::Conv2d, sizes::NTuple{4, Int})::Void
+function check_size(params::Conv2d, sizes::NTuple{4, Int})::Nothing
     check_size(params.filter, sizes)
     check_size(params.bias, (sizes[end], ))
 end

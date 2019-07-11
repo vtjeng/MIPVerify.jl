@@ -41,7 +41,7 @@ function Base.show(io::IO, p::Linear)
     )
 end
 
-function check_size(params::Linear, sizes::NTuple{2, Int})::Void
+function check_size(params::Linear, sizes::NTuple{2, Int})::Nothing
     check_size(params.matrix, sizes)
     check_size(params.bias, (sizes[end], ))
 end
