@@ -59,8 +59,13 @@ indices.
 
 """
 function getsliceindex(input_array_size::Integer, stride::Integer, output_index::Integer)::Array{Int, 1}
-    parent_start_index = (output_index-1)*stride+1
-    parent_end_index = min((output_index)*stride, input_array_size)
+    # parent_start_index = max((output_index-1)*stride+1, 1)
+    # filter_offset = round(Int, ((out_height-1)*stride+filter_height-in_height)/2, RoundDown)
+    out_height = round(Int, input_array_size/stride, RoundUp)
+    filter_offset = round(Int, ((out_height-1)*stride+stride-input_array_size)/2, RoundDown)
+    parent_start_index = max((output_index-1)*stride+1-filter_offset, 1)
+    # parent_end_index = min((output_index)*stride, input_array_size)
+    parent_end_index = min((output_index)*stride-filter_offset, input_array_size)
     if parent_start_index > parent_end_index
         return []
     else

@@ -127,8 +127,10 @@ function conv2d(
     # cell at which correlation is being calculated. Note that tensorflow
     # chooses a specific convention for a dimension with even size which we
     # replicate here.
-    filter_height_offset = round(Int, filter_height/2, RoundUp)
-    filter_width_offset = round(Int, filter_width/2, RoundUp)
+    # filter_height_offset = round(Int, filter_height/2, RoundUp)
+    filter_height_offset = round(Int, ((out_height-1)*stride+filter_height-in_height)/2, RoundDown)
+    # filter_width_offset = round(Int, filter_width/2, RoundUp)
+    filter_width_offset = round(Int, ((out_width-1)*stride+filter_width-in_width)/2, RoundDown)
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
     output = Array{W}(output_size)
 
@@ -136,8 +138,10 @@ function conv2d(
         s::W = 0
         @nloops 4 j filter begin
             if i_4 == j_4
-                x = (i_2-1)*stride+1 + j_1 - filter_height_offset
-                y = (i_3-1)*stride+1 + j_2 - filter_width_offset
+                # x = (i_2-1)*stride+1 + j_1 - filter_height_offset
+                x = (i_2-1)*stride + j_1 - filter_height_offset
+                # y = (i_3-1)*stride+1 + j_2 - filter_width_offset
+                y = (i_3-1)*stride + j_2 - filter_width_offset
                 if x > 0 && y > 0 && x<=in_height && y<=in_width
                     # Doing bounds check to make sure that we stay within bounds
                     # for input. This effectively zero-pads the input.
