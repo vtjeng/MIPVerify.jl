@@ -9,6 +9,7 @@ using DocStringExtensions
 using ProgressMeter
 using CSV
 using DataFrames
+using Wavelets
 
 const dependencies_path = joinpath(Pkg.dir("MIPVerify"), "deps")
 

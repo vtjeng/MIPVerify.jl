@@ -8,3 +8,7 @@ MathProgBase 0.6
 DocStringExtensions 0.4.3
 ProgressMeter 0.5.4
 CSV 0.2
+Images
+PyPlot
+WAV
+Interpolations
