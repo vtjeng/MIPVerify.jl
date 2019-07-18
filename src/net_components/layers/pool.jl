@@ -1,4 +1,4 @@
-export Pool, MaxPool
+export Pool, MaxPool, AveragePool
 
 """
 $(TYPEDEF)
