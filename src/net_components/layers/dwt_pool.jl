@@ -14,7 +14,7 @@ function Base.show(io::IO, p::DWT_Pooling)
 end
 
 function apply(x::Array{<:JuMPReal})
-    xt = dwt(x, wavelet(WT.haar2))
+    xt = dwt(x, wavelet(WT.haar))
     return m
 end
 
