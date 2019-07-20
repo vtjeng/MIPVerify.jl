@@ -20,8 +20,7 @@ function apply(x::Array{<:JuMPReal})
         wt = wavelet(WT.haar)
         wt = WT.scale(wt, 1/sqrt(2))
         x1 = dwt(x[1,:,:,i], wt, 1)
-        println(size(x1))
-        out[1,:,:,i] = x1[1:Int(size(x1)[2]/2), 1:Int(size(x1)[3]/2)]
+        out[1,:,:,i] = x1[1:Int(size(x1)[1]/2), 1:Int(size(x1)[2]/2)]
     end
     return out
 end
