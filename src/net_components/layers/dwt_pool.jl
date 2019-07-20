@@ -14,8 +14,11 @@ function Base.show(io::IO, p::DWT_Pooling)
 end
 
 function apply(x::Array{<:JuMPReal})
-    xt = dwt(x, wavelet(WT.haar))
-    return m
+    wt = wavelet(WT.haar)
+    wt = WT.scale(wt, 1/sqrt(2))
+    x1 = dwt(x, wt, 1)
+    out = x1[1:Int(size(x1)[1]/2), 1:Int(size(x1)[2]/2)]
+    return out
 end
 
 (p::DWT_Pooling)(x::Array{<:JuMPReal}) = apply(x)
