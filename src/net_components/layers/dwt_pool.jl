@@ -14,10 +14,14 @@ function Base.show(io::IO, p::DWT_Pooling)
 end
 
 function apply(x::Array{<:JuMPReal})
-    wt = wavelet(WT.haar)
-    wt = WT.scale(wt, 1/sqrt(2))
-    x1 = dwt(x, wt, 1)
-    out = x1[1:Int(size(x1)[1]/2), 1:Int(size(x1)[2]/2)]
+    printlm("apply DWT_Pooling to shape", size(x))
+    out = zeros((Int(size(x)[1]/2), (Int(size(x)[1]/2), 3)))
+    for i=1:size(x)[3]
+        wt = wavelet(WT.haar)
+        wt = WT.scale(wt, 1/sqrt(2))
+        x1 = dwt(x[:,:,i], wt, 1)
+        out[:,:,i] = x1[1:Int(size(x1)[1]/2), 1:Int(size(x1)[2]/2)]
+    end
     return out
 end
 
