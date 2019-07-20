@@ -16,7 +16,7 @@ end
 function apply(x::Array{<:JuMPReal})
     println("apply DWT_Pooling to shape", size(x))
     out = zeros((1, Int(size(x)[2]/2), Int(size(x)[3]/2), 3))
-    for i=1:size(x)[3]
+    for i=1:size(x)[4]
         wt = wavelet(WT.haar)
         wt = WT.scale(wt, 1/sqrt(2))
         x1 = dwt(x[1,:,:,i], wt, 1)
