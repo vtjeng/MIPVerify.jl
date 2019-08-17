@@ -1,7 +1,5 @@
 export Pool, MaxPool
 
-using Statistics
-
 """
 $(TYPEDEF)
 
@@ -21,7 +19,6 @@ function Base.show(io::IO, p::Pool)
     (_, stride_height, stride_width, _) = p.strides
     function_display_name = Dict(
         MIPVerify.maximum => "max",
-        Statistics.mean => "average",
     )
     print(io,
         "$(function_display_name[p.pooling_function]) pooling with a $(stride_height)x$(stride_width) filter and a stride of ($stride_height, $stride_width)"
@@ -37,11 +34,6 @@ Convenience function to create a [`Pool`](@ref) struct for max-pooling.
 """
 function MaxPool(strides::NTuple{N, Int}) where {N}
     Pool(strides, MIPVerify.maximum)
-end
-
-function AveragePool(strides::NTuple{N, Int}) where {N}
-    # TODO (vtjeng): support average pooling across variables.
-    Pool(strides, Statistics.mean)
 end
 
 """
