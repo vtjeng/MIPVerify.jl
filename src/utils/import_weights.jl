@@ -29,7 +29,7 @@ function get_matrix_params(
 
     params = Linear(
         param_dict["$layer_name/$matrix_name"],
-        squeeze(param_dict["$layer_name/$bias_name"], 1)
+        dropdims(param_dict["$layer_name/$bias_name"], dims=1)
     )
 
     check_size(params, expected_size)
@@ -67,7 +67,7 @@ function get_conv_params(
 
     params = Conv2d(
         param_dict["$layer_name/$matrix_name"],
-        squeeze(param_dict["$layer_name/$bias_name"], 1),
+        dropdims(param_dict["$layer_name/$bias_name"], dims=1),
         expected_stride
     )
 
