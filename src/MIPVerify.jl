@@ -10,7 +10,8 @@ using ProgressMeter
 using CSV
 using DataFrames
 
-const dependencies_path = import MIPVerify; joinpath(dirname(pathof(MIPVerify)), "..", "deps")
+# TODO: more reliable way to determine location for dependencies
+const dependencies_path = joinpath(@__DIR__, "..", "deps")
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
