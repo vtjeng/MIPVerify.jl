@@ -33,7 +33,7 @@ using MIPVerify: getsliceindex, getpoolview
     @testset "getpoolview" begin
         @testset "inbounds" begin
             @test getpoolview(input_array, (2, 2), (3, 3)) == [29 35; 30 36]
-            @test getpoolview(input_array, (1, 1), (3, 3)) == cat(2, [15])
+            @test getpoolview(input_array, (1, 1), (3, 3)) == reshape([15], (1,1))
         end
         @testset "out of bounds" begin
             @test length(getpoolview(input_array, (1, 1), (7, 7))) == 0
