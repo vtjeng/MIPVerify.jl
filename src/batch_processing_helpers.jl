@@ -1,5 +1,7 @@
 export batch_find_untargeted_attack
 
+using DelimitedFiles, Dates
+
 @enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4 retarget_infeasible_cases=5
 
 struct BatchRunParameters
@@ -96,7 +98,7 @@ function create_summary_file_if_not_present(summary_file_path::String)
         ]
 
         open(summary_file_path, "w") do file
-            writecsv(file, [summary_header_line])
+            writedlm(file, [summary_header_line], ',')
         end
     end
 end
@@ -158,7 +160,7 @@ function save_to_disk(
     end
 
     open(summary_file_path, "a") do file
-        writecsv(file, [summary_line])
+        writedlm(file, [summary_line], ',')
     end
 end
 
