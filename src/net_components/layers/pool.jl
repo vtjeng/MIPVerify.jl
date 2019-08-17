@@ -99,7 +99,7 @@ determined by the `strides`.
 """
 function poolmap(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{N, Int}) where {T, N}
     output_size = getoutputsize(input_array, strides)
-    output_indices = collect(CartesianRange(output_size))
+    output_indices = collect(CartesianIndices(output_size))
     return ((I) -> f(getpoolview(input_array, strides, I.I))).(output_indices)
 end
 

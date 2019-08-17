@@ -39,7 +39,7 @@ using MIPVerify: check_size, increment!
         @testset "JuMP Variables" begin
             m = Model()
             filter_size = (3, 3, 2, 5)
-            filter = map(_ -> @variable(m), CartesianRange(filter_size))
+            filter = map(_ -> @variable(m), CartesianIndices(filter_size))
             p = Conv2d(filter)
             @test p.filter == filter
         end
@@ -93,8 +93,8 @@ using MIPVerify: check_size, increment!
         end
         @testset "Numerical Input, Variable Layer Parameters" begin
             m = TestHelpers.get_new_model()
-            filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
-            bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
+            filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
+            bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
             p_v = Conv2d(filter_v, bias_v)
             output_v = MIPVerify.conv2d(input, p_v)
             @constraint(m, output_v .== true_output)
@@ -106,7 +106,7 @@ using MIPVerify: check_size, increment!
         end
         @testset "Variable Input, Numerical Layer Parameters" begin
             m = TestHelpers.get_new_model()
-            input_v = map(_ -> @variable(m), CartesianRange(input_size))
+            input_v = map(_ -> @variable(m), CartesianIndices(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)
             solve(m)
