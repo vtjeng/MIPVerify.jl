@@ -1,5 +1,4 @@
 using Test
-using MIPVerify: MaskedReLU, mip
 
 @testset "masked_relu.jl" begin
 
@@ -11,9 +10,9 @@ using MIPVerify: MaskedReLU, mip
     end
 
     @testset "Initialize with tightening algorithm" begin
-        p = MaskedReLU(mask, mip)
+        p = MaskedReLU(mask, MIPVerify.mip)
         @test !(p.tightening_algorithm === nothing)
-        @test p.tightening_algorithm == mip
+        @test p.tightening_algorithm == MIPVerify.mip
     end
 
     @testset "Base.show" begin

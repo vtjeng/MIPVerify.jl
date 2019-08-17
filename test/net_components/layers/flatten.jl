@@ -1,5 +1,4 @@
 using Test
-using JuMP
 using MIPVerify
 
 @testset "flatten.jl" begin
