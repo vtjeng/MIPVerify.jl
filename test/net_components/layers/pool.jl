@@ -1,5 +1,6 @@
 using Test
 using JuMP
+using MIPVerify
 using MIPVerify: Pool, MaxPool, AveragePool
 using MIPVerify: getsliceindex, getpoolview
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
