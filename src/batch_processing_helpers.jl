@@ -63,7 +63,7 @@ function generate_csv_summary_line(sample_number::Integer, results_file_relative
 end
 
 function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
-    assert(d[:PredictedIndex] in d[:TargetIndexes])
+    @assert(d[:PredictedIndex] in d[:TargetIndexes])
     [
         sample_number, 
         "",
