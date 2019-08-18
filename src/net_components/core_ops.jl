@@ -380,7 +380,7 @@ Only use when you are minimizing over the output in the objective.
 
 NB: If all of xs are constant, we simply return the largest of them.
 """
-function maximum_ge(xs::AbstractArray{T})::JuMP.Variable where {T<:JuMPLinearType}
+function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearType}
     @assert length(xs)>0
     if all(is_constant.(xs))
         return maximum_of_constants(xs)
@@ -444,19 +444,18 @@ end
 
 function get_vars_for_max_index(
     xs::Array{<:JuMPLinearType, 1},
-    target_indexes::Array{<:Integer, 1},
-    tolerance::Real)
+    target_indexes::Array{<:Integer, 1})
 
     @assert length(xs) >= 1
 
     target_vars = xs[Bool[i∈target_indexes for i = 1:length(xs)]]
-    other_vars = xs[Bool[i∉target_indexes for i = 1:length(xs)]]
+    nontarget_vars = xs[Bool[i∉target_indexes for i = 1:length(xs)]]
 
     maximum_target_var = length(target_vars) == 1 ?
         target_vars[1] :    
         MIPVerify.maximum(target_vars)
 
-    return (maximum_target_var, other_vars)
+    return (maximum_target_var, nontarget_vars)
 end
 
 """
@@ -472,7 +471,7 @@ function set_max_indexes(
     target_indexes::Array{<:Integer, 1};
     tolerance::Real = 0)
 
-    (maximum_target_var, other_vars) = get_vars_for_max_index(xs, target_indexes, tolerance)
+    (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
-    @constraint(model, other_vars - maximum_target_var .<= -tolerance)
+    @constraint(model, nontarget_vars - maximum_target_var .<= -tolerance)
 end

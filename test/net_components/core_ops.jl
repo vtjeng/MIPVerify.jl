@@ -138,7 +138,7 @@ end
             x3 = @variable(m, lowerbound=3, upperbound=3.3)
             xmax = MIPVerify.maximum([x1, x2, x3])
             
-            # an efficient implementation does not add binary variables for x1, x4 and x5
+            # an efficient implementation does not add binary variables for x1
             @test count_binary_variables(m)<= 2
             
             # elements of the input array are made to take their maximum value
@@ -147,6 +147,21 @@ end
             
             solve_output = getvalue(xmax)
             @test solve_output≈100
+        end
+        @testset "lowerbound on one matches upperbound on another; output expected to be constant" begin
+            m = TestHelpers.get_new_model()
+            x1 = @variable(m, lowerbound=-6, upperbound=2)
+            x2 = @variable(m, lowerbound=2, upperbound=2)
+
+            xmax = MIPVerify.maximum([x1, x2])
+            
+            # no binary variables need to be introduced
+            @test count_binary_variables(m) == 0
+            
+            solve(m)
+            
+            solve_output = getvalue(xmax)
+            @test solve_output≈2
         end
     end
 
@@ -183,10 +198,30 @@ end
             m = TestHelpers.get_new_model()
             x1 = one(JuMP.Variable)
             x2 = one(JuMP.Variable)*2
-            xmax = MIPVerify.maximum([x1, x2])
+            xmax = MIPVerify.maximum_ge([x1, x2])
 
             solve_output = getvalue(xmax)
             @test solve_output≈2
+        end
+    end
+
+    @testset "abs_ge" begin
+        @testset "positive constant input" begin
+            m = TestHelpers.get_new_model()
+            x = one(JuMP.Variable)
+            x_abs = MIPVerify.abs_ge(x)
+
+            solve_output = getvalue(x_abs)
+            @test solve_output≈1
+        end
+
+        @testset "negative constant input" begin
+            m = TestHelpers.get_new_model()
+            x = one(JuMP.Variable)*-1
+            x_abs = MIPVerify.abs_ge(x)
+
+            solve_output = getvalue(x_abs)
+            @test solve_output≈1
         end
     end
 
@@ -568,5 +603,13 @@ end
             @test tight_lowerbound(x1) == 1
         end
 
+    end
+
+    @testset "get_relu_type" begin
+        @test MIPVerify.get_relu_type(-3, -1) == MIPVerify.zero_output
+        @test MIPVerify.get_relu_type(0, 0) == MIPVerify.zero_output # special case; this can go either way
+        @test MIPVerify.get_relu_type(1, 1) == MIPVerify.constant_output
+        @test MIPVerify.get_relu_type(-3, 5) == MIPVerify.split
+        @test MIPVerify.get_relu_type(3, 5) == MIPVerify.linear_in_input
     end
 end

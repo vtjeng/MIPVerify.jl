@@ -64,8 +64,6 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
     distance from the perturbed image to the original. Supported options are `1`, `Inf` 
     and `2` (if the `main_solver` used can solve MIQPs.)
 + `tolerance::Real`: Defaults to `0.0`. See formal definition above.
-+ `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
-    bounds on input to each non-linear unit even if a cached model exists.
 + `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we 
     determine the upper and lower bounds on input to each nonlinear unit. 
     Allowed options are `interval_arithmetic`, `lp`, `mip`.
@@ -75,6 +73,8 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
 + `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
     Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver 
     and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
++ `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
+    bounds on input to each non-linear unit even if a cached model exists.
 + `cache_model`: Defaults to `true`. If `true`, saves model generated. If `false`, does not save model
     generated, but any existing cached model is retained.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
@@ -92,12 +92,12 @@ function find_adversarial_example(
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance::Real = 0.0,
-    rebuild::Bool = false,
+    adversarial_example_objective::AdversarialExampleObjective = closest
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
+    rebuild::Bool = false,
     cache_model::Bool = true,
     solve_if_predicted_in_targeted = true,
-    adversarial_example_objective::AdversarialExampleObjective = closest
     )::Dict
 
     total_time = @elapsed begin
@@ -130,9 +130,9 @@ function find_adversarial_example(
                 # the solve. Functions like `set_max_indexes` can modify the objective.
                 @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             elseif adversarial_example_objective == worst
-                (maximum_target_var, other_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes], tolerance)
-                maximum_other_var = maximum_ge(other_vars)
-                @objective(m, Max, maximum_target_var - maximum_other_var)    
+                (maximum_target_var, nontarget_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes])
+                maximum_nontarget_var = maximum_ge(nontarget_vars)
+                @objective(m, Max, maximum_target_var - maximum_nontarget_var)    
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
@@ -182,9 +182,9 @@ function frac_correct(
     num_correct = 0.0
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))
     @showprogress 1 "Computing fraction correct..." for sample_index in 1:num_samples
-        x0 = get_image(dataset.images, sample_index)
+        input = get_image(dataset.images, sample_index)
         actual_label = get_label(dataset.labels, sample_index)
-        predicted_label = (x0 |> nn |> get_max_index) - 1
+        predicted_label = (input |> nn |> get_max_index) - 1
         if actual_label == predicted_label
             num_correct += 1
         end

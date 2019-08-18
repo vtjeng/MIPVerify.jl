@@ -4,10 +4,10 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "mfc + mfc + softmax" begin
-    x0 = gen_array((1, 4, 8, 1), 0, 1)
+    input = gen_array((1, 4, 8, 1), 0, 1)
 
     l1_height = 16
-    l1_width = length(x0)
+    l1_width = length(input)
     l1_kernel = gen_array((l1_width, l1_height), -1, 1)
     l1_bias = gen_array((l1_height,), -1, 1)
 
@@ -49,6 +49,6 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
             ((1, LInfNormBoundedPerturbationFamily(0.085), Inf, 0) => 0.08112308),
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
 end
