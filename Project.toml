@@ -1,11 +1,13 @@
 name = "MIPVerify"
 uuid = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
+authors = ["Vincent Tjeng <vincent.tjeng@gmail.com>"]
+version = "0.2.0"
 
 [compat]
 AutoHashEquals = "≥ 0.2.0"
 CSV = "≥ 0.4.3"
 Cbc = "≥ 0.3.2"
-ConditionalJuMP = "≥ 0.0.5"
+ConditionalJuMP = "≥ 0.1.0"
 DataFrames = "≥ 0.17.1"
 DocStringExtensions = "≥ 0.8.0"
 JuMP = "≥ 0.18.6"
