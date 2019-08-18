@@ -92,7 +92,7 @@ function find_adversarial_example(
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tolerance::Real = 0.0,
-    adversarial_example_objective::AdversarialExampleObjective = closest
+    adversarial_example_objective::AdversarialExampleObjective = closest,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
     rebuild::Bool = false,
