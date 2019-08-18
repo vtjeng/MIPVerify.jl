@@ -153,7 +153,7 @@ function save_to_disk(
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
         results_file_path = joinpath(main_path, results_file_relative_path)
 
-        matwrite(results_file_path, r)
+        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
         summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
     else
         summary_line = generate_csv_summary_line_optimal(sample_number, d)
@@ -185,14 +185,14 @@ Behavior for different choices of `solve_rerun_option`:
     provably optimal solution.
 """
 function run_on_sample_for_untargeted_attack(sample_number::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
-    previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
+    previous_solves = filter(row -> row[:SampleNumber] == sample_number, summary_dt)
     if size(previous_solves)[1] == 0
         return true
     end
     # We now know that previous_solves has at least one element.
 
     if solve_rerun_option == MIPVerify.never
-        return !(sample_number in summary_dt[:SampleNumber])
+        return !(sample_number in summary_dt[!, :SampleNumber])
     elseif solve_rerun_option == MIPVerify.always
         return true
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
@@ -290,8 +290,8 @@ matching `sample_number`.
 and `:ObjectiveValue`.
 """
 function run_on_sample_for_targeted_attack(sample_number::Integer, target_label::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
-    match_sample_number = summary_dt[:SampleNumber].==sample_number
-    match_target_label = summary_dt[:TargetIndexes].=="[$(target_label)]"
+    match_sample_number = summary_dt[!, :SampleNumber].==sample_number
+    match_target_label = summary_dt[!, :TargetIndexes].=="[$(target_label)]"
     match = match_sample_number .& match_target_label
     previous_solves = summary_dt[match, :]
     if size(previous_solves)[1] == 0
@@ -300,7 +300,7 @@ function run_on_sample_for_targeted_attack(sample_number::Integer, target_label:
     # We now know that previous_solves has at least one element.
 
     if solve_rerun_option == MIPVerify.never
-        return !(sample_number in summary_dt[:SampleNumber])
+        return !(sample_number in summary_dt[!, :SampleNumber])
     elseif solve_rerun_option == MIPVerify.always
         return true
     elseif solve_rerun_option == MIPVerify.retarget_infeasible_cases
