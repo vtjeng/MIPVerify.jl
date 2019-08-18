@@ -12,7 +12,7 @@ using MIPVerify: get_example_network_params, read_datasets, get_image
     pp_unrestricted = UnrestrictedPerturbationFamily()
 
     sample_index = 1
-    x0 = get_image(mnist.test.images, sample_index)
+    input = get_image(mnist.test.images, sample_index)
 
     @testset "Basic integration test demonstrating success on trained (non-robust) network." begin
         test_cases = [
@@ -21,7 +21,7 @@ using MIPVerify: get_example_network_params, read_datasets, get_image
             ((10, LInfNormBoundedPerturbationFamily(0.05), Inf, 0), 0.0460847),
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
     
 end

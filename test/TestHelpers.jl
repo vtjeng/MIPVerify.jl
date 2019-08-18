@@ -37,7 +37,7 @@ end
 
 """
 Tests the `find_adversarial_example` function.
-  - If `x0` is already classified in the target label, `expected_objective_value`
+  - If `input` is already classified in the target label, `expected_objective_value`
     should be 0.
   - If there is no adversarial example for the specified parameters, 
     `expected_objective_value` should be NaN.
@@ -47,18 +47,19 @@ Tests the `find_adversarial_example` function.
 """
 function test_find_adversarial_example(
     nn::NeuralNet, 
-    x0::Array{<:Real, N}, 
+    input::Array{<:Real, N}, 
     target_selection::Union{Integer, Array{<:Integer, 1}}, 
     pp::PerturbationFamily, 
     norm_order::Real,
     tolerance::Real, 
-    expected_objective_value::Real,
+    expected_objective_value::Real;
+    invert_target_selection::Bool = false,
     ) where {N} 
     d = find_adversarial_example(
-        nn, x0, target_selection, get_main_solver(),
+        nn, input, target_selection, get_main_solver(),
         pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false, 
-        tightening_solver=get_tightening_solver(), tightening_algorithm=TEST_DEFAULT_TIGHTENING_ALGORITHM)
-    println(d[:SolveStatus])
+        tightening_solver=get_tightening_solver(), tightening_algorithm=TEST_DEFAULT_TIGHTENING_ALGORITHM, 
+        invert_target_selection=invert_target_selection)
     if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)
     else
@@ -77,7 +78,7 @@ function test_find_adversarial_example(
 end
 
 """
-Runs tests on the neural net described by `nn` for input `x0` and the objective values
+Runs tests on the neural net described by `nn` for input `input` and the objective values
 indicated in `expected objective values`.
 
 # Arguments
@@ -88,14 +89,14 @@ indicated in `expected objective values`.
 """
 function batch_test_adversarial_example(
     nn::NeuralNet, 
-    x0::Array{<:Real, N},
+    input::Array{<:Real, N},
     test_cases::Array
 ) where {N}
     for (test_params, expected_objective_value) in test_cases
         (target_selection, pp, norm_order, tolerance) = test_params
         @testset "target labels = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
             test_find_adversarial_example(
-                nn, x0, 
+                nn, input, 
                 target_selection, pp, norm_order, tolerance, expected_objective_value)
             end
         end

@@ -25,7 +25,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
     l2_width = l1_height
 
     ### Choosing data to be used
-    x0 = gen_array(
+    input = gen_array(
         (batch, c1_in_height, c1_in_width, c1_in_channels), 
         0, 1
     )
@@ -60,7 +60,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
             ((3, pp_blur, 1, 0), NaN),
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
 
     @testset "UnrestrictedPerturbationFamily" begin
@@ -71,7 +71,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
                 ((2, pp_unrestricted, 1, 0), 9.2825418),
             ]
 
-            TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
         @testset "Minimizing lInf norm" begin
@@ -81,7 +81,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
                 ((3, pp_unrestricted, Inf, 0), 0.5045819),
             ]
 
-            TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
         @testset "Increasing margin increases required distance" begin
@@ -89,7 +89,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
                 ((2, pp_unrestricted, 1, 0.1), 9.5642628),
             ]
 
-            TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
         @testset "With multiple target labels specified, minimum target label found" begin
@@ -97,7 +97,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
                 (([2, 3], pp_unrestricted, Inf, 0), 0.4347241),
             ]
 
-            TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
     end
 
@@ -107,6 +107,6 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
             ((2, LInfNormBoundedPerturbationFamily(0.435), Inf, 0), 0.4347241),  # restricting maximum perturbation to above minimum distance does not affect optimal value of problem
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
 end
