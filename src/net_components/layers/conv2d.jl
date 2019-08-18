@@ -51,7 +51,7 @@ function Conv2d(filter::Array{T, 4}) where {T<:JuMPReal}
     Conv2d(filter, bias)
 end
 
-function check_size(params::Conv2d, sizes::NTuple{4, Int})::Void
+function check_size(params::Conv2d, sizes::NTuple{4, Int})::Nothing
     check_size(params.filter, sizes)
     check_size(params.bias, (sizes[end], ))
 end
@@ -104,7 +104,7 @@ function conv2d(
     params::Conv2d{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMPLinearType || U<:JuMPLinearType || V<:JuMPLinearType
-        info(MIPVerify.LOGGER, "Applying $(params) ... ")
+        Memento.info(MIPVerify.LOGGER, "Applying $(params) ... ")
     end
     filter = params.filter
     stride = params.stride
@@ -130,7 +130,7 @@ function conv2d(
     filter_height_offset = round(Int, filter_height/2, RoundUp)
     filter_width_offset = round(Int, filter_width/2, RoundUp)
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
-    output = Array{W}(output_size)
+    output = Array{W}(undef, output_size)
 
     @nloops 4 i output begin
         s::W = 0

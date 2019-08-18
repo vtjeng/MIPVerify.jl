@@ -1,10 +1,7 @@
-using Base.Test
+using Test
 using JuMP
-using MIPVerify: Pool, MaxPool, AveragePool
-using MIPVerify: getsliceindex, getpoolview
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
-
+using MIPVerify
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "pool.jl" begin
 
@@ -21,11 +18,11 @@ using TestHelpers: get_new_model
 
     @testset "getsliceindex" begin
         @testset "inbounds" begin
-            @test getsliceindex(10, 2, 3)==[5, 6]
-            @test getsliceindex(10, 3, 4)==[10]
+            @test MIPVerify.getsliceindex(10, 2, 3)==[5, 6]
+            @test MIPVerify.getsliceindex(10, 3, 4)==[10]
         end
         @testset "out of bounds" begin
-            @test getsliceindex(10, 5, 4)==[]
+            @test MIPVerify.getsliceindex(10, 5, 4)==[]
         end
     end
     
@@ -33,11 +30,11 @@ using TestHelpers: get_new_model
     input_array = reshape(1:*(input_size...), input_size)
     @testset "getpoolview" begin
         @testset "inbounds" begin
-            @test getpoolview(input_array, (2, 2), (3, 3)) == [29 35; 30 36]
-            @test getpoolview(input_array, (1, 1), (3, 3)) == cat(2, [15])
+            @test MIPVerify.getpoolview(input_array, (2, 2), (3, 3)) == [29 35; 30 36]
+            @test MIPVerify.getpoolview(input_array, (1, 1), (3, 3)) == reshape([15], (1,1))
         end
         @testset "out of bounds" begin
-            @test length(getpoolview(input_array, (1, 1), (7, 7))) == 0
+            @test length(MIPVerify.getpoolview(input_array, (1, 1), (7, 7))) == 0
         end
     end
 
@@ -51,7 +48,7 @@ using TestHelpers: get_new_model
             @test MIPVerify.pool(input_array, MaxPool((2, 2))) == true_output
         end
         @testset "Variable Input" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             input_array_v = map(
                 i -> @variable(m, lowerbound=i-2, upperbound=i), 
                 input_array
@@ -63,17 +60,6 @@ using TestHelpers: get_new_model
 
             solve_output = getvalue.(pool_v)
             @test solve_output≈true_output
-        end
-    end
-
-    @testset "avgpool" begin
-        @testset "Numerical Input" begin
-            true_output = [
-                4.5 16.5 28.5;
-                6.5 18.5 30.5;
-                8.5 20.5 32.5
-            ]
-            @test MIPVerify.pool(input_array, AveragePool((2, 2))) == true_output
         end
     end
 

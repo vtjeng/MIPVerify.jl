@@ -41,7 +41,7 @@ function Base.show(io::IO, p::Linear)
     )
 end
 
-function check_size(params::Linear, sizes::NTuple{2, Int})::Void
+function check_size(params::Linear, sizes::NTuple{2, Int})::Nothing
     check_size(params.matrix, sizes)
     check_size(params.bias, (sizes[end], ))
 end
@@ -55,7 +55,7 @@ Computes the result of pre-multiplying `x` by the transpose of `params.matrix` a
 function matmul(
     x::Array{<:Real, 1}, 
     params::Linear)
-    return params.matrix.'*x .+ params.bias
+    return transpose(params.matrix)*x .+ params.bias
 end
 
 """
@@ -68,14 +68,14 @@ so that we are able to simplify the output as the computation is carried out.
 function matmul(
     x::Array{T, 1}, 
     params::Linear{U, V}) where {T<:JuMPLinearType, U<:Real, V<:Real}
-    info(MIPVerify.LOGGER, "Applying $params ... ")
+    Memento.info(MIPVerify.LOGGER, "Applying $params ... ")
     (matrix_height, matrix_width) = size(params.matrix)
     (input_height, ) = size(x)
     @assert(matrix_height == input_height,
         "Number of values in input, $input_height, does not match number of values, $matrix_height that Linear operates on."
     )
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
-    output = Array{W}(matrix_width)
+    output = Array{W}(undef, matrix_width)
 
     for i in 1:matrix_width
         s::W = 0

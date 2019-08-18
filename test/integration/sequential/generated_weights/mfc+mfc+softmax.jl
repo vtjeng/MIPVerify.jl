@@ -1,60 +1,54 @@
-using Base.Test
+using Test
 using MIPVerify
-using MIPVerify: BlurringPerturbationFamily, UnrestrictedPerturbationFamily
-using MIPVerify: LInfNormBoundedPerturbationFamily
-isdefined(:TestHelpers) || include("../../../TestHelpers.jl")
-using TestHelpers: batch_test_adversarial_example
+using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFamily
+@isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 @testset "mfc + mfc + softmax" begin
+    x0 = gen_array((1, 4, 8, 1), 0, 1)
 
-    srand(5)
+    l1_height = 16
+    l1_width = length(x0)
+    l1_kernel = gen_array((l1_width, l1_height), -1, 1)
+    l1_bias = gen_array((l1_height,), -1, 1)
 
-    x0 = rand(1, 4, 8, 1)
-
-    A_height = 16
-    A_width = length(x0)
-    A_mask = rand([-1, 0, 1], A_height)
+    m1 = [0, 0, 0, 0, -1, -1, -1, 1, 1, -1, 1, 0, 1, 0, -1, 1]
             
-    B_height = 8
-    B_width = A_height
-    B_mask = rand([-1, 0, 1], B_height)
+    l2_height = 8
+    l2_width = l1_height
+    l2_kernel = gen_array((l2_width, l2_height), -1, 1)
+    l2_bias = gen_array((l2_height,), -1, 1)
+    
+    
+    m2 = [0, -1, 1, 1, -1, -1, 0, 1]
             
-    C_height = 4
-    C_width = B_height
+    l3_height = 4
+    l3_width = l2_height
+    l3_kernel = gen_array((l3_width, l3_height), -1, 1)
+    l3_bias = gen_array((l3_height,), -1, 1)
     
     nn = Sequential(
         [
             Flatten(4),
-            Linear(rand(A_width, A_height)-0.5, rand(A_height)-0.5), 
-            MaskedReLU(A_mask),
-            Linear(rand(B_width, B_height)-0.5, rand(B_height)-0.5),
-            MaskedReLU(B_mask),
-            Linear(rand(C_width, C_height), rand(C_height))
+            Linear(l1_kernel, l1_bias),
+            MaskedReLU(m1),
+            Linear(l2_kernel, l2_bias),
+            MaskedReLU(m2),
+            Linear(l3_kernel, l3_bias),
         ],
         "tests.integration.generated_weights.mfc+mfc+softmax"
     )
 
-    pp_blur = BlurringPerturbationFamily((5, 5))
     pp_unrestricted = UnrestrictedPerturbationFamily()
 
-    expected_objective_values = Dict(
-        (1, pp_unrestricted, 1, 0) => 1.93413,
-        (1, pp_unrestricted, Inf, 0) => 0.153096,
-        (1, LInfNormBoundedPerturbationFamily(0.15), Inf, 0) => NaN,
-        (1, LInfNormBoundedPerturbationFamily(0.1531), Inf, 0) => 0.153096,
-        (1, LInfNormBoundedPerturbationFamily(0.3), Inf, 0) => 0.153096,
-        (2, pp_unrestricted, 1, 0) => 0,
-        (3, pp_unrestricted, 1, 0) => NaN,
-        (4, pp_unrestricted, 1, 0) => 5.69694,
-        (1, pp_unrestricted, 1, 0.1) => 2.39582,
-        (1, pp_unrestricted, 1, 10) => NaN,
-        (2, pp_blur, 1, 0) => 0,
-        (3, pp_blur, 1, 0) => NaN,
-        (2, pp_blur, 1, 0.5) => 2.44867,
-        (2, pp_blur, 1, 1) => NaN
-        
-    )
+    @testset "Basic integration test for MaskedReLU layer." begin
+        test_cases = [
+            ((1, pp_unrestricted, Inf, 0), 0.08112308),
+            ((2, pp_unrestricted, Inf, 0), 0.3622567),
+            ((3, pp_unrestricted, Inf, 0), 0),
+            ((1, LInfNormBoundedPerturbationFamily(0.08), Inf, 0), NaN),
+            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf, 0) => 0.08112308),
+        ]
 
-    batch_test_adversarial_example(nn, x0, expected_objective_values)
-
+        TestHelpers.batch_test_adversarial_example(nn, x0, test_cases)
+    end
 end

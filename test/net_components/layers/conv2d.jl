@@ -1,15 +1,14 @@
-using Base.Test
+using Test
 using JuMP
 using MIPVerify
 using MIPVerify: check_size, increment!
-isdefined(:TestHelpers) || include("../../TestHelpers.jl")
-using TestHelpers: get_new_model
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "conv2d.jl" begin
 
     @testset "Conv2d" begin
         @testset "Base.show" begin
-            filter = rand(3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             io = IOBuffer()
             Base.show(io, p)
@@ -18,8 +17,8 @@ using TestHelpers: get_new_model
         @testset "With Bias" begin
             @testset "Matched Size" begin
                 out_channels = 5
-                filter = rand(3, 3, 2, out_channels)
-                bias = rand(out_channels)
+                filter = ones(3, 3, 2, out_channels)
+                bias = ones(out_channels)
                 p = Conv2d(filter, bias)
                 @test p.filter == filter
                 @test p.bias == bias
@@ -27,25 +26,25 @@ using TestHelpers: get_new_model
             @testset "Unmatched Size" begin
                 filter_out_channels = 4
                 bias_out_channels = 5
-                filter = rand(3, 3, 2, filter_out_channels)
-                bias = rand(bias_out_channels)
+                filter = ones(3, 3, 2, filter_out_channels)
+                bias = ones(bias_out_channels)
                 @test_throws AssertionError Conv2d(filter, bias)
             end
         end
         @testset "No Bias" begin
-            filter = rand(3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             @test p.filter == filter
         end
         @testset "JuMP Variables" begin
             m = Model()
             filter_size = (3, 3, 2, 5)
-            filter = map(_ -> @variable(m), CartesianRange(filter_size))
+            filter = map(_ -> @variable(m), CartesianIndices(filter_size))
             p = Conv2d(filter)
             @test p.filter == filter
         end
         @testset "check_size" begin
-            filter = rand(3, 3, 2, 5)
+            filter = ones(3, 3, 2, 5)
             p = Conv2d(filter)
             @test check_size(p, (3, 3, 2, 5)) === nothing
             @test_throws AssertionError check_size(p, (3, 3, 2, 4))
@@ -57,7 +56,7 @@ using TestHelpers: get_new_model
             @test 7 == increment!(1, 2, 3)
         end
         @testset "JuMP.AffExpr * Real" begin
-            m = get_new_model()
+            m = TestHelpers.get_new_model()
             x = @variable(m, start=100)
             y = @variable(m, start=1)
             s = 5*x+3*y
@@ -74,18 +73,17 @@ using TestHelpers: get_new_model
     end
 
     @testset "conv2d" begin
-        srand(1)
         input_size = (1, 4, 4, 2)
-        input = rand(0:5, input_size)
+        input = reshape(collect(1:prod(input_size)), input_size) .- 16
         filter_size = (3, 3, 2, 1)
-        filter = rand(0:5, filter_size)
+        filter = reshape(collect(1:prod(filter_size)), filter_size) .- 9
         bias_size = (1, )
-        bias = rand(0:5, bias_size)
+        bias = [1]
         true_output_raw = [
-            49 74 90 56;
-            67 118 140 83;
-            66 121 134 80;
-            56 109 119 62            
+            225  381  405  285;
+            502  787  796  532;
+            550  823  832  532;
+            301  429  417  249;      
         ]
         true_output = reshape(transpose(true_output_raw), (1, 4, 4, 1))
         p = Conv2d(filter, bias)
@@ -94,9 +92,9 @@ using TestHelpers: get_new_model
             @test evaluated_output == true_output
         end
         @testset "Numerical Input, Variable Layer Parameters" begin
-            m = get_new_model()
-            filter_v = map(_ -> @variable(m), CartesianRange(filter_size))
-            bias_v = map(_ -> @variable(m), CartesianRange(bias_size))
+            m = TestHelpers.get_new_model()
+            filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
+            bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
             p_v = Conv2d(filter_v, bias_v)
             output_v = MIPVerify.conv2d(input, p_v)
             @constraint(m, output_v .== true_output)
@@ -107,8 +105,8 @@ using TestHelpers: get_new_model
             @test solve_output≈true_output
         end
         @testset "Variable Input, Numerical Layer Parameters" begin
-            m = get_new_model()
-            input_v = map(_ -> @variable(m), CartesianRange(input_size))
+            m = TestHelpers.get_new_model()
+            input_v = map(_ -> @variable(m), CartesianIndices(input_size))
             output_v = MIPVerify.conv2d(input_v, p)
             @constraint(m, output_v .== true_output)
             solve(m)

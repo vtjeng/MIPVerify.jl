@@ -1,17 +1,16 @@
-using Base.Test
-using JuMP
+using Test
 using MIPVerify
 
 @testset "sequential.jl" begin
 
     @testset "Sequential" begin
         nnparams = Sequential([
-            Conv2d(rand(1, 4, 4, 16), rand(16), 2),
+            Conv2d(ones(1, 4, 4, 16), ones(16), 2),
             ReLU(),
             Flatten([3, 4, 1, 2]),
-            Linear(rand(1000, 50), rand(50)),
-            MaskedReLU(rand(MersenneTwister(0), [-1, 0, 1], 50)),
-            Linear(rand(50, 10), rand(10))
+            Linear(ones(1000, 20), ones(20)),
+            MaskedReLU([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]),
+            Linear(ones(20, 10), ones(10))
         ], "testnet")
         io = IOBuffer()
         Base.show(io, nnparams)
@@ -20,9 +19,9 @@ using MIPVerify
           (1) Conv2d(4, 16, kernel_size=(1, 4), stride=(2, 2), padding=same)
           (2) ReLU()
           (3) Flatten(): flattens 4 dimensional input, with dimensions permuted according to the order [3, 4, 1, 2]
-          (4) Linear(1000 -> 50)
-          (5) MaskedReLU with expected input size (50,). (18 zeroed, 17 as-is, 15 rectified).
-          (6) Linear(50 -> 10)
+          (4) Linear(1000 -> 20)
+          (5) MaskedReLU with expected input size (20,). (10 zeroed, 7 as-is, 3 rectified).
+          (6) Linear(20 -> 10)
         """
     end
 

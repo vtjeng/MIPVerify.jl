@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify: get_example_network_params, read_datasets, frac_correct
 
 @testset "import_example_nets.jl" begin

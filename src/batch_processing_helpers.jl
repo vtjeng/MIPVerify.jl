@@ -1,5 +1,7 @@
 export batch_find_untargeted_attack
 
+using DelimitedFiles, Dates
+
 @enum SolveRerunOption never=1 always=2 resolve_ambiguous_cases=3 refine_insecure_cases=4 retarget_infeasible_cases=5
 
 struct BatchRunParameters
@@ -63,7 +65,7 @@ function generate_csv_summary_line(sample_number::Integer, results_file_relative
 end
 
 function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
-    assert(d[:PredictedIndex] in d[:TargetIndexes])
+    @assert(d[:PredictedIndex] in d[:TargetIndexes])
     [
         sample_number, 
         "",
@@ -96,7 +98,7 @@ function create_summary_file_if_not_present(summary_file_path::String)
         ]
 
         open(summary_file_path, "w") do file
-            writecsv(file, [summary_header_line])
+            writedlm(file, [summary_header_line], ',')
         end
     end
 end
@@ -151,14 +153,14 @@ function save_to_disk(
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
         results_file_path = joinpath(main_path, results_file_relative_path)
 
-        matwrite(results_file_path, r)
+        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
         summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
     else
         summary_line = generate_csv_summary_line_optimal(sample_number, d)
     end
 
     open(summary_file_path, "a") do file
-        writecsv(file, [summary_line])
+        writedlm(file, [summary_line], ',')
     end
 end
 
@@ -183,14 +185,14 @@ Behavior for different choices of `solve_rerun_option`:
     provably optimal solution.
 """
 function run_on_sample_for_untargeted_attack(sample_number::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
-    previous_solves = summary_dt[summary_dt[:SampleNumber].==sample_number, :]
+    previous_solves = filter(row -> row[:SampleNumber] == sample_number, summary_dt)
     if size(previous_solves)[1] == 0
         return true
     end
     # We now know that previous_solves has at least one element.
 
     if solve_rerun_option == MIPVerify.never
-        return !(sample_number in summary_dt[:SampleNumber])
+        return !(sample_number in summary_dt[!, :SampleNumber])
     elseif solve_rerun_option == MIPVerify.always
         return true
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
@@ -258,7 +260,7 @@ function batch_find_untargeted_attack(
     cache_model = true,
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest
-    )::Void
+    )::Nothing
     
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
@@ -266,7 +268,7 @@ function batch_find_untargeted_attack(
     for sample_number in target_indices
         if run_on_sample_for_untargeted_attack(sample_number, dt, solve_rerun_option)
             # TODO (vtjeng): change function signature for get_image and get_label
-            info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+            Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number)")
             input = MIPVerify.get_image(dataset.images, sample_number)
             true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
             d = find_adversarial_example(nn, input, true_one_indexed_label, main_solver, invert_target_selection = true, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted, adversarial_example_objective=adversarial_example_objective)
@@ -288,8 +290,8 @@ matching `sample_number`.
 and `:ObjectiveValue`.
 """
 function run_on_sample_for_targeted_attack(sample_number::Integer, target_label::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
-    match_sample_number = summary_dt[:SampleNumber].==sample_number
-    match_target_label = summary_dt[:TargetIndexes].=="[$(target_label)]"
+    match_sample_number = summary_dt[!, :SampleNumber].==sample_number
+    match_target_label = summary_dt[!, :TargetIndexes].=="[$(target_label)]"
     match = match_sample_number .& match_target_label
     previous_solves = summary_dt[match, :]
     if size(previous_solves)[1] == 0
@@ -298,7 +300,7 @@ function run_on_sample_for_targeted_attack(sample_number::Integer, target_label:
     # We now know that previous_solves has at least one element.
 
     if solve_rerun_option == MIPVerify.never
-        return !(sample_number in summary_dt[:SampleNumber])
+        return !(sample_number in summary_dt[!, :SampleNumber])
     elseif solve_rerun_option == MIPVerify.always
         return true
     elseif solve_rerun_option == MIPVerify.retarget_infeasible_cases
@@ -342,7 +344,7 @@ function batch_find_targeted_attack(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(main_solver),
     cache_model = true,
     solve_if_predicted_in_targeted = true
-    )::Void
+    )::Nothing
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
@@ -358,7 +360,7 @@ function batch_find_targeted_attack(
                     continue
                 end
 
-                info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
+                Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
             
                 d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
@@ -376,12 +378,12 @@ function batch_build_model(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    )::Void
+    )::Nothing
 
     verify_target_indices(target_indices, dataset)
 
     for sample_number in target_indices
-        info(MIPVerify.LOGGER, "Working on index $(sample_number)")
+        Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number)")
         input = MIPVerify.get_image(dataset.images, sample_number)
         build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
     end

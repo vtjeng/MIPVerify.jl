@@ -1,18 +1,17 @@
-using Base.Test
-using MIPVerify: ReLU, mip
+using Test
 
 @testset "relu.jl" begin
 
 @testset "ReLU" begin
     @testset "Initialize without tightening algorithm" begin
         p = ReLU()
-        @test isnull(p.tightening_algorithm)
+        @test p.tightening_algorithm === nothing
     end
 
     @testset "Initialize with tightening algorithm" begin
-        p = ReLU(mip)
-        @test !isnull(p.tightening_algorithm)
-        @test get(p.tightening_algorithm) == mip
+        p = ReLU(MIPVerify.mip)
+        @test !(p.tightening_algorithm === nothing)
+        @test p.tightening_algorithm == MIPVerify.mip
     end
 
     @testset "Base.show" begin

@@ -1,4 +1,5 @@
-using Base.Test
+
+using Test
 
 @testset "batch_processing_helpers.jl" begin
     include("batch_processing_helpers/unit.jl")

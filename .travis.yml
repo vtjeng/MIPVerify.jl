@@ -1,44 +1,30 @@
-## Documentation: http://docs.travis-ci.com/user/languages/julia/
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
 os:
   - linux
-# - osx
 julia:
-  - 0.6
+  - 1.0
+  - 1.1
   - nightly
+matrix:
+  allow_failures:
+  - julia: nightly
 branches:
   only:
     - master
-    - /^v[0-9]+\.[0-9]+\.[0-9]+$/ # version tags
+    - /^v\d+\.\d+(\.\d+)?(-\S*)?$/ # version tags
 notifications:
   email: false
-git:
-  depth: 99999999
-
-## uncomment the following lines to allow failures on nightly julia
-## (tests will run but not make your overall status red)
-matrix:
- allow_failures:
- - julia: nightly
-
-sudo: required
-## uncomment and modify the following lines to manually install system packages
-addons:
-  apt:
-    update: true
-#  apt: # apt-get for linux
-#    packages:
-#    - gfortran
-#before_script: # homebrew for mac
-#  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gcc; fi
-
-## uncomment the following lines to override the default test script
-#script:
-#  - julia -e 'Pkg.clone(pwd()); Pkg.build("MIPVerify"); Pkg.test("MIPVerify"; coverage=true)'
 after_success:
-  # push coverage results to Coveralls
-  - julia -e 'cd(Pkg.dir("MIPVerify")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
-  # push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("MIPVerify")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("MIPVerify")); include(joinpath("docs", "make.jl"))'
+  - if [[ $TRAVIS_JULIA_VERSION = 1.0 ]]; then
+      julia --project -e 'using Pkg; pkg"add Coverage"; using Coverage; Codecov.submit(Codecov.process_folder())';
+    fi
+jobs:
+  include:
+    - stage: Documentation
+      julia: 1.0
+      os: linux
+      script:
+        - julia --project=docs -e 'using Pkg; Pkg.instantiate(); Pkg.add(PackageSpec(path=pwd()))'
+        - julia --project=docs --color=yes docs/make.jl
+      after_success: skip

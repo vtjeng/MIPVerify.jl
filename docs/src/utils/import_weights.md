@@ -1,6 +1,7 @@
 # Helpers for importing individual layers
 You're likely to want to import parameter values from your trained neural networks from
-outside of Julia. [`get_conv_params`](@ref) and [`get_matrix_params`](@ref) are helper functions enabling you to import individual layers.
+outside of Julia. [`get_conv_params`](@ref) and [`get_matrix_params`](@ref) are helper 
+functions enabling you to import individual layers.
 
 ## Index
 ```@index

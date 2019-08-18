@@ -14,11 +14,7 @@ Our choice of solver is [Gurobi](http://www.gurobi.com/), but any supported opti
 **Platform compatibility:** Julia and Gurobi are available for 32-bit and 64-bit Windows, 64-bit macOS, and 64-bit Linux, but example code in this README is for Linux.
 
 #### Installing Julia
-The latest release of this package requires [version 0.6](https://julialang.org/downloads/oldreleases.html) of Julia.
-
-!!! note
-    
-    `MIPVerify` is not currently supported on version 0.7 or 1.0 of Julia.
+The latest release of this package requires [version 1.0](https://julialang.org/downloads/) or above of Julia.
 
 Platform-specific instructions can be found [here](https://julialang.org/downloads/platform.html). To complete your installation, ensure that you are able to call `julia` REPL from the command line.
 
@@ -29,16 +25,16 @@ Platform-specific instructions can be found [here](https://julialang.org/downloa
 ##### On Ubuntu
 ```console
 $ cd /your/path/here
-  wget https://julialang-s3.julialang.org/bin/linux/x64/0.6/julia-0.6.4-linux-x86_64.tar.gz
-  tar -xvf julia-0.6.4-linux-x86_64.tar.gz
+  wget https://julialang-s3.julialang.org/bin/linux/x64/1.0/julia-1.0.4-linux-x86_64.tar.gz
+  tar -xvf julia-1.0.4-linux-x86_64.tar.gz
 ```
 
-Julia will be extracted to a folder named `julia-hash_number`. (For example, v0.6.4 is `julia-9d11f62bcb`). 
+Julia will be extracted to a folder named `julia-semantic_version`. (For example, `julia-1.0.4`). 
 
 Add the following lines to your startup file (e.g. `.bashrc` for the bash shell) to add Julia's bin folder to your system `PATH` environment variable.
 
 ```sh
-export PATH="${PATH}:/your/path/here/julia-9d11f62bcb/bin"
+export PATH="${PATH}:/your/path/here/julia-1.0.4/bin"
 ```
 
 #### Installing Gurobi
@@ -90,11 +86,11 @@ info  : License 000000 written to file /home/ubuntu/gurobi.lic
 #### Installing `Gurobi.jl`
 `Gurobi.jl` is a wrapper of the Gurobi solver accessible in Julia. Once you have installed Gurobi *and* activated the license, install the latest release of `Gurobi.jl`:
 ```julia
-julia> Pkg.add("Gurobi")
+julia> using Pkg; Pkg.add("Gurobi")
 ```
 You can test `Gurobi.jl` by running
 ```julia
-julia> Pkg.test("Gurobi")
+julia> using Pkg; Pkg.test("Gurobi")
 ```
 
 Sample output:
@@ -110,20 +106,15 @@ MathOptInterface Tests | 1415   1415
 INFO: Gurobi tests passed
 ```
 
-#### Installing `HDF5`
-```julia
-julia> Pkg.add("HDF5")
-```
-
 ### Installing `MIPVerify`
-Once you have Julia, a mathematical programming solver, and the `HDF5` package installed, install the latest release of MIPVerify:
+Once you have Julia and Gurobi installed, install the latest release of MIPVerify:
 ```julia
-julia> Pkg.add("MIPVerify")
+julia> using Pkg; Pkg.add("MIPVerify")
 ```
 
 You can test `MIPVerify` by running
 ```julia
-julia> Pkg.test("MIPVerify")
+julia> using Pkg; Pkg.test("MIPVerify")
 ```
 These tests do take a long time to run (~30 mins), but any issues generally cause early failures.
 
@@ -140,36 +131,6 @@ No variables, no constraints: Error During Test
 ```
 
 **FIX:** The error message indicates that you have not installed your Gurobi license. If it has been installed, the license is saved as a file `gurobi.lic`, typically in either the `/home/ubuntu` or `opt/gurobi` directories.
-
-#### HDF5 had build errors on Ubuntu
-When running `Pkg.add("HDF5")`:
-
-```sh
-...
-INFO: Building HDF5
-...
-=======================================[ ERROR: HDF5 ]=======================================
-
-LoadError: failed process: Process(`sudo apt-get install hdf5-tools`, ProcessExited(1)) [1]
-while loading /home/ubuntu/.julia/v0.6/HDF5/deps/build.jl, in expression starting on line 41
-
-=============================================================================================
-...
-```
-
-**FIX:**
-```console
-$ sudo apt-get install hdf5-tools
-```
-Next,
-```julia
-julia> Pkg.build("HDF5")
-```
-```sh
-INFO: Building CMakeWrapper
-INFO: Building Blosc
-INFO: Building HDF5
-```
 
 ## Getting Started
 The best way to get started is to follow our [quickstart tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), which demonstrates how to find adversarial examples for a pre-trained example network on the MNIST dataset. Once you're done with that, you can explore our other tutorials depending on your needs.

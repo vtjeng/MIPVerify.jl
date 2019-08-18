@@ -1,6 +1,6 @@
-using Base.Test
+using Test
+using Statistics
 using MIPVerify
-using MIPVerify: num_samples
 
 @testset "import_datasets.jl" begin
     @testset "NamedTrainTestDataset" begin
@@ -34,8 +34,8 @@ using MIPVerify: num_samples
     @testset "read_datasets" begin
         @testset "MNIST" begin
             d = read_datasets("mnist")
-            @test num_samples(d.test) == 10000
-            @test num_samples(d.train) == 60000
+            @test MIPVerify.num_samples(d.test) == 10000
+            @test MIPVerify.num_samples(d.train) == 60000
             # Some sanity checks to make sure that the data imported looks like we expect.
             @test d.test.labels[1:10] == [7, 2, 1, 0, 4, 1, 4, 9, 5, 9]
             @test d.train.labels[1:10] == [5, 0, 4, 1, 9, 2, 1, 3, 1, 4]
@@ -49,8 +49,8 @@ using MIPVerify: num_samples
 
         @testset "CIFAR10" begin
             d = read_datasets("cifar10")
-            @test num_samples(d.test) == 10000
-            @test num_samples(d.train) == 50000
+            @test MIPVerify.num_samples(d.test) == 10000
+            @test MIPVerify.num_samples(d.train) == 50000
             # Some sanity checks to make sure that the data imported looks like we expect.
             @test d.test.labels[1:10] == [3, 8, 8, 0, 6, 6, 1, 6, 3, 1]
             @test d.train.labels[1:10] == [6, 9, 9, 4, 1, 1, 2, 7, 8, 3]

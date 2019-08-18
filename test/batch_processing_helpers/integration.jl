@@ -1,8 +1,7 @@
-using Base.Test
+using Test
 using MIPVerify
 using MIPVerify: LInfNormBoundedPerturbationFamily
-isdefined(:TestHelpers) || include("../TestHelpers.jl")
-using TestHelpers: get_main_solver, get_tightening_solver
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 @testset "integration" begin
     mnist = read_datasets("MNIST")
@@ -13,13 +12,13 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 nn_wk17a, 
                 mnist.test, 
                 [1], # robust sample
-                get_main_solver(), 
+                TestHelpers.get_main_solver(), 
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf, 
                 rebuild=true, 
                 tightening_algorithm=lp, 
-                tightening_solver=get_tightening_solver(),
+                tightening_solver=TestHelpers.get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
                 save_path=dir
@@ -31,7 +30,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 nn_wk17a, 
                 mnist.test, 
                 [9, 248], # non-robust and misclassified sample
-                get_main_solver(), 
+                TestHelpers.get_main_solver(), 
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf, 
@@ -50,12 +49,12 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 nn_wk17a, 
                 mnist.test, 
                 [1], 
-                get_main_solver(), 
+                TestHelpers.get_main_solver(), 
                 solve_rerun_option=MIPVerify.never,
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order=Inf,
                 tightening_algorithm=interval_arithmetic, 
-                tightening_solver=get_tightening_solver(),
+                tightening_solver=TestHelpers.get_tightening_solver(),
                 cache_model=false,
                 solve_if_predicted_in_targeted=false,
                 target_labels=[1, 8],
@@ -70,7 +69,7 @@ using TestHelpers: get_main_solver, get_tightening_solver
                 nn_wk17a, 
                 mnist.test, 
                 [1], 
-                get_tightening_solver(),
+                TestHelpers.get_tightening_solver(),
                 pp=MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 tightening_algorithm=interval_arithmetic
             )

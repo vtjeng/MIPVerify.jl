@@ -27,7 +27,7 @@ chain(x::Array{<:JuMPReal}, ps::Array{<:Layer, 1}) = length(ps) == 0 ? x : chain
 
 (ps::Array{<:Layer, 1})(x::Array{<:JuMPReal}) = chain(x, ps)
 
-function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Void where {N}
+function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Nothing where {N}
     input_size = size(input)
     @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
 end

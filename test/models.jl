@@ -1,4 +1,4 @@
-using Base.Test
+using Test
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 
 @testset "models.jl" begin

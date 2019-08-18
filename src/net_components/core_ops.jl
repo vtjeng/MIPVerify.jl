@@ -28,11 +28,11 @@ end
 
 function get_tightening_algorithm(
     x::JuMPLinearType,
-    nta::Nullable{TighteningAlgorithm})::TighteningAlgorithm
+    nta::Union{TighteningAlgorithm, Nothing})::TighteningAlgorithm
     if is_constant(x)
         return interval_arithmetic
-    elseif !isnull(nta)
-        return get(nta)
+    elseif !(nta === nothing)
+        return nta
     else
         # x is not constant, and thus x must have an associated model
         model = ConditionalJuMP.getmodel(x)
@@ -67,7 +67,7 @@ the algorithm returns early with whatever value was found.
 """
 function tight_bound(
     x::JuMPLinearType, 
-    nta::Nullable{TighteningAlgorithm},
+    nta::Union{TighteningAlgorithm, Nothing},
     bound_type::BoundType,
     cutoff::Real)
     tightening_algorithm = get_tightening_algorithm(x, nta)
@@ -86,35 +86,35 @@ function tight_bound(
         b = getobjectivebound(model)
         log_gap(model)
     else
-        warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
+        Memento.warn(MIPVerify.LOGGER, "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.")
         b = b_0
     end
     db = bound_delta_f[bound_type](b, b_0)
-    debug(MIPVerify.LOGGER, "  Δu = $(db)")
+    Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
     if db < 0
         b = b_0
-        info(MIPVerify.LOGGER, "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.")
+        Memento.info(MIPVerify.LOGGER, "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.")
     end
     return b
 end
 
 function tight_upperbound(
     x::JuMPLinearType; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff::Real = -Inf)
     tight_bound(x, nta, upper_bound_type, cutoff)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff::Real = Inf)
     tight_bound(x, nta, lower_bound_type, cutoff)
 end
 
 function log_gap(m::JuMP.Model)
     gap = abs(1-getobjectivebound(m)/getobjectivevalue(m))
-    info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
+    Memento.info(MIPVerify.LOGGER, "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.")
 end
 
 function relu(x::T)::T where {T<:Real}
@@ -129,7 +129,7 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     if u<l
         # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds. 
         # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
-        warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
+        Memento.warn(MIPVerify.LOGGER, "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...")
         u=upperbound(x)
         l=lowerbound(x)
     end
@@ -201,7 +201,7 @@ the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
     x::JuMPLinearType, u::Real; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}(),
+    nta::Union{TighteningAlgorithm, Nothing} = nothing,
     cutoff=0
     )::Real
     (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff=cutoff)
@@ -220,7 +220,7 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 """
 function relu(
     x::AbstractArray{T}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    nta::Union{TighteningAlgorithm, Nothing} = nothing)::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool = MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x, nta=nta, cutoff=0)
@@ -233,7 +233,7 @@ function relu(
         l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta=nta, cutoff=0)), zip(x, u))
 
         reluinfo = ReLUInfo(l, u)
-        info(MIPVerify.LOGGER, "$reluinfo")
+        Memento.info(MIPVerify.LOGGER, "$reluinfo")
 
         p3 = Progress(length(x), desc="  Imposing relu constraint: ")
         return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
@@ -277,18 +277,18 @@ the value of the mask. Output is constrained to be:
 function masked_relu(
     x::AbstractArray{<:JuMPLinearType}, 
     m::AbstractArray{<:Real}; 
-    nta::Nullable{TighteningAlgorithm} = Nullable{TighteningAlgorithm}())::Array{JuMP.AffExpr}
+    nta::Union{TighteningAlgorithm, Nothing} = nothing)::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
     # We add the constraints corresponding to the active ReLUs to the model
-    zero_idx = Iterators.filter(i -> m[i]==0, CartesianRange(s)) |> collect
+    zero_idx = Iterators.filter(i -> m[i]==0, CartesianIndices(s)) |> collect
     d = Dict(zip(zero_idx, relu(x[zero_idx], nta=nta)))
 
     # We determine the output of the masked relu, which is either: 
     #  1) the output of the relu that we have previously determined when adding the 
     #     constraints to the model. 
     #  2, 3) the result of applying the (elementwise) masked_relu function.
-    return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianRange(s))
+    return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianIndices(s))
 end
 
 function maximum(xs::AbstractArray{T})::T where {T<:Real}
@@ -328,13 +328,13 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
 
     if l==u
         return one(T)*l
-        info(MIPVerify.LOGGER, "Output of maximum is constant.")
+        Memento.info(MIPVerify.LOGGER, "Output of maximum is constant.")
     end
     # at least one index will satisfy this property because of check above.
     filtered_indexes = us .> l
     
     # TODO (vtjeng): Smarter log output if maximum function is being used more than once (for example, in a max-pooling layer).
-    info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
+    Memento.info(MIPVerify.LOGGER, "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)")
     
     return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
 end

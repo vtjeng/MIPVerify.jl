@@ -19,7 +19,6 @@ function Base.show(io::IO, p::Pool)
     (_, stride_height, stride_width, _) = p.strides
     function_display_name = Dict(
         MIPVerify.maximum => "max",
-        Base.mean => "average",
     )
     print(io,
         "$(function_display_name[p.pooling_function]) pooling with a $(stride_height)x$(stride_width) filter and a stride of ($stride_height, $stride_width)"
@@ -35,11 +34,6 @@ Convenience function to create a [`Pool`](@ref) struct for max-pooling.
 """
 function MaxPool(strides::NTuple{N, Int}) where {N}
     Pool(strides, MIPVerify.maximum)
-end
-
-function AveragePool(strides::NTuple{N, Int}) where {N}
-    # TODO (vtjeng): support average pooling across variables.
-    Pool(strides, Base.mean)
 end
 
 """
@@ -99,7 +93,7 @@ determined by the `strides`.
 """
 function poolmap(f::Function, input_array::AbstractArray{T, N}, strides::NTuple{N, Int}) where {T, N}
     output_size = getoutputsize(input_array, strides)
-    output_indices = collect(CartesianRange(output_size))
+    output_indices = collect(CartesianIndices(output_size))
     return ((I) -> f(getpoolview(input_array, strides, I.I))).(output_indices)
 end
 
@@ -116,4 +110,4 @@ function pool(
 end
 
 (p::Pool)(x::Array{<:Real}) = MIPVerify.pool(x, p)
-(p::Pool)(x::Array{<:JuMPLinearType}) = (info(MIPVerify.LOGGER, "Specifying $p ... "); MIPVerify.pool(x, p))
+(p::Pool)(x::Array{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Specifying $p ... "); MIPVerify.pool(x, p))
