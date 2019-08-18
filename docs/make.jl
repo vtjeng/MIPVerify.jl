@@ -32,6 +32,6 @@ deploydocs(
     repo = "github.com/vtjeng/MIPVerify.jl.git",
     target = "build",
     make = nothing,
-    julia = "0.6",
+    julia = "0.7",
     osname = "linux"
 )
