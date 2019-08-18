@@ -2,8 +2,9 @@ using Documenter, MIPVerify
 
 makedocs(
     modules = [MIPVerify],
-    format = :html,
-    sitename = "MIPVerify.jl",
+    # See https://github.com/JuliaDocs/Documenter.jl/issues/868
+    format = Documenter.HTML(prettyurls = get(ENV, "CI", nothing) == "true"),
+    sitename = "MIPVerify",
     authors = "Vincent Tjeng and contributors.",
     pages = [
         "Home" => "index.md",
@@ -24,14 +25,9 @@ makedocs(
             "net_components/core_ops.md"
         ]
     ],
-checkdocs = :exports
+    checkdocs = :exports
 )
 
 deploydocs(
-    deps = nothing,
     repo = "github.com/vtjeng/MIPVerify.jl.git",
-    target = "build",
-    make = nothing,
-    julia = "0.7",
-    osname = "linux"
 )
