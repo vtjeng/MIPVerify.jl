@@ -4,7 +4,7 @@ using MIPVerify: BatchRunParameters, UnrestrictedPerturbationFamily, mkpath_if_n
 using MIPVerify: run_on_sample_for_untargeted_attack, run_on_sample_for_targeted_attack
 using DataFrames
 
-@testset "unit" begin
+@timed_testset "unit.jl" begin
     mnist = read_datasets("MNIST")
 
     @testset "BatchRunParameters" begin

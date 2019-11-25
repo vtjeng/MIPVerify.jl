@@ -3,10 +3,23 @@ using MIPVerify: setloglevel!
 using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm
 using JuMP
+using TimerOutputs
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
+macro timed_testset(name::String, block)
+    # copied from https://github.com/KristofferC/Tensors.jl/blob/master/test/runtests.jl#L8
+    return quote
+        @timeit "$($(esc(name)))" begin
+            @testset "$($(esc(name)))" begin
+                $(esc(block))
+            end
+        end
+    end
+end
+
 @testset "MIPVerify" begin
+    reset_timer!()
     setloglevel!("info")
     remove_cached_models()
 
@@ -62,5 +75,10 @@ using JuMP
             end
         end
     end
+
+    println()
+    print_timer()
+    println()
+    println()
 end
 

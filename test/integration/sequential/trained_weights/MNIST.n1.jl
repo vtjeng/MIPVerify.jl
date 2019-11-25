@@ -4,7 +4,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
 using MIPVerify: get_example_network_params, read_datasets, get_image
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
-@testset "MNIST.n1" begin
+@testset "MNIST.n1.jl" begin
     nn = get_example_network_params("MNIST.n1")
     mnist = read_datasets("mnist")
 

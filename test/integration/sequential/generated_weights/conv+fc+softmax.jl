@@ -3,7 +3,7 @@ using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
-@testset "Conv + FC + Softmax" begin
+@timed_testset "conv+fc+softmax.jl" begin
     ### Parameters for neural net
     batch = 1
     c1_in_height = 8
@@ -52,7 +52,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
         "tests.integration.generated_weights.conv+fc+softmax"
     )
 
-    @testset "BlurringPerturbationFamily" begin
+    @timed_testset "BlurringPerturbationFamily" begin
         pp_blur = BlurringPerturbationFamily((5, 5))
         # TODO (vtjeng): Add example where blurring perturbation generates non-NaN results
         test_cases = [
@@ -63,9 +63,9 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
 
-    @testset "UnrestrictedPerturbationFamily" begin
+    @timed_testset "UnrestrictedPerturbationFamily" begin
         pp_unrestricted = UnrestrictedPerturbationFamily()
-        @testset "Minimizing l1 norm" begin
+        @timed_testset "Minimizing l1 norm" begin
             test_cases = [
                 ((1, pp_unrestricted, 1, 0), 0),
                 ((2, pp_unrestricted, 1, 0), 9.2825418),
@@ -74,7 +74,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
-        @testset "Minimizing lInf norm" begin
+        @timed_testset "Minimizing lInf norm" begin
             test_cases = [
                 ((1, pp_unrestricted, Inf, 0), 0),
                 ((2, pp_unrestricted, Inf, 0), 0.4347241),
@@ -84,7 +84,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
-        @testset "Increasing margin increases required distance" begin
+        @timed_testset "Increasing margin increases required distance" begin
             test_cases = [
                 ((2, pp_unrestricted, 1, 0.1), 9.5642628),
             ]
@@ -92,7 +92,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
-        @testset "With multiple target labels specified, minimum target label found" begin
+        @timed_testset "With multiple target labels specified, minimum target label found" begin
             test_cases = [
                 (([2, 3], pp_unrestricted, Inf, 0), 0.4347241),
             ]
@@ -101,7 +101,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
         end
     end
 
-    @testset "LInfNormBoundedPerturbationFamily" begin
+    @timed_testset "LInfNormBoundedPerturbationFamily" begin
         test_cases = [
             ((2, LInfNormBoundedPerturbationFamily(0.43), Inf, 0), NaN),  # restricting maximum perturbation to below minimum distance causes optimization problem to be infeasible
             ((2, LInfNormBoundedPerturbationFamily(0.435), Inf, 0), 0.4347241),  # restricting maximum perturbation to above minimum distance does not affect optimal value of problem

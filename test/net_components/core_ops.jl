@@ -10,7 +10,7 @@ function count_binary_variables(m::Model)
     count(x -> x == :Bin, m.colCat)
 end
 
-@testset "core_ops.jl" begin
+@timed_testset "core_ops.jl" begin
     @testset "is_constant" begin
         @testset "JuMP.AffExpr" begin
             m = TestHelpers.get_new_model()

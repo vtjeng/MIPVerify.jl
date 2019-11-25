@@ -3,7 +3,7 @@ using MIPVerify
 using MIPVerify: LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@testset "integration" begin
+@timed_testset "integration.jl" begin
     mnist = read_datasets("MNIST")
     nn_wk17a = get_example_network_params("MNIST.WK17a_linf0.1_authors")
     @testset "batch_find_untargeted_attack" begin 
