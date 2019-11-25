@@ -2,7 +2,7 @@ using Test
 using Statistics
 using MIPVerify
 
-@testset "import_datasets.jl" begin
+@timed_testset "import_datasets.jl" begin
     @testset "NamedTrainTestDataset" begin
         @testset "Base.show" begin
             io = IOBuffer()

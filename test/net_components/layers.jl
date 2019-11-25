@@ -1,6 +1,6 @@
 using Test
 
-@testset "layers/" begin
+@timed_testset "layers/" begin
     include("layers/conv2d.jl")
     include("layers/flatten.jl")
     include("layers/linear.jl")

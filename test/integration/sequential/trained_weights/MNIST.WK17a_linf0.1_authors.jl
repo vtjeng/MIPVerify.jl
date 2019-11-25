@@ -4,7 +4,7 @@ using MIPVerify: LInfNormBoundedPerturbationFamily
 using MIPVerify: get_example_network_params, read_datasets, get_image, get_label
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
-@testset "MNIST.WK17a_linf0.1_authors" begin
+@testset "MNIST.WK17a_linf0.1_authors.jl" begin
     nn = get_example_network_params("MNIST.WK17a_linf0.1_authors")
     mnist = read_datasets("mnist")
 

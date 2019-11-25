@@ -1,6 +1,6 @@
 using Test
 
-@testset "sequential" begin
+@timed_testset "sequential/" begin
     include("sequential/generated_weights.jl")
     if Base.find_package("Gurobi") != nothing
         # Skip these tests if Gurobi is not installed.

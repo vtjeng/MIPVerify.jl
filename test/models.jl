@@ -1,7 +1,7 @@
 using Test
 using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 
-@testset "models.jl" begin
+@timed_testset "models.jl" begin
     @testset "UnrestrictedPerturbationFamily" begin
         @testset "Base.show" begin
             p = UnrestrictedPerturbationFamily()

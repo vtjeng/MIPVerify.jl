@@ -1,5 +1,5 @@
 using Test
 
-@testset "integration tests" begin
+@timed_testset "integration/" begin
     include("integration/sequential.jl")
 end
