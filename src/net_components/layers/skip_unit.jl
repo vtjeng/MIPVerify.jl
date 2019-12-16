@@ -24,7 +24,7 @@ function apply(p::SkipBlock, xs::Array)
     num_layers = length(p.layers)
     inputs = xs[end-num_layers+1:end]
     outputs = map((f, x) -> f(x), p.layers, inputs)
-    return outputs |> sum
+    return reduce((x1, x2) -> x1.+x2, outputs)
 end
 
 (p::SkipBlock)(xs::Array) = apply(p, xs)
