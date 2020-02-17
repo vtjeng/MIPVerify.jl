@@ -3,21 +3,6 @@ uuid = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
 authors = ["Vincent Tjeng <vincent.tjeng@gmail.com>"]
 version = "0.2.1"
 
-[compat]
-AutoHashEquals = "0.2"
-CSV = "0.5.9"
-Cbc = "0.4, 0.5, 0.6"
-ConditionalJuMP = "0.1"
-DataFrames = "0.19, 0.20"
-DocStringExtensions = "0.8"
-JuMP = "0.18"
-MAT = "0.5, 0.6, 0.7"
-MathProgBase = "0.7"
-Memento = "0.12"
-ProgressMeter = "1"
-TimerOutputs = "0.5"
-julia = "1"
-
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -32,6 +17,21 @@ MathProgBase = "fdba3010-5040-5b88-9595-932c9decdf73"
 Memento = "f28f55f0-a522-5efc-85c2-fe41dfb9b2d9"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
+
+[compat]
+AutoHashEquals = "0.2"
+CSV = "0.5.9"
+Cbc = "0.4, 0.5, 0.6"
+ConditionalJuMP = "0.1"
+DataFrames = "0.19, 0.20"
+DocStringExtensions = "0.8"
+JuMP = "0.18, 0.21"
+MAT = "0.5, 0.6, 0.7"
+MathProgBase = "0.7"
+Memento = "0.12"
+ProgressMeter = "1"
+TimerOutputs = "0.5"
+julia = "1"
 
 [extras]
 Cbc = "9961bab8-2fa3-5c5a-9d89-47fab24efd76"
