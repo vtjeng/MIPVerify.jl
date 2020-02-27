@@ -16,7 +16,7 @@ const dependencies_path = joinpath(@__DIR__, "..", "deps")
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
 @enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
-@enum AdversarialExampleObjective closest=1 worst=2
+@enum AdversarialExampleObjective closest=1 worst=2 worst_with_constraint=3
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
 include("net_components.jl")
@@ -129,10 +129,13 @@ function find_adversarial_example(
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry out
                 # the solve. Functions like `set_max_indexes` can modify the objective.
                 @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
-            elseif adversarial_example_objective == worst
+            elseif adversarial_example_objective == worst || adversarial_example_objective == worst_with_constraint
                 (maximum_target_var, nontarget_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes])
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
-                @objective(m, Max, maximum_target_var - maximum_nontarget_var)    
+                if adversarial_example_objective == worst_with_constraint
+                    @constraint(m, nontarget_vars - maximum_target_var .<= -tolerance)
+                end
+                @objective(m, Max, maximum_target_var - maximum_nontarget_var)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
