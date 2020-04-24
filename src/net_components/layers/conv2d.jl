@@ -2,6 +2,11 @@ using JuMP
 using ConditionalJuMP
 
 export Conv2d
+export Padding, same, valid
+
+@enum DynamicPadding same=1 valid=2
+FixedPadding = Union{Int64, Tuple{Int64, Int64}, Tuple{Int64, Int64, Int64, Int64}}
+Padding = Union{DynamicPadding, FixedPadding}
 
 """
 $(TYPEDEF)
@@ -18,25 +23,30 @@ $(FIELDS)
     filter::Array{T, 4}
     bias::Array{U, 1}
     stride::V
+    padding::Padding
 
-    function Conv2d{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    function Conv2d{T, U, V}(filter::Array{T, 4}, bias::Array{U, 1}, stride::V, padding::Padding) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
             filter_out_channels == bias_out_channels,
             "For this convolution layer, number of output channels in filter, $filter_out_channels, does not match number of output channels in bias, $bias_out_channels."
         )
-        return new(filter, bias, stride)
+        return new(filter, bias, stride, padding)
     end
 
 end
 
+function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V, padding::Padding) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
+    Conv2d{T, U, V}(filter, bias, stride, padding)
+end
+
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
-    Conv2d{T, U, V}(filter, bias, stride)
+    Conv2d{T, U, V}(filter, bias, stride, same)
 end
 
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
-    Conv2d(filter, bias, 1)
+    Conv2d(filter, bias, 1, same)
 end
 
 """
@@ -59,8 +69,9 @@ end
 function Base.show(io::IO, p::Conv2d)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(p.filter)
     stride = p.stride
+    padding = p.padding
     print(io,
-        "Conv2d($filter_in_channels, $filter_out_channels, kernel_size=($(filter_height), $(filter_width)), stride=($(stride), $(stride)), padding=same)"
+        "Conv2d($filter_in_channels, $filter_out_channels, kernel_size=($(filter_height), $(filter_width)), stride=($(stride), $(stride)), padding=$(padding))"
     )
 end
 
@@ -93,8 +104,15 @@ $(SIGNATURES)
 
 Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
-Mirrors `tf.nn.conv2d` from the `tensorflow` package, with `strides = [1, 1, 1, 1], 
-padding = 'SAME'`.
+Mirrors `tf.nn.conv2d` from the `tensorflow` package, with `strides = [1, 1, 1, 1].
+
+Supports three types of padding:
+- 'same': Padding is added so that the output has the same size as the input.
+- 'valid': No padding is added
+- Fixed:
+  - Int64:                             Interpreted as padding for both axes
+  - Tuple{Int64, Int64}:               Interpreted as (y_padding, x_padding)
+  - Tuple{Int64, Int64, Int64, Int64}: Interpreted as (top, bottom, left, right)
 
 # Throws
 * AssertionError if `input` and `filter` are not compatible.
@@ -104,34 +122,61 @@ function conv2d(
     params::Conv2d{U, V}) where {T<:JuMPReal, U<:JuMPReal, V<:JuMPReal}
 
     if T<:JuMPLinearType || U<:JuMPLinearType || V<:JuMPLinearType
-        Memento.info(MIPVerify.LOGGER, "Applying $(params) ... ")
+        info(MIPVerify.LOGGER, "Applying $(params) ... ")
     end
     filter = params.filter
     stride = params.stride
+    padding = params.padding
 
     (batch, in_height, in_width, input_in_channels) = size(input)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
     
     @assert(
-        input_in_channels == filter_in_channels, 
+        input_in_channels == filter_in_channels,
         "Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."
     )
-    
-    out_height = round(Int, in_height/stride, RoundUp)
-    out_width = round(Int, in_width/stride, RoundUp)
-    output_size = (batch, out_height, out_width, filter_out_channels)
 
     # Considered using offset arrays here, but could not get it working.
 
-    # Calculating appropriate offsets so that center of kernel is matched with
-    # cell at which correlation is being calculated. Note that tensorflow
-    # chooses a specific convention for a dimension with even size which we
-    # replicate here.
-    pad_along_height = max((out_height - 1)*stride + filter_height - in_height, 0)
-    pad_along_width = max((out_width - 1)*stride + filter_width - in_width, 0)
-    filter_height_offset = round(Int, pad_along_height/2, RoundDown)
-    filter_width_offset = round(Int, pad_along_width/2, RoundDown)
-    
+    if padding == same
+        out_height = round(Int, in_height/stride, RoundUp)
+        out_width = round(Int, in_width/stride, RoundUp)
+        output_size = (batch, out_height, out_width, filter_out_channels)
+        pad_along_height = max((out_height - 1)*stride + filter_height - in_height, 0)
+        pad_along_width = max((out_width - 1)*stride + filter_width - in_width, 0)
+        filter_height_offset = round(Int, pad_along_height/2, RoundDown)
+        filter_width_offset = round(Int, pad_along_width/2, RoundDown)
+    elseif padding == valid
+        out_height = round(Int, (in_height + 1 - filter_height) / stride, RoundUp)
+        out_width = round(Int, (in_width + 1 - filter_width) / stride, RoundUp)
+        output_size = (batch, out_height, out_width, filter_out_channels)
+        filter_height_offset = 0
+        filter_width_offset = 0
+    elseif padding isa FixedPadding
+        if padding isa Int64
+            top_padding = padding
+            bottom_padding = padding
+            left_padding = padding
+            right_padding = padding
+        elseif padding isa Tuple{Int64, Int64}
+            (y_padding, x_padding) = padding
+            top_padding = y_padding
+            bottom_padding = y_padding
+            left_padding = x_padding
+            right_padding = x_padding
+        else
+            (top_padding, bottom_padding, left_padding, right_padding) = padding
+        end
+
+        out_height = round(Int, (in_height + top_padding + bottom_padding - filter_height) / stride, RoundDown) + 1
+        out_width = round(Int, (in_width + left_padding + right_padding - filter_width) / stride, RoundDown) + 1
+        output_size = (batch, out_height, out_width, filter_out_channels)
+        filter_height_offset = top_padding
+        filter_width_offset = left_padding
+    else
+        error("Unknown padding type $padding")
+    end
+
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
     output = Array{W}(undef, output_size)
 
