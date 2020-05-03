@@ -228,7 +228,7 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -243,7 +243,7 @@ end
                 (3, 3, 2, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -259,7 +259,7 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -274,7 +274,7 @@ end
                 (2, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -288,7 +288,7 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                valid
+                ValidPadding()
             )
         end
 
@@ -304,7 +304,7 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -318,7 +318,7 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                valid
+                ValidPadding()
             )
         end
 
@@ -334,7 +334,7 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -348,7 +348,7 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                valid
+                ValidPadding()
             )
         end
 
@@ -365,7 +365,7 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                valid
+                ValidPadding()
             )
         end
 
@@ -379,7 +379,7 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 3,
-                valid
+                ValidPadding()
             )
         end
     end
