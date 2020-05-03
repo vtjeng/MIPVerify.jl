@@ -15,7 +15,7 @@ function test_convolution_layer(
 
       1) Passing numerical input into a numerical Conv2d layer, verifying
          that we recover the value of `true_output`.
-         
+
       2) Setting up an optimization problem with variables corresponding 
          to the convolution layer and the output (`p_v` and `output_v`).
 
@@ -143,7 +143,6 @@ end
         input = reshape(collect(1:prod(input_size)), input_size) .- 16
         filter_size = (3, 3, 2, 1)
         filter = reshape(collect(1:prod(filter_size)), filter_size) .- 9
-        bias_size = (1, )
         bias = [1]
         true_output_raw = [
             225  381  405  285;
@@ -161,7 +160,6 @@ end
         input = reshape(collect(1:prod(input_size)), input_size) .- 36
         filter_size = (3, 3, 2, 1)
         filter = reshape(collect(1:prod(filter_size)), filter_size) .- 9
-        bias_size = (1, )
         bias = [1]
         stride = 2
         true_output_raw = [
@@ -179,7 +177,6 @@ end
         input = reshape(collect(1:prod(input_size)), input_size) .- 25
         filter_size = (4, 4, 2, 1)
         filter = reshape(collect(1:prod(filter_size)), filter_size) .- 16
-        bias_size = (1, )
         bias = [1]
         stride = 2
         true_output_raw = [
@@ -198,7 +195,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -216,7 +212,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 2, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -234,7 +229,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -253,7 +247,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (2, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -272,7 +265,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             true_output_raw = [
@@ -289,7 +281,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (2, 2, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -308,7 +299,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (2, 2, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             true_output_raw = [
@@ -325,7 +315,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -344,7 +333,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             true_output_raw = [
@@ -361,7 +349,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (2, 2, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             true_output_raw = [
@@ -381,7 +368,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (2, 2, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 3
             true_output_raw = [
@@ -400,7 +386,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (0, 0)
@@ -419,7 +404,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             padding = (0, 0)
@@ -437,7 +421,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 1)
@@ -458,7 +441,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             padding = (1, 1)
@@ -477,7 +459,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = 1
@@ -498,7 +479,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 1)
@@ -520,7 +500,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             padding = (1, 1)
@@ -539,7 +518,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 2)
@@ -562,7 +540,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             padding = (1, 2)
@@ -582,7 +559,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 2, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 1)
@@ -603,7 +579,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 2, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 2
             padding = (1, 1)
@@ -622,7 +597,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 1, 1, 1)
@@ -643,7 +617,6 @@ end
             input = reshape([1:prod(input_size);], input_size)
             filter_size = (3, 3, 1, 1)
             filter = ones(filter_size...)
-            bias_size = (1, )
             bias = [0]
             stride = 1
             padding = (1, 2, 3, 4)
