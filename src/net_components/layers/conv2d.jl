@@ -166,15 +166,16 @@ $(SIGNATURES)
 
 Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
-Mirrors `tf.nn.conv2d` from the `tensorflow` package, with `strides = [1, 1, 1, 1].
+Mirrors `tf.nn.conv2d` from the `tensorflow` package, with 
+`strides = [1, params.stride, params.stride, 1]``.
 
 Supports three types of padding:
-- SamePadding(): Padding is added so that the output has the same size as the input.
-- ValidPadding(): No padding is added
-- Fixed:
-  - Int64:                             Interpreted as padding for both axes
-  - Tuple{Int64, Int64}:               Interpreted as (y_padding, x_padding)
-  - Tuple{Int64, Int64, Int64, Int64}: Interpreted as (top, bottom, left, right)
+- 'same':  Specify via `SamePadding()`. Padding is added so that the output has the same size as the input.
+- 'valid': Specify via `FixedPadding()`. No padding is added
+- 'fixed': Specify via:
+  - A single integer, interpreted as padding for both axes
+  - A tuple of two integers, interpreted as (y_padding, x_padding)
+  - A tuple of four integers, interpreted as (top, bottom, left, right)
 
 # Throws
 * AssertionError if `input` and `filter` are not compatible.
