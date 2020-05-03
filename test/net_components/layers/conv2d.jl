@@ -4,6 +4,73 @@ using MIPVerify
 using MIPVerify: check_size, increment!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
+function test_convolution_layer(
+    p::MIPVerify.Conv2d, 
+    input::AbstractArray{T, 4}, 
+    true_output::AbstractArray{T, 4}
+    ) where {T<:Real}
+    """
+    Tests that passing `input` into the convolution layer `p` produces 
+    `true_output`. We test three combinations:
+
+      1) Passing numerical input into a numerical Conv2d layer, verifying
+         that we recover the value of `true_output`.
+         
+      2) Setting up an optimization problem with variables corresponding 
+         to the convolution layer and the output (`p_v` and `output_v`).
+
+         `output_v` is constrained to be the result of applying `p_v` to
+         `input`, and is also constrained to be equal to `true_output`.
+
+         We verify that, when the optimization problem is solved, applying
+         `p_v` to `input` recovers the value of `true_output`.
+         
+         Note that since the optimization problem is under-determined, we
+         cannot assert that `p_v` is equal to `p`.
+
+      3) Setting up an optimization problem with variables corresponding
+         to the input and output (`input_v` and `output_v`). 
+         
+         `output_v` is constrained to be the result of applying `p` to 
+         `input_v`, and is also constrained to be equal to `true_output`. 
+
+         We verify that, when the optimization problem is solved, applying
+         `p` to `input_v` recovers the value of `true_output`.
+
+         As in case 2), we cannot assert that `input_v` is equal to input.
+    """
+    input_size = size(input)
+    filter_size = size(p.filter)
+    bias_size = size(p.bias)
+    @testset "Numerical Input, Numerical Layer Parameters" begin
+        evaluated_output = MIPVerify.conv2d(input, p)
+        @test evaluated_output == true_output
+    end
+    @testset "Numerical Input, Variable Layer Parameters" begin
+        m = TestHelpers.get_new_model()
+        filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
+        bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
+        p_v = MIPVerify.Conv2d(filter_v, bias_v, p.stride, p.padding)
+        output_v = MIPVerify.conv2d(input, p_v)
+        @constraint(m, output_v .== true_output)
+        solve(m)
+
+        p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), p.stride, p.padding)
+        solve_output = MIPVerify.conv2d(input, p_solve)
+        @test solve_output≈true_output
+    end
+    @testset "Variable Input, Numerical Layer Parameters" begin
+        m = TestHelpers.get_new_model()
+        input_v = map(_ -> @variable(m), CartesianIndices(input_size))
+        output_v = MIPVerify.conv2d(input_v, p)
+        @constraint(m, output_v .== true_output)
+        solve(m)
+
+        solve_output = MIPVerify.conv2d(getvalue(input_v), p)
+        @test solve_output≈true_output
+    end
+end
+
 @testset "conv2d.jl" begin
     @testset "Conv2d" begin
         @testset "Base.show" begin
@@ -86,33 +153,7 @@ using MIPVerify: check_size, increment!
         ]
         true_output = reshape(transpose(true_output_raw), (1, 4, 4, 1))
         p = Conv2d(filter, bias)
-        @testset "Numerical Input, Numerical Layer Parameters" begin
-            evaluated_output = MIPVerify.conv2d(input, p)
-            @test evaluated_output == true_output
-        end
-        @testset "Numerical Input, Variable Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-            bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-            p_v = Conv2d(filter_v, bias_v)
-            output_v = MIPVerify.conv2d(input, p_v)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v))
-            solve_output = MIPVerify.conv2d(input, p_solve)
-            @test solve_output≈true_output
-        end
-        @testset "Variable Input, Numerical Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-            output_v = MIPVerify.conv2d(input_v, p)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-            @test solve_output≈true_output
-        end
+        test_convolution_layer(p, input, true_output)
     end
 
     @testset "conv2d with non-unit stride" begin
@@ -130,33 +171,7 @@ using MIPVerify: check_size, increment!
         ]
         true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
         p = Conv2d(filter, bias, stride)
-        @testset "Numerical Input, Numerical Layer Parameters" begin
-            evaluated_output = MIPVerify.conv2d(input, p)
-            @test evaluated_output == true_output
-        end
-        @testset "Numerical Input, Variable Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-            bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-            p_v = Conv2d(filter_v, bias_v, stride)
-            output_v = MIPVerify.conv2d(input, p_v)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride)
-            solve_output = MIPVerify.conv2d(input, p_solve)
-            @test solve_output≈true_output
-        end
-        @testset "Variable Input, Numerical Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-            output_v = MIPVerify.conv2d(input_v, p)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-            @test solve_output≈true_output
-        end
+        test_convolution_layer(p, input, true_output)
     end
 
     @testset "conv2d with stride 2, odd input shape with even filter shape" begin
@@ -174,33 +189,7 @@ using MIPVerify: check_size, increment!
         ]
         true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
         p = Conv2d(filter, bias, stride)
-        @testset "Numerical Input, Numerical Layer Parameters" begin
-            evaluated_output = MIPVerify.conv2d(input, p)
-            @test evaluated_output == true_output
-        end
-        @testset "Numerical Input, Variable Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-            bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-            p_v = Conv2d(filter_v, bias_v, stride)
-            output_v = MIPVerify.conv2d(input, p_v)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride)
-            solve_output = MIPVerify.conv2d(input, p_solve)
-            @test solve_output≈true_output
-        end
-        @testset "Variable Input, Numerical Layer Parameters" begin
-            m = TestHelpers.get_new_model()
-            input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-            output_v = MIPVerify.conv2d(input_v, p)
-            @constraint(m, output_v .== true_output)
-            solve(m)
-
-            solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-            @test solve_output≈true_output
-        end
+        test_convolution_layer(p, input, true_output)
     end
 
     @testset "conv2d with 'valid' padding" begin
@@ -219,33 +208,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, odd input and filter size, stride = 1, channels != 1" begin
@@ -263,33 +226,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, stride = 1, input width != input height" begin
@@ -308,33 +245,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 4, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, stride=1, filter width != filter height" begin
@@ -353,33 +264,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 4, 3, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, odd input and filter size, stride != 1" begin
@@ -396,33 +281,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 2, 2, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, odd input size, even filter size, stride = 1" begin
@@ -441,33 +300,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 4, 4, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, odd input size, even filter size, stride != 1" begin
@@ -484,33 +317,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 2, 2, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, even input size, odd filter size, stride = 1" begin
@@ -529,33 +336,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 4, 4, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, even input size, odd filter size, stride != 1" begin
@@ -572,33 +353,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 2, 2, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, even input and filter size, stride = 1" begin
@@ -618,33 +373,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 5, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 'valid' padding, even input and filter size, stride != 1" begin
@@ -661,33 +390,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 2, 2, 1))
             p = Conv2d(filter, bias, stride, valid)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, valid)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, valid)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
     end
 
@@ -708,33 +411,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (0, 0) padding, stride != 1" begin
@@ -752,33 +429,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 2, 2, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, stride = 1" begin
@@ -799,33 +450,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 5, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, stride != 1" begin
@@ -844,33 +469,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with 1 padding, stride = 1" begin
@@ -891,33 +490,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 5, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, input width != input_height, stride = 1" begin
@@ -939,33 +512,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 6, 5, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, input width != input_height, stride != 1" begin
@@ -984,33 +531,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 2) padding, stride = 1" begin
@@ -1033,33 +554,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 7, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 2) padding, stride != 1" begin
@@ -1079,33 +574,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 4, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, channels != 1, stride = 1" begin
@@ -1126,33 +595,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 5, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1) padding, channels != 1, stride != 1" begin
@@ -1171,33 +614,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 3, 3, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 1, 1, 1) padding, stride = 1" begin
@@ -1218,33 +635,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 5, 5, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
 
         @testset "conv2d with (1, 2, 3, 4) padding, stride = 1" begin
@@ -1270,33 +661,7 @@ using MIPVerify: check_size, increment!
             ]
             true_output = reshape(transpose(true_output_raw), (1, 6, 10, 1))
             p = Conv2d(filter, bias, stride, padding)
-            @testset "Numerical Input, Numerical Layer Parameters" begin
-                evaluated_output = MIPVerify.conv2d(input, p)
-                @test evaluated_output == true_output
-            end
-            @testset "Numerical Input, Variable Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                filter_v = map(_ -> @variable(m), CartesianIndices(filter_size))
-                bias_v = map(_ -> @variable(m), CartesianIndices(bias_size))
-                p_v = Conv2d(filter_v, bias_v, stride, padding)
-                output_v = MIPVerify.conv2d(input, p_v)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), stride, padding)
-                solve_output = MIPVerify.conv2d(input, p_solve)
-                @test solve_output≈true_output
-            end
-            @testset "Variable Input, Numerical Layer Parameters" begin
-                m = TestHelpers.get_new_model()
-                input_v = map(_ -> @variable(m), CartesianIndices(input_size))
-                output_v = MIPVerify.conv2d(input_v, p)
-                @constraint(m, output_v .== true_output)
-                solve(m)
-
-                solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-                @test solve_output≈true_output
-            end
+            test_convolution_layer(p, input, true_output)
         end
     end
 end
