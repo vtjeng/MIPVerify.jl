@@ -346,10 +346,9 @@ using MIPVerify: check_size, increment!
             bias = [0]
             stride = 1
             true_output_raw = [
-                39  45  51;
-                57  69  75;
-                81  87  99;
-                105 111 117
+                39  45  51  57;
+                69  75  81  87;
+                99  105 111 117
             ]
             true_output = reshape(transpose(true_output_raw), (1, 4, 3, 1))
             p = Conv2d(filter, bias, stride, valid)
@@ -1258,7 +1257,7 @@ using MIPVerify: check_size, increment!
             padding = (1, 2, 3, 4)
             true_output_raw = [
                0   0   0   0   0   0;
-               3   6   9  12   9   5
+               3   6   9  12   9   5;
                16  27  33  39  28  15;
                39  63  72  81  57  30;
                69  108 117 126 87  45;
