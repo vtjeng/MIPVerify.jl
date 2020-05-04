@@ -2,11 +2,15 @@ using JuMP
 using ConditionalJuMP
 
 export Conv2d
-export Padding, same, valid
+export Padding, SamePadding, ValidPadding
 
-@enum DynamicPadding same=1 valid=2
-FixedPadding = Union{Int64, Tuple{Int64, Int64}, Tuple{Int64, Int64, Int64, Int64}}
-Padding = Union{DynamicPadding, FixedPadding}
+struct SamePadding end
+Base.show(io::IO, p::SamePadding) = print(io, "same")
+struct ValidPadding end
+Base.show(io::IO, p::ValidPadding) = print(io, "valid")
+
+FixedPadding = Union{Int, Tuple{Int, Int}, Tuple{Int, Int, Int, Int}}
+Padding = Union{SamePadding, ValidPadding, FixedPadding}
 
 """
 $(TYPEDEF)
@@ -42,11 +46,11 @@ function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V, padding::Padd
 end
 
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}, stride::V) where {T<:JuMPReal, U<:JuMPReal, V<:Int64}
-    Conv2d{T, U, V}(filter, bias, stride, same)
+    Conv2d{T, U, V}(filter, bias, stride, SamePadding())
 end
 
 function Conv2d(filter::Array{T, 4}, bias::Array{U, 1}) where {T<:JuMPReal, U<:JuMPReal}
-    Conv2d(filter, bias, 1, same)
+    Conv2d(filter, bias, 1, SamePadding())
 end
 
 """
@@ -97,22 +101,81 @@ function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.Variable)
     push!(s, Float64(input_val), filter_val)
 end
 
+function compute_output_parameters(
+    in_height::Int, in_width::Int,
+    filter_height::Int, filter_width::Int, stride::Int,
+    padding::FixedPadding
+)::Tuple{NTuple{2, Int}, NTuple{2, Int}}
+    (top_padding, bottom_padding, left_padding, right_padding) = compute_padding_values(padding)
+    out_height = round(Int, (in_height + top_padding + bottom_padding - filter_height) / stride, RoundDown) + 1
+    out_width = round(Int, (in_width + left_padding + right_padding - filter_width) / stride, RoundDown) + 1
+    
+    output_size = (out_height, out_width)
+    filter_offset = (top_padding, left_padding)
+    return (output_size, filter_offset)
+end
 
+function compute_output_parameters(
+    in_height::Int, in_width::Int,
+    filter_height::Int, filter_width::Int, stride::Int,
+    padding::SamePadding
+)::Tuple{NTuple{2, Int}, NTuple{2, Int}}
+    out_height = round(Int, in_height/stride, RoundUp)
+    out_width = round(Int, in_width/stride, RoundUp)
+    pad_along_height = max((out_height - 1)*stride + filter_height - in_height, 0)
+    pad_along_width = max((out_width - 1)*stride + filter_width - in_width, 0)
+    filter_height_offset = round(Int, pad_along_height/2, RoundDown)
+    filter_width_offset = round(Int, pad_along_width/2, RoundDown)
+    
+    output_size = (out_height, out_width)
+    filter_offset = (filter_height_offset, filter_width_offset)
+    return (output_size, filter_offset)
+end
+
+function compute_output_parameters(
+    in_height::Int, in_width::Int,
+    filter_height::Int, filter_width::Int, stride::Int, 
+    padding::ValidPadding
+)::Tuple{NTuple{2, Int}, NTuple{2, Int}}
+    out_height = round(Int, (in_height + 1 - filter_height) / stride, RoundUp)
+    out_width = round(Int, (in_width + 1 - filter_width) / stride, RoundUp)
+    return((out_height, out_width), (0, 0))
+end
+
+function compute_padding_values(
+    padding::Int
+)::NTuple{4, Int}
+    return (padding, padding, padding, padding)
+end
+
+function compute_padding_values(
+    padding::NTuple{2, Int}
+)::NTuple{4, Int}
+    (y_padding, x_padding) = padding
+    return (y_padding, y_padding, x_padding, x_padding)
+end
+
+function compute_padding_values(
+    padding::NTuple{4, Int}
+)::NTuple{4, Int}
+    return padding
+end
 
 """
 $(SIGNATURES)
 
 Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
-Mirrors `tf.nn.conv2d` from the `tensorflow` package, with `strides = [1, 1, 1, 1].
+Mirrors `tf.nn.conv2d` from the `tensorflow` package, with 
+`strides = [1, params.stride, params.stride, 1]`.
 
 Supports three types of padding:
-- 'same': Padding is added so that the output has the same size as the input.
-- 'valid': No padding is added
-- Fixed:
-  - Int64:                             Interpreted as padding for both axes
-  - Tuple{Int64, Int64}:               Interpreted as (y_padding, x_padding)
-  - Tuple{Int64, Int64, Int64, Int64}: Interpreted as (top, bottom, left, right)
+- 'same':  Specify via `SamePadding()`. Padding is added so that the output has the same size as the input.
+- 'valid': Specify via `FixedPadding()`. No padding is added.
+- 'fixed': Specify via:
+  - A single integer, interpreted as padding for both axes
+  - A tuple of two integers, interpreted as (y_padding, x_padding)
+  - A tuple of four integers, interpreted as (top, bottom, left, right)
 
 # Throws
 * AssertionError if `input` and `filter` are not compatible.
@@ -137,45 +200,8 @@ function conv2d(
     )
 
     # Considered using offset arrays here, but could not get it working.
-
-    if padding == same
-        out_height = round(Int, in_height/stride, RoundUp)
-        out_width = round(Int, in_width/stride, RoundUp)
-        output_size = (batch, out_height, out_width, filter_out_channels)
-        pad_along_height = max((out_height - 1)*stride + filter_height - in_height, 0)
-        pad_along_width = max((out_width - 1)*stride + filter_width - in_width, 0)
-        filter_height_offset = round(Int, pad_along_height/2, RoundDown)
-        filter_width_offset = round(Int, pad_along_width/2, RoundDown)
-    elseif padding == valid
-        out_height = round(Int, (in_height + 1 - filter_height) / stride, RoundUp)
-        out_width = round(Int, (in_width + 1 - filter_width) / stride, RoundUp)
-        output_size = (batch, out_height, out_width, filter_out_channels)
-        filter_height_offset = 0
-        filter_width_offset = 0
-    elseif padding isa FixedPadding
-        if padding isa Int64
-            top_padding = padding
-            bottom_padding = padding
-            left_padding = padding
-            right_padding = padding
-        elseif padding isa Tuple{Int64, Int64}
-            (y_padding, x_padding) = padding
-            top_padding = y_padding
-            bottom_padding = y_padding
-            left_padding = x_padding
-            right_padding = x_padding
-        else
-            (top_padding, bottom_padding, left_padding, right_padding) = padding
-        end
-
-        out_height = round(Int, (in_height + top_padding + bottom_padding - filter_height) / stride, RoundDown) + 1
-        out_width = round(Int, (in_width + left_padding + right_padding - filter_width) / stride, RoundDown) + 1
-        output_size = (batch, out_height, out_width, filter_out_channels)
-        filter_height_offset = top_padding
-        filter_width_offset = left_padding
-    else
-        error("Unknown padding type $padding")
-    end
+    ((out_height, out_width), (filter_height_offset, filter_width_offset)) = compute_output_parameters(in_height, in_width, filter_height, filter_width, stride, padding)
+    output_size = (batch, out_height, out_width, filter_out_channels)
 
     W = Base.promote_op(+, V, Base.promote_op(*, T, U))
     output = Array{W}(undef, output_size)
