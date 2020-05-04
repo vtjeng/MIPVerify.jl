@@ -582,7 +582,7 @@ end
         @testset "conv2d with (1, 2, 3, 4) padding, stride = 1" begin
             expected_output_2d = [
                0   0   0   0   0   0;
-               3   6   9  12   9   5
+               3   6   9  12   9   5;
                16  27  33  39  28  15;
                39  63  72  81  57  30;
                69  108 117 126 87  45;
