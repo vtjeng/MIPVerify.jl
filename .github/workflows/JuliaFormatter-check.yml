@@ -35,6 +35,6 @@ jobs:
           else
               @error "Some files did not meet the formatting guidelines."
               write(stdout, out)
-              fix_cmd = """julia -e 'using Pkg; Pkg.activate(tempname()); Pkg.add(PackageSpec(name="JuliaFormatter", version="0.5.4")); using JuliaFormatter; format(".", verbose=true)'"""
+              write(stdout, "Run ./scripts/format.sh to fix.")
               exit(1)
           end'
