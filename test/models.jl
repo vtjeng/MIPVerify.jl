@@ -1,5 +1,6 @@
 using Test
-using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
+using MIPVerify:
+    UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 
 @timed_testset "models.jl" begin
     @testset "UnrestrictedPerturbationFamily" begin
@@ -12,7 +13,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
     end
     @testset "BlurringPerturbationFamily" begin
         @testset "Base.show" begin
-            p = BlurringPerturbationFamily((5,5))
+            p = BlurringPerturbationFamily((5, 5))
             io = IOBuffer()
             Base.show(io, p)
             @test String(take!(io)) == "blur-(5,5)"

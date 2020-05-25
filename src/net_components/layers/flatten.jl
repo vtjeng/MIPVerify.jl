@@ -40,18 +40,20 @@ function Flatten(perm::AbstractArray{T})::Flatten where {T<:Integer}
 end
 
 function Base.show(io::IO, p::Flatten)
-    print(io,
-        "Flatten(): flattens $(p.n_dim) dimensional input, with dimensions permuted according to the order $(p.perm |> collect)"
+    print(
+        io,
+        "Flatten(): flattens $(p.n_dim) dimensional input, with dimensions permuted according to the order $(p.perm |> collect)",
     )
 end
 
 """
 Permute dimensions of array in specified order, then flattens the array.
 """
-function flatten(x::Array{T, N}, perm::AbstractArray{U}) where {T, N, U<:Integer}
+function flatten(x::Array{T,N}, perm::AbstractArray{U}) where {T,N,U<:Integer}
     @assert all(sort(perm) .== 1:N)
     return permutedims(x, perm)[:]
 end
 
 (p::Flatten)(x::Array{<:Real}) = flatten(x, p.perm)
-(p::Flatten)(x::Array{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
+(p::Flatten)(x::Array{<:JuMPLinearType}) =
+    (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))

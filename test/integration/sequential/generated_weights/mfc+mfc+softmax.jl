@@ -12,20 +12,20 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
     l1_bias = gen_array((l1_height,), -1, 1)
 
     m1 = [0, 0, 0, 0, -1, -1, -1, 1, 1, -1, 1, 0, 1, 0, -1, 1]
-            
+
     l2_height = 8
     l2_width = l1_height
     l2_kernel = gen_array((l2_width, l2_height), -1, 1)
     l2_bias = gen_array((l2_height,), -1, 1)
-    
-    
+
+
     m2 = [0, -1, 1, 1, -1, -1, 0, 1]
-            
+
     l3_height = 4
     l3_width = l2_height
     l3_kernel = gen_array((l3_width, l3_height), -1, 1)
     l3_bias = gen_array((l3_height,), -1, 1)
-    
+
     nn = Sequential(
         [
             Flatten(4),
@@ -35,7 +35,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
             MaskedReLU(m2),
             Linear(l3_kernel, l3_bias),
         ],
-        "tests.integration.generated_weights.mfc+mfc+softmax"
+        "tests.integration.generated_weights.mfc+mfc+softmax",
     )
 
     pp_unrestricted = UnrestrictedPerturbationFamily()

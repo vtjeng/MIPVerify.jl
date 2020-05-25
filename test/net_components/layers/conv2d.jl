@@ -5,18 +5,18 @@ using MIPVerify: check_size, increment!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 function test_convolution_layer(
-    p::MIPVerify.Conv2d, 
-    input::AbstractArray{T, 4}, 
-    expected_output::AbstractArray{T, 4}
-    ) where {T<:Real}
+    p::MIPVerify.Conv2d,
+    input::AbstractArray{T,4},
+    expected_output::AbstractArray{T,4},
+) where {T<:Real}
     """
-    Tests that passing `input` into the convolution layer `p` produces 
+    Tests that passing `input` into the convolution layer `p` produces
     `expected_output`. We test three combinations:
 
       1) Passing numerical input into a numerical Conv2d layer, verifying
          that we recover the value of `expected_output`.
 
-      2) Setting up an optimization problem with variables corresponding 
+      2) Setting up an optimization problem with variables corresponding
          to the convolution layer and the output (`p_v` and `output_v`).
 
          `output_v` is constrained to be the result of applying `p_v` to
@@ -24,15 +24,15 @@ function test_convolution_layer(
 
          We verify that, when the optimization problem is solved, applying
          `p_v` to `input` recovers the value of `expected_output`.
-         
+
          Note that since the optimization problem is under-determined, we
          cannot assert that `p_v` is equal to `p`.
 
       3) Setting up an optimization problem with variables corresponding
-         to the input and output (`input_v` and `output_v`). 
-         
-         `output_v` is constrained to be the result of applying `p` to 
-         `input_v`, and is also constrained to be equal to `expected_output`. 
+         to the input and output (`input_v` and `output_v`).
+
+         `output_v` is constrained to be the result of applying `p` to
+         `input_v`, and is also constrained to be equal to `expected_output`.
 
          We verify that, when the optimization problem is solved, applying
          `p` to `input_v` recovers the value of `expected_output`.
@@ -57,7 +57,7 @@ function test_convolution_layer(
 
         p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), p.stride, p.padding)
         solve_output = MIPVerify.conv2d(input, p_solve)
-        @test solve_output≈expected_output
+        @test solve_output ≈ expected_output
     end
     @testset "Variable Input, Numerical Layer Parameters" begin
         m = TestHelpers.get_new_model()
@@ -67,17 +67,17 @@ function test_convolution_layer(
         solve(m)
 
         solve_output = MIPVerify.conv2d(getvalue(input_v), p)
-        @test solve_output≈expected_output
+        @test solve_output ≈ expected_output
     end
 end
 
 function test_convolution_layer_with_default_values(
-    input_size::NTuple{4, Int},
-    filter_size::NTuple{4, Int},
-    expected_output_2d::AbstractArray{T, 2},
+    input_size::NTuple{4,Int},
+    filter_size::NTuple{4,Int},
+    expected_output_2d::AbstractArray{T,2},
     stride::Int,
-    padding::Padding
-    ) where {T<:Real}
+    padding::Padding,
+) where {T<:Real}
     """
     Generates test input of dimension `input_size`, and a Conv2d layer with
     a filter of dimension `filter_size` and specified `stride` and `padding`,
@@ -87,7 +87,7 @@ function test_convolution_layer_with_default_values(
       + The input generated consists of natural numbers in increasing order from
         left to right and then top to bottom.
       + The filter generated is all 1s, and the convolution layer has bias 0.
-      + For convenience, the expected output only needs to be specified with the 
+      + For convenience, the expected output only needs to be specified with the
         non-singleton dimensions.
     """
     input = reshape([1:prod(input_size);], input_size)
@@ -105,7 +105,8 @@ end
             p = Conv2d(filter)
             io = IOBuffer()
             Base.show(io, p)
-            @test String(take!(io)) == "Conv2d(2, 5, kernel_size=(3, 3), stride=(1, 1), padding=same)"
+            @test String(take!(io)) ==
+                  "Conv2d(2, 5, kernel_size=(3, 3), stride=(1, 1), padding=same)"
         end
         @testset "With Bias" begin
             @testset "Matched Size" begin
@@ -150,18 +151,18 @@ end
         end
         @testset "JuMP.AffExpr * Real" begin
             m = TestHelpers.get_new_model()
-            x = @variable(m, start=100)
-            y = @variable(m, start=1)
-            s = 5*x+3*y
-            t = 3*x+2*y
+            x = @variable(m, start = 100)
+            y = @variable(m, start = 1)
+            s = 5 * x + 3 * y
+            t = 3 * x + 2 * y
             increment!(s, 2, t)
-            @test getvalue(s)==1107
+            @test getvalue(s) == 1107
             increment!(s, t, -1)
-            @test getvalue(s)==805
+            @test getvalue(s) == 805
             increment!(s, x, 3)
-            @test getvalue(s)==1105
+            @test getvalue(s) == 1105
             increment!(s, y, 2)
-            @test getvalue(s)==1107
+            @test getvalue(s) == 1107
         end
     end
 
@@ -172,10 +173,10 @@ end
         filter = reshape(collect(1:prod(filter_size)), filter_size) .- 9
         bias = [1]
         expected_output_2d = [
-            225  381  405  285;
-            502  787  796  532;
-            550  823  832  532;
-            301  429  417  249;      
+            225 381 405 285
+            502 787 796 532
+            550 823 832 532
+            301 429 417 249
         ]
         expected_output = reshape(transpose(expected_output_2d), (1, 4, 4, 1))
         p = Conv2d(filter, bias)
@@ -190,9 +191,9 @@ end
         bias = [1]
         stride = 2
         expected_output_2d = [
-            1597  1615  1120;
-            1705  1723  1120;
-            903   879   513 ;
+            1597 1615 1120
+            1705 1723 1120
+            903 879 513
         ]
         expected_output = reshape(transpose(expected_output_2d), (1, 3, 3, 1))
         p = Conv2d(filter, bias, stride)
@@ -207,9 +208,9 @@ end
         bias = [1]
         stride = 2
         expected_output_2d = [
-            1756  2511  1310;
-            3065  4097  1969;
-            1017  1225  501 ;
+            1756 2511 1310
+            3065 4097 1969
+            1017 1225 501
         ]
         expected_output = reshape(transpose(expected_output_2d), (1, 3, 3, 1))
         p = Conv2d(filter, bias, stride)
@@ -219,23 +220,23 @@ end
     @testset "conv2d with 'valid' padding" begin
         @testset "conv2d with 'valid' padding, odd input and filter size, stride = 1" begin
             expected_output_2d = [
-                63 72 81;
-                108 117 126;
+                63 72 81
+                108 117 126
                 153 162 171
             ]
             test_convolution_layer_with_default_values(
-                (1, 5, 5, 1), 
+                (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, odd input and filter size, stride = 1, channels != 1" begin
             expected_output_2d = [
-                351 369 387;
-                441 459 477;
+                351 369 387
+                441 459 477
                 531 549 567
             ]
             test_convolution_layer_with_default_values(
@@ -243,15 +244,15 @@ end
                 (3, 3, 2, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, stride = 1, input width != input height" begin
             expected_output_2d = [
-                63  72  81;
-                108 117 126;
-                153 162 171;
+                63 72 81
+                108 117 126
+                153 162 171
                 198 207 216
             ]
             test_convolution_layer_with_default_values(
@@ -259,28 +260,28 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, stride = 1, filter width != filter height" begin
             expected_output_2d = [
-                39  45  51  57;
-                69  75  81  87;
-                99  105 111 117
+                39 45 51 57
+                69 75 81 87
+                99 105 111 117
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (2, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, odd input and filter size, stride != 1" begin
             expected_output_2d = [
-                63  81;
+                63 81
                 153 171
             ]
             test_convolution_layer_with_default_values(
@@ -288,15 +289,15 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, odd input size, even filter size, stride = 1" begin
             expected_output_2d = [
-                16 20 24 28;
-                36 40 44 48;
-                56 60 64 68;
+                16 20 24 28
+                36 40 44 48
+                56 60 64 68
                 76 80 84 88
             ]
             test_convolution_layer_with_default_values(
@@ -304,13 +305,13 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, odd input size, even filter size, stride != 1" begin
             expected_output_2d = [
-                16 24;
+                16 24
                 56 64
             ]
             test_convolution_layer_with_default_values(
@@ -318,15 +319,15 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, even input size, odd filter size, stride = 1" begin
             expected_output_2d = [
-                72  81  90  99;
-                126 135 144 153;
-                180 189 198 207;
+                72 81 90 99
+                126 135 144 153
+                180 189 198 207
                 234 243 252 261
             ]
             test_convolution_layer_with_default_values(
@@ -334,13 +335,13 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, even input size, odd filter size, stride != 1" begin
             expected_output_2d = [
-                72  90;
+                72 90
                 180 198
             ]
             test_convolution_layer_with_default_values(
@@ -348,16 +349,16 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, even input and filter size, stride = 1" begin
             expected_output_2d = [
-                18  22  26  30  34;
-                42  46  50  54  58;
-                66  70  74  78  82;
-                90  94  98  102 106;
+                18 22 26 30 34
+                42 46 50 54 58
+                66 70 74 78 82
+                90 94 98 102 106
                 114 118 122 126 130
             ]
             test_convolution_layer_with_default_values(
@@ -365,13 +366,13 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                ValidPadding()
+                ValidPadding(),
             )
         end
 
         @testset "conv2d with 'valid' padding, even input and filter size, stride != 1" begin
             expected_output_2d = [
-                18  30;
+                18 30
                 90 102
             ]
             test_convolution_layer_with_default_values(
@@ -379,7 +380,7 @@ end
                 (2, 2, 1, 1),
                 transpose(expected_output_2d),
                 3,
-                ValidPadding()
+                ValidPadding(),
             )
         end
     end
@@ -387,8 +388,8 @@ end
     @testset "conv2d wit fixed padding" begin
         @testset "conv2d with (0, 0) padding, stride = 1" begin
             expected_output_2d = [
-                63  72  81;
-                108 117 126;
+                63 72 81
+                108 117 126
                 153 162 171
             ]
             test_convolution_layer_with_default_values(
@@ -396,45 +397,45 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (0, 0)
+                (0, 0),
             )
         end
 
         @testset "conv2d with (0, 0) padding, stride != 1" begin
             expected_output_2d = [
-                63  81;
-                153 171;
+                63 81
+                153 171
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                (0, 0)
+                (0, 0),
             )
         end
 
         @testset "conv2d with (1, 1) padding, stride = 1" begin
             expected_output_2d = [
-                16  27  33  39  28;
-                39  63  72  81  57;
-                69  108 117 126 87;
-                99  153 162 171 117;
-                76  117 123 129 88
+                16 27 33 39 28
+                39 63 72 81 57
+                69 108 117 126 87
+                99 153 162 171 117
+                76 117 123 129 88
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with (1, 1) padding, stride != 1" begin
             expected_output_2d = [
-                16 33  28;
-                69 117 87;
+                16 33 28
+                69 117 87
                 76 123 88
             ]
             test_convolution_layer_with_default_values(
@@ -442,100 +443,100 @@ end
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with 1 padding, stride = 1" begin
             expected_output_2d = [
-                16  27  33  39  28;
-                39  63  72  81  57;
-                69  108 117 126 87;
-                99  153 162 171 117;
-                76  117 123 129 88
+                16 27 33 39 28
+                39 63 72 81 57
+                69 108 117 126 87
+                99 153 162 171 117
+                76 117 123 129 88
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                1
+                1,
             )
         end
 
         @testset "conv2d with (1, 1) padding, input width != input_height, stride = 1" begin
             expected_output_2d = [
-                18  30  36  42  48  34;
-                45  72  81  90  99  69;
-                81  126 135 144 153 105;
-                117 180 189 198 207 141;
-                90  138 144 150 156 106;
+                18 30 36 42 48 34
+                45 72 81 90 99 69
+                81 126 135 144 153 105
+                117 180 189 198 207 141
+                90 138 144 150 156 106
             ]
             test_convolution_layer_with_default_values(
                 (1, 6, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with (1, 1) padding, input width != input_height, stride != 1" begin
             expected_output_2d = [
-                18  36  48;
-                81  135 153;
-                90  144 156
+                18 36 48
+                81 135 153
+                90 144 156
             ]
             test_convolution_layer_with_default_values(
                 (1, 6, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with (1, 2) padding, stride = 1" begin
             expected_output_2d = [
-                3   6   9   12  9;
-                16  27  33  39  28;
-                39  63  72  81  57;
-                69  108 117 126 87;
-                99  153 162 171 117;
-                76  117 123 129 88;
-                43  66  69  72  49
+                3 6 9 12 9
+                16 27 33 39 28
+                39 63 72 81 57
+                69 108 117 126 87
+                99 153 162 171 117
+                76 117 123 129 88
+                43 66 69 72 49
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 2)
+                (1, 2),
             )
         end
 
         @testset "conv2d with (1, 2) padding, stride != 1" begin
             expected_output_2d = [
-               3   9   9;
-               39  72  57;
-               99  162 117;
-               43  69  49
+                3 9 9
+                39 72 57
+                99 162 117
+                43 69 49
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 2,
-                (1, 2)
+                (1, 2),
             )
         end
 
         @testset "conv2d with (1, 1) padding, channels != 1, stride = 1" begin
             expected_output_2d = [
-                132 204 216 228 156;
-                228 351 369 387 264;
-                288 441 459 477 324;
-                348 531 549 567 384;
+                132 204 216 228 156
+                228 351 369 387 264
+                288 441 459 477 324
+                348 531 549 567 384
                 252 384 396 408 276
             ]
             test_convolution_layer_with_default_values(
@@ -543,14 +544,14 @@ end
                 (3, 3, 2, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with (1, 1) padding, channels != 1, stride != 1" begin
             expected_output_2d = [
-                132 216 156;
-                288 459 324;
+                132 216 156
+                288 459 324
                 252 396 276
             ]
             test_convolution_layer_with_default_values(
@@ -558,46 +559,46 @@ end
                 (3, 3, 2, 1),
                 transpose(expected_output_2d),
                 2,
-                (1, 1)
+                (1, 1),
             )
         end
 
         @testset "conv2d with (1, 1, 1, 1) padding, stride = 1" begin
             expected_output_2d = [
-                16  27  33  39  28;
-                39  63  72  81  57;
-                69  108 117 126 87;
-                99  153 162 171 117;
-                76  117 123 129 88
+                16 27 33 39 28
+                39 63 72 81 57
+                69 108 117 126 87
+                99 153 162 171 117
+                76 117 123 129 88
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 1, 1, 1)
+                (1, 1, 1, 1),
             )
         end
 
         @testset "conv2d with (1, 2, 3, 4) padding, stride = 1" begin
             expected_output_2d = [
-               0   0   0   0   0   0;
-               3   6   9  12   9   5;
-               16  27  33  39  28  15;
-               39  63  72  81  57  30;
-               69  108 117 126 87  45;
-               99  153 162 171 117 60;
-               76  117 123 129 88  45;
-               43  66  69  72  49  25;
-               0   0   0   0   0   0;
-               0   0   0   0   0   0
+                0 0 0 0 0 0
+                3 6 9 12 9 5
+                16 27 33 39 28 15
+                39 63 72 81 57 30
+                69 108 117 126 87 45
+                99 153 162 171 117 60
+                76 117 123 129 88 45
+                43 66 69 72 49 25
+                0 0 0 0 0 0
+                0 0 0 0 0 0
             ]
             test_convolution_layer_with_default_values(
                 (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,
-                (1, 2, 3, 4)
+                (1, 2, 3, 4),
             )
         end
     end
