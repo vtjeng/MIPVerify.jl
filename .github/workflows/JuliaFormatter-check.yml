@@ -22,10 +22,8 @@ jobs:
         with:
           version: ${{ matrix.julia-version }}
       - uses: actions/checkout@v1
-      - name: 'Install JuliaFormatter v0.5.4'
-        run: julia -e 'using Pkg; Pkg.add(PackageSpec(name="JuliaFormatter", version="0.5.4"))'
-      - name: 'Run `format` function on all files'
-        run: julia -e 'using JuliaFormatter; format(".", verbose=true)'
+      - name: 'run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)'
+        run: ./scripts/format.sh
       - name: 'Check that running `format` is a no-op.'
         run: |
           julia -e '
