@@ -36,10 +36,5 @@ function Base.show(io::IO, p::MaskedReLU)
 end
 
 (p::MaskedReLU)(x::Array{<:Real}) = masked_relu(x, p.mask)
-(p::MaskedReLU)(x::Array{<:JuMPLinearType}) = (
-    Memento.info(MIPVerify.LOGGER, "Applying $p ... "); masked_relu(
-        x,
-        p.mask,
-        nta = p.tightening_algorithm,
-    )
-)
+(p::MaskedReLU)(x::Array{<:JuMPLinearType}) = (Memento.info(MIPVerify.LOGGER, "Applying $p ... ");
+masked_relu(x, p.mask, nta = p.tightening_algorithm))
