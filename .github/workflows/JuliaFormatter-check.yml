@@ -32,7 +32,7 @@ jobs:
               exit(0)
           else
               @error "Some files did not meet the formatting guidelines. Run ./scripts/format.sh to fix."
-              write(stdout, "\nFiles not meeting formatting guidelines:")
+              write(stdout, "\nFiles not meeting formatting guidelines:\n")
               write(stdout, out)
               write(stdout, "\nRun ./scripts/format.sh to fix.")
               exit(1)
