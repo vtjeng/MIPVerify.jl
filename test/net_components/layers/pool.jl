@@ -18,11 +18,11 @@ using MIPVerify
 
     @testset "getsliceindex" begin
         @testset "inbounds" begin
-            @test MIPVerify.getsliceindex(10, 2, 3)==[5, 6]
-            @test MIPVerify.getsliceindex(10, 3, 4)==[10]
+            @test MIPVerify.getsliceindex(10, 2, 3) == [5, 6]
+            @test MIPVerify.getsliceindex(10, 3, 4) == [10]
         end
         @testset "out of bounds" begin
-            @test MIPVerify.getsliceindex(10, 5, 4)==[]
+            @test MIPVerify.getsliceindex(10, 5, 4) == []
         end
     end
 
@@ -31,7 +31,7 @@ using MIPVerify
     @testset "getpoolview" begin
         @testset "inbounds" begin
             @test MIPVerify.getpoolview(input_array, (2, 2), (3, 3)) == [29 35; 30 36]
-            @test MIPVerify.getpoolview(input_array, (1, 1), (3, 3)) == reshape([15], (1,1))
+            @test MIPVerify.getpoolview(input_array, (1, 1), (3, 3)) == reshape([15], (1, 1))
         end
         @testset "out of bounds" begin
             @test length(MIPVerify.getpoolview(input_array, (1, 1), (7, 7))) == 0
@@ -40,8 +40,8 @@ using MIPVerify
 
     @testset "maxpool" begin
         true_output = [
-            8 20 32;
-            10 22 34;
+            8 20 32
+            10 22 34
             12 24 36
         ]
         @testset "Numerical Input" begin
@@ -49,19 +49,15 @@ using MIPVerify
         end
         @testset "Variable Input" begin
             m = TestHelpers.get_new_model()
-            input_array_v = map(
-                i -> @variable(m, lowerbound=i-2, upperbound=i),
-                input_array
-            )
+            input_array_v = map(i -> @variable(m, lowerbound = i - 2, upperbound = i), input_array)
             pool_v = MIPVerify.pool(input_array_v, MaxPool((2, 2)))
             # elements of the input array are made to take their maximum value
             @objective(m, Max, sum(input_array_v))
             solve(m)
 
             solve_output = getvalue.(pool_v)
-            @test solve_output≈true_output
+            @test solve_output ≈ true_output
         end
     end
 
 end
-

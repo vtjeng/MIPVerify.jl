@@ -15,8 +15,8 @@ const dependencies_path = joinpath(@__DIR__, "..", "deps")
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
-@enum TighteningAlgorithm interval_arithmetic=1 lp=2 mip=3
-@enum AdversarialExampleObjective closest=1 worst=2
+@enum TighteningAlgorithm interval_arithmetic = 1 lp = 2 mip = 3
+@enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
 include("net_components.jl")
@@ -24,14 +24,13 @@ include("models.jl")
 include("utils.jl")
 include("logging.jl")
 
-function get_max_index(
-    x::Array{<:Real, 1})::Integer
+function get_max_index(x::Array{<:Real,1})::Integer
     return findmax(x)[2]
 end
 
 function get_default_tightening_solver(
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver
-    )::MathProgBase.SolverInterface.AbstractMathProgSolver
+    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+)::MathProgBase.SolverInterface.AbstractMathProgSolver
     tightening_solver = typeof(main_solver)()
     MathProgBase.setparameters!(tightening_solver, Silent = true, TimeLimit = 20)
     return tightening_solver
@@ -86,7 +85,7 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
 function find_adversarial_example(
     nn::NeuralNet,
     input::Array{<:Real},
-    target_selection::Union{Integer, Array{<:Integer, 1}},
+    target_selection::Union{Integer,Array{<:Integer,1}},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
     invert_target_selection::Bool = false,
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
@@ -94,11 +93,13 @@ function find_adversarial_example(
     tolerance::Real = 0.0,
     adversarial_example_objective::AdversarialExampleObjective = closest,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(main_solver),
+    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(
+        main_solver,
+    ),
     rebuild::Bool = false,
     cache_model::Bool = true,
     solve_if_predicted_in_targeted = true,
-    )::Dict
+)::Dict
 
     total_time = @elapsed begin
         d = Dict()
@@ -111,26 +112,42 @@ function find_adversarial_example(
         d[:PredictedIndex] = predicted_index
 
         # Set target indexes
-        d[:TargetIndexes] = get_target_indexes(target_selection, num_possible_indexes, invert_target_selection = invert_target_selection)
-        notice(MIPVerify.LOGGER, "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])")
+        d[:TargetIndexes] = get_target_indexes(
+            target_selection,
+            num_possible_indexes,
+            invert_target_selection = invert_target_selection,
+        )
+        notice(
+            MIPVerify.LOGGER,
+            "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])",
+        )
 
         # Only call solver if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
             merge!(
                 d,
-                get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+                get_model(
+                    nn,
+                    input,
+                    pp,
+                    tightening_solver,
+                    tightening_algorithm,
+                    rebuild,
+                    cache_model,
+                ),
             )
             m = d[:Model]
 
             if adversarial_example_objective == closest
-                set_max_indexes(m, d[:Output], d[:TargetIndexes], tolerance=tolerance)
+                set_max_indexes(m, d[:Output], d[:TargetIndexes], tolerance = tolerance)
 
                 # Set perturbation objective
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry out
                 # the solve. Functions like `set_max_indexes` can modify the objective.
                 @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             elseif adversarial_example_objective == worst
-                (maximum_target_var, nontarget_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes])
+                (maximum_target_var, nontarget_vars) =
+                    get_vars_for_max_index(d[:Output], d[:TargetIndexes])
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
                 @objective(m, Max, maximum_target_var - maximum_nontarget_var)
             else
@@ -154,11 +171,11 @@ function find_adversarial_example(
     return d
 end
 
-function get_label(y::Array{<:Real, 1}, test_index::Integer)::Int
+function get_label(y::Array{<:Real,1}, test_index::Integer)::Int
     return y[test_index]
 end
 
-function get_image(x::Array{T, 4}, test_index::Integer)::Array{T, 4} where {T<:Real}
+function get_image(x::Array{T,4}, test_index::Integer)::Array{T,4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
 end
 
@@ -174,10 +191,7 @@ Returns the fraction of items the neural network correctly classifies of the fir
 + `dataset::LabelledDataset`:
 + `num_samples::Integer`: Number of samples to use.
 """
-function frac_correct(
-    nn::NeuralNet,
-    dataset::LabelledDataset,
-    num_samples::Integer)::Real
+function frac_correct(nn::NeuralNet, dataset::LabelledDataset, num_samples::Integer)::Real
 
     num_correct = 0.0
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))
@@ -193,13 +207,11 @@ function frac_correct(
 end
 
 
-function get_norm(
-    norm_order::Real,
-    v::Array{<:Real})
+function get_norm(norm_order::Real, v::Array{<:Real})
     if norm_order == 1
         return sum(abs.(v))
     elseif norm_order == 2
-        return sqrt(sum(v.*v))
+        return sqrt(sum(v .* v))
     elseif norm_order == Inf
         return Base.maximum(Iterators.flatten(abs.(v)))
     else
@@ -207,14 +219,12 @@ function get_norm(
     end
 end
 
-function get_norm(
-    norm_order::Real,
-    v::Array{<:JuMPLinearType, N}) where {N}
+function get_norm(norm_order::Real, v::Array{<:JuMPLinearType,N}) where {N}
     if norm_order == 1
         abs_v = abs_ge.(v)
         return sum(abs_v)
     elseif norm_order == 2
-        return sum(v.*v)
+        return sum(v .* v)
     elseif norm_order == Inf
         return MIPVerify.maximum_ge(flatten(abs_ge.(v), N:-1:1))
     else
@@ -225,4 +235,3 @@ end
 include("batch_processing_helpers.jl")
 
 end
-

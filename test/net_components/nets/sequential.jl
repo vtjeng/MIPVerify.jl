@@ -4,14 +4,17 @@ using MIPVerify
 @testset "sequential.jl" begin
 
     @testset "Sequential" begin
-        nnparams = Sequential([
-            Conv2d(ones(1, 4, 4, 16), ones(16), 2),
-            ReLU(),
-            Flatten([3, 4, 1, 2]),
-            Linear(ones(1000, 20), ones(20)),
-            MaskedReLU([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]),
-            Linear(ones(20, 10), ones(10))
-        ], "testnet")
+        nnparams = Sequential(
+            [
+                Conv2d(ones(1, 4, 4, 16), ones(16), 2),
+                ReLU(),
+                Flatten([3, 4, 1, 2]),
+                Linear(ones(1000, 20), ones(20)),
+                MaskedReLU([-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0]),
+                Linear(ones(20, 10), ones(10)),
+            ],
+            "testnet",
+        )
         io = IOBuffer()
         Base.show(io, nnparams)
         @test String(take!(io)) == """

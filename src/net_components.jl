@@ -3,8 +3,8 @@ using AutoHashEquals
 
 export Layer, NeuralNet
 
-JuMPLinearType = Union{JuMP.Variable, JuMP.AffExpr}
-JuMPReal = Union{Real, JuMPLinearType}
+JuMPLinearType = Union{JuMP.Variable,JuMP.AffExpr}
+JuMPReal = Union{Real,JuMPLinearType}
 
 include("net_components/core_ops.jl")
 
@@ -23,11 +23,11 @@ An array of `Layers` is interpreted as that array of layer being applied
 to the input sequentially, starting from the leftmost layer. (In functional programming
 terms, this can be thought of as a sort of `fold`).
 """
-chain(x::Array{<:JuMPReal}, ps::Array{<:Layer, 1}) = length(ps) == 0 ? x : chain(ps[1](x), ps[2:end])
+chain(x::Array{<:JuMPReal}, ps::Array{<:Layer,1}) = length(ps) == 0 ? x : chain(ps[1](x), ps[2:end])
 
-(ps::Array{<:Layer, 1})(x::Array{<:JuMPReal}) = chain(x, ps)
+(ps::Array{<:Layer,1})(x::Array{<:JuMPReal}) = chain(x, ps)
 
-function check_size(input::AbstractArray, expected_size::NTuple{N, Int})::Nothing where {N}
+function check_size(input::AbstractArray, expected_size::NTuple{N,Int})::Nothing where {N}
     input_size = size(input)
     @assert input_size == expected_size "Input size $input_size did not match expected size $expected_size."
 end

@@ -10,7 +10,7 @@ end
 
 function remove_cached_models()
     if ispath(model_dir)
-        rm(model_dir, recursive=true)
+        rm(model_dir, recursive = true)
         mkpath(model_dir)
     end
 end
@@ -34,20 +34,19 @@ that is, the value of the output of channel 1 can depend on the input to all cha
 @auto_hash_equals struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
     blur_kernel_size::NTuple{2}
 end
-Base.show(io::IO, pp::BlurringPerturbationFamily) = print(io, filter(x -> !isspace(x), "blur-$(pp.blur_kernel_size)"))
+Base.show(io::IO, pp::BlurringPerturbationFamily) =
+    print(io, filter(x -> !isspace(x), "blur-$(pp.blur_kernel_size)"))
 
 @auto_hash_equals struct LInfNormBoundedPerturbationFamily <: RestrictedPerturbationFamily
     norm_bound::Real
 
     function LInfNormBoundedPerturbationFamily(norm_bound::Real)
-        @assert(
-            norm_bound > 0,
-            "Norm bound $(norm_bound) should be positive"
-        )
+        @assert(norm_bound > 0, "Norm bound $(norm_bound) should be positive")
         return new(norm_bound)
     end
 end
-Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) = print(io, "linf-norm-bounded-$(pp.norm_bound)")
+Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) =
+    print(io, "linf-norm-bounded-$(pp.norm_bound)")
 
 function get_model(
     nn::NeuralNet,
@@ -56,9 +55,17 @@ function get_model(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    cache_model::Bool
-    )::Dict
-    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    cache_model::Bool,
+)::Dict
+    d = get_reusable_model(
+        nn,
+        input,
+        pp,
+        tightening_solver,
+        tightening_algorithm,
+        rebuild,
+        cache_model,
+    )
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
     # NOTE (vtjeng): It is important to set the solver before attempting to add a
@@ -74,9 +81,17 @@ function get_model(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    cache_model::Bool
-    )::Dict
-    d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
+    cache_model::Bool,
+)::Dict
+    d = get_reusable_model(
+        nn,
+        input,
+        pp,
+        tightening_solver,
+        tightening_algorithm,
+        rebuild,
+        cache_model,
+    )
     return d
 end
 
@@ -86,10 +101,7 @@ $(SIGNATURES)
 For `UnrestrictedPerturbationFamily`, the search space is simply [0,1] for each pixel.
 The model built can thus be re-used for any input with the same input size.
 """
-function model_hash(
-    nn::NeuralNet,
-    input::Array{<:Real},
-    pp::UnrestrictedPerturbationFamily)::UInt
+function model_hash(nn::NeuralNet, input::Array{<:Real}, pp::UnrestrictedPerturbationFamily)::UInt
     input_size = size(input)
     return hash(nn, hash(input_size, hash(pp)))
 end
@@ -103,17 +115,11 @@ non-linear units which are possible for some input in the restricted search spac
 reduces solve times, but also means that the model must be rebuilt for each different
 nominal input.
 """
-function model_hash(
-    nn::NeuralNet,
-    input::Array{<:Real},
-    pp::RestrictedPerturbationFamily)::UInt
+function model_hash(nn::NeuralNet, input::Array{<:Real}, pp::RestrictedPerturbationFamily)::UInt
     return hash(nn, hash(input, hash(pp)))
 end
 
-function model_filename(
-    nn::NeuralNet,
-    input::Array{<:Real},
-    pp::PerturbationFamily)::String
+function model_filename(nn::NeuralNet, input::Array{<:Real}, pp::PerturbationFamily)::String
     hash_val = model_hash(nn, input, pp)
     input_size = size(input)
     return "$(nn.UUID).$(input_size).$(string(pp)).$(hash_val).jls"
@@ -126,8 +132,8 @@ function get_reusable_model(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
     tightening_algorithm::TighteningAlgorithm,
     rebuild::Bool,
-    cache_model::Bool
-    )::Dict
+    cache_model::Bool,
+)::Dict
 
     filename = model_filename(nn, input, pp)
     model_filepath = joinpath(model_dir, filename)
@@ -141,14 +147,20 @@ function get_reusable_model(
         d[:TighteningApproach] = "loaded_from_cache"
         d[:Model].ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
     else
-        notice(MIPVerify.LOGGER, """
-        Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""")
+        notice(
+            MIPVerify.LOGGER,
+            """
+Rebuilding model from scratch. This may take some time as we determine upper and lower bounds for the input to each non-linear unit.""",
+        )
         d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
         if cache_model
-            notice(MIPVerify.LOGGER, """
-            The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""")
+            notice(
+                MIPVerify.LOGGER,
+                """
+The model built will be cached and re-used for future solves, unless you explicitly set rebuild=true.""",
+            )
             open(model_filepath, "w") do f
-                 serialize(f, d)
+                serialize(f, d)
             end
         end
     end
@@ -161,8 +173,8 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm
-    )::Dict
+    tightening_algorithm::TighteningAlgorithm,
+)::Dict
 
     m = Model(solver = tightening_solver)
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm) # TODO: consider writing as seperate function
@@ -186,7 +198,7 @@ function build_reusable_model_uncached(
         :Output => v_output,
         :Input => v_input,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithm),
     )
 
     return d
@@ -197,8 +209,8 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm
-    )::Dict
+    tightening_algorithm::TighteningAlgorithm,
+)::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
@@ -223,7 +235,7 @@ function build_reusable_model_uncached(
         :Output => v_output,
         :BlurKernel => v_f,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithm),
     )
 
     return d
@@ -234,17 +246,25 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm
-    )::Dict
+    tightening_algorithm::TighteningAlgorithm,
+)::Dict
 
     m = Model(solver = tightening_solver)
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_range = CartesianIndices(size(input))
     # v_e is the perturbation added
-    v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range)
+    v_e =
+        map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range)
     # v_x0 is the input with the perturbation added
-    v_x0 = map(i -> @variable(m, lowerbound = max(0, input[i] - pp.norm_bound), upperbound = min(1, input[i] + pp.norm_bound)), input_range)
+    v_x0 = map(
+        i -> @variable(
+            m,
+            lowerbound = max(0, input[i] - pp.norm_bound),
+            upperbound = min(1, input[i] + pp.norm_bound)
+        ),
+        input_range,
+    )
     @constraint(m, v_x0 .== input + v_e)
 
     v_output = v_x0 |> nn
@@ -255,7 +275,7 @@ function build_reusable_model_uncached(
         :Perturbation => v_e,
         :Output => v_output,
         :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm)
+        :TighteningApproach => string(tightening_algorithm),
     )
 
     return d

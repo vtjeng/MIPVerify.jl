@@ -10,7 +10,7 @@ to output.
 $(FIELDS)
 """
 @auto_hash_equals struct SkipSequential <: NeuralNet
-    layers::Array{Layer, 1}
+    layers::Array{Layer,1}
     UUID::String
 end
 
@@ -25,7 +25,7 @@ end
 function apply(p::SkipSequential, x::Array{<:JuMPReal})
     xs::Array{Array} = [x]
     for layer in p.layers
-        if typeof(layer)<:SkipBlock
+        if typeof(layer) <: SkipBlock
             output = layer(xs)
         else
             output = layer(last(xs))

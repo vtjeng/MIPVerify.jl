@@ -35,7 +35,7 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
             MaskedReLU(m2),
             Linear(l3_kernel, l3_bias),
         ],
-        "tests.integration.generated_weights.mfc+mfc+softmax"
+        "tests.integration.generated_weights.mfc+mfc+softmax",
     )
 
     pp_unrestricted = UnrestrictedPerturbationFamily()

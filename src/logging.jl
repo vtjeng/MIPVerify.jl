@@ -12,7 +12,7 @@ __init__() = Memento.register(LOGGER)
 function setloglevel!(level::String)
     # Options correspond to Memento.jl's levels.
     # https://invenia.github.io/Memento.jl/latest/man/intro.html#Logging-levels-1
-    Memento.config!(level; recursive=true)
+    Memento.config!(level; recursive = true)
 end
 
 setloglevel!("notice")

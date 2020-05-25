@@ -23,13 +23,14 @@ The default format for the key is `'layer_name/weight'` and `'layer_name/bias'`;
 function get_matrix_params(
     param_dict::Dict{String},
     layer_name::String,
-    expected_size::NTuple{2, Int};
+    expected_size::NTuple{2,Int};
     matrix_name::String = "weight",
-    bias_name::String = "bias")::Linear
+    bias_name::String = "bias",
+)::Linear
 
     params = Linear(
         param_dict["$layer_name/$matrix_name"],
-        dropdims(param_dict["$layer_name/$bias_name"], dims=1)
+        dropdims(param_dict["$layer_name/$bias_name"], dims = 1),
     )
 
     check_size(params, expected_size)
@@ -59,18 +60,18 @@ The default format for the key is `'layer_name/weight'` and `'layer_name/bias'`;
 function get_conv_params(
     param_dict::Dict{String},
     layer_name::String,
-    expected_size::NTuple{4, Int};
+    expected_size::NTuple{4,Int};
     matrix_name::String = "weight",
     bias_name::String = "bias",
     expected_stride::Integer = 1,
-    padding::Padding = SamePadding()
-    )::Conv2d
+    padding::Padding = SamePadding(),
+)::Conv2d
 
     params = Conv2d(
         param_dict["$layer_name/$matrix_name"],
-        dropdims(param_dict["$layer_name/$bias_name"], dims=1),
+        dropdims(param_dict["$layer_name/$bias_name"], dims = 1),
         expected_stride,
-        padding
+        padding,
     )
 
     check_size(params, expected_size)

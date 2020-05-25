@@ -21,7 +21,8 @@ using MIPVerify
             p = Flatten([3, 1, 2, 4])
             io = IOBuffer()
             Base.show(io, p)
-            @test String(take!(io)) == "Flatten(): flattens 4 dimensional input, with dimensions permuted according to the order [3, 1, 2, 4]"
+            @test String(take!(io)) ==
+                  "Flatten(): flattens 4 dimensional input, with dimensions permuted according to the order [3, 1, 2, 4]"
         end
     end
 
