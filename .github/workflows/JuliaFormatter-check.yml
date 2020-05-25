@@ -31,8 +31,9 @@ jobs:
           if out == ""
               exit(0)
           else
-              @error "Some files did not meet the formatting guidelines."
+              @error "Some files did not meet the formatting guidelines. Run ./scripts/format.sh to fix."
+              write(stdout, "\nFiles not meeting formatting guidelines:")
               write(stdout, out)
-              write(stdout, "Run ./scripts/format.sh to fix.")
+              write(stdout, "\nRun ./scripts/format.sh to fix.")
               exit(1)
           end'
