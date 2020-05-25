@@ -1,7 +1,7 @@
 name = "MIPVerify"
 uuid = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
 authors = ["Vincent Tjeng <vincent.tjeng@gmail.com>"]
-version = "0.2.1"
+version = "0.2.2"
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"
