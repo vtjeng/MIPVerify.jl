@@ -5,18 +5,18 @@ using MIPVerify: check_size, increment!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 function test_convolution_layer(
-    p::MIPVerify.Conv2d, 
-    input::AbstractArray{T, 4}, 
+    p::MIPVerify.Conv2d,
+    input::AbstractArray{T, 4},
     expected_output::AbstractArray{T, 4}
     ) where {T<:Real}
     """
-    Tests that passing `input` into the convolution layer `p` produces 
+    Tests that passing `input` into the convolution layer `p` produces
     `expected_output`. We test three combinations:
 
       1) Passing numerical input into a numerical Conv2d layer, verifying
          that we recover the value of `expected_output`.
 
-      2) Setting up an optimization problem with variables corresponding 
+      2) Setting up an optimization problem with variables corresponding
          to the convolution layer and the output (`p_v` and `output_v`).
 
          `output_v` is constrained to be the result of applying `p_v` to
@@ -24,15 +24,15 @@ function test_convolution_layer(
 
          We verify that, when the optimization problem is solved, applying
          `p_v` to `input` recovers the value of `expected_output`.
-         
+
          Note that since the optimization problem is under-determined, we
          cannot assert that `p_v` is equal to `p`.
 
       3) Setting up an optimization problem with variables corresponding
-         to the input and output (`input_v` and `output_v`). 
-         
-         `output_v` is constrained to be the result of applying `p` to 
-         `input_v`, and is also constrained to be equal to `expected_output`. 
+         to the input and output (`input_v` and `output_v`).
+
+         `output_v` is constrained to be the result of applying `p` to
+         `input_v`, and is also constrained to be equal to `expected_output`.
 
          We verify that, when the optimization problem is solved, applying
          `p` to `input_v` recovers the value of `expected_output`.
@@ -87,7 +87,7 @@ function test_convolution_layer_with_default_values(
       + The input generated consists of natural numbers in increasing order from
         left to right and then top to bottom.
       + The filter generated is all 1s, and the convolution layer has bias 0.
-      + For convenience, the expected output only needs to be specified with the 
+      + For convenience, the expected output only needs to be specified with the
         non-singleton dimensions.
     """
     input = reshape([1:prod(input_size);], input_size)
@@ -175,7 +175,7 @@ end
             225  381  405  285;
             502  787  796  532;
             550  823  832  532;
-            301  429  417  249;      
+            301  429  417  249;
         ]
         expected_output = reshape(transpose(expected_output_2d), (1, 4, 4, 1))
         p = Conv2d(filter, bias)
@@ -224,7 +224,7 @@ end
                 153 162 171
             ]
             test_convolution_layer_with_default_values(
-                (1, 5, 5, 1), 
+                (1, 5, 5, 1),
                 (3, 3, 1, 1),
                 transpose(expected_output_2d),
                 1,

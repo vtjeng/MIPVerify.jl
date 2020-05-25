@@ -39,7 +39,7 @@ end
 
     @testset "get_tightening_algorithm" begin
         m = TestHelpers.get_new_model()
-        
+
         tightening_algorithms = [interval_arithmetic, mip, lp]
 
         @testset "if variable known to be constant, always use interval_arithmetic" begin
@@ -97,14 +97,14 @@ end
             x4 = @variable(m, lowerbound=-1, upperbound=1)
             x5 = @variable(m, lowerbound=-3, upperbound=1)
             xmax = MIPVerify.maximum([x0, x1, x2, x3, x4, x5])
-            
+
             # an efficient implementation does not add binary variables for x1, x4 and x5
             @test count_binary_variables(m)<= 2
-            
+
             # elements of the input array are made to take their maximum value
             @objective(m, Max, x1+x2+x3+x4+x5)
             solve(m)
-            
+
             solve_output = getvalue(xmax)
             @test solve_output≈7
         end
@@ -133,18 +133,18 @@ end
         end
         @testset "regression test to deal with indexing issue in v0.8.0" begin
             m = TestHelpers.get_new_model()
-            x1 = @variable(m, lowerbound=-2, upperbound=2) # upperbound of this variable is low enough that it gets filtered away 
+            x1 = @variable(m, lowerbound=-2, upperbound=2) # upperbound of this variable is low enough that it gets filtered away
             x2 = @variable(m, lowerbound=2.5, upperbound=100)
             x3 = @variable(m, lowerbound=3, upperbound=3.3)
             xmax = MIPVerify.maximum([x1, x2, x3])
-            
+
             # an efficient implementation does not add binary variables for x1
             @test count_binary_variables(m)<= 2
-            
+
             # elements of the input array are made to take their maximum value
             @objective(m, Max, xmax)
             solve(m)
-            
+
             solve_output = getvalue(xmax)
             @test solve_output≈100
         end
@@ -154,12 +154,12 @@ end
             x2 = @variable(m, lowerbound=2, upperbound=2)
 
             xmax = MIPVerify.maximum([x1, x2])
-            
+
             # no binary variables need to be introduced
             @test count_binary_variables(m) == 0
-            
+
             solve(m)
-            
+
             solve_output = getvalue(xmax)
             @test solve_output≈2
         end
@@ -229,9 +229,9 @@ end
         @testset "Numerical Input" begin
             @test relu(5)==5
             @test relu(0)==0
-            @test relu(-1)==0           
+            @test relu(-1)==0
         end
-        
+
         @testset "Variable Input" begin
             @testset "constant" begin
                 x = one(JuMP.Variable)
@@ -243,10 +243,10 @@ end
                 m = TestHelpers.get_new_model()
                 x = @variable(m, lowerbound=0, upperbound=1)
                 x_r = relu(x)
-                
+
                 # no binary variables should be introduced
                 @test count_binary_variables(m)==0
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈1
@@ -258,7 +258,7 @@ end
 
                 # no binary variables should be introduced
                 @test count_binary_variables(m)==0
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈1
@@ -270,7 +270,7 @@ end
 
                 # at most one binary variable to be introduced
                 @test count_binary_variables(m)<=1
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈2
@@ -285,7 +285,7 @@ end
                 x = @variable(m)
                 x_r=relu(x, 1, 2)
                 @test count_binary_variables(m)==0
-                
+
                 @objective(m, Max, x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈0
@@ -304,7 +304,7 @@ end
                 @test upperbound(x_r) == 2
                 @test lowerbound(x_r) == 2
             end
-        end        
+        end
     end
 
     @testset "masked_relu" begin
@@ -317,9 +317,9 @@ end
             @test masked_relu(-5, 0)==0
             @test masked_relu(5, 1)==5
             @test masked_relu(0, 1)==0
-            @test masked_relu(-5, 1)==-5           
+            @test masked_relu(-5, 1)==-5
         end
-        
+
         @testset "Variable Input, single" begin
             @testset "mask is negative" begin
                 m = TestHelpers.get_new_model()
@@ -328,7 +328,7 @@ end
 
                 # no binary variables to be introduced
                 @test count_binary_variables(m)==0
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈1
@@ -348,7 +348,7 @@ end
 
                 # at most one binary variable to be introduced
                 @test count_binary_variables(m)<=1
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈2
@@ -368,7 +368,7 @@ end
 
                 # no binary variables to be introduced
                 @test count_binary_variables(m)==0
-                
+
                 @objective(m, Max, 2*x_r-x)
                 solve(m)
                 @test getobjectivevalue(m)≈2
@@ -416,10 +416,10 @@ end
             m = TestHelpers.get_new_model()
             x = @variable(m, lowerbound=0, upperbound=1)
             x_a = abs_ge(x)
-            
+
             # no binary variables should be introduced
             @test count_binary_variables(m)==0
-            
+
             @objective(m, Max, 2*x_a-x)
             solve(m)
             @test getobjectivevalue(m)≈1
@@ -571,7 +571,7 @@ end
         @testset "Bounds on variables" begin
         m = TestHelpers.get_new_model()
         x = @variable(m, [i=1:2], lowerbound = -1, upperbound = 1)
-            
+
         A1 = [1 -0.5; -0.5 1]
         b1 = [0, 0]
         p1 = Linear(A1, b1)
@@ -579,7 +579,7 @@ end
         A2 = [1 -1; 1 -1]
         b2 = [0, 0]
         p2 = Linear(A2, b2)
-        
+
         test_cases = [
             (interval_arithmetic, -3.0, 3.0),
             (lp, -2.0, 2.0),

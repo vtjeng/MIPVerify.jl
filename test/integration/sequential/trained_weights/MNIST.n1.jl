@@ -23,5 +23,5 @@ using MIPVerify: get_example_network_params, read_datasets, get_image
 
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
-    
+
 end

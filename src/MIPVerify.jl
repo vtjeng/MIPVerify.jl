@@ -41,37 +41,37 @@ end
 $(SIGNATURES)
 
 Finds the perturbed image closest to `input` such that the network described by `nn`
-classifies the perturbed image in one of the categories identified by the 
+classifies the perturbed image in one of the categories identified by the
 indexes in `target_selection`.
 
 `main_solver` specifies the solver used to solve the MIP problem once it has been built.
 
 The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
-:Perturbation, :PerturbedInput, :Output`. 
+:Perturbation, :PerturbedInput, :Output`.
 See the [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
 on what individual dictionary entries correspond to.
 
-*Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector 
-`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`. 
+*Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector
+`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`.
 We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
 
 # Named Arguments:
-+ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to 
++ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to
     be its complement.
 + `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. Determines
     the family of perturbations over which we are searching for adversarial examples.
-+ `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the 
-    distance from the perturbed image to the original. Supported options are `1`, `Inf` 
++ `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the
+    distance from the perturbed image to the original. Supported options are `1`, `Inf`
     and `2` (if the `main_solver` used can solve MIQPs.)
 + `tolerance::Real`: Defaults to `0.0`. See formal definition above.
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we 
-    determine the upper and lower bounds on input to each nonlinear unit. 
++ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we
+    determine the upper and lower bounds on input to each nonlinear unit.
     Allowed options are `interval_arithmetic`, `lp`, `mip`.
     (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
     (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
     (3) `mip` solves the full `mip` formulation.
 + `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
-    Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver 
+    Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver
     and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
 + `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
     bounds on input to each non-linear unit even if a cached model exists.
@@ -84,7 +84,7 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
     problem if and only if `solve_if_predicted_in_targeted` is `true`.
 """
 function find_adversarial_example(
-    nn::NeuralNet, 
+    nn::NeuralNet,
     input::Array{<:Real},
     target_selection::Union{Integer, Array{<:Integer, 1}},
     main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
@@ -121,7 +121,7 @@ function find_adversarial_example(
                 get_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
             )
             m = d[:Model]
-            
+
             if adversarial_example_objective == closest
                 set_max_indexes(m, d[:Output], d[:TargetIndexes], tolerance=tolerance)
 
@@ -132,12 +132,12 @@ function find_adversarial_example(
             elseif adversarial_example_objective == worst
                 (maximum_target_var, nontarget_vars) = get_vars_for_max_index(d[:Output], d[:TargetIndexes])
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
-                @objective(m, Max, maximum_target_var - maximum_nontarget_var)    
+                @objective(m, Max, maximum_target_var - maximum_nontarget_var)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
             setsolver(m, main_solver)
-            solve_time = @elapsed begin 
+            solve_time = @elapsed begin
                 d[:SolveStatus] = solve(m)
             end
             d[:SolveTime] = try
@@ -149,7 +149,7 @@ function find_adversarial_example(
             end
         end
     end
-    
+
     d[:TotalTime] = total_time
     return d
 end
@@ -175,8 +175,8 @@ Returns the fraction of items the neural network correctly classifies of the fir
 + `num_samples::Integer`: Number of samples to use.
 """
 function frac_correct(
-    nn::NeuralNet, 
-    dataset::LabelledDataset, 
+    nn::NeuralNet,
+    dataset::LabelledDataset,
     num_samples::Integer)::Real
 
     num_correct = 0.0

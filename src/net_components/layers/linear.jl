@@ -53,7 +53,7 @@ Computes the result of pre-multiplying `x` by the transpose of `params.matrix` a
 `params.bias`.
 """
 function matmul(
-    x::Array{<:Real, 1}, 
+    x::Array{<:Real, 1},
     params::Linear)
     return transpose(params.matrix)*x .+ params.bias
 end
@@ -66,7 +66,7 @@ Computes the result of pre-multiplying `x` by the transpose of `params.matrix` a
 so that we are able to simplify the output as the computation is carried out.
 """
 function matmul(
-    x::Array{T, 1}, 
+    x::Array{T, 1},
     params::Linear{U, V}) where {T<:JuMPLinearType, U<:Real, V<:Real}
     Memento.info(MIPVerify.LOGGER, "Applying $params ... ")
     (matrix_height, matrix_width) = size(params.matrix)

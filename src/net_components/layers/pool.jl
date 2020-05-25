@@ -100,7 +100,7 @@ end
 """
 $(SIGNATURES)
 
-Computes the result of applying the pooling function `params.pooling_function` to 
+Computes the result of applying the pooling function `params.pooling_function` to
 non-overlapping cells of `input` with sizes specified in `params.strides`.
 """
 function pool(

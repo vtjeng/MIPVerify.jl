@@ -38,10 +38,10 @@ using DataFrames
             @test isfile(file_path)
         end
     end
-    
+
     @testset "verify_target_indices" begin
-        @test_throws AssertionError verify_target_indices([0], mnist.test) 
-        @test_throws AssertionError verify_target_indices([10001], mnist.test) 
+        @test_throws AssertionError verify_target_indices([0], mnist.test)
+        @test_throws AssertionError verify_target_indices([10001], mnist.test)
     end
 
     @testset "run_on_sample_for_untargeted_attack" begin
@@ -60,7 +60,7 @@ using DataFrames
             @testset "Solve rerun option: $solve_rerun_option" begin
                 actual = map(x -> run_on_sample_for_untargeted_attack(x, dt, solve_rerun_option), sample_numbers)
                 expected = expected_results[solve_rerun_option]
-                @test actual==expected                
+                @test actual==expected
             end
         end
     end
@@ -83,7 +83,7 @@ using DataFrames
             @testset "Solve rerun option: $solve_rerun_option" begin
                 actual = map(x -> run_on_sample_for_targeted_attack(x..., dt, solve_rerun_option), sample_numbers)
                 expected = expected_results[solve_rerun_option]
-                @test actual==expected                
+                @test actual==expected
             end
         end
     end

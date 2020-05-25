@@ -28,7 +28,7 @@ end
     include("utils.jl")
     include("models.jl")
     include("batch_processing_helpers.jl")
-    
+
     @testset "get_max_index" begin
         @test_throws MethodError get_max_index([])
         @test get_max_index([3]) == 1

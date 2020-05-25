@@ -44,7 +44,7 @@ using MIPVerify
             @test size(d.test.images) == (10000, 28, 28, 1)
             @test size(d.train.images) == (60000, 28, 28, 1)
             @test d.test.images[1, 8, 9, 1] ≈ 0.62352943f0
-            @test d.test.images[1, :, :, :] |> mean ≈ 0.09230693f0        
+            @test d.test.images[1, :, :, :] |> mean ≈ 0.09230693f0
         end
 
         @testset "CIFAR10" begin
@@ -59,7 +59,7 @@ using MIPVerify
             @test size(d.test.images) == (10000, 32, 32, 3)
             @test size(d.train.images) == (50000, 32, 32, 3)
             @test d.test.images[1, 8, 9, 1] ≈ 0.6705882352941176
-            @test d.test.images[1, :, :, :] |> mean ≈ 0.42504340277777786        
+            @test d.test.images[1, :, :, :] |> mean ≈ 0.42504340277777786
         end
 
         @testset "Unsupported dataset" begin

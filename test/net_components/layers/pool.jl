@@ -25,7 +25,7 @@ using MIPVerify
             @test MIPVerify.getsliceindex(10, 5, 4)==[]
         end
     end
-    
+
     input_size = (6, 6)
     input_array = reshape(1:*(input_size...), input_size)
     @testset "getpoolview" begin
@@ -50,7 +50,7 @@ using MIPVerify
         @testset "Variable Input" begin
             m = TestHelpers.get_new_model()
             input_array_v = map(
-                i -> @variable(m, lowerbound=i-2, upperbound=i), 
+                i -> @variable(m, lowerbound=i-2, upperbound=i),
                 input_array
             )
             pool_v = MIPVerify.pool(input_array_v, MaxPool((2, 2)))

@@ -13,7 +13,7 @@ end
 
 # BatchRunParameters are used for result folder names
 function Base.show(io::IO, t::BatchRunParameters)
-    print(io, 
+    print(io,
         "$(t.nn.UUID)__$(t.pp)__$(t.norm_order)__$(t.tolerance)"
     )
 end
@@ -50,7 +50,7 @@ end
 
 function generate_csv_summary_line(sample_number::Integer, results_file_relative_path::String, r::Dict)
     [
-        sample_number, 
+        sample_number,
         results_file_relative_path,
         r[:PredictedIndex],
         r[:TargetIndexes],
@@ -67,7 +67,7 @@ end
 function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
     @assert(d[:PredictedIndex] in d[:TargetIndexes])
     [
-        sample_number, 
+        sample_number,
         "",
         d[:PredictedIndex],
         d[:TargetIndexes],
@@ -134,7 +134,7 @@ function initialize_batch_solve(
 
     summary_file_path = joinpath(main_path, summary_file_name)
     summary_file_path|> create_summary_file_if_not_present
-    
+
     dt = CSV.read(summary_file_path)
     return (results_dir, main_path, summary_file_path, dt)
 end
@@ -172,16 +172,16 @@ looking up information on the most recent completed solve recorded in `summary_d
 matching `sample_number`.
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
-and `:ObjectiveValue`. 
+and `:ObjectiveValue`.
 
 Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
 + `always`: `true` always.
-+ `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the 
++ `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the
     most recent completed solve a) did not find a counter-example BUT b) the optimization
     was not demosntrated to be infeasible.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
-    recent complete solve a) did find a counter-example BUT b) we did not reach a 
+    recent complete solve a) did find a counter-example BUT b) we did not reach a
     provably optimal solution.
 """
 function run_on_sample_for_untargeted_attack(sample_number::Integer, summary_dt::DataFrame, solve_rerun_option::MIPVerify.SolveRerunOption)::Bool
@@ -212,23 +212,23 @@ end
 $(SIGNATURES)
 
 Runs [`find_adversarial_example`](@ref) for the specified neural network `nn` and `dataset`
-for samples identified by the `target_indices`, with the target labels for each sample set 
+for samples identified by the `target_indices`, with the target labels for each sample set
 to the complement of the true label.
-    
-It creates a named directory in `save_path`, with the name summarizing 
-  1) the name of the network in `nn`, 
-  2) the perturbation family `pp`, 
+
+It creates a named directory in `save_path`, with the name summarizing
+  1) the name of the network in `nn`,
+  2) the perturbation family `pp`,
   3) the `norm_order`
   4) the `tolerance`.
 
-Within this directory, a summary of all the results is stored in `summary.csv`, and 
+Within this directory, a summary of all the results is stored in `summary.csv`, and
 results from individual runs are stored in the subfolder `run_results`.
 
 This functioned is designed so that it can be interrupted and restarted cleanly; it relies
 on the `summary.csv` file to determine what the results of previous runs are (so modifying
 this file manually can lead to unexpected behavior.)
 
-If the summary file already contains a result for a given target index, the 
+If the summary file already contains a result for a given target index, the
 `solve_rerun_option` determines whether we rerun [`find_adversarial_example`](@ref) for this
 particular index.
 
@@ -238,10 +238,10 @@ particular index.
 + `save_path`: Directory where results will be saved. Defaults to current directory.
 + `pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model,
   solve_if_predicted_in_targeted` are passed
-  through to [`find_adversarial_example`](@ref) and have the same default values; 
+  through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
-+ `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are 
-  `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`. 
++ `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are
+  `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`.
   See [`run_on_sample_for_untargeted_attack`](@ref) for more details.
 """
 function batch_find_untargeted_attack(
@@ -261,7 +261,7 @@ function batch_find_untargeted_attack(
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest
     )::Nothing
-    
+
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) = initialize_batch_solve(save_path, nn,  pp, norm_order, tolerance)
 
@@ -361,7 +361,7 @@ function batch_find_targeted_attack(
                 end
 
                 Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number), with true_label $(true_one_indexed_label) and target_label $(target_label)")
-            
+
                 d = find_adversarial_example(nn, input, target_label, main_solver, invert_target_selection = false, pp=pp, norm_order=norm_order, tolerance=tolerance, rebuild=rebuild, tightening_algorithm = tightening_algorithm, tightening_solver = tightening_solver, cache_model=cache_model, solve_if_predicted_in_targeted=solve_if_predicted_in_targeted)
 
                 save_to_disk(sample_number, main_path, results_dir, summary_file_path, d, solve_if_predicted_in_targeted)

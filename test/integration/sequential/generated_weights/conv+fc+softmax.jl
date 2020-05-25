@@ -26,14 +26,14 @@ using MIPVerify: UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LIn
 
     ### Choosing data to be used
     input = gen_array(
-        (batch, c1_in_height, c1_in_width, c1_in_channels), 
+        (batch, c1_in_height, c1_in_width, c1_in_channels),
         0, 1
     )
 
     c1_kernel = gen_array(
         (c1_filter_height, c1_filter_width, c1_in_channels, c1_out_channels),
         -1, 1
-    ) 
+    )
     c1_bias = gen_array((c1_out_channels,), -1, 1)
 
     l1_kernel = gen_array((l1_width, l1_height), -1, 1)

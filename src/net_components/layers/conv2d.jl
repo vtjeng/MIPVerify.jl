@@ -109,7 +109,7 @@ function compute_output_parameters(
     (top_padding, bottom_padding, left_padding, right_padding) = compute_padding_values(padding)
     out_height = round(Int, (in_height + top_padding + bottom_padding - filter_height) / stride, RoundDown) + 1
     out_width = round(Int, (in_width + left_padding + right_padding - filter_width) / stride, RoundDown) + 1
-    
+
     output_size = (out_height, out_width)
     filter_offset = (top_padding, left_padding)
     return (output_size, filter_offset)
@@ -126,7 +126,7 @@ function compute_output_parameters(
     pad_along_width = max((out_width - 1)*stride + filter_width - in_width, 0)
     filter_height_offset = round(Int, pad_along_height/2, RoundDown)
     filter_width_offset = round(Int, pad_along_width/2, RoundDown)
-    
+
     output_size = (out_height, out_width)
     filter_offset = (filter_height_offset, filter_width_offset)
     return (output_size, filter_offset)
@@ -134,7 +134,7 @@ end
 
 function compute_output_parameters(
     in_height::Int, in_width::Int,
-    filter_height::Int, filter_width::Int, stride::Int, 
+    filter_height::Int, filter_width::Int, stride::Int,
     padding::ValidPadding
 )::Tuple{NTuple{2, Int}, NTuple{2, Int}}
     out_height = round(Int, (in_height + 1 - filter_height) / stride, RoundUp)
@@ -166,7 +166,7 @@ $(SIGNATURES)
 
 Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
-Mirrors `tf.nn.conv2d` from the `tensorflow` package, with 
+Mirrors `tf.nn.conv2d` from the `tensorflow` package, with
 `strides = [1, params.stride, params.stride, 1]`.
 
 Supports three types of padding:
@@ -193,7 +193,7 @@ function conv2d(
 
     (batch, in_height, in_width, input_in_channels) = size(input)
     (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
-    
+
     @assert(
         input_in_channels == filter_in_channels,
         "Number of channels in input, $input_in_channels, does not match number of channels, $filter_in_channels, that filters operate on."

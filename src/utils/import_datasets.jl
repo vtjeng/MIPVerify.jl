@@ -9,7 +9,7 @@ abstract type LabelledDataset<:Dataset end
 """
 $(TYPEDEF)
 
-Dataset of images stored as a 4-dimensional array of size `(num_samples, image_height, 
+Dataset of images stored as a 4-dimensional array of size `(num_samples, image_height,
 image_width, num_channels)`, with accompanying labels (sorted in the same order) of size
 `num_samples`.
 """
@@ -60,7 +60,7 @@ struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
     """
     Name of dataset.
     """
-    name::String 
+    name::String
     """
     Training set.
     """
@@ -73,7 +73,7 @@ struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
 end
 
 function Base.show(io::IO, dataset::NamedTrainTestDataset)
-    print(io, 
+    print(io,
         "$(dataset.name):",
         "\n  `train`: $(dataset.train)",
         "\n  `test`: $(dataset.test)"

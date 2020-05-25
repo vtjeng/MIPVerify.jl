@@ -27,7 +27,7 @@ Base.hash(a::UnrestrictedPerturbationFamily, h::UInt) = hash(:UnrestrictedPertur
 abstract type RestrictedPerturbationFamily <: PerturbationFamily end
 
 """
-For blurring perturbations, we currently allow colors to "bleed" across color channels - 
+For blurring perturbations, we currently allow colors to "bleed" across color channels -
 that is, the value of the output of channel 1 can depend on the input to all channels.
 (This is something that is worth reconsidering if we are working on color input).
 """
@@ -61,8 +61,8 @@ function get_model(
     d = get_reusable_model(nn, input, pp, tightening_solver, tightening_algorithm, rebuild, cache_model)
     @constraint(d[:Model], d[:Input] .== input)
     delete!(d, :Input)
-    # NOTE (vtjeng): It is important to set the solver before attempting to add a 
-    # constraint, as the saved model may have been saved with a different solver (or 
+    # NOTE (vtjeng): It is important to set the solver before attempting to add a
+    # constraint, as the saved model may have been saved with a different solver (or
     # different) environment. Flipping the order of the two leads to test failures.
     return d
 end
@@ -98,8 +98,8 @@ end
 $(SIGNATURES)
 
 For `RestrictedPerturbationFamily`, we take advantage of the restricted input search space
-corresponding to each nominal (unperturbed) input by considering only activations to the 
-non-linear units which are possible for some input in the restricted search space. This 
+corresponding to each nominal (unperturbed) input by considering only activations to the
+non-linear units which are possible for some input in the restricted search space. This
 reduces solve times, but also means that the model must be rebuilt for each different
 nominal input.
 """
@@ -161,7 +161,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithm::TighteningAlgorithm
     )::Dict
 
     m = Model(solver = tightening_solver)
@@ -185,7 +185,7 @@ function build_reusable_model_uncached(
         :PerturbationFamily => pp,
         :TighteningApproach => string(tightening_algorithm)
     )
-    
+
     return d
 end
 
@@ -194,7 +194,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithm::TighteningAlgorithm
     )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
@@ -231,7 +231,7 @@ function build_reusable_model_uncached(
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-    tightening_algorithm::TighteningAlgorithm 
+    tightening_algorithm::TighteningAlgorithm
     )::Dict
 
     m = Model(solver = tightening_solver)
@@ -252,7 +252,7 @@ function build_reusable_model_uncached(
         :PerturbationFamily => pp,
         :TighteningApproach => string(tightening_algorithm)
     )
-    
+
     return d
 end
 
