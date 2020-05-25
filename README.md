@@ -1,9 +1,10 @@
 # MIPVerify.jl
 
-[![Build Status](https://travis-ci.org/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.org/vtjeng/MIPVerify.jl)
-[![codecov.io](http://codecov.io/github/vtjeng/MIPVerify.jl/coverage.svg?branch=master)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/latest)
+[![build status](https://travis-ci.org/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.org/vtjeng/MIPVerify.jl)
+[![code coverage](http://codecov.io/github/vtjeng/MIPVerify.jl/coverage.svg?branch=master)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
+[![code formatting check status](https://github.com/vtjeng/MIPVerify.jl/workflows/JuliaFormatter/badge.svg?branch=master)](https://github.com/vtjeng/MIPVerify.jl/actions?query=workflow%3AJuliaFormatter+branch%3Amaster)
+[![docs: stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
+[![docs: latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/latest)
 
 _A package for evaluating the robustness of neural networks using Mixed Integer Programming (MIP). See the [companion paper](https://arxiv.org/abs/1711.07356) for full details and results._
 
