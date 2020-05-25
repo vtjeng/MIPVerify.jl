@@ -125,11 +125,10 @@ function compute_output_parameters(
     padding::FixedPadding,
 )::Tuple{NTuple{2,Int},NTuple{2,Int}}
     (top_padding, bottom_padding, left_padding, right_padding) = compute_padding_values(padding)
-    out_height =
-        round(Int, (in_height + top_padding + bottom_padding - filter_height) / stride, RoundDown) +
-        1
-    out_width =
-        round(Int, (in_width + left_padding + right_padding - filter_width) / stride, RoundDown) + 1
+    out_height_raw = (in_height + top_padding + bottom_padding - filter_height) / stride
+    out_height = round(Int, out_height_raw, RoundDown) + 1
+    out_width_raw = (in_width + left_padding + right_padding - filter_width) / stride
+    out_width = round(Int, out_width_raw, RoundDown) + 1
 
     output_size = (out_height, out_width)
     filter_offset = (top_padding, left_padding)
