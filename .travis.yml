@@ -4,11 +4,8 @@ os:
   - linux
 julia:
   - 1.0  # LTS version
-  - 1.3
+  - 1.4
   - nightly
-matrix:
-  allow_failures:
-  - julia: nightly
 branches:
   only:
     - master
@@ -20,6 +17,8 @@ after_success:
       julia --project -e 'using Pkg; pkg"add Coverage"; using Coverage; Codecov.submit(Codecov.process_folder())';
     fi
 jobs:
+  allow_failures:
+    - julia: nightly
   include:
     - stage: Documentation
       julia: 1.0

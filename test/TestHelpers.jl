@@ -13,12 +13,12 @@ const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
 
 if Base.find_package("Gurobi") == nothing
     using Cbc
-    main_solver = CbcSolver(logLevel=0)
-    tightening_solver = CbcSolver(logLevel=0, seconds=20)
+    main_solver = CbcSolver(logLevel = 0)
+    tightening_solver = CbcSolver(logLevel = 0, seconds = 20)
 else
     using Gurobi
     main_solver = GurobiSolver(Gurobi.Env())
-    tightening_solver = GurobiSolver(Gurobi.Env(), OutputFlag=0, TimeLimit=20)
+    tightening_solver = GurobiSolver(Gurobi.Env(), OutputFlag = 0, TimeLimit = 20)
 end
 
 function get_main_solver()::MathProgBase.SolverInterface.AbstractMathProgSolver
@@ -32,47 +32,58 @@ end
 function get_new_model()::Model
     solver = get_main_solver()
     MathProgBase.setparameters!(solver, Silent = true)
-    return Model(solver=solver)
+    return Model(solver = solver)
 end
 
 """
 Tests the `find_adversarial_example` function.
   - If `input` is already classified in the target label, `expected_objective_value`
     should be 0.
-  - If there is no adversarial example for the specified parameters, 
+  - If there is no adversarial example for the specified parameters,
     `expected_objective_value` should be NaN.
   - If there is an adversarial example, checks that the objective value is as expected,
-    and that the perturbed output for the target label exceeds the perturbed 
+    and that the perturbed output for the target label exceeds the perturbed
     output for all other labels by `tolerance`.
 """
 function test_find_adversarial_example(
-    nn::NeuralNet, 
-    input::Array{<:Real, N}, 
-    target_selection::Union{Integer, Array{<:Integer, 1}}, 
-    pp::PerturbationFamily, 
+    nn::NeuralNet,
+    input::Array{<:Real,N},
+    target_selection::Union{Integer,Array{<:Integer,1}},
+    pp::PerturbationFamily,
     norm_order::Real,
-    tolerance::Real, 
+    tolerance::Real,
     expected_objective_value::Real;
     invert_target_selection::Bool = false,
-    ) where {N} 
+) where {N}
     d = find_adversarial_example(
-        nn, input, target_selection, get_main_solver(),
-        pp = pp, norm_order = norm_order, tolerance = tolerance, rebuild=false, 
-        tightening_solver=get_tightening_solver(), tightening_algorithm=TEST_DEFAULT_TIGHTENING_ALGORITHM, 
-        invert_target_selection=invert_target_selection)
+        nn,
+        input,
+        target_selection,
+        get_main_solver(),
+        pp = pp,
+        norm_order = norm_order,
+        tolerance = tolerance,
+        rebuild = false,
+        tightening_solver = get_tightening_solver(),
+        tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
+        invert_target_selection = invert_target_selection,
+    )
     if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
         @test isnan(expected_objective_value)
     else
         actual_objective_value = getobjectivevalue(d[:Model])
         if expected_objective_value == 0
-            @test isapprox(actual_objective_value, expected_objective_value; atol=1e-4)
+            @test isapprox(actual_objective_value, expected_objective_value; atol = 1e-4)
         else
-            @test isapprox(actual_objective_value, expected_objective_value; rtol=5e-5)
-            
+            @test isapprox(actual_objective_value, expected_objective_value; rtol = 5e-5)
+
             perturbed_output = getvalue(d[:PerturbedInput]) |> nn
-            perturbed_target_output = maximum(perturbed_output[Bool[i∈d[:TargetIndexes] for i = 1:length(d[:Output])]])
-            maximum_perturbed_other_output = maximum(perturbed_output[Bool[i∉d[:TargetIndexes] for i = 1:length(d[:Output])]])
-            @test perturbed_target_output/(maximum_perturbed_other_output+tolerance)≈1 atol=5e-5
+            perturbed_target_output =
+                maximum(perturbed_output[Bool[i ∈ d[:TargetIndexes] for i in 1:length(d[:Output])]])
+            maximum_perturbed_other_output =
+                maximum(perturbed_output[Bool[i ∉ d[:TargetIndexes] for i in 1:length(d[:Output])]])
+            @test perturbed_target_output / (maximum_perturbed_other_output + tolerance) ≈ 1 atol =
+                5e-5
         end
     end
 end
@@ -82,31 +93,38 @@ Runs tests on the neural net described by `nn` for input `input` and the objecti
 indicated in `expected objective values`.
 
 # Arguments
-- `test_cases::Array{Tuple}`: 
+- `test_cases::Array{Tuple}`:
    each element is: ((target_selection, perturbation_parameter, norm_order, tolerance), expected_objective_value)
    `expected_objective_value` is `NaN` if there is no perturbation that brings the image
    into the target category.
 """
 function batch_test_adversarial_example(
-    nn::NeuralNet, 
-    input::Array{<:Real, N},
-    test_cases::Array
+    nn::NeuralNet,
+    input::Array{<:Real,N},
+    test_cases::Array,
 ) where {N}
     for (test_params, expected_objective_value) in test_cases
         (target_selection, pp, norm_order, tolerance) = test_params
         @testset "target labels = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
             test_find_adversarial_example(
-                nn, input, 
-                target_selection, pp, norm_order, tolerance, expected_objective_value)
-            end
+                nn,
+                input,
+                target_selection,
+                pp,
+                norm_order,
+                tolerance,
+                expected_objective_value,
+            )
         end
     end
+end
 end
 
 """
 Generates a pseudorandom array of the specified `dims` with values in [lb, ub]
 """
-function gen_array(dims::NTuple{N, Int64}, lb::Real, ub::Real) where N
+function gen_array(dims::NTuple{N,Int64}, lb::Real, ub::Real) where {N}
+    #! format: off
     rands = [
         0.823, 0.714, 0.970, 0.265, 0.969, 0.105, 0.242, 0.362, 0.061, 0.994,
         0.910, 0.439, 0.769, 0.092, 0.473, 0.530, 0.753, 0.966, 0.168, 0.245,
@@ -209,6 +227,7 @@ function gen_array(dims::NTuple{N, Int64}, lb::Real, ub::Real) where N
         0.699, 0.502, 0.072, 0.986, 0.454, 0.973, 0.232, 0.479, 0.799, 0.254,
         0.850, 0.282, 0.799, 0.109, 0.671, 0.595, 0.898, 0.717, 0.535, 0.349,
     ]
+    #! format: on
     @assert prod(dims) <= prod(size(rands))
     @assert lb < ub
     xs = reshape(rands[1:prod(dims)], dims)
