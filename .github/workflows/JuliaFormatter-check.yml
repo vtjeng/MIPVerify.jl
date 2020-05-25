@@ -21,7 +21,7 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: ${{ matrix.julia-version }}
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: 'run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)'
         run: ./scripts/format.sh
       - name: 'Check that running `format` is a no-op.'
