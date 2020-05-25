@@ -107,6 +107,7 @@ end
 Generates a pseudorandom array of the specified `dims` with values in [lb, ub]
 """
 function gen_array(dims::NTuple{N, Int64}, lb::Real, ub::Real) where N
+    #! format: off
     rands = [
         0.823, 0.714, 0.970, 0.265, 0.969, 0.105, 0.242, 0.362, 0.061, 0.994,
         0.910, 0.439, 0.769, 0.092, 0.473, 0.530, 0.753, 0.966, 0.168, 0.245,
@@ -209,6 +210,7 @@ function gen_array(dims::NTuple{N, Int64}, lb::Real, ub::Real) where N
         0.699, 0.502, 0.072, 0.986, 0.454, 0.973, 0.232, 0.479, 0.799, 0.254,
         0.850, 0.282, 0.799, 0.109, 0.671, 0.595, 0.898, 0.717, 0.535, 0.349,
     ]
+    #! format: on
     @assert prod(dims) <= prod(size(rands))
     @assert lb < ub
     xs = reshape(rands[1:prod(dims)], dims)

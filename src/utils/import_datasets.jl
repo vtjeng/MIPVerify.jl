@@ -73,11 +73,14 @@ struct NamedTrainTestDataset{T<:Dataset, U<:Dataset} <: Dataset
 end
 
 function Base.show(io::IO, dataset::NamedTrainTestDataset)
-    print(io,
+    #! format: off
+    print(
+        io,
         "$(dataset.name):",
         "\n  `train`: $(dataset.train)",
-        "\n  `test`: $(dataset.test)"
+        "\n  `test`: $(dataset.test)",
     )
+    #! format: on    
 end
 
 """

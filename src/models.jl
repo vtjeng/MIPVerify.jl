@@ -169,9 +169,12 @@ function build_reusable_model_uncached(
 
     input_range = CartesianIndices(size(input))
 
-    v_input = map(_ -> @variable(m), input_range) # what you're trying to perturb
-    v_e = map(_ -> @variable(m, lowerbound = -1, upperbound = 1), input_range) # perturbation added
-    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range) # perturbation + original image
+    # v_input will be constrained to `input` in the caller
+    v_input = map(_ -> @variable(m), input_range)
+    # v_e is the perturbation added
+    v_e = map(_ -> @variable(m, lowerbound = -1, upperbound = 1), input_range)
+    # v_x0 is the input with the perturbation added
+    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range)
     @constraint(m, v_x0 .== v_input + v_e)
 
     v_output = v_x0 |> nn
@@ -238,8 +241,10 @@ function build_reusable_model_uncached(
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_range = CartesianIndices(size(input))
-    v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range) # perturbation added
-    v_x0 = map(i -> @variable(m, lowerbound = max(0, input[i] - pp.norm_bound), upperbound = min(1, input[i] + pp.norm_bound)), input_range) # perturbation + original image
+    # v_e is the perturbation added
+    v_e = map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range)
+    # v_x0 is the input with the perturbation added
+    v_x0 = map(i -> @variable(m, lowerbound = max(0, input[i] - pp.norm_bound), upperbound = min(1, input[i] + pp.norm_bound)), input_range)
     @constraint(m, v_x0 .== input + v_e)
 
     v_output = v_x0 |> nn

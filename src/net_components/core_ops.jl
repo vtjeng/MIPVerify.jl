@@ -41,6 +41,7 @@ function get_tightening_algorithm(
 end
 
 @enum BoundType lower_bound_type=-1 upper_bound_type=1
+#! format: off
 bound_f = Dict(
     lower_bound_type => lowerbound,
     upper_bound_type => upperbound
@@ -57,6 +58,7 @@ bound_operator = Dict(
     lower_bound_type => >=,
     upper_bound_type => <=
 )
+#! format: on
 
 """
 Calculates a tight bound of type `bound_type` on the variable `x` using the specified
