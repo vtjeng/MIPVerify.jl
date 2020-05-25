@@ -1,4 +1,4 @@
-name: 'JuliaFormatter check'
+name: 'JuliaFormatter'
 
 # Based off of https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
 
@@ -11,7 +11,7 @@ on:
   pull_request:
 
 jobs:
-  build:
+  format-check:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
