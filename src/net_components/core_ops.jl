@@ -89,24 +89,23 @@ function tight_bound(
     status = solve(model, suppress_warnings = true, relaxation = relaxation)
     if status == :Optimal
         b = getobjectivevalue(model)
+        db = bound_delta_f[bound_type](b, b_0)
+        Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
+        if db < 0
+            b = b_0
+            Memento.info(
+                MIPVerify.LOGGER,
+                "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
+            )
+        end
     elseif status == :UserLimit
-        b = getobjectivebound(model)
-        log_gap(model)
+        b = b_0
     else
         Memento.warn(
             MIPVerify.LOGGER,
             "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.",
         )
         b = b_0
-    end
-    db = bound_delta_f[bound_type](b, b_0)
-    Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
-    if db < 0
-        b = b_0
-        Memento.info(
-            MIPVerify.LOGGER,
-            "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
-        )
     end
     return b
 end
@@ -415,6 +414,9 @@ function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearTy
     @assert length(xs) > 0
     if all(is_constant.(xs))
         return maximum_of_constants(xs)
+    end
+    if length(xs) == 1
+        return first(xs)
     end
     # at least one of xs is not constant.
     model = MIPVerify.getmodel(xs)
