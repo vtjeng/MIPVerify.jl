@@ -7,8 +7,6 @@ using Memento
 using AutoHashEquals
 using DocStringExtensions
 using ProgressMeter
-using CSV
-using DataFrames
 
 # TODO: more reliable way to determine location for dependencies
 const dependencies_path = joinpath(@__DIR__, "..", "deps")

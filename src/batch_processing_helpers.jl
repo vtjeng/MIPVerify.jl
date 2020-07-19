@@ -1,6 +1,6 @@
 export batch_find_untargeted_attack
 
-using DelimitedFiles, Dates
+using DelimitedFiles, Dates, DataFrames, CSV
 
 @enum SolveRerunOption never = 1 always = 2 resolve_ambiguous_cases = 3 refine_insecure_cases = 4 retarget_infeasible_cases =
     5
@@ -138,7 +138,7 @@ function initialize_batch_solve(
     summary_file_path = joinpath(main_path, summary_file_name)
     summary_file_path |> create_summary_file_if_not_present
 
-    dt = CSV.read(summary_file_path)
+    dt = DataFrame!(CSV.File(summary_file_path))
     return (results_dir, main_path, summary_file_path, dt)
 end
 
