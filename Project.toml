@@ -20,10 +20,10 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 
 [compat]
 AutoHashEquals = "0.2"
-CSV = "0.5.9, 0.6, 0.7"
+CSV = "0.7"
 Cbc = "0.4, 0.5, 0.6"
 ConditionalJuMP = "0.1"
-DataFrames = "0.19, 0.20, 0.21"
+DataFrames = "0.21"
 DocStringExtensions = "0.8"
 JuMP = "0.18"
 MAT = "0.5, 0.6, 0.7, 0.8"
