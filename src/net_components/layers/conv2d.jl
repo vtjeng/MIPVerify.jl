@@ -1,5 +1,4 @@
 using JuMP
-using ConditionalJuMP
 
 export Conv2d
 export Padding, SamePadding, ValidPadding
@@ -240,9 +239,6 @@ function conv2d(input::Array{T,4}, params::Conv2d{U,V}) where {T<:JuMPReal,U<:Ju
             end
         end
         s += params.bias[i_4]
-        if T <: JuMPLinearType
-            ConditionalJuMP.simplify!(s)
-        end
         (@nref 4 output i) = s
     end
 

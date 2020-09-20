@@ -2,7 +2,6 @@ module MIPVerify
 
 using Base.Cartesian
 using JuMP
-using ConditionalJuMP
 using Memento
 using DocStringExtensions
 using ProgressMeter
@@ -16,6 +15,7 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
+include("vendor/ConditionalJuMP.jl")  # this needs to be imported first, as the remaining packages rely on it
 include("net_components.jl")
 include("models.jl")
 include("utils.jl")

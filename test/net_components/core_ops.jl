@@ -19,8 +19,9 @@ using MIPVerify:
     interval_arithmetic,
     DEFAULT_TIGHTENING_ALGORITHM,
     TighteningAlgorithm,
-    MIPVerifyExt
-using ConditionalJuMP
+    MIPVerifyExt,
+    upperbound,
+    lowerbound
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 function count_binary_variables(m::Model)
