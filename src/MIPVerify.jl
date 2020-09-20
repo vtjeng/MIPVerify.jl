@@ -149,7 +149,8 @@ function find_adversarial_example(
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
                 # Introduce an additional variable since Gurobi ignores constant terms in objective, 
                 # but we explicitly need these if we want to stop early based on the value of the objective
-                # (not simply whether or not it is maximized) https://github.com/jump-dev/Gurobi.jl/issues/111
+                # (not simply whether or not it is maximized).
+                # See discussion in https://github.com/jump-dev/Gurobi.jl/issues/111 for more details.
                 v_obj = @variable(m)
                 @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
                 @objective(m, Max, v_obj)
@@ -198,7 +199,7 @@ function frac_correct(nn::NeuralNet, dataset::LabelledDataset, num_samples::Inte
 
     num_correct = 0.0
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))
-    @showprogress 1 "Computing fraction correct..." for sample_index in 1:num_samples
+    @showprogress 1 "Computing fraction correct..." for sample_index = 1:num_samples
         input = get_image(dataset.images, sample_index)
         actual_label = get_label(dataset.labels, sample_index)
         predicted_label = (input |> nn |> get_max_index) - 1
