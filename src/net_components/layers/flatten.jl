@@ -5,7 +5,7 @@ $(TYPEDEF)
 
 Represents a flattening operation.
 
-`p(x)` is shorthand for [`flatten(x, p.perm)`](@ref) when `p` is an instance of
+`p(x)` is shorthand for [`permute_and_flatten(x, p.perm)`](@ref) when `p` is an instance of
 `Flatten`.
 
 ## Fields:
@@ -49,11 +49,11 @@ end
 """
 Permute dimensions of array in specified order, then flattens the array.
 """
-function flatten(x::Array{T,N}, perm::AbstractArray{U}) where {T,N,U<:Integer}
+function permute_and_flatten(x::Array{T,N}, perm::AbstractArray{U}) where {T,N,U<:Integer}
     @assert all(sort(perm) .== 1:N)
     return permutedims(x, perm)[:]
 end
 
-(p::Flatten)(x::Array{<:Real}) = flatten(x, p.perm)
+(p::Flatten)(x::Array{<:Real}) = permute_and_flatten(x, p.perm)
 (p::Flatten)(x::Array{<:JuMPLinearType}) =
-    (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); flatten(x, p.perm))
+    (Memento.info(MIPVerify.LOGGER, "Applying Flatten() ... "); permute_and_flatten(x, p.perm))

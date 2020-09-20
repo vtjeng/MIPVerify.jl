@@ -230,7 +230,7 @@ function get_norm(norm_order::Real, v::Array{<:JuMPLinearType,N}) where {N}
     elseif norm_order == 2
         return sum(v .* v)
     elseif norm_order == Inf
-        return MIPVerify.maximum_ge(flatten(abs_ge.(v), N:-1:1))
+        return MIPVerify.maximum_ge(permute_and_flatten(abs_ge.(v), N:-1:1))
     else
         throw(DomainError("Only l1, l2 and l∞ norms supported."))
     end
