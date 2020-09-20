@@ -2,7 +2,7 @@ using JuMP
 
 export Layer, NeuralNet
 
-JuMPLinearType = Union{JuMP.Variable,JuMP.AffExpr}
+JuMPLinearType = Union{JuMP.VariableRef,JuMP.AffExpr}
 JuMPReal = Union{Real,JuMPLinearType}
 
 include("net_components/core_ops.jl")

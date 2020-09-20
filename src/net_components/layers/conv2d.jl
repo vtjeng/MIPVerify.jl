@@ -102,7 +102,7 @@ function increment!(s::JuMP.AffExpr, input_val::JuMP.AffExpr, filter_val::Real)
     return s
 end
 
-function increment!(s::JuMP.AffExpr, input_val::JuMP.Variable, filter_val::Real)
+function increment!(s::JuMP.AffExpr, input_val::JuMP.VariableRef, filter_val::Real)
     push!(s, Float64(filter_val), input_val)
 end
 
@@ -111,7 +111,7 @@ function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.AffExpr)
     return s
 end
 
-function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.Variable)
+function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.VariableRef)
     push!(s, Float64(input_val), filter_val)
 end
 

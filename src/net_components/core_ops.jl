@@ -12,7 +12,7 @@ function is_constant(x::JuMP.AffExpr)
     x.vars |> length == 0
 end
 
-function is_constant(x::JuMP.Variable)
+function is_constant(x::JuMP.VariableRef)
     false
 end
 
@@ -315,7 +315,7 @@ end
 function maximum_of_constants(xs::AbstractArray{T}) where {T<:JuMPLinearType}
     @assert all(is_constant.(xs))
     max_val = map(x -> x.constant, xs) |> maximum
-    return one(JuMP.Variable) * max_val
+    return one(JuMP.VariableRef) * max_val
 end
 
 """
@@ -424,7 +424,7 @@ Only use when you are minimizing over the output in the objective.
 """
 function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
     if is_constant(x)
-        return one(JuMP.Variable) * abs(x.constant)
+        return one(JuMP.VariableRef) * abs(x.constant)
     end
     model = getmodel(x)
     u = upperbound(x)
