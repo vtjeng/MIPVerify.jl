@@ -147,7 +147,12 @@ function find_adversarial_example(
                 (maximum_target_var, nontarget_vars) =
                     get_vars_for_max_index(d[:Output], d[:TargetIndexes])
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
-                @objective(m, Max, maximum_target_var - maximum_nontarget_var)
+                # Introduce an additional variable since Gurobi ignores constant terms in objective, 
+                # but we explicitly need these if we want to stop early based on the value of the objective
+                # (not simply whether or not it is maximized) https://github.com/jump-dev/Gurobi.jl/issues/111
+                v_obj = @variable(m)
+                @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
+                @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
