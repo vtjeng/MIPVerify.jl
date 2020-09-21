@@ -62,17 +62,4 @@ using MIPVerify: LInfNormBoundedPerturbationFamily
             )
         end
     end
-
-    @testset "batch_build_model" begin
-        mktempdir() do dir
-            MIPVerify.batch_build_model(
-                nn_wk17a,
-                mnist.test,
-                [1],
-                TestHelpers.get_tightening_solver(),
-                pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-                tightening_algorithm = interval_arithmetic,
-            )
-        end
-    end
 end
