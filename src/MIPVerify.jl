@@ -114,16 +114,7 @@ function find_adversarial_example(
 
         # Only call solver if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
-            merge!(
-                d,
-                get_model(
-                    nn,
-                    input,
-                    pp,
-                    tightening_solver,
-                    tightening_algorithm,
-                ),
-            )
+            merge!(d, get_model(nn, input, pp, tightening_solver, tightening_algorithm))
             m = d[:Model]
 
             if adversarial_example_objective == closest

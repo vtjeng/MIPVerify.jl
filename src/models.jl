@@ -46,13 +46,7 @@ function get_model(
         MIPVerify.LOGGER,
         "Determining upper and lower bounds for the input to each non-linear unit.",
     )
-    d = build_reusable_model_uncached(
-        nn,
-        input,
-        pp,
-        tightening_solver,
-        tightening_algorithm,
-    )
+    d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
     return d
 end
 
