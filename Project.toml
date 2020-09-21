@@ -21,7 +21,7 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 [compat]
 AutoHashEquals = "0.2"
 CSV = "0.7"
-Cbc = "0.4, 0.5, 0.6"
+Cbc = "0.4, 0.5, 0.6, 0.7"
 ConditionalJuMP = "0.1"
 DataFrames = "0.21"
 DocStringExtensions = "0.8"
