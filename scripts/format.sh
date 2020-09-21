@@ -8,7 +8,7 @@ repo_root=$(git rev-parse --show-toplevel)
   julia -e '
     using Pkg;
     Pkg.activate(tempname());
-    Pkg.add(PackageSpec(name="JuliaFormatter", version="0.5.4")); 
+    Pkg.add(PackageSpec(name="JuliaFormatter", version="0.8.2")); 
     using JuliaFormatter;
     format(".", verbose=true)
   '
