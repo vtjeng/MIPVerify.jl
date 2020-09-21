@@ -24,8 +24,6 @@ function Base.show(io::IO, p::Pool)
     )
 end
 
-Base.hash(a::Pool, h::UInt) = hash(a.strides, hash(string(a.pooling_function), hash(:Pool, h)))
-
 """
 $(SIGNATURES)
 

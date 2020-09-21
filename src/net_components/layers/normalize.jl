@@ -5,7 +5,7 @@ $(TYPEDEF)
 
 Represents a Normalization operation.
 """
-@auto_hash_equals struct Normalize <: Layer
+struct Normalize <: Layer
     mean::Array{Real,1}
     std::Array{Real,1}
 end

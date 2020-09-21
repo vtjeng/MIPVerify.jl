@@ -11,7 +11,7 @@ Represents a flattening operation.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Flatten{T<:Integer} <: Layer
+struct Flatten{T<:Integer} <: Layer
     n_dim::Integer
     perm::AbstractArray{T}
 

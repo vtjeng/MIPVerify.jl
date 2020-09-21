@@ -1,6 +1,5 @@
 using Test
 using MIPVerify: setloglevel!
-using MIPVerify: remove_cached_models
 using MIPVerify: get_max_index, get_norm
 using JuMP
 using TimerOutputs
@@ -21,7 +20,6 @@ end
 @testset "MIPVerify" begin
     reset_timer!()
     setloglevel!("info")
-    remove_cached_models()
 
     include("integration.jl")
     include("net_components.jl")

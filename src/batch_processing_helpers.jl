@@ -240,7 +240,7 @@ particular index.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, rebuild, tightening_algorithm, tightening_solver, cache_model,
++ `pp, norm_order, tightening_algorithm, tightening_solver,
   solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
@@ -257,12 +257,10 @@ function batch_find_untargeted_attack(
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
         main_solver,
     ),
-    cache_model = true,
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
 )::Nothing
@@ -286,10 +284,8 @@ function batch_find_untargeted_attack(
                 invert_target_selection = true,
                 pp = pp,
                 norm_order = norm_order,
-                rebuild = rebuild,
                 tightening_algorithm = tightening_algorithm,
                 tightening_solver = tightening_solver,
-                cache_model = cache_model,
                 solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 adversarial_example_objective = adversarial_example_objective,
             )
@@ -371,12 +367,10 @@ function batch_find_targeted_attack(
     target_labels::AbstractArray{<:Integer} = [],
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
         main_solver,
     ),
-    cache_model = true,
     solve_if_predicted_in_targeted = true,
 )::Nothing
     results_dir = "run_results"
@@ -414,10 +408,8 @@ function batch_find_targeted_attack(
                     invert_target_selection = false,
                     pp = pp,
                     norm_order = norm_order,
-                    rebuild = rebuild,
                     tightening_algorithm = tightening_algorithm,
                     tightening_solver = tightening_solver,
-                    cache_model = cache_model,
                     solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 )
 

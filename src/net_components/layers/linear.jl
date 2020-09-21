@@ -13,7 +13,7 @@ Represents matrix multiplication.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Linear{T<:Real,U<:Real} <: Layer
+struct Linear{T<:Real,U<:Real} <: Layer
     matrix::Array{T,2}
     bias::Array{U,1}
 

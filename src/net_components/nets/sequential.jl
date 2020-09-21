@@ -9,7 +9,7 @@ to output.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Sequential <: NeuralNet
+struct Sequential <: NeuralNet
     layers::Array{Layer,1}
     UUID::String
 end

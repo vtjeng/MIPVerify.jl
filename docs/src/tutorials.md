@@ -14,7 +14,6 @@ We suggest getting started with the tutorials.
   + Have more precise control over the activations in the output layer
   + Restrict the family of perturbations (for example to the blurring perturbations discussed in our paper)
   + Select whether you want to minimize the $L_1$, $L_2$ or $L_\infty$ norm of the perturbation.
-  + Determine whether you are rebuilding the model expressing the constraints of the neural network from scratch, or loading the model from cache.
   + Modify the amount of time dedicated to building the model (by selecting the `tightening_algorithm`, and/or passing in a custom `tightening_solver`).
 
 For Gurobi, we show how to specify solver settings to:

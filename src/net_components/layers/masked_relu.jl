@@ -12,7 +12,7 @@ each output.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct MaskedReLU{T<:Real} <: Layer
+struct MaskedReLU{T<:Real} <: Layer
     mask::Array{T}
     tightening_algorithm::Union{TighteningAlgorithm,Nothing}
 end
