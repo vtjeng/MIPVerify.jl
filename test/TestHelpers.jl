@@ -80,8 +80,7 @@ function test_find_adversarial_example(
                 maximum(perturbed_output[Bool[i ∈ d[:TargetIndexes] for i in 1:length(d[:Output])]])
             maximum_perturbed_other_output =
                 maximum(perturbed_output[Bool[i ∉ d[:TargetIndexes] for i in 1:length(d[:Output])]])
-            @test perturbed_target_output / (maximum_perturbed_other_output) ≈ 1 atol =
-                5e-5
+            @test perturbed_target_output / (maximum_perturbed_other_output) ≈ 1 atol = 5e-5
         end
     end
 end
