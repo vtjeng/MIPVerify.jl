@@ -4,7 +4,6 @@ using Base.Cartesian
 using JuMP
 using ConditionalJuMP
 using Memento
-using AutoHashEquals
 using DocStringExtensions
 using ProgressMeter
 
