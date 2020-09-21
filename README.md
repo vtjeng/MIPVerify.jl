@@ -1,7 +1,7 @@
 # MIPVerify.jl
 
-[![build status](https://travis-ci.org/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.org/vtjeng/MIPVerify.jl)
-[![code coverage](http://codecov.io/github/vtjeng/MIPVerify.jl/coverage.svg?branch=master)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
+[![build status](https://travis-ci.com/vtjeng/MIPVerify.jl.svg?branch=master)](https://travis-ci.com/vtjeng/MIPVerify.jl)
+[![code coverage](https://codecov.io/gh/vtjeng/MIPVerify.jl/branch/master/graph/badge.svg)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
 [![code formatting check status](https://github.com/vtjeng/MIPVerify.jl/workflows/JuliaFormatter/badge.svg?branch=master)](https://github.com/vtjeng/MIPVerify.jl/actions?query=workflow%3AJuliaFormatter+branch%3Amaster)
 [![docs: stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
 [![docs: latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/latest)
