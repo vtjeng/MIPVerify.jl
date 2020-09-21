@@ -61,11 +61,8 @@ function build_reusable_model_uncached(
 
     input_range = CartesianIndices(size(input))
 
-    # v_input will be constrained to `input` in the caller
-    v_input = map(_ -> @variable(m), input_range)
     # v_x0 is the input with the perturbation added
     v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range)
-    @constraint(m, v_x0 .== v_input + v_e)
 
     v_output = v_x0 |> nn
 
