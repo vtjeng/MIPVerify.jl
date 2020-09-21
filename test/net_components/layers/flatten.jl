@@ -26,7 +26,7 @@ using MIPVerify
         end
     end
 
-    @testset "flatten" begin
+    @testset "Flatten" begin
         xs = reshape(collect(1:16), (2, 2, 2, 2))
         p1 = Flatten([3, 1, 2, 4])
         @test p1(xs) == [1, 5, 2, 6, 3, 7, 4, 8, 9, 13, 10, 14, 11, 15, 12, 16]
