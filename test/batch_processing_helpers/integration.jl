@@ -16,10 +16,8 @@ using MIPVerify: LInfNormBoundedPerturbationFamily
                 solve_rerun_option = MIPVerify.never,
                 pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order = Inf,
-                rebuild = true,
                 tightening_algorithm = lp,
                 tightening_solver = TestHelpers.get_tightening_solver(),
-                cache_model = false,
                 solve_if_predicted_in_targeted = false,
                 save_path = dir,
             )
@@ -34,9 +32,7 @@ using MIPVerify: LInfNormBoundedPerturbationFamily
                 solve_rerun_option = MIPVerify.never,
                 pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
                 norm_order = Inf,
-                rebuild = true,
                 tightening_algorithm = interval_arithmetic,
-                cache_model = false,
                 solve_if_predicted_in_targeted = false,
                 save_path = dir,
             )
@@ -55,7 +51,6 @@ using MIPVerify: LInfNormBoundedPerturbationFamily
                 norm_order = Inf,
                 tightening_algorithm = interval_arithmetic,
                 tightening_solver = TestHelpers.get_tightening_solver(),
-                cache_model = false,
                 solve_if_predicted_in_targeted = false,
                 target_labels = [1, 8],
                 save_path = dir,

@@ -61,7 +61,6 @@ function test_find_adversarial_example(
         get_main_solver(),
         pp = pp,
         norm_order = norm_order,
-        rebuild = false,
         tightening_solver = get_tightening_solver(),
         tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
         invert_target_selection = invert_target_selection,

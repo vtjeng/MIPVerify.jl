@@ -69,10 +69,6 @@ We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for 
 + `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
     Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver
     and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
-+ `rebuild::Bool`: Defaults to `false`. If `true`, rebuilds model by determining upper and lower
-    bounds on input to each non-linear unit even if a cached model exists.
-+ `cache_model`: Defaults to `true`. If `true`, saves model generated. If `false`, does not save model
-    generated, but any existing cached model is retained.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
     `input` can be determined efficiently. If the predicted index is one of the indexes in `target_selection`,
     we can skip the relatively costly process of building the model for the MIP problem since we already have an
@@ -92,8 +88,6 @@ function find_adversarial_example(
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(
         main_solver,
     ),
-    rebuild::Bool = false,
-    cache_model::Bool = true,
     solve_if_predicted_in_targeted = true,
 )::Dict
 
@@ -128,8 +122,6 @@ function find_adversarial_example(
                     pp,
                     tightening_solver,
                     tightening_algorithm,
-                    rebuild,
-                    cache_model,
                 ),
             )
             m = d[:Model]
