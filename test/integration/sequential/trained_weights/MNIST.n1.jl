@@ -17,9 +17,9 @@ using MIPVerify: get_example_network_params, read_datasets, get_image
 
     @testset "Basic integration test demonstrating success on trained (non-robust) network." begin
         test_cases = [
-            ((10, pp_unrestricted, Inf, 0), 0.0460847),
-            ((10, LInfNormBoundedPerturbationFamily(0.04), Inf, 0), NaN),
-            ((10, LInfNormBoundedPerturbationFamily(0.05), Inf, 0), 0.0460847),
+            ((10, pp_unrestricted, Inf), 0.0460847),
+            ((10, LInfNormBoundedPerturbationFamily(0.04), Inf), NaN),
+            ((10, LInfNormBoundedPerturbationFamily(0.05), Inf), 0.0460847),
         ]
 
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)

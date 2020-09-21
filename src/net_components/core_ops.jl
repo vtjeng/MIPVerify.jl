@@ -495,17 +495,17 @@ end
 $(SIGNATURES)
 
 Imposes constraints ensuring that one of the elements at the target_indexes is the
-largest element of the array x. More specifically, we require `x[j] - x[i] ≥ tolerance` for
+largest element of the array x. More specifically, we require `x[j] - x[i] ≥ margin` for
 some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
 """
 function set_max_indexes(
     model::Model,
     xs::Array{<:JuMPLinearType,1},
     target_indexes::Array{<:Integer,1};
-    tolerance::Real = 0,
+    margin::Real = 0,
 )
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
-    @constraint(model, nontarget_vars - maximum_target_var .<= -tolerance)
+    @constraint(model, nontarget_vars - maximum_target_var .<= -margin)
 end

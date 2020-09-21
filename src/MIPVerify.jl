@@ -50,7 +50,7 @@ on what individual dictionary entries correspond to.
 
 *Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector
 `y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`.
-We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
+We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
 
 # Named Arguments:
 + `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to
@@ -60,7 +60,6 @@ We guarantee that `y[j] - y[i] ≥ tolerance` for some `j ∈ target_selection` 
 + `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the
     distance from the perturbed image to the original. Supported options are `1`, `Inf`
     and `2` (if the `main_solver` used can solve MIQPs.)
-+ `tolerance::Real`: Defaults to `0.0`. See formal definition above.
 + `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we
     determine the upper and lower bounds on input to each nonlinear unit.
     Allowed options are `interval_arithmetic`, `lp`, `mip`.
@@ -88,7 +87,6 @@ function find_adversarial_example(
     invert_target_selection::Bool = false,
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    tolerance::Real = 0.0,
     adversarial_example_objective::AdversarialExampleObjective = closest,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(
@@ -137,7 +135,7 @@ function find_adversarial_example(
             m = d[:Model]
 
             if adversarial_example_objective == closest
-                set_max_indexes(m, d[:Output], d[:TargetIndexes], tolerance = tolerance)
+                set_max_indexes(m, d[:Output], d[:TargetIndexes])
 
                 # Set perturbation objective
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry out

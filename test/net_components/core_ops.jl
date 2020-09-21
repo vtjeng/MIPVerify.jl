@@ -501,16 +501,16 @@ end
                 solve(m)
                 @test getvalue(x[1]) ≈ 5
             end
-            @testset "with tolerance" begin
-                tolerance = 3
+            @testset "with margin" begin
+                margin = 3
                 m = TestHelpers.get_new_model()
                 x = @variable(m, [i = 1:3])
                 @constraint(m, x[2] == 5)
                 @constraint(m, x[3] == 1)
-                set_max_indexes(m, x, [1], tolerance = tolerance)
+                set_max_indexes(m, x, [1], margin = margin)
                 @objective(m, Min, x[1])
                 solve(m)
-                @test getvalue(x[1]) ≈ 5 + tolerance
+                @test getvalue(x[1]) ≈ 5 + margin
             end
         end
         @testset "multiple target indexes" begin
@@ -528,8 +528,8 @@ end
                 @test getvalue(x[2]) ≈ 5
                 @test getvalue(x[3]) ≈ -1
             end
-            @testset "with tolerance" begin
-                tolerance = 3
+            @testset "with margin" begin
+                margin = 3
                 m = TestHelpers.get_new_model()
                 x = @variable(m, [i = 1:3])
                 @constraint(m, x[1] == 5)
@@ -537,10 +537,10 @@ end
                 setupperbound(x[2], 10)
                 setlowerbound(x[3], -1)
                 setupperbound(x[3], 10)
-                set_max_indexes(m, x, [2, 3], tolerance = tolerance)
+                set_max_indexes(m, x, [2, 3], margin = margin)
                 @objective(m, Min, x[2] + x[3])
                 solve(m)
-                @test getvalue(x[2]) ≈ 5 + tolerance
+                @test getvalue(x[2]) ≈ 5 + margin
                 @test getvalue(x[3]) ≈ -1
             end
             @testset "first JuMPLinearType is constant" begin

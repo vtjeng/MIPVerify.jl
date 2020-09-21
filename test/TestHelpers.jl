@@ -43,7 +43,7 @@ Tests the `find_adversarial_example` function.
     `expected_objective_value` should be NaN.
   - If there is an adversarial example, checks that the objective value is as expected,
     and that the perturbed output for the target label exceeds the perturbed
-    output for all other labels by `tolerance`.
+    output for all other labels by 0.
 """
 function test_find_adversarial_example(
     nn::NeuralNet,
@@ -51,7 +51,6 @@ function test_find_adversarial_example(
     target_selection::Union{Integer,Array{<:Integer,1}},
     pp::PerturbationFamily,
     norm_order::Real,
-    tolerance::Real,
     expected_objective_value::Real;
     invert_target_selection::Bool = false,
 ) where {N}
@@ -62,7 +61,6 @@ function test_find_adversarial_example(
         get_main_solver(),
         pp = pp,
         norm_order = norm_order,
-        tolerance = tolerance,
         rebuild = false,
         tightening_solver = get_tightening_solver(),
         tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
@@ -82,7 +80,7 @@ function test_find_adversarial_example(
                 maximum(perturbed_output[Bool[i ∈ d[:TargetIndexes] for i in 1:length(d[:Output])]])
             maximum_perturbed_other_output =
                 maximum(perturbed_output[Bool[i ∉ d[:TargetIndexes] for i in 1:length(d[:Output])]])
-            @test perturbed_target_output / (maximum_perturbed_other_output + tolerance) ≈ 1 atol =
+            @test perturbed_target_output / (maximum_perturbed_other_output) ≈ 1 atol =
                 5e-5
         end
     end
@@ -94,7 +92,7 @@ indicated in `expected objective values`.
 
 # Arguments
 - `test_cases::Array{Tuple}`:
-   each element is: ((target_selection, perturbation_parameter, norm_order, tolerance), expected_objective_value)
+   each element is: ((target_selection, perturbation_parameter, norm_order), expected_objective_value)
    `expected_objective_value` is `NaN` if there is no perturbation that brings the image
    into the target category.
 """
@@ -104,15 +102,14 @@ function batch_test_adversarial_example(
     test_cases::Array,
 ) where {N}
     for (test_params, expected_objective_value) in test_cases
-        (target_selection, pp, norm_order, tolerance) = test_params
-        @testset "target labels = $target_selection, $(string(pp)) perturbation, norm order = $norm_order, tolerance = $tolerance" begin
+        (target_selection, pp, norm_order) = test_params
+        @testset "target labels = $target_selection, $(string(pp)) perturbation, norm order = $norm_order" begin
             test_find_adversarial_example(
                 nn,
                 input,
                 target_selection,
                 pp,
                 norm_order,
-                tolerance,
                 expected_objective_value,
             )
         end

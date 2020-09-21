@@ -9,12 +9,11 @@ struct BatchRunParameters
     nn::NeuralNet
     pp::PerturbationFamily
     norm_order::Real
-    tolerance::Real
 end
 
 # BatchRunParameters are used for result folder names
 function Base.show(io::IO, t::BatchRunParameters)
-    print(io, "$(t.nn.UUID)__$(t.pp)__$(t.norm_order)__$(t.tolerance)")
+    print(io, "$(t.nn.UUID)__$(t.pp)__$(t.norm_order)")
 end
 
 function mkpath_if_not_present(path::String)
@@ -123,13 +122,12 @@ function initialize_batch_solve(
     nn::NeuralNet,
     pp::MIPVerify.PerturbationFamily,
     norm_order::Real,
-    tolerance::Real,
 )::Tuple{String,String,String,DataFrames.DataFrame}
 
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
-    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order, tolerance)
+    batch_run_parameters = MIPVerify.BatchRunParameters(nn, pp, norm_order)
     main_path = joinpath(save_path, batch_run_parameters |> string)
 
     main_path |> mkpath_if_not_present
@@ -226,7 +224,6 @@ It creates a named directory in `save_path`, with the name summarizing
   1) the name of the network in `nn`,
   2) the perturbation family `pp`,
   3) the `norm_order`
-  4) the `tolerance`.
 
 Within this directory, a summary of all the results is stored in `summary.csv`, and
 results from individual runs are stored in the subfolder `run_results`.
@@ -243,7 +240,7 @@ particular index.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, tolerance, rebuild, tightening_algorithm, tightening_solver, cache_model,
++ `pp, norm_order, rebuild, tightening_algorithm, tightening_solver, cache_model,
   solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
@@ -260,7 +257,6 @@ function batch_find_untargeted_attack(
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    tolerance::Real = 0.0,
     rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
@@ -273,7 +269,7 @@ function batch_find_untargeted_attack(
 
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
-        initialize_batch_solve(save_path, nn, pp, norm_order, tolerance)
+        initialize_batch_solve(save_path, nn, pp, norm_order)
 
     for sample_number in target_indices
         should_run = run_on_sample_for_untargeted_attack(sample_number, dt, solve_rerun_option)
@@ -290,7 +286,6 @@ function batch_find_untargeted_attack(
                 invert_target_selection = true,
                 pp = pp,
                 norm_order = norm_order,
-                tolerance = tolerance,
                 rebuild = rebuild,
                 tightening_algorithm = tightening_algorithm,
                 tightening_solver = tightening_solver,
@@ -376,7 +371,6 @@ function batch_find_targeted_attack(
     target_labels::AbstractArray{<:Integer} = [],
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
-    tolerance::Real = 0.0,
     rebuild = false,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
@@ -390,7 +384,7 @@ function batch_find_targeted_attack(
 
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
-        initialize_batch_solve(save_path, nn, pp, norm_order, tolerance)
+        initialize_batch_solve(save_path, nn, pp, norm_order)
 
     for sample_number in target_indices
         for target_label in target_labels
@@ -420,7 +414,6 @@ function batch_find_targeted_attack(
                     invert_target_selection = false,
                     pp = pp,
                     norm_order = norm_order,
-                    tolerance = tolerance,
                     rebuild = rebuild,
                     tightening_algorithm = tightening_algorithm,
                     tightening_solver = tightening_solver,
