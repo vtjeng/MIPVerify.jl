@@ -53,9 +53,9 @@ function test_convolution_layer(
         p_v = MIPVerify.Conv2d(filter_v, bias_v, p.stride, p.padding)
         output_v = MIPVerify.conv2d(input, p_v)
         @constraint(m, output_v .== expected_output)
-        solve(m)
+        optimize!(m)
 
-        p_solve = MIPVerify.Conv2d(getvalue(filter_v), getvalue(bias_v), p.stride, p.padding)
+        p_solve = MIPVerify.Conv2d(JuMP.value.(filter_v), JuMP.value.(bias_v), p.stride, p.padding)
         solve_output = MIPVerify.conv2d(input, p_solve)
         @test solve_output ≈ expected_output
     end
@@ -64,9 +64,9 @@ function test_convolution_layer(
         input_v = map(_ -> @variable(m), CartesianIndices(input_size))
         output_v = MIPVerify.conv2d(input_v, p)
         @constraint(m, output_v .== expected_output)
-        solve(m)
+        optimize!(m)
 
-        solve_output = MIPVerify.conv2d(getvalue(input_v), p)
+        solve_output = MIPVerify.conv2d(JuMP.value.(input_v), p)
         @test solve_output ≈ expected_output
     end
 end
@@ -156,13 +156,13 @@ end
             s = 5 * x + 3 * y
             t = 3 * x + 2 * y
             increment!(s, 2, t)
-            @test getvalue(s) == 1107
+            @test JuMP.value(s) == 1107
             increment!(s, t, -1)
-            @test getvalue(s) == 805
+            @test JuMP.value(s) == 805
             increment!(s, x, 3)
-            @test getvalue(s) == 1105
+            @test JuMP.value(s) == 1105
             increment!(s, y, 2)
-            @test getvalue(s) == 1107
+            @test JuMP.value(s) == 1107
         end
     end
 

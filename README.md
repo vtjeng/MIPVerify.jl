@@ -25,7 +25,7 @@ Fortunately, we _can_ evaluate robustness to adversarial examples in a principle
 Determining the minimum adversarial distortion for some input (or proving that no bounded perturbation of that input causes a misclassification) corresponds to solving an optimization problem. For piecewise-linear neural networks, the optimization problem can be expressed as a mixed-integer linear programming (MILP) problem.
 
 ## Features
-`MIPVerify.jl` translates your query on the robustness of a neural network for some input into an MILP problem, which can then be solved by any solver supported by [JuMP](https://github.com/JuliaOpt/JuMP.jl). Efficient solves are enabled by tight specification of ReLU and maximum constraints and a progressive bounds tightening approach where time is spent refining bounds only if doing so could provide additional information to improve the problem formulation.
+`MIPVerify.jl` translates your query on the robustness of a neural network for some input into an MILP problem, which can then be solved by any optimizer supported by [JuMP](https://github.com/JuliaOpt/JuMP.jl). Efficient solves are enabled by tight specification of ReLU and maximum constraints and a progressive bounds tightening approach where time is spent refining bounds only if doing so could provide additional information to improve the problem formulation.
 
 The package provides
   + High-level abstractions for common types of neural network layers:
@@ -35,12 +35,12 @@ The package provides
     + Perturbations of bounded l-infty norm
     + Perturbations where the image is convolved with an adversarial blurring kernel
   + Utility functions for:
-    + Evaluating the robustness of a network on multiple samples in a dataset, with good support for pausing and resuming evaluation or running solvers with different parameters
+    + Evaluating the robustness of a network on multiple samples in a dataset, with good support for pausing and resuming evaluation or running optimizers with different parameters
   + MNIST and CIFAR10 datasets for verification
   + Sample neural networks, including the networks verified in our paper.
 
 ## Results in Brief
-Below is a modified version of Table 1 from our paper, where we report the adversarial error for classifiers to bounded perturbations with l-infinity norm-bound `eps`. For our verifier, a time limit of 120s per sample is imposed. Gaps between our bounds correspond to cases where the solver reached the time limit for some samples. Error is over the full MNIST test set of 10,000 samples.
+Below is a modified version of Table 1 from our paper, where we report the adversarial error for classifiers to bounded perturbations with l-infinity norm-bound `eps`. For our verifier, a time limit of 120s per sample is imposed. Gaps between our bounds correspond to cases where the optimizer reached the time limit for some samples. Error is over the full MNIST test set of 10,000 samples.
 
 | Dataset | Training Approach | `eps` | Lower<br>Bound<br>(PGD Error) | Lower<br>Bound<br>(ours) | Upper<br>Bound<br>(SOA)\^ | Upper<br>Bound<br>(ours)| Name in package\* |
 |---|---|---|---|---|---|---|---|

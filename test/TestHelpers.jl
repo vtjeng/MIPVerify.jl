@@ -1,8 +1,9 @@
 module TestHelpers
 
 using Test
+
 using JuMP
-using MathProgBase
+using MathOptInterface
 
 using MIPVerify
 using MIPVerify: find_adversarial_example
@@ -11,28 +12,25 @@ using MIPVerify: PerturbationFamily
 
 const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
 
-if Base.find_package("Gurobi") == nothing
+if Base.find_package("Gurobi") === nothing
     using Cbc
-    main_solver = CbcSolver(logLevel = 0)
-    tightening_solver = CbcSolver(logLevel = 0, seconds = 20)
+    optimizer = Cbc.Optimizer
+    main_solve_options = Dict("logLevel" => 0)
+    tightening_options = Dict("logLevel" => 0, "seconds" => 20)
 else
     using Gurobi
-    main_solver = GurobiSolver(Gurobi.Env())
-    tightening_solver = GurobiSolver(Gurobi.Env(), OutputFlag = 0, TimeLimit = 20)
+    env = Gurobi.Env()
+    optimizer = () -> Gurobi.Optimizer(env)
+    main_solve_options = Dict("OutputFlag" => 0)
+    tightening_options = Dict("OutputFlag" => 0, "TimeLimit" => 20)
 end
 
-function get_main_solver()::MathProgBase.SolverInterface.AbstractMathProgSolver
-    main_solver
-end
-
-function get_tightening_solver()::MathProgBase.SolverInterface.AbstractMathProgSolver
-    tightening_solver
-end
+get_optimizer() = optimizer
+get_main_solve_options()::Dict = main_solve_options
+get_tightening_options()::Dict = tightening_options
 
 function get_new_model()::Model
-    solver = get_main_solver()
-    MathProgBase.setparameters!(solver, Silent = true)
-    return Model(solver = solver)
+    return Model(optimizer_with_attributes(get_optimizer(), get_main_solve_options()...))
 end
 
 """
@@ -58,23 +56,24 @@ function test_find_adversarial_example(
         nn,
         input,
         target_selection,
-        get_main_solver(),
+        get_optimizer(),
+        get_main_solve_options(),
         pp = pp,
         norm_order = norm_order,
-        tightening_solver = get_tightening_solver(),
+        tightening_options = get_tightening_options(),
         tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
         invert_target_selection = invert_target_selection,
     )
-    if d[:SolveStatus] == :Infeasible || d[:SolveStatus] == :InfeasibleOrUnbounded
-        @test isnan(expected_objective_value)
+    if isnan(expected_objective_value)
+        @test d[:SolveStatus] == :INFEASIBLE || d[:SolveStatus] == :INFEASIBLE_OR_UNBOUNDED
     else
-        actual_objective_value = getobjectivevalue(d[:Model])
+        actual_objective_value = JuMP.objective_value(d[:Model])
         if expected_objective_value == 0
             @test isapprox(actual_objective_value, expected_objective_value; atol = 1e-4)
         else
             @test isapprox(actual_objective_value, expected_objective_value; rtol = 5e-5)
 
-            perturbed_output = getvalue(d[:PerturbedInput]) |> nn
+            perturbed_output = JuMP.value.(d[:PerturbedInput]) |> nn
             perturbed_target_output =
                 maximum(perturbed_output[Bool[i ∈ d[:TargetIndexes] for i in 1:length(d[:Output])]])
             maximum_perturbed_other_output =

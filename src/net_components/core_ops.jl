@@ -1,5 +1,6 @@
 using JuMP
 using Memento
+using MathOptInterface
 
 """
 $(SIGNATURES)
@@ -9,7 +10,8 @@ with it. This can only be true if it is an affine expression with no stored
 variables.
 """
 function is_constant(x::JuMP.AffExpr)
-    x.vars |> length == 0
+    # TODO (vtjeng): Determine whether there is a built-in function for this as of JuMP>=0.19
+    all(values(x.terms) .== 0)
 end
 
 function is_constant(x::JuMP.VariableRef)
@@ -26,7 +28,7 @@ function get_tightening_algorithm(
         return nta
     else
         # x is not constant, and thus x must have an associated model
-        model = getmodel(x)
+        model = owner_model(x)
         return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
                model.ext[:MIPVerify].tightening_algorithm
     end
@@ -35,12 +37,12 @@ end
 @enum BoundType lower_bound_type = -1 upper_bound_type = 1
 #! format: off
 bound_f = Dict(
-    lower_bound_type => lowerbound,
-    upper_bound_type => upperbound
+    lower_bound_type => lower_bound,
+    upper_bound_type => upper_bound
 )
 bound_obj = Dict(
-    lower_bound_type => :Min,
-    upper_bound_type => :Max
+    lower_bound_type => MathOptInterface.MIN_SENSE,
+    upper_bound_type => MathOptInterface.MAX_SENSE
 )
 bound_delta_f = Dict(
     lower_bound_type => (b, b_0) -> b - b_0,
@@ -74,11 +76,13 @@ function tight_bound(
     end
     relaxation = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    model = getmodel(x)
+    model = owner_model(x)
     @objective(model, bound_obj[bound_type], x)
-    status = solve(model, suppress_warnings = true, relaxation = relaxation)
-    if status == :Optimal
-        b = getobjectivevalue(model)
+    # TODO (vtjeng): Reimplement relaxation.
+    optimize!(model)
+    status = JuMP.termination_status(model)
+    if status == MathOptInterface.OPTIMAL
+        b = JuMP.objective_value(model)
         db = bound_delta_f[bound_type](b, b_0)
         Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
         if db < 0
@@ -88,12 +92,12 @@ function tight_bound(
                 "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
             )
         end
-    elseif status == :UserLimit
+    elseif status == MOI.TIME_LIMIT
         b = b_0
     else
         Memento.warn(
             MIPVerify.LOGGER,
-            "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.",
+            "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upper_bound.",
         )
         b = b_0
     end
@@ -117,7 +121,7 @@ function tight_lowerbound(
 end
 
 function log_gap(m::JuMP.Model)
-    gap = abs(1 - getobjectivebound(m) / getobjectivevalue(m))
+    gap = abs(1 - JuMP.objective_bound(m) / JuMP.objective_value(m))
     Memento.info(
         MIPVerify.LOGGER,
         "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.",
@@ -140,8 +144,8 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
             MIPVerify.LOGGER,
             "Inconsistent upper and lower bounds: u-l = $(u - l) is negative. Attempting to use interval arithmetic bounds instead ...",
         )
-        u = upperbound(x)
-        l = lowerbound(x)
+        u = upper_bound(x)
+        l = lower_bound(x)
     end
 
     if u <= 0
@@ -159,9 +163,9 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         return x
     else
         # since we know that u!=l, x is not constant, and thus x must have an associated model
-        model = getmodel(x)
+        model = owner_model(x)
         x_rect = @variable(model)
-        a = @variable(model, category = :Bin)
+        a = @variable(model, binary = true)
 
         # refined big-M formulation that takes advantage of the knowledge
         # that lower and upper bounds  are different.
@@ -171,8 +175,8 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         @constraint(model, x_rect >= 0)
 
         # Manually set the bounds for x_rect so they can be used by downstream operations.
-        setlowerbound(x_rect, 0)
-        setupperbound(x_rect, u)
+        set_lower_bound(x_rect, 0)
+        set_upper_bound(x_rect, u)
         return x_rect
     end
 end
@@ -209,7 +213,7 @@ function Base.show(io::IO, s::ReLUInfo)
 end
 
 """
-Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
+Calculates the lower_bound only if `u` is positive; otherwise, returns `u` (since we expect)
 the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
@@ -331,10 +335,10 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         return maximum_of_constants(xs)
     end
     # at least one of xs is not constant.
-    model = getmodel(xs)
+    model = owner_model(xs)
 
-    # TODO (vtjeng): [PERF] skip calculating lowerbound for index if upperbound is lower than
-    # largest current lowerbound.
+    # TODO (vtjeng): [PERF] skip calculating lower_bound for index if upper_bound is lower than
+    # largest current lower_bound.
     p1 = Progress(length(xs), desc = "  Calculating upper bounds: ")
     us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
     p2 = Progress(length(xs), desc = "  Calculating lower bounds: ")
@@ -373,14 +377,14 @@ function maximum(
         return maximum_of_constants(xs)
     end
     # at least one of xs is not constant.
-    model = getmodel(xs)
+    model = owner_model(xs)
     if length(xs) == 1
         return first(xs)
     else
         l = Base.maximum(ls)
         u = Base.maximum(us)
-        x_max = @variable(model, lowerbound = l, upperbound = u)
-        a = @variable(model, [1:length(xs)], category = :Bin)
+        x_max = @variable(model, lower_bound = l, upper_bound = u)
+        a = @variable(model, [1:length(xs)], binary = true)
         @constraint(model, sum(a) == 1)
         for (i, x) in enumerate(xs)
             umaxi = Base.maximum(us[1:end.!=i])
@@ -409,7 +413,7 @@ function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearTy
         return first(xs)
     end
     # at least one of xs is not constant.
-    model = getmodel(xs)
+    model = owner_model(xs)
     x_max = @variable(model)
     @constraint(model, x_max .>= xs)
     return x_max
@@ -426,9 +430,9 @@ function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
     if is_constant(x)
         return one(JuMP.VariableRef) * abs(x.constant)
     end
-    model = getmodel(x)
-    u = upperbound(x)
-    l = lowerbound(x)
+    model = owner_model(x)
+    u = upper_bound(x)
+    l = lower_bound(x)
     if u <= 0
         return -x
     elseif l >= 0
@@ -437,8 +441,8 @@ function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
         x_abs = @variable(model)
         @constraint(model, x_abs >= x)
         @constraint(model, x_abs >= -x)
-        setlowerbound(x_abs, 0)
-        setupperbound(x_abs, max(-l, u))
+        set_lower_bound(x_abs, 0)
+        set_upper_bound(x_abs, max(-l, u))
         return x_abs
     end
 end
@@ -461,7 +465,7 @@ function get_target_indexes(
     target_indexes::Array{<:Integer,1},
     array_length::Integer;
     invert_target_selection::Bool = false,
-)
+)::AbstractArray{<:Integer,1}
 
     @assert length(target_indexes) >= 1
     @assert all(target_indexes .>= 1) && all(target_indexes .<= array_length)
@@ -469,7 +473,10 @@ function get_target_indexes(
     invert_target_selection ? filter((x) -> x ∉ target_indexes, 1:array_length) : target_indexes
 end
 
-function get_vars_for_max_index(xs::Array{<:JuMPLinearType,1}, target_indexes::Array{<:Integer,1})
+function get_vars_for_max_index(
+    xs::Array{<:JuMPLinearType,1},
+    target_indexes::Array{<:Integer,1},
+)::Tuple{JuMPLinearType,Array{<:JuMPLinearType,1}}
 
     @assert length(xs) >= 1
 
@@ -493,9 +500,10 @@ function set_max_indexes(
     xs::Array{<:JuMPLinearType,1},
     target_indexes::Array{<:Integer,1};
     margin::Real = 0,
-)
+)::Nothing
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
-    @constraint(model, nontarget_vars - maximum_target_var .<= -margin)
+    @constraint(model, nontarget_vars .<= maximum_target_var - margin)
+    return nothing
 end

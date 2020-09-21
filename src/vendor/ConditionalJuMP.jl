@@ -1,43 +1,43 @@
 using JuMP
 using IntervalArithmetic: Interval
 
-# We vendor https://github.com/rdeits/ConditionalJuMP.jl/blob/e0c406077c0b07be76e02f72c3a7a7aa650df82f/src/ConditionalJuMP.jl
+# We vendor ConditionalJuMP (https://github.com/rdeits/ConditionalJuMP.jl/blob/e0c406077c0b07be76e02f72c3a7a7aa650df82f/src/ConditionalJuMP.jl)
 # so that we can use JuMP >= 0.2.0
 
-# https://github.com/rdeits/ConditionalJuMP.jl/blob/e0c406077c0b07be76e02f72c3a7a7aa650df82f/src/ConditionalJuMP.jl#L430-L431
-getmodel(x::JuMP.VariableRef) = x.m
-getmodel(x::JuMP.GenericAffExpr) = first(x.vars).m
-
-function getmodel(xs::AbstractArray{T}) where {T<:Union{JuMP.VariableRef,JuMP.GenericAffExpr}}
+owner_model(x::JuMP.VariableRef)::Model = JuMP.owner_model(x)
+function owner_model(x::JuMP.GenericAffExpr)::Union{Model,Nothing}
+    if length(x.terms) == 0
+        return nothing
+    end
+    return JuMP.owner_model(first(x.terms.keys))
+end
+function owner_model(
+    xs::AbstractArray{T},
+)::Model where {T<:Union{JuMP.VariableRef,JuMP.GenericAffExpr}}
     for x in xs
-        if !is_constant(x)
-            return getmodel(x)
+        m = owner_model(x)
+        if m !== nothing
+            return m
         end
     end
-    throw(DomainError("Array contains only constants, so no model can be determine"))
+    return nothing
 end
 
 interval(x::Number) = Interval(x, x)
-interval(x::JuMP.VariableRef) = Interval(JuMP.getlowerbound(x), JuMP.getupperbound(x))
+interval(x::JuMP.VariableRef) = Interval(lower_bound(x), upper_bound(x))
 function interval(e::JuMP.GenericAffExpr)
-    if isempty(e.coeffs)
-        return Interval(e.constant, e.constant)
-    else
-        result = Interval(e.constant, e.constant)
-        for i in eachindex(e.coeffs)
-            var = e.vars[i]
-            coef = e.coeffs[i]
-            result += Interval(coef, coef) * Interval(getlowerbound(var), getupperbound(var))
-        end
-        return result
+    result = Interval(e.constant, e.constant)
+    for (var, coef) in e.terms
+        result += Interval(coef, coef) * Interval(lower_bound(var), upper_bound(var))
     end
+    return result
 end
 
-lowerbound(x::Number) = x
-upperbound(x::Number) = x
-lowerbound(x::JuMP.VariableRef) = JuMP.getlowerbound(x)
-upperbound(x::JuMP.VariableRef) = JuMP.getupperbound(x)
-lowerbound(e::JuMP.GenericAffExpr) = lowerbound(interval(e))
-upperbound(e::JuMP.GenericAffExpr) = upperbound(interval(e))
-lowerbound(i::Interval) = i.lo
-upperbound(i::Interval) = i.hi
+lower_bound(x::Number) = x
+upper_bound(x::Number) = x
+lower_bound(x::JuMP.VariableRef) = JuMP.lower_bound(x)
+upper_bound(x::JuMP.VariableRef) = JuMP.upper_bound(x)
+lower_bound(e::JuMP.GenericAffExpr) = lower_bound(interval(e))
+upper_bound(e::JuMP.GenericAffExpr) = upper_bound(interval(e))
+lower_bound(i::Interval) = i.lo
+upper_bound(i::Interval) = i.hi

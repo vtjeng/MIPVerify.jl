@@ -2,6 +2,7 @@ module MIPVerify
 
 using Base.Cartesian
 using JuMP
+using MathOptInterface
 using Memento
 using DocStringExtensions
 using ProgressMeter
@@ -25,12 +26,14 @@ function get_max_index(x::Array{<:Real,1})::Integer
     return findmax(x)[2]
 end
 
-function get_default_tightening_solver(
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
-)::MathProgBase.SolverInterface.AbstractMathProgSolver
-    tightening_solver = typeof(main_solver)()
-    MathProgBase.setparameters!(tightening_solver, Silent = true, TimeLimit = 20)
-    return tightening_solver
+function get_default_tightening_options(optimizer)::Dict
+    if Base.find_package("Gurobi") != nothing && optimizer == Gurobi.optimizer
+        return Dict("OutputFlag" => 0, "TimeLimit" => 20)
+    elseif Base.find_package("Gurobi") != nothing && optimizer == Cbc.optimizer
+        return Dict("logLevel" => 0, "seconds" => 20)
+    else
+        return Dict()
+    end
 end
 
 """
@@ -40,7 +43,7 @@ Finds the perturbed image closest to `input` such that the network described by 
 classifies the perturbed image in one of the categories identified by the
 indexes in `target_selection`.
 
-`main_solver` specifies the solver used to solve the MIP problem once it has been built.
+`optimizer` specifies the optimizer used to solve the MIP problem once it has been built.
 
 The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
 :Perturbation, :PerturbedInput, :Output`.
@@ -58,16 +61,17 @@ We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for 
     the family of perturbations over which we are searching for adversarial examples.
 + `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the
     distance from the perturbed image to the original. Supported options are `1`, `Inf`
-    and `2` (if the `main_solver` used can solve MIQPs.)
+    and `2` (if the `optimizer` used can solve MIQPs.)
 + `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we
     determine the upper and lower bounds on input to each nonlinear unit.
     Allowed options are `interval_arithmetic`, `lp`, `mip`.
     (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
     (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
     (3) `mip` solves the full `mip` formulation.
-+ `tightening_solver`: Solver used to determine upper and lower bounds for input to nonlinear units.
-    Defaults to the same type of solver as the `main_solver`, with a time limit of 20s per solver
-    and output suppressed. Used only if the `tightening_algorithm` is `lp` or `mip`.
++ `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and lower bounds 
+    for input to nonlinear units.
+    Defaults to a time limit of 20s per solve, with output suppressed. Used only if the 
+    `tightening_algorithm` is `lp` or `mip`.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
     `input` can be determined efficiently. If the predicted index is one of the indexes in `target_selection`,
     we can skip the relatively costly process of building the model for the MIP problem since we already have an
@@ -78,15 +82,14 @@ function find_adversarial_example(
     nn::NeuralNet,
     input::Array{<:Real},
     target_selection::Union{Integer,Array{<:Integer,1}},
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    optimizer,
+    main_solve_options::Dict;
     invert_target_selection::Bool = false,
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     adversarial_example_objective::AdversarialExampleObjective = closest,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = get_default_tightening_solver(
-        main_solver,
-    ),
+    tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
 )::Dict
 
@@ -111,9 +114,9 @@ function find_adversarial_example(
             "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])",
         )
 
-        # Only call solver if predicted index is not found among target indexes.
+        # Only call optimizer if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
-            merge!(d, get_model(nn, input, pp, tightening_solver, tightening_algorithm))
+            merge!(d, get_model(nn, input, pp, optimizer, tightening_options, tightening_algorithm))
             m = d[:Model]
 
             if adversarial_example_objective == closest
@@ -137,14 +140,16 @@ function find_adversarial_example(
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
             end
-            setsolver(m, main_solver)
+            set_optimizer(m, optimizer)
+            set_optimizer_attributes(m, main_solve_options...)
             solve_time = @elapsed begin
-                d[:SolveStatus] = solve(m)
+                optimize!(m)
             end
+            d[:SolveStatus] = JuMP.termination_status(m)
             d[:SolveTime] = try
-                getsolvetime(m)
+                JuMP.solve_time(m)
             catch err
-                # CBC solver, used for testing, does not implement `getsolvetime`.
+                # For solvers that do not implement this
                 isa(err, MethodError) || rethrow(err)
                 solve_time
             end

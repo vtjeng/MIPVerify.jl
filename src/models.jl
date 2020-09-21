@@ -1,4 +1,3 @@
-using MathProgBase
 using Serialization
 
 """
@@ -37,14 +36,22 @@ function get_model(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::PerturbationFamily,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    optimizer,
+    tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
 )::Dict
     notice(
         MIPVerify.LOGGER,
         "Determining upper and lower bounds for the input to each non-linear unit.",
     )
-    d = build_reusable_model_uncached(nn, input, pp, tightening_solver, tightening_algorithm)
+    d = build_reusable_model_uncached(
+        nn,
+        input,
+        pp,
+        optimizer,
+        tightening_options,
+        tightening_algorithm,
+    )
     return d
 end
 
@@ -52,17 +59,18 @@ function build_reusable_model_uncached(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    optimizer,
+    tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
 )::Dict
 
-    m = Model(solver = tightening_solver)
+    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm) # TODO: consider writing as seperate function
 
     input_range = CartesianIndices(size(input))
 
     # v_x0 is the input with the perturbation added
-    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), input_range)
+    v_x0 = map(_ -> @variable(m, lower_bound = 0, upper_bound = 1), input_range)
 
     v_output = v_x0 |> nn
 
@@ -82,22 +90,23 @@ function build_reusable_model_uncached(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    optimizer,
+    tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
 )::Dict
     # For blurring perturbations, we build a new model for each input. This enables us to get
     # much better bounds.
 
-    m = Model(solver = tightening_solver)
+    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_size = size(input)
     num_channels = size(input)[4]
     filter_size = (pp.blur_kernel_size..., num_channels, num_channels)
 
-    v_f = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianIndices(filter_size))
+    v_f = map(_ -> @variable(m, lower_bound = 0, upper_bound = 1), CartesianIndices(filter_size))
     @constraint(m, sum(v_f) == num_channels)
-    v_x0 = map(_ -> @variable(m, lowerbound = 0, upperbound = 1), CartesianIndices(input_size))
+    v_x0 = map(_ -> @variable(m, lower_bound = 0, upper_bound = 1), CartesianIndices(input_size))
     @constraint(m, v_x0 .== input |> Conv2d(v_f))
 
     v_output = v_x0 |> nn
@@ -119,23 +128,26 @@ function build_reusable_model_uncached(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver,
+    optimizer,
+    tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
 )::Dict
 
-    m = Model(solver = tightening_solver)
+    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
 
     input_range = CartesianIndices(size(input))
     # v_e is the perturbation added
-    v_e =
-        map(_ -> @variable(m, lowerbound = -pp.norm_bound, upperbound = pp.norm_bound), input_range)
+    v_e = map(
+        _ -> @variable(m, lower_bound = -pp.norm_bound, upper_bound = pp.norm_bound),
+        input_range,
+    )
     # v_x0 is the input with the perturbation added
     v_x0 = map(
         i -> @variable(
             m,
-            lowerbound = max(0, input[i] - pp.norm_bound),
-            upperbound = min(1, input[i] + pp.norm_bound)
+            lower_bound = max(0, input[i] - pp.norm_bound),
+            upper_bound = min(1, input[i] + pp.norm_bound)
         ),
         input_range,
     )
