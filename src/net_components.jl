@@ -1,5 +1,4 @@
 using JuMP
-using AutoHashEquals
 
 export Layer, NeuralNet
 
