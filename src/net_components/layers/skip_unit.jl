@@ -8,7 +8,7 @@ TODO (vtjeng)
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct SkipBlock <: Layer
+struct SkipBlock <: Layer
     layers::Array{<:Layer}
 end
 

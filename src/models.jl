@@ -1,4 +1,3 @@
-using AutoHashEquals
 using MathProgBase
 using Serialization
 
@@ -9,7 +8,6 @@ abstract type PerturbationFamily end
 
 struct UnrestrictedPerturbationFamily <: PerturbationFamily end
 Base.show(io::IO, pp::UnrestrictedPerturbationFamily) = print(io, "unrestricted")
-Base.hash(a::UnrestrictedPerturbationFamily, h::UInt) = hash(:UnrestrictedPerturbationFamily, h)
 
 abstract type RestrictedPerturbationFamily <: PerturbationFamily end
 
@@ -18,13 +16,13 @@ For blurring perturbations, we currently allow colors to "bleed" across color ch
 that is, the value of the output of channel 1 can depend on the input to all channels.
 (This is something that is worth reconsidering if we are working on color input).
 """
-@auto_hash_equals struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
+struct BlurringPerturbationFamily <: RestrictedPerturbationFamily
     blur_kernel_size::NTuple{2}
 end
 Base.show(io::IO, pp::BlurringPerturbationFamily) =
     print(io, filter(x -> !isspace(x), "blur-$(pp.blur_kernel_size)"))
 
-@auto_hash_equals struct LInfNormBoundedPerturbationFamily <: RestrictedPerturbationFamily
+struct LInfNormBoundedPerturbationFamily <: RestrictedPerturbationFamily
     norm_bound::Real
 
     function LInfNormBoundedPerturbationFamily(norm_bound::Real)

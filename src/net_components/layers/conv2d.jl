@@ -23,7 +23,7 @@ Represents 2-D convolution operation.
 ## Fields:
 $(FIELDS)
 """
-@auto_hash_equals struct Conv2d{T<:JuMPReal,U<:JuMPReal,V<:Int64} <: Layer
+struct Conv2d{T<:JuMPReal,U<:JuMPReal,V<:Int64} <: Layer
     filter::Array{T,4}
     bias::Array{U,1}
     stride::V

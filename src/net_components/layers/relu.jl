@@ -14,8 +14,6 @@ end
 
 ReLU() = ReLU(nothing)
 
-Base.hash(a::ReLU, h::UInt) = hash(:ReLU, h)
-
 function Base.show(io::IO, p::ReLU)
     print(io, "ReLU()")
 end
