@@ -13,11 +13,11 @@ using DataFrames
     mnist = read_datasets("MNIST")
 
     @testset "BatchRunParameters" begin
-        brp = BatchRunParameters(Sequential([], "name"), UnrestrictedPerturbationFamily(), 1, 0)
+        brp = BatchRunParameters(Sequential([], "name"), UnrestrictedPerturbationFamily(), 1)
         @testset "Base.show" begin
             io = IOBuffer()
             Base.show(io, brp)
-            @test String(take!(io)) == "name__unrestricted__1__0"
+            @test String(take!(io)) == "name__unrestricted__1"
         end
     end
 

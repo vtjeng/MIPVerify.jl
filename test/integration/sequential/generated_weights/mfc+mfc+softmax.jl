@@ -42,11 +42,11 @@ using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFami
 
     @testset "Basic integration test for MaskedReLU layer." begin
         test_cases = [
-            ((1, pp_unrestricted, Inf, 0), 0.08112308),
-            ((2, pp_unrestricted, Inf, 0), 0.3622567),
-            ((3, pp_unrestricted, Inf, 0), 0),
-            ((1, LInfNormBoundedPerturbationFamily(0.08), Inf, 0), NaN),
-            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf, 0) => 0.08112308),
+            ((1, pp_unrestricted, Inf), 0.08112308),
+            ((2, pp_unrestricted, Inf), 0.3622567),
+            ((3, pp_unrestricted, Inf), 0),
+            ((1, LInfNormBoundedPerturbationFamily(0.08), Inf), NaN),
+            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf) => 0.08112308),
         ]
 
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
