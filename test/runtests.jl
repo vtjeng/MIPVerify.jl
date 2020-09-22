@@ -20,7 +20,7 @@ end
 
 @testset "MIPVerify" begin
     reset_timer!()
-    set_log_level!("info")
+    set_log_level!("warn")
 
     include("integration.jl")
     include("net_components.jl")
