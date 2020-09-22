@@ -6,7 +6,7 @@
 To use our package, you require
 
    1. The Julia programming language
-   2. An optimizer [supported](http://www.juliaopt.org/JuMP.jl/0.18/installation.html#getting-solvers) by `JuMP`
+   2. An optimizer [supported](https://jump.dev/JuMP.jl/stable/installation/#Getting-Solvers-1) by `JuMP`
    3. The Julia package for working with that optimizer
    
 Our choice of optimizer is [Gurobi](http://www.gurobi.com/), but any supported optimizer will work.
