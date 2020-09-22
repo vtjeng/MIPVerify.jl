@@ -74,11 +74,13 @@ function tight_bound(
        bound_operator[bound_type](b_0, cutoff)
         return b_0
     end
-    relaxation = (tightening_algorithm == lp)
+    should_relax_binary_variables = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
     model = owner_model(x)
     @objective(model, bound_obj[bound_type], x)
-    # TODO (vtjeng): Reimplement relaxation.
+    if should_relax_binary_variables
+        undo_relax = relax_integrality(model)
+    end
     optimize!(model)
     status = JuMP.termination_status(model)
     if status == MathOptInterface.OPTIMAL
@@ -100,6 +102,10 @@ function tight_bound(
             "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upper_bound.",
         )
         b = b_0
+    end
+    if should_relax_binary_variables
+        # note that no further changes should be made to the affected variables in the meantime
+        undo_relax()
     end
     return b
 end
