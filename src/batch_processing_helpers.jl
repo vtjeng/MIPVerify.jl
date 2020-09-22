@@ -156,9 +156,10 @@ function save_to_disk(
         results_file_uuid = get_uuid()
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
         results_file_path = joinpath(main_path, results_file_relative_path)
-
-        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
         summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
+
+        r[:SolveStatus] = string(r[:SolveStatus])
+        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
     else
         summary_line = generate_csv_summary_line_optimal(sample_number, d)
     end
