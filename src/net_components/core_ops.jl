@@ -54,6 +54,18 @@ bound_operator = Dict(
 )
 #! format: on
 
+function optimize_context(f, objective::JuMP.GenericAffExpr)
+    model = owner_model(objective)
+    auxilliary_objective = @variable(model)
+    @constraint(model, auxilliary_objective == objective)
+    return f(auxilliary_objective)
+    delete(model, auxilliary_objective)
+end
+
+function optimize_context(f, objective::JuMP.VariableRef)
+    return f(objective)
+end
+
 function relax_integrality_context(f, model::Model, should_relax_integrality::Bool)
     if should_relax_integrality
         undo_relax = relax_integrality(model)
@@ -113,10 +125,12 @@ function tight_bound(
     end
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    model = owner_model(x)
-    @objective(model, bound_obj[bound_type], x)
-    bound_value = relax_integrality_context(model, should_relax_integrality) do m
-        tight_bound_helper(m, b_0, bound_type)
+    bound_value = optimize_context(x) do objective
+        model = owner_model(objective)
+        @objective(model, bound_obj[bound_type], objective)
+        return relax_integrality_context(model, should_relax_integrality) do m
+            tight_bound_helper(m, b_0, bound_type)
+        end
     end
 
     return bound_value
