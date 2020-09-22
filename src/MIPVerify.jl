@@ -16,7 +16,9 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
-include("vendor/ConditionalJuMP.jl")  # this needs to be imported first, as the remaining packages rely on it
+# we believe that vendor/ConditionalJuMP needs to be imported first, as the remaining files rely on
+# it, but have not tested the hypothesis.
+include("vendor/ConditionalJuMP.jl")
 include("net_components.jl")
 include("models.jl")
 include("utils.jl")
@@ -27,9 +29,9 @@ function get_max_index(x::Array{<:Real,1})::Integer
 end
 
 function get_default_tightening_options(optimizer)::Dict
-    if Base.find_package("Gurobi") != nothing && optimizer == Gurobi.optimizer
+    if Base.find_package("Gurobi") !== nothing && optimizer == Gurobi.Optimizer
         return Dict("OutputFlag" => 0, "TimeLimit" => 20)
-    elseif Base.find_package("Gurobi") != nothing && optimizer == Cbc.optimizer
+    elseif Base.find_package("Cbc") !== nothing && optimizer == Cbc.Optimizer
         return Dict("logLevel" => 0, "seconds" => 20)
     else
         return Dict()
@@ -52,7 +54,8 @@ on what individual dictionary entries correspond to.
 
 *Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector
 `y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`.
-We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
+We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all 
+`i ∉ target_selection`.
 
 # Named Arguments:
 + `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to
@@ -66,17 +69,19 @@ We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for 
     determine the upper and lower bounds on input to each nonlinear unit.
     Allowed options are `interval_arithmetic`, `lp`, `mip`.
     (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
-    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints relaxed.
+    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints
+         relaxed.
     (3) `mip` solves the full `mip` formulation.
-+ `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and lower bounds 
-    for input to nonlinear units.
-    Defaults to a time limit of 20s per solve, with output suppressed. Used only if the 
-    `tightening_algorithm` is `lp` or `mip`.
-+ `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the unperturbed
-    `input` can be determined efficiently. If the predicted index is one of the indexes in `target_selection`,
-    we can skip the relatively costly process of building the model for the MIP problem since we already have an
-    "adversarial example" --- namely, the input itself. We continue build the model and solve the (trivial) MIP
-    problem if and only if `solve_if_predicted_in_targeted` is `true`.
++ `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and
+    lower bounds for input to nonlinear units. Note that these are only used if the 
+    `tightening_algorithm` is `lp` or `mip` (no solver is used when `interval_arithmetic` is used
+    to compute the bounds). Defaults to a time limit of 20s per solve, with output suppressed.
++ `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the 
+    unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes 
+    in `target_selection`, we can skip the relatively costly process of building the model for the 
+    MIP problem since we already have an "adversarial example" --- namely, the input itself. We 
+    continue build the model and solve the (trivial) MIP problem if and only if 
+    `solve_if_predicted_in_targeted` is `true`.
 """
 function find_adversarial_example(
     nn::NeuralNet,
@@ -123,17 +128,18 @@ function find_adversarial_example(
                 set_max_indexes(m, d[:Output], d[:TargetIndexes])
 
                 # Set perturbation objective
-                # NOTE (vtjeng): It is important to set the objective immediately before we carry out
-                # the solve. Functions like `set_max_indexes` can modify the objective.
+                # NOTE (vtjeng): It is important to set the objective immediately before we carry
+                # out the solve. Functions like `set_max_indexes` can modify the objective.
                 @objective(m, Min, get_norm(norm_order, d[:Perturbation]))
             elseif adversarial_example_objective == worst
                 (maximum_target_var, nontarget_vars) =
                     get_vars_for_max_index(d[:Output], d[:TargetIndexes])
                 maximum_nontarget_var = maximum_ge(nontarget_vars)
                 # Introduce an additional variable since Gurobi ignores constant terms in objective, 
-                # but we explicitly need these if we want to stop early based on the value of the objective
-                # (not simply whether or not it is maximized).
-                # See discussion in https://github.com/jump-dev/Gurobi.jl/issues/111 for more details.
+                # but we explicitly need these if we want to stop early based on the value of the 
+                # objective (not simply whether or not it is maximized).
+                # See discussion in https://github.com/jump-dev/Gurobi.jl/issues/111 for more 
+                # details.
                 v_obj = @variable(m)
                 @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
                 @objective(m, Max, v_obj)
