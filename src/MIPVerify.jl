@@ -148,17 +148,9 @@ function find_adversarial_example(
             end
             set_optimizer(m, optimizer)
             set_optimizer_attributes(m, main_solve_options...)
-            solve_time = @elapsed begin
-                optimize!(m)
-            end
+            optimize!(m)
             d[:SolveStatus] = JuMP.termination_status(m)
-            d[:SolveTime] = try
-                JuMP.solve_time(m)
-            catch err
-                # For solvers that do not implement this
-                isa(err, MethodError) || rethrow(err)
-                solve_time
-            end
+            d[:SolveTime] = JuMP.solve_time(m)
         end
     end
 
