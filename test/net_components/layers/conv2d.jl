@@ -1,7 +1,7 @@
 using Test
 using JuMP
 using MIPVerify
-using MIPVerify: check_size, increment!
+using MIPVerify: check_size
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 function test_convolution_layer(
@@ -142,27 +142,6 @@ end
             p = Conv2d(filter)
             @test check_size(p, (3, 3, 2, 5)) === nothing
             @test_throws AssertionError check_size(p, (3, 3, 2, 4))
-        end
-    end
-
-    @testset "increment!" begin
-        @testset "Real * Real" begin
-            @test 7 == increment!(1, 2, 3)
-        end
-        @testset "JuMP.AffExpr * Real" begin
-            m = TestHelpers.get_new_model()
-            x = @variable(m, start = 100)
-            y = @variable(m, start = 1)
-            s = 5 * x + 3 * y
-            t = 3 * x + 2 * y
-            increment!(s, 2, t)
-            @test JuMP.value(s) == 1107
-            increment!(s, t, -1)
-            @test JuMP.value(s) == 805
-            increment!(s, x, 3)
-            @test JuMP.value(s) == 1105
-            increment!(s, y, 2)
-            @test JuMP.value(s) == 1107
         end
     end
 

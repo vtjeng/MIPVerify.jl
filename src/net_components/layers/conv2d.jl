@@ -93,25 +93,14 @@ function Base.show(io::IO, p::Conv2d)
     )
 end
 
-function increment!(s::Real, input_val::Real, filter_val::Real)
+# TODO (vtjeng): Figure out how to actually mutate the underlying value of s
+# OR avoid all this confusion
+function add_to_expression!(s::Real, input_val::Real, filter_val::Real)
     return s + input_val * filter_val
 end
 
-# TODO (vtjeng): Directly pipe through to add_to_Expression
-function increment!(s::JuMP.AffExpr, input_val::JuMP.AffExpr, filter_val::Real)
-    add_to_expression!(s, input_val * filter_val)
-end
-
-function increment!(s::JuMP.AffExpr, input_val::JuMP.VariableRef, filter_val::Real)
-    add_to_expression!(s, Float64(filter_val), input_val)
-end
-
-function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.AffExpr)
-    add_to_expression!(s, filter_val * input_val)
-end
-
-function increment!(s::JuMP.AffExpr, input_val::Real, filter_val::JuMP.VariableRef)
-    add_to_expression!(s, Float64(input_val), filter_val)
+function add_to_expression!(s::JuMP.GenericAffExpr, input_val, filter_val)
+    return JuMP.add_to_expression!(s, input_val, filter_val)
 end
 
 function compute_output_parameters(
@@ -233,7 +222,7 @@ function conv2d(input::Array{T,4}, params::Conv2d{U,V}) where {T<:JuMPReal,U<:Ju
                     # Doing bounds check to make sure that we stay within bounds
                     # for input. This effectively zero-pads the input.
                     # TODO (vtjeng): Use default checkbounds function here instead?
-                    s = increment!(s, input[i_1, x, y, j_3], filter[j_1, j_2, j_3, j_4])
+                    s = add_to_expression!(s, input[i_1, x, y, j_3], filter[j_1, j_2, j_3, j_4])
                 end
             end
         end
