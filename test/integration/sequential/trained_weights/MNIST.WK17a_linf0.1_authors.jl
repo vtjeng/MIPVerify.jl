@@ -21,7 +21,6 @@ using MIPVerify: get_example_network_params, read_datasets, get_image, get_label
                 label + 1,
                 LInfNormBoundedPerturbationFamily(0.1),
                 Inf,
-                0,
                 expected_objective_value,
                 invert_target_selection = true,
             )
