@@ -58,7 +58,7 @@ end
                 optimize!(m)
                 @test JuMP.objective_value(m) ≈ 6
 
-                if Base.find_package("Gurobi") != nothing
+                if Base.find_package("Gurobi") !== nothing
                     # Skip these tests if Gurobi is not installed.
                     # Cbc does not solve problems with quadratic objectives
                     @objective(m, Min, n_2)
