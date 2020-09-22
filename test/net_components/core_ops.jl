@@ -52,7 +52,7 @@ end
         x1 = one(JuMP.VariableRef) * 1
         x2 = one(JuMP.VariableRef) * 2
         @test MIPVerify.owner_model([x1, y1]) == m
-        @test_throws DomainError MIPVerify.owner_model([x1, x2])
+        @test_throws MethodError MIPVerify.owner_model([x1, x2])
     end
 
     @testset "get_tightening_algorithm" begin
@@ -562,7 +562,7 @@ end
                     @objective(m, Min, x2)
                     optimize!(m)
                     solve_status = JuMP.termination_status(m)
-                    @test solve_status == MOI.INFEASIBLE
+                    @test solve_status == MathOptInterface.INFEASIBLE
                 end
                 @testset "selected variable has constant value, and can take the maximum value" begin
                     m = TestHelpers.get_new_model()
@@ -581,7 +581,7 @@ end
                     @objective(m, Min, x2)
                     optimize!(m)
                     solve_status = JuMP.termination_status(m)
-                    @test solve_status == MOI.INFEASIBLE
+                    @test solve_status == MathOptInterface.INFEASIBLE
                 end
             end
         end

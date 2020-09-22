@@ -65,7 +65,8 @@ function test_find_adversarial_example(
         invert_target_selection = invert_target_selection,
     )
     if isnan(expected_objective_value)
-        @test d[:SolveStatus] == :INFEASIBLE || d[:SolveStatus] == :INFEASIBLE_OR_UNBOUNDED
+        @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||
+              d[:SolveStatus] == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
     else
         actual_objective_value = JuMP.objective_value(d[:Model])
         if expected_objective_value == 0

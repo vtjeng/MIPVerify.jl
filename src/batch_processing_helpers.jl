@@ -1,6 +1,6 @@
 export batch_find_untargeted_attack
 
-using DelimitedFiles, Dates, DataFrames, CSV
+using DelimitedFiles, Dates, DataFrames, CSV, MathOptInterface
 
 @enum SolveRerunOption never = 1 always = 2 resolve_ambiguous_cases = 3 refine_insecure_cases = 4 retarget_infeasible_cases =
     5
@@ -24,7 +24,7 @@ function extract_results_for_save(d::Dict)::Dict
     m = d[:Model]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
-    r[:ObjectiveBound] = getobjbound(m)
+    r[:ObjectiveBound] = JuMP.objective_bound(m)
     r[:ObjectiveValue] = JuMP.objective_value(m)
     r[:TargetIndexes] = d[:TargetIndexes]
     r[:SolveStatus] = d[:SolveStatus]
@@ -38,8 +38,8 @@ function extract_results_for_save(d::Dict)::Dict
     return r
 end
 
-function is_infeasible(s::Symbol)::Bool
-    s == :INFEASIBLE || s == :INFEASIBLE_OR_UNBOUNDED
+function is_infeasible(s::MathOptInterface.TerminationStatusCode)::Bool
+    s == MathOptInterface.INFEASIBLE || s == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
 end
 
 function get_uuid()::String
@@ -74,7 +74,7 @@ function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
         d[:PredictedIndex],
         d[:TargetIndexes],
         0,
-        :OPTIMAL,
+        MathOptInterface.OPTIMAL,
         false,
         0,
         0,

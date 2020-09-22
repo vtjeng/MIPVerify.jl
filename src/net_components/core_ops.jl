@@ -92,7 +92,7 @@ function tight_bound(
                 "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
             )
         end
-    elseif status == MOI.TIME_LIMIT
+    elseif status == MathOptInterface.TIME_LIMIT
         b = b_0
     else
         Memento.warn(
