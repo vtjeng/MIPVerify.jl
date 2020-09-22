@@ -39,34 +39,29 @@ function get_model(
     optimizer,
     tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
-)::Dict
+)::Dict{Symbol,Any}
     notice(
         MIPVerify.LOGGER,
         "Determining upper and lower bounds for the input to each non-linear unit.",
     )
-    d = build_reusable_model_uncached(
-        nn,
-        input,
-        pp,
-        optimizer,
-        tightening_options,
-        tightening_algorithm,
+    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+
+    d_common = Dict(
+        :Model => m,
+        :PerturbationFamily => pp,
+        :TighteningApproach => string(tightening_algorithm),
     )
-    return d
+
+    return merge(d_common, get_perturbation_specific_keys(nn, input, pp, m))
 end
 
-function build_reusable_model_uncached(
+function get_perturbation_specific_keys(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::UnrestrictedPerturbationFamily,
-    optimizer,
-    tightening_options::Dict,
-    tightening_algorithm::TighteningAlgorithm,
-)::Dict
-
-    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm) # TODO: consider writing as seperate function
-
+    m::Model,
+)::Dict{Symbol,Any}
     input_range = CartesianIndices(size(input))
 
     # v_x0 is the input with the perturbation added
@@ -74,31 +69,15 @@ function build_reusable_model_uncached(
 
     v_output = v_x0 |> nn
 
-    d = Dict(
-        :Model => m,
-        :PerturbedInput => v_x0,
-        :Perturbation => v_x0 - input,
-        :Output => v_output,
-        :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm),
-    )
-
-    return d
+    return Dict(:PerturbedInput => v_x0, :Perturbation => v_x0 - input, :Output => v_output)
 end
 
-function build_reusable_model_uncached(
+function get_perturbation_specific_keys(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::BlurringPerturbationFamily,
-    optimizer,
-    tightening_options::Dict,
-    tightening_algorithm::TighteningAlgorithm,
-)::Dict
-    # For blurring perturbations, we build a new model for each input. This enables us to get
-    # much better bounds.
-
-    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m::Model,
+)::Dict{Symbol,Any}
 
     input_size = size(input)
     num_channels = size(input)[4]
@@ -111,30 +90,20 @@ function build_reusable_model_uncached(
 
     v_output = v_x0 |> nn
 
-    d = Dict(
-        :Model => m,
+    return Dict(
         :PerturbedInput => v_x0,
         :Perturbation => v_x0 - input,
         :Output => v_output,
         :BlurKernel => v_f,
-        :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm),
     )
-
-    return d
 end
 
-function build_reusable_model_uncached(
+function get_perturbation_specific_keys(
     nn::NeuralNet,
     input::Array{<:Real},
     pp::LInfNormBoundedPerturbationFamily,
-    optimizer,
-    tightening_options::Dict,
-    tightening_algorithm::TighteningAlgorithm,
-)::Dict
-
-    m = Model(optimizer_with_attributes(optimizer, tightening_options...))
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m::Model,
+)::Dict{Symbol,Any}
 
     input_range = CartesianIndices(size(input))
     # v_e is the perturbation added
@@ -155,16 +124,7 @@ function build_reusable_model_uncached(
 
     v_output = v_x0 |> nn
 
-    d = Dict(
-        :Model => m,
-        :PerturbedInput => v_x0,
-        :Perturbation => v_e,
-        :Output => v_output,
-        :PerturbationFamily => pp,
-        :TighteningApproach => string(tightening_algorithm),
-    )
-
-    return d
+    return Dict(:PerturbedInput => v_x0, :Perturbation => v_e, :Output => v_output)
 end
 
 struct MIPVerifyExt
