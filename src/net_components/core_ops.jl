@@ -54,6 +54,43 @@ bound_operator = Dict(
 )
 #! format: on
 
+function relax_integrality_context(f, model::Model, should_relax_integrality::Bool)
+    if should_relax_integrality
+        undo_relax = relax_integrality(model)
+    end
+    r = f(model)
+    if should_relax_integrality
+        undo_relax()
+    end
+    return r
+end
+
+function tight_bound_helper(m::Model, b_0::Number, bound_type::BoundType)
+    optimize!(m)
+    status = JuMP.termination_status(m)
+    if status == MathOptInterface.OPTIMAL
+        b = JuMP.objective_value(m)
+        db = bound_delta_f[bound_type](b, b_0)
+        Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
+        if db < 0
+            b = b_0
+            Memento.info(
+                MIPVerify.LOGGER,
+                "Tightening via interval_arithmetic gives a better result; using best bound found.",
+            )
+        end
+        return b
+    elseif status == MathOptInterface.TIME_LIMIT
+        return b_0
+    else
+        Memento.warn(
+            MIPVerify.LOGGER,
+            "Unexpected solve status $(status); using interval_arithmetic to obtain bound.",
+        )
+        return b_0
+    end
+end
+
 """
 Calculates a tight bound of type `bound_type` on the variable `x` using the specified
 tightening algorithm `nta`.
@@ -74,40 +111,15 @@ function tight_bound(
        bound_operator[bound_type](b_0, cutoff)
         return b_0
     end
-    should_relax_binary_variables = (tightening_algorithm == lp)
+    should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
     model = owner_model(x)
     @objective(model, bound_obj[bound_type], x)
-    if should_relax_binary_variables
-        undo_relax = relax_integrality(model)
+    bound_value = relax_integrality_context(model, should_relax_integrality) do m
+        tight_bound_helper(m, b_0, bound_type)
     end
-    optimize!(model)
-    status = JuMP.termination_status(model)
-    if status == MathOptInterface.OPTIMAL
-        b = JuMP.objective_value(model)
-        db = bound_delta_f[bound_type](b, b_0)
-        Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
-        if db < 0
-            b = b_0
-            Memento.info(
-                MIPVerify.LOGGER,
-                "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
-            )
-        end
-    elseif status == MathOptInterface.TIME_LIMIT
-        b = b_0
-    else
-        Memento.warn(
-            MIPVerify.LOGGER,
-            "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upper_bound.",
-        )
-        b = b_0
-    end
-    if should_relax_binary_variables
-        # note that no further changes should be made to the affected variables in the meantime
-        undo_relax()
-    end
-    return b
+
+    return bound_value
 end
 
 function tight_upperbound(
