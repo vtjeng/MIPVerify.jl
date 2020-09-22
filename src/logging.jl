@@ -9,10 +9,10 @@ const LOGGER = getlogger(@__MODULE__)
 # registered at runtime.
 __init__() = Memento.register(LOGGER)
 
-function setloglevel!(level::String)
+function set_log_level!(level::String)
     # Options correspond to Memento.jl's levels.
     # https://invenia.github.io/Memento.jl/latest/man/intro.html#Logging-levels-1
     Memento.config!(level; recursive = true)
 end
 
-setloglevel!("notice")
+set_log_level!("notice")

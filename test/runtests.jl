@@ -1,5 +1,5 @@
 using Test
-using MIPVerify: setloglevel!
+using MIPVerify: set_log_level!
 using MIPVerify: get_max_index, get_norm
 using JuMP
 using TimerOutputs
@@ -19,7 +19,7 @@ end
 
 @testset "MIPVerify" begin
     reset_timer!()
-    setloglevel!("info")
+    set_log_level!("info")
 
     include("integration.jl")
     include("net_components.jl")
