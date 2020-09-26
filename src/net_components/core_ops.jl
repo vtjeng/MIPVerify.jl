@@ -91,8 +91,12 @@ function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLine
     if status == MathOptInterface.OPTIMAL
         b = JuMP.objective_value(m)
         db = bound_delta_f[bound_type](b, b_0)
-        if db < 0
-            Memento.error("Tightening via interval arithmetic should not give a better result than an optimal optimization.")
+        if db < -1e-8
+            Memento.warn(MIPVerify.LOGGER, "Δb = $(db)")
+            Memento.error(
+                MIPVerify.LOGGER,
+                "Δb = $(db). Tightening via interval arithmetic should not give a better result than an optimal optimization.",
+            )
         end
         return b
     elseif status == MathOptInterface.TIME_LIMIT
