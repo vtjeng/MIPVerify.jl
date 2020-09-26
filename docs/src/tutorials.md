@@ -14,7 +14,7 @@ We suggest getting started with the tutorials.
   + Have more precise control over the activations in the output layer
   + Restrict the family of perturbations (for example to the blurring perturbations discussed in our paper)
   + Select whether you want to minimize the $L_1$, $L_2$ or $L_\infty$ norm of the perturbation.
-  + Modify the amount of time dedicated to building the model (by selecting the `tightening_algorithm`, and/or passing in a custom `tightening_options`).
+  + Modify the amount of time dedicated to building the model (by selecting the `tightening_algorithm`, and/or passing in custom `tightening_options`).
 
 For Gurobi, we show how to specify optimizer settings to:
   + Mute output

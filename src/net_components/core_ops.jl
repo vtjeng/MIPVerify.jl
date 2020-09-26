@@ -54,18 +54,35 @@ bound_operator = Dict(
 )
 #! format: on
 
+"""
+$(SIGNATURES)
+
+Context manager for optimizing over `objective` where the _value_ of the objective bound
+is important if the optimization encounters a `TIME_LIMIT`. This is necessary as the 
+objective bound returned by JuMP for an affine expression ignores the value of the 
+constant term. See https://github.com/jump-dev/Gurobi.jl/issues/111 for more.
+"""
 function optimize_context(f, objective::JuMP.GenericAffExpr)
+    # TODO (vtjeng): Add test to verify that the auxilliary objective is removed from the
+    # model when exiting from this context manager.
     model = owner_model(objective)
     auxilliary_objective = @variable(model)
     @constraint(model, auxilliary_objective == objective)
-    return f(auxilliary_objective)
+    r = f(auxilliary_objective)
     delete(model, auxilliary_objective)
+    return r
 end
 
 function optimize_context(f, objective::JuMP.VariableRef)
     return f(objective)
 end
 
+"""
+$(SIGNATURES)
+
+Context manager for running `f` on `model`. If `should_relax_integrality` is true, the 
+integrality constraints are relaxed before `f` is run and re-imposed after.
+"""
 function relax_integrality_context(f, model::Model, should_relax_integrality::Bool)
     if should_relax_integrality
         undo_relax = relax_integrality(model)

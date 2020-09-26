@@ -16,8 +16,8 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
-# we believe that vendor/ConditionalJuMP needs to be imported first, as the remaining files rely on
-# it, but have not tested the hypothesis.
+# importing vendor/ConditionalJuMP.jl first as the remaining files use functions
+# defined in it. we're unsure if this is necessary.
 include("vendor/ConditionalJuMP.jl")
 include("net_components.jl")
 include("models.jl")
@@ -76,7 +76,8 @@ We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for 
 + `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and
     lower bounds for input to nonlinear units. Note that these are only used if the 
     `tightening_algorithm` is `lp` or `mip` (no solver is used when `interval_arithmetic` is used
-    to compute the bounds). Defaults to a time limit of 20s per solve, with output suppressed.
+    to compute the bounds). Defaults for Gurobi and Cbc to a time limit of 20s per solve, 
+    with output suppressed.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the 
     unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes 
     in `target_selection`, we can skip the relatively costly process of building the model for the 
