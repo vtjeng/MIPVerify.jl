@@ -1,6 +1,6 @@
 export batch_find_untargeted_attack
 
-using DelimitedFiles, Dates, DataFrames, CSV
+using DelimitedFiles, Dates, DataFrames, CSV, MathOptInterface
 
 @enum SolveRerunOption never = 1 always = 2 resolve_ambiguous_cases = 3 refine_insecure_cases = 4 retarget_infeasible_cases =
     5
@@ -24,22 +24,25 @@ function extract_results_for_save(d::Dict)::Dict
     m = d[:Model]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
-    r[:ObjectiveBound] = getobjbound(m)
-    r[:ObjectiveValue] = getobjectivevalue(m)
+    if !is_infeasible(d[:SolveStatus])
+        r[:ObjectiveBound] = JuMP.objective_bound(m)
+        r[:ObjectiveValue] = JuMP.objective_value(m)
+        r[:PerturbationValue] = d[:Perturbation] .|> JuMP.value
+        r[:PerturbedInputValue] = d[:PerturbedInput] .|> JuMP.value
+    else
+        r[:ObjectiveBound] = NaN
+        r[:ObjectiveValue] = NaN
+    end
     r[:TargetIndexes] = d[:TargetIndexes]
     r[:SolveStatus] = d[:SolveStatus]
     r[:PredictedIndex] = d[:PredictedIndex]
     r[:TighteningApproach] = d[:TighteningApproach]
     r[:TotalTime] = d[:TotalTime]
-    if !isnan(r[:ObjectiveValue])
-        r[:PerturbationValue] = d[:Perturbation] |> getvalue
-        r[:PerturbedInputValue] = d[:PerturbedInput] |> getvalue
-    end
     return r
 end
 
-function is_infeasible(s::Symbol)::Bool
-    s == :Infeasible || s == :InfeasibleOrUnbounded
+function is_infeasible(s::MathOptInterface.TerminationStatusCode)::Bool
+    s == MathOptInterface.INFEASIBLE || s == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
 end
 
 function get_uuid()::String
@@ -74,7 +77,7 @@ function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
         d[:PredictedIndex],
         d[:TargetIndexes],
         0,
-        :Optimal,
+        MathOptInterface.OPTIMAL,
         false,
         0,
         0,
@@ -153,9 +156,10 @@ function save_to_disk(
         results_file_uuid = get_uuid()
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
         results_file_path = joinpath(main_path, results_file_relative_path)
-
-        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
         summary_line = generate_csv_summary_line(sample_number, results_file_relative_path, r)
+
+        r[:SolveStatus] = string(r[:SolveStatus])
+        matwrite(results_file_path, Dict(ascii(string(k)) => v for (k, v) in r))
     else
         summary_line = generate_csv_summary_line_optimal(sample_number, d)
     end
@@ -203,11 +207,11 @@ function run_on_sample_for_untargeted_attack(
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
+        return (last_solve_status == "TIME_LIMIT") && (last_objective_value |> isnan)
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
-        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
+        return !(last_solve_status == "OPTIMAL") && !(last_objective_value |> isnan)
     else
         throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
@@ -236,11 +240,13 @@ If the summary file already contains a result for a given target index, the
 `solve_rerun_option` determines whether we rerun [`find_adversarial_example`](@ref) for this
 particular index.
 
-`main_solver` specifies the solver used to solve the MIP problem once it has been built.
+`optimizer` specifies the optimizer used to solve the MIP problem once it has been built
+and `main_solve_options` specifies the options that will be passed to the optimizer for the 
+main solve.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, tightening_algorithm, tightening_solver,
++ `pp, norm_order, tightening_algorithm, tightening_options,
   solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
@@ -252,15 +258,14 @@ function batch_find_untargeted_attack(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
     target_indices::AbstractArray{<:Integer},
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    optimizer,
+    main_solve_options::Dict;
     save_path::String = ".",
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
-        main_solver,
-    ),
+    tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
 )::Nothing
@@ -280,12 +285,13 @@ function batch_find_untargeted_attack(
                 nn,
                 input,
                 true_one_indexed_label,
-                main_solver,
+                optimizer,
+                main_solve_options,
                 invert_target_selection = true,
                 pp = pp,
                 norm_order = norm_order,
                 tightening_algorithm = tightening_algorithm,
-                tightening_solver = tightening_solver,
+                tightening_options = tightening_options,
                 solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 adversarial_example_objective = adversarial_example_objective,
             )
@@ -334,15 +340,15 @@ function run_on_sample_for_targeted_attack(
         return true
     elseif solve_rerun_option == MIPVerify.retarget_infeasible_cases
         last_solve_status = previous_solves[end, :SolveStatus]
-        return (last_solve_status == "Infeasible")
+        return (last_solve_status == "INFEASIBLE")
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "UserLimit") && (last_objective_value |> isnan)
+        return (last_solve_status == "TIME_LIMIT") && (last_objective_value |> isnan)
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
         last_solve_status = previous_solves[end, :SolveStatus]
         last_objective_value = previous_solves[end, :ObjectiveValue]
-        return !(last_solve_status == "Optimal") && !(last_objective_value |> isnan)
+        return !(last_solve_status == "OPTIMAL") && !(last_objective_value |> isnan)
     else
         throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
@@ -361,16 +367,15 @@ function batch_find_targeted_attack(
     nn::NeuralNet,
     dataset::MIPVerify.LabelledDataset,
     target_indices::AbstractArray{<:Integer},
-    main_solver::MathProgBase.SolverInterface.AbstractMathProgSolver;
+    optimizer,
+    main_solve_options::Dict;
     save_path::String = ".",
     solve_rerun_option::MIPVerify.SolveRerunOption = MIPVerify.never,
     target_labels::AbstractArray{<:Integer} = [],
     pp::MIPVerify.PerturbationFamily = MIPVerify.UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
-    tightening_solver::MathProgBase.SolverInterface.AbstractMathProgSolver = MIPVerify.get_default_tightening_solver(
-        main_solver,
-    ),
+    tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
 )::Nothing
     results_dir = "run_results"
@@ -404,12 +409,13 @@ function batch_find_targeted_attack(
                     nn,
                     input,
                     target_label,
-                    main_solver,
+                    optimizer,
+                    main_solve_options,
                     invert_target_selection = false,
                     pp = pp,
                     norm_order = norm_order,
                     tightening_algorithm = tightening_algorithm,
-                    tightening_solver = tightening_solver,
+                    tightening_options = tightening_options,
                     solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 )
 

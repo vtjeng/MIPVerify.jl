@@ -48,7 +48,13 @@ using DataFrames
         sample_numbers = [101, 102, 103, 104]
         dt = DataFrame(
             SampleNumber = [101, 102, 102, 103, 103],
-            SolveStatus = ["Infeasible", "Optimal", "UserObjLimit", "UserObjLimit", "UserLimit"],
+            SolveStatus = [
+                "INFEASIBLE",
+                "OPTIMAL",
+                "OBJECTIVE_LIMIT",
+                "OBJECTIVE_LIMIT",
+                "TIME_LIMIT",
+            ],
             ObjectiveValue = [NaN, 0.8, 0.9, 0.99, NaN],
         )
         expected_results = Dict(
@@ -75,12 +81,12 @@ using DataFrames
             SampleNumber = [101, 102, 102, 103, 103, 101],
             TargetIndexes = map(x -> "[$x]", [1, 1, 1, 1, 1, 2]),
             SolveStatus = [
-                "Infeasible",
-                "Optimal",
-                "UserObjLimit",
-                "UserObjLimit",
-                "UserLimit",
-                "Optimal",
+                "INFEASIBLE",
+                "OPTIMAL",
+                "OBJECTIVE_LIMIT",
+                "OBJECTIVE_LIMIT",
+                "TIME_LIMIT",
+                "OPTIMAL",
             ],
             ObjectiveValue = [NaN, 0.8, 0.9, 0.99, NaN, 0.1],
         )

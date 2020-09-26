@@ -6,10 +6,10 @@
 To use our package, you require
 
    1. The Julia programming language
-   2. An optimization solver [supported](http://www.juliaopt.org/JuMP.jl/0.18/installation.html#getting-solvers) by `JuMP`
-   3. The Julia package for working with that solver
+   2. An optimizer [supported](https://jump.dev/JuMP.jl/stable/installation/#Getting-Solvers-1) by `JuMP`
+   3. The Julia package for working with that optimizer
    
-Our choice of solver is [Gurobi](http://www.gurobi.com/), but any supported optimization solver will work.
+Our choice of optimizer is [Gurobi](http://www.gurobi.com/), but any supported optimizer will work.
 
 **Platform compatibility:** Julia and Gurobi are available for 32-bit and 64-bit Windows, 64-bit macOS, and 64-bit Linux, but example code in this README is for Linux.
 
@@ -84,7 +84,7 @@ info  : License 000000 written to file /home/ubuntu/gurobi.lic
     If you store the license file in a non-default location, you will have to add the environment variable `GRB_LICENSE_FILE` to your startup file: `export GRB_LICENSE_FILE="/your/path/here/gurobi.lic"`
 
 #### Installing `Gurobi.jl`
-`Gurobi.jl` is a wrapper of the Gurobi solver accessible in Julia. Once you have installed Gurobi *and* activated the license, install the latest release of `Gurobi.jl`:
+`Gurobi.jl` is a wrapper of the Gurobi optimizer accessible in Julia. Once you have installed Gurobi *and* activated the license, install the latest release of `Gurobi.jl`:
 ```julia
 julia> using Pkg; Pkg.add("Gurobi")
 ```

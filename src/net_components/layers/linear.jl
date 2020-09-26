@@ -1,5 +1,3 @@
-using ConditionalJuMP
-
 export Linear
 
 """
@@ -75,10 +73,9 @@ function matmul(x::Array{T,1}, params::Linear{U,V}) where {T<:JuMPLinearType,U<:
     for i in 1:matrix_width
         s::W = 0
         for j in 1:matrix_height
-            s = increment!(s, x[j], params.matrix[j, i])
+            s = add_to_expression!(s, x[j], params.matrix[j, i])
         end
         s += params.bias[i]
-        ConditionalJuMP.simplify!(s)
         output[i] = s
     end
 

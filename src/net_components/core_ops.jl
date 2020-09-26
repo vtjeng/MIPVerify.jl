@@ -1,6 +1,6 @@
 using JuMP
-using ConditionalJuMP
 using Memento
+using MathOptInterface
 
 """
 $(SIGNATURES)
@@ -10,20 +10,12 @@ with it. This can only be true if it is an affine expression with no stored
 variables.
 """
 function is_constant(x::JuMP.AffExpr)
-    x.vars |> length == 0
+    # TODO (vtjeng): Determine whether there is a built-in function for this as of JuMP>=0.19
+    all(values(x.terms) .== 0)
 end
 
-function is_constant(x::JuMP.Variable)
+function is_constant(x::JuMP.VariableRef)
     false
-end
-
-function getmodel(xs::AbstractArray{T}) where {T<:JuMPLinearType}
-    for x in xs
-        if !is_constant(x)
-            return ConditionalJuMP.getmodel(x)
-        end
-    end
-    throw(DomainError("None of the JuMPLinearTypes has an associated model."))
 end
 
 function get_tightening_algorithm(
@@ -36,7 +28,7 @@ function get_tightening_algorithm(
         return nta
     else
         # x is not constant, and thus x must have an associated model
-        model = ConditionalJuMP.getmodel(x)
+        model = owner_model(x)
         return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
                model.ext[:MIPVerify].tightening_algorithm
     end
@@ -45,12 +37,12 @@ end
 @enum BoundType lower_bound_type = -1 upper_bound_type = 1
 #! format: off
 bound_f = Dict(
-    lower_bound_type => lowerbound,
-    upper_bound_type => upperbound
+    lower_bound_type => lower_bound,
+    upper_bound_type => upper_bound
 )
 bound_obj = Dict(
-    lower_bound_type => :Min,
-    upper_bound_type => :Max
+    lower_bound_type => MathOptInterface.MIN_SENSE,
+    upper_bound_type => MathOptInterface.MAX_SENSE
 )
 bound_delta_f = Dict(
     lower_bound_type => (b, b_0) -> b - b_0,
@@ -61,6 +53,62 @@ bound_operator = Dict(
     upper_bound_type => <=
 )
 #! format: on
+
+"""
+$(SIGNATURES)
+
+Context manager for running `f` on `model`. If `should_relax_integrality` is true, the 
+integrality constraints are relaxed before `f` is run and re-imposed after.
+"""
+function relax_integrality_context(f, model::Model, should_relax_integrality::Bool)
+    if should_relax_integrality
+        undo_relax = relax_integrality(model)
+    end
+    r = f(model)
+    if should_relax_integrality
+        undo_relax()
+    end
+    return r
+end
+
+"""
+$(SIGNATURES)
+
+Optimizes the value of `objective` based on `bound_type`, with `b_0`, computed via interval
+arithmetic, as a backup.
+
+- If an optimal solution is reached, we return the objective value. We also verify that the 
+  objective found is better than the bound `b_0` provided; if this is not the case, we throw an
+  error.
+- If we reach the user-defined time limit, we compute the best objective bound found. We compare 
+  this to `b_0` and return the better result.
+- For all other solve statuses, we warn the user and report `b_0`.
+"""
+function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLinearType, b_0::Number)
+    @objective(m, bound_obj[bound_type], objective)
+    optimize!(m)
+    status = JuMP.termination_status(m)
+    if status == MathOptInterface.OPTIMAL
+        b = JuMP.objective_value(m)
+        db = bound_delta_f[bound_type](b, b_0)
+        if db < -1e-8
+            Memento.warn(MIPVerify.LOGGER, "Δb = $(db)")
+            Memento.error(
+                MIPVerify.LOGGER,
+                "Δb = $(db). Tightening via interval arithmetic should not give a better result than an optimal optimization.",
+            )
+        end
+        return b
+    elseif status == MathOptInterface.TIME_LIMIT
+        return b_0
+    else
+        Memento.warn(
+            MIPVerify.LOGGER,
+            "Unexpected solve status $(status); using interval_arithmetic to obtain bound.",
+        )
+        return b_0
+    end
+end
 
 """
 Calculates a tight bound of type `bound_type` on the variable `x` using the specified
@@ -82,32 +130,13 @@ function tight_bound(
        bound_operator[bound_type](b_0, cutoff)
         return b_0
     end
-    relaxation = (tightening_algorithm == lp)
+    should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    model = ConditionalJuMP.getmodel(x)
-    @objective(model, bound_obj[bound_type], x)
-    status = solve(model, suppress_warnings = true, relaxation = relaxation)
-    if status == :Optimal
-        b = getobjectivevalue(model)
-        db = bound_delta_f[bound_type](b, b_0)
-        Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
-        if db < 0
-            b = b_0
-            Memento.info(
-                MIPVerify.LOGGER,
-                "Tightening via interval_arithmetic gives a better result than $(tightening_algorithm); using best bound found.",
-            )
-        end
-    elseif status == :UserLimit
-        b = b_0
-    else
-        Memento.warn(
-            MIPVerify.LOGGER,
-            "Unexpected solve status $(status) while tightening via $(tightening_algorithm); using interval_arithmetic to obtain upperbound.",
-        )
-        b = b_0
+    bound_value = return relax_integrality_context(owner_model(x), should_relax_integrality) do m
+        tight_bound_helper(m, bound_type, x, b_0)
     end
-    return b
+
+    return bound_value
 end
 
 function tight_upperbound(
@@ -127,7 +156,7 @@ function tight_lowerbound(
 end
 
 function log_gap(m::JuMP.Model)
-    gap = abs(1 - getobjectivebound(m) / getobjectivevalue(m))
+    gap = abs(1 - JuMP.objective_bound(m) / JuMP.objective_value(m))
     Memento.info(
         MIPVerify.LOGGER,
         "Hit user limit during solve to determine bounds. Multiplicative gap was $gap.",
@@ -148,10 +177,10 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
         Memento.warn(
             MIPVerify.LOGGER,
-            "Inconsistent upper and lower bounds: u-l = $(u-l) is negative. Attempting to use interval arithmetic bounds instead ...",
+            "Inconsistent upper and lower bounds: u-l = $(u - l) is negative. Attempting to use interval arithmetic bounds instead ...",
         )
-        u = upperbound(x)
-        l = lowerbound(x)
+        u = upper_bound(x)
+        l = lower_bound(x)
     end
 
     if u <= 0
@@ -162,16 +191,16 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     elseif u < l
         error(
             MIPVerify.LOGGER,
-            "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u-l) is negative",
+            "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u - l) is negative",
         )
     elseif l >= 0
         # rectified value is always x
         return x
     else
         # since we know that u!=l, x is not constant, and thus x must have an associated model
-        model = ConditionalJuMP.getmodel(x)
+        model = owner_model(x)
         x_rect = @variable(model)
-        a = @variable(model, category = :Bin)
+        a = @variable(model, binary = true)
 
         # refined big-M formulation that takes advantage of the knowledge
         # that lower and upper bounds  are different.
@@ -181,8 +210,8 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         @constraint(model, x_rect >= 0)
 
         # Manually set the bounds for x_rect so they can be used by downstream operations.
-        setlowerbound(x_rect, 0)
-        setupperbound(x_rect, u)
+        set_lower_bound(x_rect, 0)
+        set_upper_bound(x_rect, u)
         return x_rect
     end
 end
@@ -219,7 +248,7 @@ function Base.show(io::IO, s::ReLUInfo)
 end
 
 """
-Calculates the lowerbound only if `u` is positive; otherwise, returns `u` (since we expect)
+Calculates the lower_bound only if `u` is positive; otherwise, returns `u` (since we expect)
 the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
@@ -325,7 +354,7 @@ end
 function maximum_of_constants(xs::AbstractArray{T}) where {T<:JuMPLinearType}
     @assert all(is_constant.(xs))
     max_val = map(x -> x.constant, xs) |> maximum
-    return one(JuMP.Variable) * max_val
+    return one(JuMP.VariableRef) * max_val
 end
 
 """
@@ -341,10 +370,10 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         return maximum_of_constants(xs)
     end
     # at least one of xs is not constant.
-    model = MIPVerify.getmodel(xs)
+    model = owner_model(xs)
 
-    # TODO (vtjeng): [PERF] skip calculating lowerbound for index if upperbound is lower than
-    # largest current lowerbound.
+    # TODO (vtjeng): [PERF] skip calculating lower_bound for index if upper_bound is lower than
+    # largest current lower_bound.
     p1 = Progress(length(xs), desc = "  Calculating upper bounds: ")
     us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
     p2 = Progress(length(xs), desc = "  Calculating lower bounds: ")
@@ -383,14 +412,14 @@ function maximum(
         return maximum_of_constants(xs)
     end
     # at least one of xs is not constant.
-    model = MIPVerify.getmodel(xs)
+    model = owner_model(xs)
     if length(xs) == 1
         return first(xs)
     else
         l = Base.maximum(ls)
         u = Base.maximum(us)
-        x_max = @variable(model, lowerbound = l, upperbound = u)
-        a = @variable(model, [1:length(xs)], category = :Bin)
+        x_max = @variable(model, lower_bound = l, upper_bound = u)
+        a = @variable(model, [1:length(xs)], binary = true)
         @constraint(model, sum(a) == 1)
         for (i, x) in enumerate(xs)
             umaxi = Base.maximum(us[1:end.!=i])
@@ -419,7 +448,7 @@ function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearTy
         return first(xs)
     end
     # at least one of xs is not constant.
-    model = MIPVerify.getmodel(xs)
+    model = owner_model(xs)
     x_max = @variable(model)
     @constraint(model, x_max .>= xs)
     return x_max
@@ -434,11 +463,11 @@ Only use when you are minimizing over the output in the objective.
 """
 function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
     if is_constant(x)
-        return one(JuMP.Variable) * abs(x.constant)
+        return one(JuMP.VariableRef) * abs(x.constant)
     end
-    model = ConditionalJuMP.getmodel(x)
-    u = upperbound(x)
-    l = lowerbound(x)
+    model = owner_model(x)
+    u = upper_bound(x)
+    l = lower_bound(x)
     if u <= 0
         return -x
     elseif l >= 0
@@ -447,8 +476,8 @@ function abs_ge(x::JuMPLinearType)::JuMP.AffExpr
         x_abs = @variable(model)
         @constraint(model, x_abs >= x)
         @constraint(model, x_abs >= -x)
-        setlowerbound(x_abs, 0)
-        setupperbound(x_abs, max(-l, u))
+        set_lower_bound(x_abs, 0)
+        set_upper_bound(x_abs, max(-l, u))
         return x_abs
     end
 end
@@ -471,7 +500,7 @@ function get_target_indexes(
     target_indexes::Array{<:Integer,1},
     array_length::Integer;
     invert_target_selection::Bool = false,
-)
+)::AbstractArray{<:Integer,1}
 
     @assert length(target_indexes) >= 1
     @assert all(target_indexes .>= 1) && all(target_indexes .<= array_length)
@@ -479,7 +508,10 @@ function get_target_indexes(
     invert_target_selection ? filter((x) -> x ∉ target_indexes, 1:array_length) : target_indexes
 end
 
-function get_vars_for_max_index(xs::Array{<:JuMPLinearType,1}, target_indexes::Array{<:Integer,1})
+function get_vars_for_max_index(
+    xs::Array{<:JuMPLinearType,1},
+    target_indexes::Array{<:Integer,1},
+)::Tuple{JuMPLinearType,Array{<:JuMPLinearType,1}}
 
     @assert length(xs) >= 1
 
@@ -503,9 +535,10 @@ function set_max_indexes(
     xs::Array{<:JuMPLinearType,1},
     target_indexes::Array{<:Integer,1};
     margin::Real = 0,
-)
+)::Nothing
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
-    @constraint(model, nontarget_vars - maximum_target_var .<= -margin)
+    @constraint(model, nontarget_vars .<= maximum_target_var - margin)
+    return nothing
 end
