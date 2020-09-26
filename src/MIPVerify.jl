@@ -29,9 +29,9 @@ function get_max_index(x::Array{<:Real,1})::Integer
 end
 
 function get_default_tightening_options(optimizer)::Dict
-    if Base.find_package("Gurobi") !== nothing && optimizer == Gurobi.Optimizer
+    if str(typeof(optimizer())) == "Gurobi.Optimizer"
         return Dict("OutputFlag" => 0, "TimeLimit" => 20)
-    elseif Base.find_package("Cbc") !== nothing && optimizer == Cbc.Optimizer
+    elseif str(typeof(optimizer())) == "Cbc.Optimizer"
         return Dict("logLevel" => 0, "seconds" => 20)
     else
         return Dict()
