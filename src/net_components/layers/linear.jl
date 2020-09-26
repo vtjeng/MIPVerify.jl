@@ -67,19 +67,8 @@ function matmul(x::Array{T,1}, params::Linear{U,V}) where {T<:JuMPLinearType,U<:
         matrix_height == input_height,
         "Number of values in input, $input_height, does not match number of values, $matrix_height that Linear operates on."
     )
-    W = Base.promote_op(+, V, Base.promote_op(*, T, U))
-    output = Array{W}(undef, matrix_width)
 
-    for i in 1:matrix_width
-        s::W = 0
-        for j in 1:matrix_height
-            s = add_to_expression!(s, x[j], params.matrix[j, i])
-        end
-        s += params.bias[i]
-        output[i] = s
-    end
-
-    return output
+    return transpose(params.matrix) * x .+ params.bias
 end
 
 (p::Linear)(x::Array{<:JuMPReal}) =
