@@ -57,29 +57,6 @@ bound_operator = Dict(
 """
 $(SIGNATURES)
 
-Context manager for optimizing over `objective` where the _value_ of the objective bound
-is important if the optimization encounters a `TIME_LIMIT`. This is necessary as the 
-objective bound returned by JuMP for an affine expression ignores the value of the 
-constant term. See https://github.com/jump-dev/Gurobi.jl/issues/111 for more.
-"""
-function optimize_context(f, objective::JuMP.GenericAffExpr)
-    # TODO (vtjeng): Add test to verify that the auxilliary objective is removed from the
-    # model when exiting from this context manager.
-    model = owner_model(objective)
-    auxilliary_objective = @variable(model)
-    @constraint(model, auxilliary_objective == objective)
-    r = f(auxilliary_objective)
-    delete(model, auxilliary_objective)
-    return r
-end
-
-function optimize_context(f, objective::JuMP.VariableRef)
-    return f(objective)
-end
-
-"""
-$(SIGNATURES)
-
 Context manager for running `f` on `model`. If `should_relax_integrality` is true, the 
 integrality constraints are relaxed before `f` is run and re-imposed after.
 """
@@ -119,17 +96,7 @@ function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLine
         end
         return b
     elseif status == MathOptInterface.TIME_LIMIT
-        b = JuMP.objective_bound(m)
-        db = bound_delta_f[bound_type](b, b_0)
-        Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
-        if db < 0
-            b = b_0
-            Memento.info(
-                MIPVerify.LOGGER,
-                "Reached time limit, and tightening via interval_arithmetic gives a better result; using best bound found.",
-            )
-        end
-        return b
+        return b_0
     else
         Memento.warn(
             MIPVerify.LOGGER,
@@ -161,10 +128,8 @@ function tight_bound(
     end
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    bound_value = optimize_context(x) do objective
-        return relax_integrality_context(owner_model(objective), should_relax_integrality) do m
-            tight_bound_helper(m, bound_type, objective, b_0)
-        end
+    bound_value = return relax_integrality_context(owner_model(x), should_relax_integrality) do m
+        tight_bound_helper(m, bound_type, x, b_0)
     end
 
     return bound_value
