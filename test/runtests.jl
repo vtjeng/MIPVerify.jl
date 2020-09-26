@@ -5,7 +5,7 @@ using JuMP
 using TimerOutputs
 
 using MIPVerify: set_log_level!
-using MIPVerify: get_max_index, get_norm
+using MIPVerify: get_max_index, get_norm, get_default_tightening_options
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
@@ -31,9 +31,11 @@ end
     include("batch_processing_helpers.jl")
 
     @testset "get_default_tightening_options" begin
+        @test get_default_tightening_options(() -> Cbc.Optimizer()) ==
+              Dict("logLevel" => 0, "seconds" => 20)
         @test get_default_tightening_options(Cbc.Optimizer) ==
               Dict("logLevel" => 0, "seconds" => 20)
-        @test get_default_tightening_options(nothing) == Dict()
+        @test get_default_tightening_options(() -> nothing) == Dict()
     end
 
     @testset "get_max_index" begin
