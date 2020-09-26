@@ -1,3 +1,5 @@
+using Base.Cartesian
+
 using JuMP
 
 export Conv2d
@@ -213,21 +215,20 @@ function conv2d(input::Array{T,4}, params::Conv2d{U,V}) where {T<:JuMPReal,U<:Ju
     output = Array{W}(undef, output_size)
 
     @nloops 4 i output begin
-        s::W = 0
-        @nloops 4 j filter begin
-            if i_4 == j_4
-                x = (i_2 - 1) * stride + j_1 - filter_height_offset
-                y = (i_3 - 1) * stride + j_2 - filter_width_offset
-                if x > 0 && y > 0 && x <= in_height && y <= in_width
-                    # Doing bounds check to make sure that we stay within bounds
-                    # for input. This effectively zero-pads the input.
-                    # TODO (vtjeng): Use default checkbounds function here instead?
-                    s = add_to_expression!(s, input[i_1, x, y, j_3], filter[j_1, j_2, j_3, j_4])
-                end
+        (@nref 4 output i) = params.bias[i_4]
+        @nloops 3 j filter begin
+            x = (i_2 - 1) * stride + j_1 - filter_height_offset
+            y = (i_3 - 1) * stride + j_2 - filter_width_offset
+            input_index = (i_1, x, y, j_3)
+            if checkbounds(Bool, input, input_index...)
+                # Effectively zero-padding the input.
+                (@nref 4 output i) = add_to_expression!(
+                    (@nref 4 output i),
+                    input[input_index...],
+                    filter[j_1, j_2, j_3, i_4],
+                )
             end
         end
-        s += params.bias[i_4]
-        (@nref 4 output i) = s
     end
 
     return output
