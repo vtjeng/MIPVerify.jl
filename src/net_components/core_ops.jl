@@ -94,23 +94,42 @@ function relax_integrality_context(f, model::Model, should_relax_integrality::Bo
     return r
 end
 
-function tight_bound_helper(m::Model, b_0::Number, bound_type::BoundType)
+"""
+$(SIGNATURES)
+
+Optimizes the value of `objective` based on `bound_type`, with `b_0`, computed via interval
+arithmetic, as a backup.
+
+- If an optimal solution is reached, we return the objective value. We also verify that the 
+  objective found is better than the bound `b_0` provided; if this is not the case, we throw an
+  error.
+- If we reach the user-defined time limit, we compute the best objective bound found. We compare 
+  this to `b_0` and return the better result.
+- For all other solve statuses, we warn the user and report `b_0`.
+"""
+function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLinearType, b_0::Number)
+    @objective(m, bound_obj[bound_type], objective)
     optimize!(m)
     status = JuMP.termination_status(m)
     if status == MathOptInterface.OPTIMAL
         b = JuMP.objective_value(m)
+        db = bound_delta_f[bound_type](b, b_0)
+        if db < 0
+            Memento.error("Tightening via interval arithmetic should not give a better result than an optimal optimization.")
+        end
+        return b
+    elseif status == MathOptInterface.TIME_LIMIT
+        b = JuMP.objective_bound(m)
         db = bound_delta_f[bound_type](b, b_0)
         Memento.debug(MIPVerify.LOGGER, "  Δu = $(db)")
         if db < 0
             b = b_0
             Memento.info(
                 MIPVerify.LOGGER,
-                "Tightening via interval_arithmetic gives a better result; using best bound found.",
+                "Reached time limit, and tightening via interval_arithmetic gives a better result; using best bound found.",
             )
         end
         return b
-    elseif status == MathOptInterface.TIME_LIMIT
-        return b_0
     else
         Memento.warn(
             MIPVerify.LOGGER,
@@ -143,10 +162,8 @@ function tight_bound(
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
     bound_value = optimize_context(x) do objective
-        model = owner_model(objective)
-        @objective(model, bound_obj[bound_type], objective)
-        return relax_integrality_context(model, should_relax_integrality) do m
-            tight_bound_helper(m, b_0, bound_type)
+        return relax_integrality_context(owner_model(objective), should_relax_integrality) do m
+            tight_bound_helper(m, bound_type, objective, b_0)
         end
     end
 
