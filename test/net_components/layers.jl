@@ -1,6 +1,7 @@
 using Test
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "layers/" begin
+TestHelpers.@timed_testset "layers/" begin
     include("layers/conv2d.jl")
     include("layers/flatten.jl")
     include("layers/linear.jl")

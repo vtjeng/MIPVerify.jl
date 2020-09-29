@@ -4,7 +4,7 @@ using MIPVerify:
     UnrestrictedPerturbationFamily, BlurringPerturbationFamily, LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
-@timed_testset "conv+fc+softmax.jl" begin
+TestHelpers.@timed_testset "conv+fc+softmax.jl" begin
     ### Parameters for neural net
     batch = 1
     c1_in_height = 6
@@ -51,7 +51,7 @@ using MIPVerify:
         "tests.integration.generated_weights.conv+fc+softmax",
     )
 
-    @timed_testset "BlurringPerturbationFamily" begin
+    TestHelpers.@timed_testset "BlurringPerturbationFamily" begin
         pp_blur = BlurringPerturbationFamily((5, 5))
         # TODO (vtjeng): Add example where blurring perturbation generates non-NaN results
         test_cases = [((2, pp_blur, 1), 6.959316), ((3, pp_blur, 1), NaN)]
@@ -59,15 +59,15 @@ using MIPVerify:
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
     end
 
-    @timed_testset "UnrestrictedPerturbationFamily" begin
+    TestHelpers.@timed_testset "UnrestrictedPerturbationFamily" begin
         pp_unrestricted = UnrestrictedPerturbationFamily()
-        @timed_testset "Minimizing l1 norm" begin
+        TestHelpers.@timed_testset "Minimizing l1 norm" begin
             test_cases = [((1, pp_unrestricted, 1), 0), ((2, pp_unrestricted, 1), 0.9187638)]
 
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
-        @timed_testset "Minimizing lInf norm" begin
+        TestHelpers.@timed_testset "Minimizing lInf norm" begin
             test_cases = [
                 ((1, pp_unrestricted, Inf), 0),
                 ((2, pp_unrestricted, Inf), 0.06688736),
@@ -77,14 +77,14 @@ using MIPVerify:
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
-        @timed_testset "With multiple target labels specified, minimum target label found" begin
+        TestHelpers.@timed_testset "With multiple target labels specified, minimum target label found" begin
             test_cases = [(([2, 3], pp_unrestricted, Inf), 0.06688736)]
 
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
     end
 
-    @timed_testset "LInfNormBoundedPerturbationFamily" begin
+    TestHelpers.@timed_testset "LInfNormBoundedPerturbationFamily" begin
         test_cases = [
             ((2, LInfNormBoundedPerturbationFamily(0.06), Inf), NaN),  # restricting maximum perturbation to below minimum distance causes optimization problem to be infeasible
             ((2, LInfNormBoundedPerturbationFamily(0.07), Inf), 0.06688736),  # restricting maximum perturbation to above minimum distance does not affect optimal value of problem

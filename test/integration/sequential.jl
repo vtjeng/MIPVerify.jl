@@ -1,6 +1,7 @@
 using Test
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "sequential/" begin
+TestHelpers.@timed_testset "sequential/" begin
     include("sequential/generated_weights.jl")
     if Base.find_package("Gurobi") !== nothing
         # Skip these tests if Gurobi is not installed.

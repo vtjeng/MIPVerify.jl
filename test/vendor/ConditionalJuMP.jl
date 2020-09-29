@@ -2,8 +2,9 @@ using Test
 
 using JuMP
 using MIPVerify: owner_model, interval, lower_bound, upper_bound
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "ConditionalJuMP.jl" begin
+TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
     @testset "owner_model" begin
         m = Model()
         x = @variable(m)

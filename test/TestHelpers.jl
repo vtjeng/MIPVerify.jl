@@ -4,11 +4,23 @@ using Test
 
 using JuMP
 using MathOptInterface
+using TimerOutputs
 
 using MIPVerify
 using MIPVerify: find_adversarial_example
 using MIPVerify: NeuralNet
 using MIPVerify: PerturbationFamily
+
+macro timed_testset(name::String, block)
+    # copied from https://github.com/KristofferC/Tensors.jl/blob/master/test/runtests.jl#L8
+    return quote
+        @timeit "$($(esc(name)))" begin
+            @testset "$($(esc(name)))" begin
+                $(esc(block))
+            end
+        end
+    end
+end
 
 const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
 
