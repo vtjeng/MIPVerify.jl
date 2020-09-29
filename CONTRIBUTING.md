@@ -47,15 +47,15 @@ You should now have the `MIPVerify` repository checked out at the path `$JULIA_E
 
 There are many ways to contribute to this package.
 
-> If you're new to Julia, consider working on one of the issues [labeled "good first issue"](https://github.com/vtjeng/MIPVerify.jl/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+> Note: If you're new to Julia, consider working on one of the issues [labeled "good first issue"](https://github.com/vtjeng/MIPVerify.jl/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 
 ### Contributing to core functionality
 
-We're excited to hear what new ideas you have for verification, and would be happy to discus how best to implement it.
+We're excited to hear what new ideas you have for verification, and would be happy to discuss how best to implement it.
 
 ### Contributing datasets / networks
 
-If you have an interesting new dataset, or a new network that you'll like to verify the robustness of, please consider opening a pull review to share it with other users of this package.
+If you have an interesting new dataset, or a new network that you'll like to verify the robustness of, please consider opening a PR to share it with other users of this package.
 
 ### Improving Documentation
 
@@ -69,7 +69,7 @@ To generate documentation locally, run from the `docs/` directory
 julia --color=yes make.jl
 ```
 
-The generated documentation can be found in the `docs/build/` directory.
+The generated documentation will be found in the `docs/build/` directory.
 
 ### Writing Tests
 
@@ -79,7 +79,7 @@ Information on current test coverage can be found [on codecov](https://codecov.i
 
 Tests are run as part of the build process.
 
-To run tests locally, run `julia --project=/path/to/repo/root`, enter the package manager, then run `test MIPVerify`. (If running from the repository root, `julia --project` will suffice).
+To run tests locally, run `julia --project=/path/to/repo/root`, enter the package manager, then run `test MIPVerify`. (If running from the repository root, `julia --project` will suffice). Sample output:
 
 ```sh
 (@v1.4) pkg> test MIPVerify
@@ -100,7 +100,7 @@ MIPVerify     |  336    336
     Testing MIPVerify tests passed
 ```
 
-For faster iteration, you can also run individual test files in `/test` via `julia --project=/path/to/repo/root /path/to/repo/root/test/foo.jl`. You will need to change any references  in the test file to `@timed_testset` to just `@testset`.
+For faster iteration, you can also run individual test files in `/test` via `julia --project=/path/to/repo/root /path/to/repo/root/test/my_basic_test.jl`. For now, you will need to replace `@timed_testset` with just `@testset` to ensure the individual test file can run.
 
 ## Getting your PR ready to merge
 
@@ -116,7 +116,7 @@ This check verifies that tests were all passing and documentation was generated 
 
 ### Non-required checks
 
-Two additional checks (`codecov/patch` and `codecov/project`) measure the change in code coverage in the project. They are generally used as a check to verify that any new core functionality is properly tested.
+Two additional checks (`codecov/patch` and `codecov/project`) measure the change in code coverage in the project. They are generally used to verify that any new core functionality is properly tested.
 
 ## Acknowledgements
 
