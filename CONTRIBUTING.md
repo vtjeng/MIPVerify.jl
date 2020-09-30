@@ -1,6 +1,6 @@
-# Contributing to MIPVerify
+# Contributing to `MIPVerify`
 
-Welcome, and thank you for considering contributing to MIPVerify.
+Welcome, and thank you for considering contributing to `MIPVerify`.
 
 ## Getting Started
 
@@ -8,11 +8,11 @@ You will need to get started by [installing Julia](https://julialang.org/downloa
 
 ### Basic Setup
 
-If you are making changes to only documentation or tests, or are planning to add core functionality that will be tested with tests, you can simply check out this repository and start making changes.
+If you are making changes to only documentation or tests — or are making changes to core functionality that will be tested with unit tests — you can simply check out this repository and start making changes.
 
 ### Advanced Setup
 
-If you have an existing Julia script that uses the MIPVerify package, and want to run the script on the modified version of MIPVerify code via `julia my_script.jl`:
+If you want to make changes to the `MIPVerify` package code, _and_ run an existing Julia script that imports the package:
 
 ```sh
 $ julia
@@ -63,7 +63,7 @@ We use [`Documenter.jl`](https://juliadocs.github.io/Documenter.jl/stable/man/gu
 
 Documentation is generated [as part of the build process](https://github.com/vtjeng/MIPVerify.jl/blob/2f2a0918abe28fb5f8b0b14396363c516a9c80c6/.travis.yml#L23-L28).
 
-To generate documentation locally, run from the `docs/` directory
+To generate documentation locally, run the following command from the `docs/` directory
 
 ```sh
 julia --color=yes make.jl
