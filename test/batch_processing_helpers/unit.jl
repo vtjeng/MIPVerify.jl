@@ -8,8 +8,9 @@ using MIPVerify:
     verify_target_indices
 using MIPVerify: run_on_sample_for_untargeted_attack, run_on_sample_for_targeted_attack
 using DataFrames
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "unit.jl" begin
+TestHelpers.@timed_testset "unit.jl" begin
     mnist = read_datasets("MNIST")
 
     @testset "BatchRunParameters" begin

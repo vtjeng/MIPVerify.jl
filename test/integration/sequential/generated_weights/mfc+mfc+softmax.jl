@@ -3,7 +3,7 @@ using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
-@timed_testset "mfc+mfc+softmax.jl" begin
+TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     input = gen_array((1, 4, 8, 1), 0, 1)
 
     l1_height = 16

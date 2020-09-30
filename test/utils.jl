@@ -1,6 +1,7 @@
 using Test
+@isdefined(TestHelpers) || include("TestHelpers.jl")
 
-@timed_testset "utils/" begin
+TestHelpers.@timed_testset "utils/" begin
     include("utils/import_datasets.jl")
     include("utils/import_example_nets.jl")
 end

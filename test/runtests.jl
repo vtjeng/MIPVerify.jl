@@ -2,26 +2,14 @@ using Test
 
 using Cbc
 using JuMP
-using TimerOutputs
 
 using MIPVerify: set_log_level!
 using MIPVerify: get_max_index, get_norm, get_default_tightening_options
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
-macro timed_testset(name::String, block)
-    # copied from https://github.com/KristofferC/Tensors.jl/blob/master/test/runtests.jl#L8
-    return quote
-        @timeit "$($(esc(name)))" begin
-            @testset "$($(esc(name)))" begin
-                $(esc(block))
-            end
-        end
-    end
-end
-
 @testset "MIPVerify" begin
-    reset_timer!()
+    TestHelpers.reset_timer!()
     set_log_level!("warn")
 
     include("integration.jl")
@@ -86,7 +74,7 @@ end
     end
 
     println()
-    print_timer()
+    TestHelpers.print_timer()
     println()
     println()
 end

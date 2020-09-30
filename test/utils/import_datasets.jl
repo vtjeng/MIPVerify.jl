@@ -1,8 +1,9 @@
 using Test
 using Statistics
 using MIPVerify
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "import_datasets.jl" begin
+TestHelpers.@timed_testset "import_datasets.jl" begin
     @testset "NamedTrainTestDataset" begin
         @testset "Base.show" begin
             io = IOBuffer()

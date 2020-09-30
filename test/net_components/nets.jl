@@ -1,5 +1,6 @@
 using Test
+@isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-@timed_testset "nets/" begin
+TestHelpers.@timed_testset "nets/" begin
     include("nets/sequential.jl")
 end

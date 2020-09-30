@@ -28,7 +28,7 @@ function count_binary_variables(m::Model)
     JuMP.num_constraints(m, JuMP.VariableRef, MathOptInterface.ZeroOne)
 end
 
-@timed_testset "core_ops.jl" begin
+TestHelpers.@timed_testset "core_ops.jl" begin
     @testset "is_constant" begin
         @testset "JuMP.AffExpr" begin
             m = TestHelpers.get_new_model()
