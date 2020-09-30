@@ -9,7 +9,7 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
 @testset "MIPVerify" begin
-    reset_timer!()
+    TestHelpers.reset_timer!()
     set_log_level!("warn")
 
     include("integration.jl")
