@@ -74,7 +74,7 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
     end
 
     println()
-    print_timer()
+    TestHelpers.print_timer()
     println()
     println()
 end
