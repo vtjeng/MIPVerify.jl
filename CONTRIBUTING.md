@@ -100,7 +100,7 @@ MIPVerify     |  336    336
     Testing MIPVerify tests passed
 ```
 
-For faster iteration, you can also run individual test files in `/test` via `julia --project=/path/to/repo/root /path/to/repo/root/test/my_basic_test.jl`. For now, you will need to replace `@timed_testset` with just `@testset` to ensure the individual test file can run.
+For faster iteration, you can also run individual test files in `/test` via `julia --project=test test/my_test.jl`.
 
 ## Getting your PR ready to merge
 
