@@ -20,6 +20,10 @@ jobs:
   allow_failures:
     - julia: nightly
   include:
+    - julia: 1.5
+      os: osx
+    - julia: 1.5
+      os: windows
     - stage: Documentation
       julia: 1.0
       os: linux
