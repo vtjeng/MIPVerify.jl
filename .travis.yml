@@ -20,10 +20,12 @@ jobs:
   allow_failures:
     - julia: nightly
   include:
+    # checks for other operating systems; restricting to one Julia version to reduce total number of jobs.
     - julia: 1.5
       os: osx
     - julia: 1.5
       os: windows
+    # generate documentation
     - stage: Documentation
       julia: 1.0
       os: linux

@@ -9,7 +9,13 @@ function prep_data_file(relative_dir::String, filename::String)::String
     relative_file_path = joinpath(relative_dir, filename)
     absolute_file_path = joinpath(dependencies_path, relative_file_path)
     if !isfile(absolute_file_path)
-        url = joinpath(data_repo_path, relative_file_path)
+        if Sys.iswindows()
+            # on windows, the `joinpath` command uses `\` as a separator.
+            relative_url_path = replace(relative_file_path, "\\" => "/")
+        else
+            relative_url_path = relative_file_path
+        end
+        url = joinpath(data_repo_path, relative_url_path)
         download(url, absolute_file_path)
     end
 
