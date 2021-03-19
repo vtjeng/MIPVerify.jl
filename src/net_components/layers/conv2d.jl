@@ -24,7 +24,7 @@ Represents 2-D convolution operation.
 ## Fields:
 $(FIELDS)
 """
-struct Conv2d{T<:JuMPReal,U<:JuMPReal,V<:Int64} <: Layer
+struct Conv2d{T<:JuMPReal,U<:JuMPReal,V<:Integer} <: Layer
     filter::Array{T,4}
     bias::Array{U,1}
     stride::V
@@ -35,7 +35,7 @@ struct Conv2d{T<:JuMPReal,U<:JuMPReal,V<:Int64} <: Layer
         bias::Array{U,1},
         stride::V,
         padding::Padding,
-    ) where {T<:JuMPReal,U<:JuMPReal,V<:Int64}
+    ) where {T<:JuMPReal,U<:JuMPReal,V<:Integer}
         (filter_height, filter_width, filter_in_channels, filter_out_channels) = size(filter)
         bias_out_channels = length(bias)
         @assert(
@@ -52,7 +52,7 @@ function Conv2d(
     bias::Array{U,1},
     stride::V,
     padding::Padding,
-) where {T<:JuMPReal,U<:JuMPReal,V<:Int64}
+) where {T<:JuMPReal,U<:JuMPReal,V<:Integer}
     Conv2d{T,U,V}(filter, bias, stride, padding)
 end
 
@@ -60,7 +60,7 @@ function Conv2d(
     filter::Array{T,4},
     bias::Array{U,1},
     stride::V,
-) where {T<:JuMPReal,U<:JuMPReal,V<:Int64}
+) where {T<:JuMPReal,U<:JuMPReal,V<:Integer}
     Conv2d{T,U,V}(filter, bias, stride, SamePadding())
 end
 

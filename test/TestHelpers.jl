@@ -130,7 +130,7 @@ end
 """
 Generates a pseudorandom array of the specified `dims` with values in [lb, ub]
 """
-function gen_array(dims::NTuple{N,Int64}, lb::Real, ub::Real) where {N}
+function gen_array(dims::NTuple{N,Integer}, lb::Real, ub::Real) where {N}
     #! format: off
     rands = [
         0.823, 0.714, 0.970, 0.265, 0.969, 0.105, 0.242, 0.362, 0.061, 0.994,
