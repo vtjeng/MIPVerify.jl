@@ -14,9 +14,10 @@ https://arxiv.org/abs/1711.07356
 
 ## Getting Started
 
+Installation should only take a couple of minutes, including installing Julia itself.
+
 - See the [documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for [installation instructions](https://vtjeng.github.io/MIPVerify.jl/latest/#Installation-1), a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/).
 - This [companion repository](https://github.com/vtjeng/MIPVerify-converter) provides code examples for loading models saved by common frameworks / tools.
-- Installation should only take a couple of minutes, including installing Julia itself.
 
 ## Why Verify Neural Networks?
 
