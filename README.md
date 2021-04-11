@@ -14,7 +14,10 @@ https://arxiv.org/abs/1711.07356
 
 ## Getting Started
 
-See the [documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for [installation instructions](https://vtjeng.github.io/MIPVerify.jl/latest/#Installation-1), a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/). Installation should only take a couple of minutes, including installing Julia itself.
+Installation should only take a couple of minutes, including installing Julia itself.
+
+- See the [documentation](https://vtjeng.github.io/MIPVerify.jl/latest) for [installation instructions](https://vtjeng.github.io/MIPVerify.jl/latest/#Installation-1), a [quick-start guide](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/00_quickstart.ipynb), and [additional examples](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/tree/master/examples/).
+- This [companion repository](https://github.com/vtjeng/MIPVerify-converter) provides code examples for loading models saved by common frameworks / tools.
 
 ## Why Verify Neural Networks?
 
@@ -56,7 +59,7 @@ Below is a modified version of Table 1 from our paper, where we report the adver
 
 ## Citing this Library
 
-```
+```bibtex
 @article{tjeng2017evaluating,
   title={Evaluating Robustness of Neural Networks with Mixed Integer Programming},
   author={Tjeng, Vincent and Xiao, Kai and Tedrake, Russ},
