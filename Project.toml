@@ -20,7 +20,7 @@ Serialization = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
 [compat]
 CSV = "0.7, 0.8"
 Cbc = "0.4, 0.5, 0.6, 0.7"
-DataFrames = "0.21, 0.22"
+DataFrames = "0.21, 0.22, 1.0"
 DocStringExtensions = "0.8"
 IntervalArithmetic = "0.14, 0.15, 0.16, 0.17, 0.18"
 JuMP = "0.21.4, 0.21.5"
