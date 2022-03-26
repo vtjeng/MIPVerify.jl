@@ -139,7 +139,7 @@ function initialize_batch_solve(
     summary_file_path = joinpath(main_path, summary_file_name)
     summary_file_path |> create_summary_file_if_not_present
 
-    dt = DataFrame!(CSV.File(summary_file_path))
+    dt = DataFrame(CSV.File(summary_file_path))
     return (results_dir, main_path, summary_file_path, dt)
 end
 
