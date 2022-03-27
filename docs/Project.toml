@@ -3,4 +3,4 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 MIPVerify = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
 
 [compat]
-Documenter = "~0.23"
+Documenter = "0.27"
