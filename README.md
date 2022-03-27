@@ -4,7 +4,7 @@
 [![code coverage](https://codecov.io/gh/vtjeng/MIPVerify.jl/branch/master/graph/badge.svg)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
 [![code formatting check status](https://github.com/vtjeng/MIPVerify.jl/workflows/JuliaFormatter/badge.svg?branch=master)](https://github.com/vtjeng/MIPVerify.jl/actions?query=workflow%3AJuliaFormatter+branch%3Amaster)
 [![docs: stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
-[![docs: latest](https://img.shields.io/badge/docs-latest-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/latest)
+[![docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/dev)
 
 _A package for evaluating the robustness of neural networks using Mixed Integer Programming (MIP). See the [companion paper](https://arxiv.org/abs/1711.07356) for full details and results._
 
