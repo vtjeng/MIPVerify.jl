@@ -11,10 +11,11 @@ on:
     tags: "*"
   pull_request:
 
-# Cancel previous runs for a PR when pushing new commits
-# https://stackoverflow.com/a/67939898/1404966
+# Cancel previous runs of this workflow for the same pull request
+# `github.head_ref`: https://stackoverflow.com/a/67939898/1404966
+# `github.run_id`: https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#example-using-a-fallback-value
 concurrency:
-  group: ${{ github.head_ref }}
+  group: ${{ github.head_ref || github.run_id }}
   cancel-in-progress: true
 
 jobs:
