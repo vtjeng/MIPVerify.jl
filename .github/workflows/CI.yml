@@ -10,7 +10,7 @@ on:
     tags: "*"
   pull_request:
 
-# Cancel previous runs for a PR when you push new commits
+# Cancel previous runs for a PR when pushing new commits
 # https://stackoverflow.com/a/67939898/1404966
 concurrency:
   group: ${{ github.head_ref }}
