@@ -562,7 +562,10 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     @objective(m, Min, x2)
                     optimize!(m)
                     solve_status = JuMP.termination_status(m)
-                    @test solve_status == MathOptInterface.INFEASIBLE
+                    @test (
+                        solve_status in
+                        [MathOptInterface.INFEASIBLE, MathOptInterface.INFEASIBLE_OR_UNBOUNDED]
+                    )
                 end
                 @testset "selected variable has constant value, and can take the maximum value" begin
                     m = TestHelpers.get_new_model()
@@ -581,7 +584,10 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     @objective(m, Min, x2)
                     optimize!(m)
                     solve_status = JuMP.termination_status(m)
-                    @test solve_status == MathOptInterface.INFEASIBLE
+                    @test (
+                        solve_status in
+                        [MathOptInterface.INFEASIBLE, MathOptInterface.INFEASIBLE_OR_UNBOUNDED]
+                    )
                 end
             end
         end
