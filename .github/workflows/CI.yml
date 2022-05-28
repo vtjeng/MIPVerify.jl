@@ -5,8 +5,11 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - "master"
+      - "release-"
+    tags: "*"
   pull_request:
+
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
@@ -76,3 +79,28 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # I created a `DOCUMENTER_KEY` secret, via https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+
+  # JuliaFormatter check, based off of https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
+  format-check:
+    name: "Check Formatting"
+    runs-on: "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: "1"
+      - name: "run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)"
+        run: ./scripts/format.sh
+      - name: "Check that running `format` is a no-op."
+        run: |
+          julia -e '
+          out = Cmd(`git diff --name-only`) |> read |> String
+          if out == ""
+              exit(0)
+          else
+              @error "Some files did not meet the formatting guidelines. Run ./scripts/format.sh to fix."
+              write(stdout, "\nFiles not meeting formatting guidelines:\n")
+              write(stdout, out)
+              write(stdout, "\nRun ./scripts/format.sh to fix.")
+              exit(1)
+          end'
