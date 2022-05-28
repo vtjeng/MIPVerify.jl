@@ -1,7 +1,8 @@
 name: CI
 
-# From: https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
-#     + https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
+# Sources
+# - https://github.com/JuliaDocs/Documenter.jl/blob/master/.github/workflows/CI.yml
+# - https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765
 on:
   push:
     branches:
@@ -9,6 +10,12 @@ on:
       - "release-"
     tags: "*"
   pull_request:
+
+# Cancel previous runs for a PR when pushing new commits
+# https://stackoverflow.com/a/67939898/1404966
+concurrency:
+  group: ${{ github.head_ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
@@ -18,8 +25,8 @@ jobs:
       fail-fast: false
       matrix:
         version:
-          # we are excluding nightly builds because they can fail, and we want this to be
-          # a required check
+          # we are excluding nightly builds because they can fail, and we want this to be a
+          # required check
           - "1.0" # minimum Julia version that this package supports
           - "1" # automatically expands to latest stable 1.x release of Julia
         os:
@@ -29,6 +36,8 @@ jobs:
         arch:
           - x64
         include:
+          # for x86, we have to pin the version to 1.0 as the HDF5 package does not compile on the
+          # latest stable 1.x version
           - os: ubuntu-latest
             version: "1.0"
             arch: x86
@@ -77,10 +86,12 @@ jobs:
       - run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # I created a `DOCUMENTER_KEY` secret, via https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
+          # I created a `DOCUMENTER_KEY` secret, via
+          # https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
 
-  # JuliaFormatter check, based off of https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
+  # JuliaFormatter check, based off of
+  # https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
   format-check:
     name: "Check Formatting"
     runs-on: "ubuntu-latest"
