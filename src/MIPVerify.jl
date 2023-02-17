@@ -189,13 +189,15 @@ function frac_correct(nn::NeuralNet, dataset::LabelledDataset, num_samples::Inte
 
     num_correct = 0.0
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))
-    @showprogress 1 "Computing fraction correct..." for sample_index in 1:num_samples
+    p = Progress(num_samples, desc = "Computing fraction correct...", enabled = isinteractive())
+    for sample_index in 1:num_samples
         input = get_image(dataset.images, sample_index)
         actual_label = get_label(dataset.labels, sample_index)
         predicted_label = (input |> nn |> get_max_index) - 1
         if actual_label == predicted_label
             num_correct += 1
         end
+        next!(p)
     end
     return num_correct / num_samples
 end
