@@ -1,9 +1,9 @@
 using Test
 
-using Cbc
+using HiGHS
 using JuMP
 
-using MIPVerify: set_log_level!, optimize_silent!
+using MIPVerify: set_log_level!
 using MIPVerify: get_max_index, get_norm, get_default_tightening_options
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
@@ -19,10 +19,10 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
     include("batch_processing_helpers.jl")
 
     @testset "get_default_tightening_options" begin
-        @test get_default_tightening_options(() -> Cbc.Optimizer()) ==
-              Dict("logLevel" => 0, "seconds" => 20)
-        @test get_default_tightening_options(Cbc.Optimizer) ==
-              Dict("logLevel" => 0, "seconds" => 20)
+        @test get_default_tightening_options(() -> HiGHS.Optimizer()) ==
+              Dict("output_flag" => false, "time_limit" => 20.0)
+        @test get_default_tightening_options(HiGHS.Optimizer) ==
+              Dict("output_flag" => false, "time_limit" => 20.0)
         @test get_default_tightening_options(() -> nothing) == Dict()
     end
 
@@ -53,19 +53,19 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
                 n_inf = get_norm(Inf, xs)
 
                 @objective(m, Min, n_1)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 6
 
                 if Base.find_package("Gurobi") !== nothing
                     # Skip these tests if Gurobi is not installed.
-                    # Cbc does not solve problems with quadratic objectives
+                    # HiGHS does not solve problems with quadratic objectives
                     @objective(m, Min, n_2)
-                    optimize_silent!(m)
+                    optimize!(m)
                     @test JuMP.objective_value(m) ≈ 14
                 end
 
                 @objective(m, Min, n_inf)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 3
 
                 @test_throws DomainError get_norm(3, xs)

@@ -21,8 +21,7 @@ using MIPVerify:
     TighteningAlgorithm,
     MIPVerifyExt,
     upper_bound,
-    lower_bound,
-    optimize_silent!
+    lower_bound
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 function count_binary_variables(m::Model)
@@ -103,7 +102,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Max, x1)
-            optimize_silent!(m)
+            optimize!(m)
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 3
         end
@@ -122,7 +121,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
             # elements of the input array are made to take their maximum value
             @objective(m, Max, x1 + x2 + x3 + x4 + x5)
-            optimize_silent!(m)
+            optimize!(m)
 
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 7
@@ -162,7 +161,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
             # elements of the input array are made to take their maximum value
             @objective(m, Max, xmax)
-            optimize_silent!(m)
+            optimize!(m)
 
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 100
@@ -177,7 +176,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             # no binary variables need to be introduced
             @test count_binary_variables(m) == 0
 
-            optimize_silent!(m)
+            optimize!(m)
 
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 2
@@ -194,7 +193,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Max, x1)
-            optimize_silent!(m)
+            optimize!(m)
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 3
         end
@@ -267,7 +266,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) == 0
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 1
             end
             @testset "strictly non-positive" begin
@@ -279,7 +278,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) == 0
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 1
             end
             @testset "regular" begin
@@ -291,7 +290,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) <= 1
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 2
             end
         end
@@ -306,7 +305,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) == 0
 
                 @objective(m, Max, x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 0
             end
             @testset "strictly non-positive" begin
@@ -349,13 +348,13 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) == 0
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 1
                 @test JuMP.value(x) ≈ -1
                 @test JuMP.value(x_r) ≈ 0
 
                 @objective(m, Min, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ -2
                 @test JuMP.value(x) ≈ 2
                 @test JuMP.value(x_r) ≈ 0
@@ -369,13 +368,13 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) <= 1
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 2
                 @test JuMP.value(x) ≈ 2
                 @test JuMP.value(x_r) ≈ 2
 
                 @objective(m, Min, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 0
                 @test JuMP.value(x) ≈ 0
                 @test JuMP.value(x_r) ≈ 0
@@ -389,13 +388,13 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test count_binary_variables(m) == 0
 
                 @objective(m, Max, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 2
                 @test JuMP.value(x) ≈ 2
                 @test JuMP.value(x_r) ≈ 2
 
                 @objective(m, Min, 2 * x_r - x)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ -1
                 @test JuMP.value(x) ≈ -1
                 @test JuMP.value(x_r) ≈ -1
@@ -416,13 +415,13 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 x_r = masked_relu(x, [-1, 0, 1])
 
                 @objective(m, Max, sum(2 * x_r - x))
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ 5
                 @test JuMP.value.(x) ≈ [-1, 2, 2]
                 @test JuMP.value.(x_r) ≈ [0, 2, 2]
 
                 @objective(m, Min, sum(2 * x_r - x))
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.objective_value(m) ≈ -3
                 @test JuMP.value.(x) ≈ [2, 0, -1]
                 @test JuMP.value.(x_r) ≈ [0, 0, -1]
@@ -440,7 +439,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Max, 2 * x_a - x)
-            optimize_silent!(m)
+            optimize!(m)
             @test JuMP.objective_value(m) ≈ 1
         end
         @testset "strictly non-positive" begin
@@ -452,7 +451,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Max, 2 * x_a - x)
-            optimize_silent!(m)
+            optimize!(m)
             @test JuMP.objective_value(m) ≈ 3
         end
         @testset "regular" begin
@@ -464,7 +463,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Max, 2 * x_a - x)
-            optimize_silent!(m)
+            optimize!(m)
             @test JuMP.objective_value(m) ≈ 6
         end
         @testset "abs_ge is not strict" begin
@@ -477,7 +476,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
 
             @objective(m, Min, x_a - x)
-            optimize_silent!(m)
+            optimize!(m)
             @test JuMP.objective_value(m) ≈ 0
         end
     end
@@ -500,7 +499,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @constraint(m, x[3] == 1)
                 set_max_indexes(m, x, [1])
                 @objective(m, Min, x[1])
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.value(x[1]) ≈ 5
             end
             @testset "with margin" begin
@@ -511,7 +510,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @constraint(m, x[3] == 1)
                 set_max_indexes(m, x, [1], margin = margin)
                 @objective(m, Min, x[1])
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.value(x[1]) ≈ 5 + margin
             end
         end
@@ -526,7 +525,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 set_upper_bound(x[3], 10)
                 set_max_indexes(m, x, [2, 3])
                 @objective(m, Min, x[2] + x[3])
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.value(x[2]) ≈ 5
                 @test JuMP.value(x[3]) ≈ -1
             end
@@ -541,7 +540,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 set_upper_bound(x[3], 10)
                 set_max_indexes(m, x, [2, 3], margin = margin)
                 @objective(m, Min, x[2] + x[3])
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.value(x[2]) ≈ 5 + margin
                 @test JuMP.value(x[3]) ≈ -1
             end
@@ -552,7 +551,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     x2 = @variable(m, lower_bound = 4, upper_bound = 5)
                     set_max_indexes(m, [x1, x2], [2])
                     @objective(m, Min, x2)
-                    optimize_silent!(m)
+                    optimize!(m)
                     @test JuMP.value(x2) ≈ 4
                 end
                 @testset "selected variable has non-constant value, and cannot take the maximum value" begin
@@ -561,7 +560,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     x2 = @variable(m, lower_bound = -5, upper_bound = -4)
                     set_max_indexes(m, [x1, x2], [2])
                     @objective(m, Min, x2)
-                    optimize_silent!(m)
+                    optimize!(m)
                     solve_status = JuMP.termination_status(m)
                     @test (
                         solve_status in
@@ -574,7 +573,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     x2 = @variable(m, lower_bound = -5, upper_bound = -4)
                     set_max_indexes(m, [x1, x2], [1])
                     @objective(m, Min, x2)
-                    optimize_silent!(m)
+                    optimize!(m)
                     @test JuMP.value(x2) ≈ -5
                 end
                 @testset "selected variable has constant value, and cannot take the maximum value" begin
@@ -583,7 +582,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     x2 = @variable(m, lower_bound = 4, upper_bound = 5)
                     set_max_indexes(m, [x1, x2], [1])
                     @objective(m, Min, x2)
-                    optimize_silent!(m)
+                    optimize!(m)
                     solve_status = JuMP.termination_status(m)
                     @test (
                         solve_status in

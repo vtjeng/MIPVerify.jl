@@ -25,10 +25,10 @@ end
 const TEST_DEFAULT_TIGHTENING_ALGORITHM = lp
 
 if Base.find_package("Gurobi") === nothing
-    using Cbc
-    optimizer = Cbc.Optimizer
-    main_solve_options = Dict("logLevel" => 0)
-    tightening_options = Dict("logLevel" => 0, "seconds" => 20)
+    using HiGHS
+    optimizer = HiGHS.Optimizer
+    main_solve_options = Dict("output_flag" => false)
+    tightening_options = Dict("output_flag" => false, "time_limit" => 20.0)
 else
     using Gurobi
     env = Gurobi.Env()
@@ -75,7 +75,6 @@ function test_find_adversarial_example(
         tightening_options = get_tightening_options(),
         tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
         invert_target_selection = invert_target_selection,
-        silence_solve_output = true,
     )
     if isnan(expected_objective_value)
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||

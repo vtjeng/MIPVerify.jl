@@ -1,7 +1,6 @@
 using Test
 using JuMP
 using MIPVerify
-using MIPVerify: optimize_silent!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "pool.jl" begin
@@ -55,7 +54,7 @@ using MIPVerify: optimize_silent!
             pool_v = MIPVerify.pool(input_array_v, MaxPool((2, 2)))
             # elements of the input array are made to take their maximum value
             @objective(m, Max, sum(input_array_v))
-            optimize_silent!(m)
+            optimize!(m)
 
             solve_output = JuMP.value.(pool_v)
             @test solve_output ≈ true_output

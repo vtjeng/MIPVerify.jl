@@ -32,8 +32,8 @@ function get_default_tightening_options(optimizer)::Dict
     optimizer_type_name = string(typeof(optimizer()))
     if optimizer_type_name == "Gurobi.Optimizer"
         return Dict("OutputFlag" => 0, "TimeLimit" => 20)
-    elseif optimizer_type_name == "Cbc.Optimizer"
-        return Dict("logLevel" => 0, "seconds" => 20)
+    elseif optimizer_type_name == "HiGHS.Optimizer"
+        return Dict("output_flag" => false, "time_limit" => 20.0)
     else
         return Dict()
     end
@@ -76,7 +76,7 @@ We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for 
 + `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and
     lower bounds for input to nonlinear units. Note that these are only used if the 
     `tightening_algorithm` is `lp` or `mip` (no solver is used when `interval_arithmetic` is used
-    to compute the bounds). Defaults for Gurobi and Cbc to a time limit of 20s per solve, 
+    to compute the bounds). Defaults for Gurobi and HiGHS to a time limit of 20s per solve, 
     with output suppressed.
 + `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the 
     unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes 
@@ -98,7 +98,6 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
-    silence_solve_output::Bool = false,
 )::Dict
 
     total_time = @elapsed begin
@@ -151,11 +150,7 @@ function find_adversarial_example(
             end
             set_optimizer(m, optimizer)
             set_optimizer_attributes(m, main_solve_options...)
-            if silence_solve_output
-                optimize_silent!(m)
-            else
-                optimize!(m)
-            end
+            optimize!(m)
             d[:SolveStatus] = JuMP.termination_status(m)
             d[:SolveTime] = JuMP.solve_time(m)
         end

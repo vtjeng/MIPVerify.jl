@@ -1,6 +1,6 @@
 using Test
 using JuMP
-using MIPVerify: Linear, check_size, optimize_silent!
+using MIPVerify: Linear, check_size
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "linear.jl" begin
@@ -58,7 +58,7 @@ using MIPVerify: Linear, check_size, optimize_silent!
                 y = @variable(m)
                 @constraint(m, x == 7)
                 @constraint(m, y == 8)
-                optimize_silent!(m)
+                optimize!(m)
                 @test JuMP.value.(p([x, y])) == [28, 59]
             end
         end
