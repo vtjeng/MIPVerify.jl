@@ -75,6 +75,7 @@ function test_find_adversarial_example(
         tightening_options = get_tightening_options(),
         tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
         invert_target_selection = invert_target_selection,
+        silence_solve_output = true,
     )
     if isnan(expected_objective_value)
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||

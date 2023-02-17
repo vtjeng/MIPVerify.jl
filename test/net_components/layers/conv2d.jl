@@ -1,7 +1,7 @@
 using Test
 using JuMP
 using MIPVerify
-using MIPVerify: check_size
+using MIPVerify: check_size, optimize_silent!
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 function test_convolution_layer(
@@ -53,7 +53,7 @@ function test_convolution_layer(
         p_v = MIPVerify.Conv2d(filter_v, bias_v, p.stride, p.padding)
         output_v = MIPVerify.conv2d(input, p_v)
         @constraint(m, output_v .== expected_output)
-        optimize!(m)
+        optimize_silent!(m)
 
         p_solve = MIPVerify.Conv2d(JuMP.value.(filter_v), JuMP.value.(bias_v), p.stride, p.padding)
         solve_output = MIPVerify.conv2d(input, p_solve)
@@ -64,7 +64,7 @@ function test_convolution_layer(
         input_v = map(_ -> @variable(m), CartesianIndices(input_size))
         output_v = MIPVerify.conv2d(input_v, p)
         @constraint(m, output_v .== expected_output)
-        optimize!(m)
+        optimize_silent!(m)
 
         solve_output = MIPVerify.conv2d(JuMP.value.(input_v), p)
         @test solve_output ≈ expected_output

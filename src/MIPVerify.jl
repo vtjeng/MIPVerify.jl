@@ -98,6 +98,7 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    silence_solve_output::Bool = false,
 )::Dict
 
     total_time = @elapsed begin
@@ -150,7 +151,11 @@ function find_adversarial_example(
             end
             set_optimizer(m, optimizer)
             set_optimizer_attributes(m, main_solve_options...)
-            optimize!(m)
+            if silence_solve_output
+                optimize_silent!(m)
+            else
+                optimize!(m)
+            end
             d[:SolveStatus] = JuMP.termination_status(m)
             d[:SolveTime] = JuMP.solve_time(m)
         end
