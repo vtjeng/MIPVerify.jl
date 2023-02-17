@@ -18,14 +18,6 @@ function is_constant(x::JuMP.VariableRef)
     false
 end
 
-function optimize_silent!(m)
-    redirect_stdout(devnull) do
-        optimize!(m)
-        # Required, per https://discourse.julialang.org/t/consistent-way-to-suppress-solver-output/20437/9
-        Base.Libc.flush_cstdio()
-    end
-end
-
 function get_tightening_algorithm(
     x::JuMPLinearType,
     nta::Union{TighteningAlgorithm,Nothing},
@@ -94,7 +86,7 @@ arithmetic, as a backup.
 """
 function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLinearType, b_0::Number)
     @objective(m, bound_obj[bound_type], objective)
-    optimize_silent!(m)
+    optimize!(m)
     status = JuMP.termination_status(m)
     if status == MathOptInterface.OPTIMAL
         b = JuMP.objective_value(m)
