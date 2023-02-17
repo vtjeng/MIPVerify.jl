@@ -3,7 +3,7 @@ using Test
 using Cbc
 using JuMP
 
-using MIPVerify: set_log_level!
+using MIPVerify: set_log_level!, optimize_silent!
 using MIPVerify: get_max_index, get_norm, get_default_tightening_options
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
@@ -53,19 +53,19 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
                 n_inf = get_norm(Inf, xs)
 
                 @objective(m, Min, n_1)
-                optimize!(m)
+                optimize_silent!(m)
                 @test JuMP.objective_value(m) ≈ 6
 
                 if Base.find_package("Gurobi") !== nothing
                     # Skip these tests if Gurobi is not installed.
                     # Cbc does not solve problems with quadratic objectives
                     @objective(m, Min, n_2)
-                    optimize!(m)
+                    optimize_silent!(m)
                     @test JuMP.objective_value(m) ≈ 14
                 end
 
                 @objective(m, Min, n_inf)
-                optimize!(m)
+                optimize_silent!(m)
                 @test JuMP.objective_value(m) ≈ 3
 
                 @test_throws DomainError get_norm(3, xs)

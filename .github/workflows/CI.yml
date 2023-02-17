@@ -28,7 +28,7 @@ jobs:
         version:
           # we are excluding nightly builds because they can fail, and we want this to be a
           # required check
-          - "1.0" # minimum Julia version that this package supports
+          - "1.6" # minimum Julia version that this package supports
           - "1" # automatically expands to latest stable 1.x release of Julia
         os:
           - ubuntu-latest
@@ -36,12 +36,6 @@ jobs:
           - windows-latest
         arch:
           - x64
-        include:
-          # for x86, we have to pin the version to 1.0 as the HDF5 package does not compile on the
-          # latest stable 1.x version
-          - os: ubuntu-latest
-            version: "1.0"
-            arch: x86
     steps:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@v1
