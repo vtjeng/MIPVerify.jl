@@ -282,15 +282,15 @@ function relu(
         l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0)
         return relu.(x, l, u)
     else
-        p1 = Progress(length(x), desc = "  Calculating upper bounds: ")
+        p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
         u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta = nta, cutoff = 0)), x)
-        p2 = Progress(length(x), desc = "  Calculating lower bounds: ")
+        p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
         l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta = nta, cutoff = 0)), zip(x, u))
 
         reluinfo = ReLUInfo(l, u)
         Memento.info(MIPVerify.LOGGER, "$reluinfo")
 
-        p3 = Progress(length(x), desc = "  Imposing relu constraint: ")
+        p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
         return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
     end
 end
@@ -374,9 +374,9 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
 
     # TODO (vtjeng): [PERF] skip calculating lower_bound for index if upper_bound is lower than
     # largest current lower_bound.
-    p1 = Progress(length(xs), desc = "  Calculating upper bounds: ")
+    p1 = Progress(length(xs), desc = "  Calculating upper bounds: ", enabled = isinteractive())
     us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
-    p2 = Progress(length(xs), desc = "  Calculating lower bounds: ")
+    p2 = Progress(length(xs), desc = "  Calculating lower bounds: ", enabled = isinteractive())
     ls = map(x_i -> (next!(p2); tight_lowerbound(x_i)), xs)
 
     l = Base.maximum(ls)
