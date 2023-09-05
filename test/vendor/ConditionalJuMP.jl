@@ -1,7 +1,8 @@
 using Test
 
 using JuMP
-using MIPVerify: owner_model, interval, lower_bound, upper_bound
+using IntervalArithmetic
+using MIPVerify: owner_model, lower_bound, upper_bound
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
@@ -23,7 +24,7 @@ TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
         e = 2 * x + 1
 
         @testset "Number" begin
-            i = interval(5.0)
+            i = IntervalArithmetic.interval(5.0)
             @test lower_bound(i) == 5.0
             @test upper_bound(i) == 5.0
         end
@@ -32,7 +33,7 @@ TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
             @test lower_bound(x) == 1
             @test upper_bound(x) == 3
 
-            i = interval(x)
+            i = IntervalArithmetic.interval(x)
             @test lower_bound(i) == 1
             @test upper_bound(i) == 3
         end
@@ -50,13 +51,13 @@ TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
             @test lower_bound(AffExpr(2)) == 2
             @test upper_bound(AffExpr(2)) == 2
 
-            i = interval(e)
+            i = IntervalArithmetic.interval(e)
             @test lower_bound(i) == lower_bound(e)
             @test upper_bound(i) == upper_bound(e)
         end
 
         @testset "Interval" begin
-            i = interval(5.0)
+            i = IntervalArithmetic.interval(5.0)
             @test lower_bound(i) == 5.0
             @test upper_bound(i) == 5.0
         end

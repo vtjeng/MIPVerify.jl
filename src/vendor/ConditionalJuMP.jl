@@ -1,5 +1,5 @@
 using JuMP
-using IntervalArithmetic: Interval
+using IntervalArithmetic
 
 # We vendor ConditionalJuMP (https://github.com/rdeits/ConditionalJuMP.jl/blob/e0c406077c0b07be76e02f72c3a7a7aa650df82f/src/ConditionalJuMP.jl)
 # so that we can use JuMP >= 0.2.0
@@ -23,12 +23,15 @@ function owner_model(
     return nothing
 end
 
-interval(x::Number) = Interval(x, x)
-interval(x::JuMP.VariableRef) = Interval(lower_bound(x), upper_bound(x))
-function interval(e::JuMP.GenericAffExpr)
-    result = Interval(e.constant, e.constant)
+# Supplements constructors in https://github.com/JuliaIntervals/IntervalArithmetic.jl/blob/master/src/intervals/construction.jl.
+IntervalArithmetic.interval(x::JuMP.VariableRef) =
+    IntervalArithmetic.interval(lower_bound(x), upper_bound(x))
+function IntervalArithmetic.interval(e::JuMP.GenericAffExpr)
+    result = IntervalArithmetic.interval(e.constant)
     for (var, coef) in e.terms
-        result += Interval(coef, coef) * Interval(lower_bound(var), upper_bound(var))
+        result +=
+            IntervalArithmetic.interval(coef) *
+            IntervalArithmetic.interval(lower_bound(var), upper_bound(var))
     end
     return result
 end
@@ -37,7 +40,7 @@ lower_bound(x::Number) = x
 upper_bound(x::Number) = x
 lower_bound(x::JuMP.VariableRef) = JuMP.lower_bound(x)
 upper_bound(x::JuMP.VariableRef) = JuMP.upper_bound(x)
-lower_bound(e::JuMP.GenericAffExpr) = lower_bound(interval(e))
-upper_bound(e::JuMP.GenericAffExpr) = upper_bound(interval(e))
+lower_bound(e::JuMP.GenericAffExpr) = lower_bound(IntervalArithmetic.interval(e))
+upper_bound(e::JuMP.GenericAffExpr) = upper_bound(IntervalArithmetic.interval(e))
 lower_bound(i::Interval) = i.lo
 upper_bound(i::Interval) = i.hi
