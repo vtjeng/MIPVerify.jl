@@ -42,5 +42,5 @@ lower_bound(x::JuMP.VariableRef) = JuMP.lower_bound(x)
 upper_bound(x::JuMP.VariableRef) = JuMP.upper_bound(x)
 lower_bound(e::JuMP.GenericAffExpr) = lower_bound(IntervalArithmetic.interval(e))
 upper_bound(e::JuMP.GenericAffExpr) = upper_bound(IntervalArithmetic.interval(e))
-lower_bound(i::Interval) = i.lo
-upper_bound(i::Interval) = i.hi
+lower_bound(i::Interval) = inf(i)
+upper_bound(i::Interval) = sup(i)
