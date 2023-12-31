@@ -2,20 +2,9 @@ using Test
 
 @testset "zero.jl" begin
 
-    @testset "ReLU" begin
-        @testset "Initialize without tightening algorithm" begin
-            p = ReLU()
-            @test p.tightening_algorithm === nothing
-        end
-
-        @testset "Initialize with tightening algorithm" begin
-            p = ReLU(MIPVerify.mip)
-            @test !(p.tightening_algorithm === nothing)
-            @test p.tightening_algorithm == MIPVerify.mip
-        end
-
+    @testset "Zero" begin
         @testset "Base.show" begin
-            p = ReLU()
+            p = Zero()
             io = IOBuffer()
             Base.show(io, p)
             @test String(take!(io)) == "Zero()"
