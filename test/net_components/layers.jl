@@ -8,4 +8,5 @@ TestHelpers.@timed_testset "layers/" begin
     include("layers/masked_relu.jl")
     include("layers/pool.jl")
     include("layers/relu.jl")
+    include("layers/zero.jl")
 end
