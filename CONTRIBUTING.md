@@ -8,11 +8,14 @@ You will need to get started by [installing Julia](https://julialang.org/downloa
 
 ### Basic Setup
 
-If you are making changes to only documentation or tests — or are making changes to core functionality that will be tested with unit tests — you can simply check out this repository and start making changes.
+If you are making changes to only documentation or tests — or are making changes to core
+functionality that will be tested with unit tests — you can simply check out this repository and
+start making changes.
 
 ### Advanced Setup
 
-If you want to make changes to the `MIPVerify` package code, _and_ run an existing Julia script that imports the package:
+If you want to make changes to the `MIPVerify` package code, _and_ run an existing Julia script that
+imports the package:
 
 ```sh
 $ julia
@@ -37,31 +40,38 @@ Press `]` to enter the package manager
    Updating `~/.julia/environments/v1.4/Manifest.toml`
   [6e4b80f9] + BenchmarkTools v0.5.0
   [a74b3585] + Blosc v0.7.0
-  
+
   ...
 ```
 
-You should now have the `MIPVerify` repository checked out at the path `$JULIA_ENV_FOLDER/dev/MIPVerify`, where `JULIA_ENV_FOLDER` refers to the folder containing the `Project.toml` file.
+You should now have the `MIPVerify` repository checked out at the path
+`$JULIA_ENV_FOLDER/dev/MIPVerify`, where `JULIA_ENV_FOLDER` refers to the folder containing the
+`Project.toml` file.
 
 ## Submitting Contributions
 
 There are many ways to contribute to this package.
 
-> Note: If you're new to Julia, consider working on one of the issues [labeled "good first issue"](https://github.com/vtjeng/MIPVerify.jl/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
+> Note: If you're new to Julia, consider working on one of the issues
+> [labeled "good first issue"](https://github.com/vtjeng/MIPVerify.jl/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22).
 
 ### Contributing to core functionality
 
-We're excited to hear what new ideas you have for verification, and would be happy to discuss how best to implement it.
+We're excited to hear what new ideas you have for verification, and would be happy to discuss how
+best to implement it.
 
 ### Contributing datasets / networks
 
-If you have an interesting new dataset, or a new network that you'll like to verify the robustness of, please consider opening a PR to share it with other users of this package.
+If you have an interesting new dataset, or a new network that you'll like to verify the robustness
+of, please consider opening a PR to share it with other users of this package.
 
 ### Improving Documentation
 
-We use [`Documenter.jl`](https://juliadocs.github.io/Documenter.jl/stable/man/guide/), and documentation is stored in the `docs/` directory.
+We use [`Documenter.jl`](https://juliadocs.github.io/Documenter.jl/stable/man/guide/), and
+documentation is stored in the `docs/` directory.
 
-Documentation is generated [as part of the build process](https://github.com/vtjeng/MIPVerify.jl/blob/2f2a0918abe28fb5f8b0b14396363c516a9c80c6/.travis.yml#L23-L28).
+Documentation is generated
+[as part of the build process](https://github.com/vtjeng/MIPVerify.jl/blob/2f2a0918abe28fb5f8b0b14396363c516a9c80c6/.travis.yml#L23-L28).
 
 To generate documentation locally, run the following command from the `docs/` directory
 
@@ -75,11 +85,14 @@ The generated documentation will be found in the `docs/build/` directory.
 
 Tests are stored in the `test/` directory, which has a parallel structure to the `src/` directory.
 
-Information on current test coverage can be found [on codecov](https://codecov.io/github/vtjeng/MIPVerify.jl?branch=master).
+Information on current test coverage can be found
+[on codecov](https://codecov.io/github/vtjeng/MIPVerify.jl?branch=master).
 
 Tests are run as part of the build process.
 
-To run tests locally, run `julia --project=/path/to/repo/root`, enter the package manager, then run `test MIPVerify`. (If running from the repository root, `julia --project` will suffice). Sample output:
+To run tests locally, run `julia --project=/path/to/repo/root`, enter the package manager, then run
+`test MIPVerify`. (If running from the repository root, `julia --project` will suffice). Sample
+output:
 
 ```sh
 (@v1.4) pkg> test MIPVerify
@@ -100,7 +113,8 @@ MIPVerify     |  336    336
     Testing MIPVerify tests passed
 ```
 
-For faster iteration, you can also run individual test files in `/test` via `julia --project=test test/my_test.jl`.
+For faster iteration, you can also run individual test files in `/test` via
+`julia --project=test test/my_test.jl`.
 
 ## Getting your PR ready to merge
 
@@ -108,7 +122,9 @@ For your PR to be reviewed, it will need to pass two required checks:
 
 ### `JuliaFormatter / format-check (pull_request)`
 
-This check verifies that the code formatting is aligned with our specifications. Running the script [`scripts/format.sh`](scripts/format.sh) locally will make changes to ensure that your code is up to spec.
+This check verifies that the code formatting is aligned with our specifications. Running the script
+[`scripts/format.sh`](scripts/format.sh) locally will make changes to ensure that your code is up to
+spec.
 
 ### `Travis CI - Pull Request`
 
@@ -116,8 +132,10 @@ This check verifies that tests were all passing and documentation was generated 
 
 ### Non-required checks
 
-Two additional checks (`codecov/patch` and `codecov/project`) measure the change in code coverage in the project. They are generally used to verify that any new core functionality is properly tested.
+Two additional checks (`codecov/patch` and `codecov/project`) measure the change in code coverage in
+the project. They are generally used to verify that any new core functionality is properly tested.
 
 ## Acknowledgements
 
-This document was adapted from Julia's [`CONTRIBUTING.md`](https://github.com/JuliaLang/julia/blob/master/CONTRIBUTING.md).
+This document was adapted from Julia's
+[`CONTRIBUTING.md`](https://github.com/JuliaLang/julia/blob/master/CONTRIBUTING.md).

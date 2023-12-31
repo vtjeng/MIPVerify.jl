@@ -95,7 +95,8 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1"
-      - name: "run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)"
+      - name:
+          "run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)"
         run: ./scripts/format.sh
       - name: "Check that running `format` is a no-op."
         run: |
