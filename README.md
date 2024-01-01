@@ -92,6 +92,10 @@ reached the time limit for some samples. Error is over the full MNIST test set o
 paper.<br> \* Neural network available for import via listed name using
 `get_example_network_params`.
 
+## Contributing
+
+Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for instructions.
+
 ## Citing this Library
 
 ```bibtex
