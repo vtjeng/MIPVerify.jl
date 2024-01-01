@@ -16,7 +16,7 @@ start making changes.
 If you want to make changes to the `MIPVerify` package code, _and_ run an existing Julia script that
 imports the package, the most convenient approach is to use `Pkg.develop`.
 
-```sh
+```shell-session
 $ julia -e 'using Pkg; Pkg.develop("MIPVerify")'
      Cloning git-repo `https://github.com/vtjeng/MIPVerify.jl.git`
   [...]
@@ -41,12 +41,7 @@ They are run for each PR via the `test` job for the
 To run all tests for the package, run this command from the package directory:
 
 ```sh
-$ julia --project -e 'using Pkg; Pkg.test("MIPVerify")'
-  [...]
-     Testing MIPVerify
-  [...]
-     Testing Running tests...
-  [...]
+julia --project -e 'using Pkg; Pkg.test("MIPVerify")'
 ```
 
 Sample output for a successful test is shown below. Note that information on runtime and memory
