@@ -5,7 +5,7 @@ using Test
     @testset "Zero" begin
     	 @testset "Flatten" begin
 	     p = Zero()
-             @test p() == 0
+             @test p([1,2,3,4]) == 0
 	 end
         @testset "Base.show" begin
             p = Zero()
