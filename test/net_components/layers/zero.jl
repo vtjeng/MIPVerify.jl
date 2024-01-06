@@ -4,11 +4,8 @@ using Test
 
     @testset "Zero" begin
         @testset "specified input, zero" begin
-            height = 15
-            matrix = ones(2, height)
-            bias = ones(height)
 	    p = Zero()
-            p = Zero(1)
+	    p(ones(1))
         end
         @testset "Base.show" begin
             p = Zero()
