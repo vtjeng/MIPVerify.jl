@@ -5,7 +5,7 @@ using Test
     @testset "Zero" begin
         @testset "specified input, zero" begin
             p = Zero()
-            p(ones(1))
+            @test p(ones(1)) == 0
         end
         @testset "Base.show" begin
             p = Zero()
