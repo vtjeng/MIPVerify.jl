@@ -6,6 +6,12 @@ on:
   workflow_dispatch:
 
 jobs:
+  # CompatHelper creates a pull request through the GitHub API.
+  # Per
+  # https://github.com/peter-evans/create-pull-request/blob/main/docs/concepts-guidelines.md#triggering-further-workflow-runs,
+  # this does not trigger workflow runs. Our current workaround is to close and immediately reopen
+  # pull requests (see https://github.com/vtjeng/MIPVerify.jl/pull/146 for example). The link
+  # above provides alternatives if we want to do this 'right'.
   CompatHelper:
     runs-on: ubuntu-latest
     steps:
