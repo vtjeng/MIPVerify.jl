@@ -10,7 +10,7 @@ on:
       - "release-"
     tags: "*"
   pull_request:
-  # to allow manual tests https://leonardomontini.dev/github-action-manual-trigger/
+  # to allow manual tests https://leonardomontini.dev/github-action-manual-trigger
   workflow_dispatch:
 
 # Cancel previous runs of this workflow for the same pull request
@@ -112,3 +112,4 @@ jobs:
               write(stdout, "\nRun ./scripts/format.sh to fix.")
               exit(1)
           end'
+
