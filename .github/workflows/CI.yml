@@ -89,17 +89,17 @@ jobs:
 
   # JuliaFormatter check, based off of
   # https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
-  format-check:
-    name: "Check Formatting"
-    runs-on: "ubuntu-latest"
+  format-check-julia:
+    name: "Check Formatting (.jl)"
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1"
-      - name: "run format.sh (installs pinned version of JuliaFormatter and runs `format` on all files)"
+      - name: "Run `format.sh` script (runs `JuliaFormatter.format` on all files)"
         run: ./scripts/format.sh
-      - name: "Check that running `format` is a no-op."
+      - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
           julia -e '
           out = Cmd(`git diff --name-only`) |> read |> String
@@ -112,4 +112,13 @@ jobs:
               write(stdout, "\nRun ./scripts/format.sh to fix.")
               exit(1)
           end'
+  format-check-prettier:
+    name: "Check Formatting (.md, .yaml)"
+    runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Verify that Prettier does not find any code style issues."
+        uses: creyD/prettier_action@v4.3
+        with:
+          prettier_options: --check **/*.{md,yaml}

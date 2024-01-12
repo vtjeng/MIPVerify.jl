@@ -42,47 +42,50 @@ end
 """
 $(SIGNATURES)
 
-Finds the perturbed image closest to `input` such that the network described by `nn`
-classifies the perturbed image in one of the categories identified by the
-indexes in `target_selection`.
+Perturbs `input` such that the network `nn` classifies the perturbed image in one of the categories
+identified by the indexes in `target_selection`.
 
-`optimizer` specifies the optimizer used to solve the MIP problem once it has been built.
+IMPORTANT: `target_selection` can include the correct label for `input`.
+
+`optimizer` is used  build and solve the MIP problem.
 
 The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
-:Perturbation, :PerturbedInput, :Output`.
-See the [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
+:Perturbation, :PerturbedInput, :Output`. See the
+[tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
 on what individual dictionary entries correspond to.
 
 *Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector
-`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`.
-We guarantee that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all 
-`i ∉ target_selection`.
+`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`. If `:SolveStatus` is feasible, we guarantee
+that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
 
-# Named Arguments:
-+ `invert_target_selection::Bool`: Defaults to `false`. If `true`, sets `target_selection` to
-    be its complement.
-+ `pp::PerturbationFamily`: Defaults to `UnrestrictedPerturbationFamily()`. Determines
-    the family of perturbations over which we are searching for adversarial examples.
-+ `norm_order::Real`: Defaults to `1`. Determines the distance norm used to determine the
-    distance from the perturbed image to the original. Supported options are `1`, `Inf`
-    and `2` (if the `optimizer` used can solve MIQPs.)
-+ `tightening_algorithm::MIPVerify.TighteningAlgorithm`: Defaults to `mip`. Determines how we
-    determine the upper and lower bounds on input to each nonlinear unit.
-    Allowed options are `interval_arithmetic`, `lp`, `mip`.
-    (1) `interval_arithmetic` looks at the bounds on the output to the previous layer.
-    (2) `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints
-         relaxed.
-    (3) `mip` solves the full `mip` formulation.
-+ `tightening_options`: Solver-specific options passed to optimizer when used to determine upper and
-    lower bounds for input to nonlinear units. Note that these are only used if the 
+# Keyword Arguments:
+- `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to be its
+    complement.
+- `pp`: Defaults to `UnrestrictedPerturbationFamily()`. Determines the search space for adversarial
+  examples.
+- `norm_order`: Defaults to `1`. Determines the distance norm used to determine the distance from
+    the perturbed image to the original. Allowed options are `1` and `Inf`, and `2` if the
+    `optimizer` can solve MIQPs.
+- `adversarial_example_objective`: Defaults to `closest`. Allowed options are `closest` or `worst`.
+  - `closest` finds the closest adversarial example, as measured by the `norm_order` norm.
+  - `worst` finds the adversarial example with the _largest_ gap between `max(y[j)` for `j ∈
+    target_selection` and `max(y[i])` for all `i ∉ target_selection`.
+- `tightening_algorithm`: Defaults to `mip`. Determines how we determine the upper and lower bounds
+    on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
+  - `interval_arithmetic` looks at the bounds on the output to the previous layer.
+  - `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints
+    relaxed.
+  - `mip` solves the full `mip` formulation.
+- `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
+    and lower bounds for input to nonlinear units. Note that these are only used if the
     `tightening_algorithm` is `lp` or `mip` (no solver is used when `interval_arithmetic` is used
-    to compute the bounds). Defaults for Gurobi and HiGHS to a time limit of 20s per solve, 
-    with output suppressed.
-+ `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the 
-    unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes 
-    in `target_selection`, we can skip the relatively costly process of building the model for the 
-    MIP problem since we already have an "adversarial example" --- namely, the input itself. We 
-    continue build the model and solve the (trivial) MIP problem if and only if 
+    to compute the bounds). Defaults for Gurobi and HiGHS to a time limit of 20s per solve, with
+    output suppressed.
+- `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the
+    unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes
+    in `target_selection`, we can skip the relatively costly process of building the model for the
+    MIP problem since we already have an "adversarial example" --- namely, the input itself. We
+    continue build the model and solve the (trivial) MIP problem if and only if
     `solve_if_predicted_in_targeted` is `true`.
 """
 function find_adversarial_example(
@@ -144,6 +147,7 @@ function find_adversarial_example(
                 # details.
                 v_obj = @variable(m)
                 @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
+                @constraint(m, v_obj >= 0)
                 @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
@@ -176,9 +180,9 @@ Returns the fraction of items the neural network correctly classifies of the fir
 `num_samples` items, we use all of the available samples.
 
 # Named Arguments:
-+ `nn::NeuralNet`: The parameters of the neural network.
-+ `dataset::LabelledDataset`:
-+ `num_samples::Integer`: Number of samples to use.
+- `nn::NeuralNet`: The parameters of the neural network.
+- `dataset::LabelledDataset`:
+- `num_samples::Integer`: Number of samples to use.
 """
 function frac_correct(nn::NeuralNet, dataset::LabelledDataset, num_samples::Integer)::Real
 
