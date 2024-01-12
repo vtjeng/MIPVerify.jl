@@ -10,6 +10,8 @@ on:
       - "release-"
     tags: "*"
   pull_request:
+  # to allow manual tests: https://leonardomontini.dev/github-action-manual-trigger
+  workflow_dispatch:
 
 # Cancel previous runs of this workflow for the same pull request
 # `github.head_ref`: https://stackoverflow.com/a/67939898/1404966
