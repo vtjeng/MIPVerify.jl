@@ -527,7 +527,7 @@ end
 $(SIGNATURES)
 
 Imposes constraints ensuring that one of the elements at the target_indexes is the
-largest element of the array x. More specifically, we require `x[j] - x[i] ≥ margin` for
+largest element of the array x. More specifically, we require `x[j] - x[i] > margin` for
 some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
 """
 function set_max_indexes(
@@ -539,6 +539,6 @@ function set_max_indexes(
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
-    @constraint(model, nontarget_vars .<= maximum_target_var - margin)
+    @constraint(model, nontarget_vars .< maximum_target_var - margin)
     return nothing
 end

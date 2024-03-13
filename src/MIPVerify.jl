@@ -147,7 +147,7 @@ function find_adversarial_example(
                 # details.
                 v_obj = @variable(m)
                 @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
-                @constraint(m, v_obj >= 0)
+                @constraint(m, v_obj > 0)
                 @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
