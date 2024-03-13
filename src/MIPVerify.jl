@@ -45,9 +45,14 @@ $(SIGNATURES)
 Perturbs `input` such that the network `nn` classifies the perturbed image in one of the categories
 identified by the indexes in `target_selection`.
 
-IMPORTANT: `target_selection` can include the correct label for `input`.
+IMPORTANT: 
+  1) `target_selection` can include the correct label for `input`.
+  2) It is possible (particularly with the `closest` objective) to see 'ties' -- that is, the
+     perturbed input produces an output with two logits (one corresponding to a target category,
+     and one corresponding to a non-target category) taking on the same maximal value. See the
+     formal definition below for more; in particular, note that '≥' sign.
 
-`optimizer` is used  build and solve the MIP problem.
+`optimizer` is used to build and solve the MIP problem.
 
 The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
 :Perturbation, :PerturbedInput, :Output`. See the
@@ -147,7 +152,10 @@ function find_adversarial_example(
                 # details.
                 v_obj = @variable(m)
                 @constraint(m, v_obj == maximum_target_var - maximum_nontarget_var)
-                @constraint(m, v_obj > 0)
+                # JuMP does not support strict inequalities; see 
+                # https://github.com/jump-dev/JuMP.jl/blob/24c0409c5fa5cae6a4ae64b1c82ab5f83d55fbc6/src/macros/%40variable.jl#L516-L523
+                # for more context.
+                @constraint(m, v_obj >= 0)
                 @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
