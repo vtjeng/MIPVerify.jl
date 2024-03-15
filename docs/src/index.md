@@ -10,58 +10,40 @@ for some bounded family of perturbations.
 
 To use our package, you require
 
-1.  The Julia programming language
-2.  An optimizer [supported](https://jump.dev/JuMP.jl/stable/installation/#Getting-Solvers-1) by
-    `JuMP`
-3.  The Julia package for working with that optimizer
+1. The Julia programming language
+2. An optimizer [supported](https://jump.dev/JuMP.jl/stable/installation/#Install-a-solver) by
+   `JuMP`
+3. The Julia package for working with that optimizer
 
-Our choice of optimizer is [Gurobi](http://www.gurobi.com/), but any supported optimizer will work.
+We recommend either [Gurobi](http://www.gurobi.com/) (if you have a license) or `HiGHS`, but any
+supported optimizer will work.
 
 **Platform compatibility:** Julia and Gurobi are available for 32-bit and 64-bit Windows, 64-bit
 macOS, and 64-bit Linux, but example code in this README is for Linux.
 
 #### Installing Julia
 
-The latest release of this package requires [version 1.0](https://julialang.org/downloads/) or above
-of Julia.
-
-Platform-specific instructions can be found [here](https://julialang.org/downloads/platform.html).
-To complete your installation, ensure that you are able to call `julia` REPL from the command line.
+The latest release of this package requires version 1.6 or above of Julia. See
+[installation instructions](https://julialang.org/downloads/). To complete your installation, ensure
+that you are able to call `julia` REPL from the command line.
 
 !!! warning
 
     Do **not** use `apt-get` or `brew` to install Julia, as the versions provided by these package managers tend to be out of date.
 
-##### On Ubuntu
-
-```console
-$ cd /your/path/here
-  wget https://julialang-s3.julialang.org/bin/linux/x64/1.0/julia-1.0.4-linux-x86_64.tar.gz
-  tar -xvf julia-1.0.4-linux-x86_64.tar.gz
-```
-
-Julia will be extracted to a folder named `julia-semantic_version`. (For example, `julia-1.0.4`).
-
-Add the following lines to your startup file (e.g. `.bashrc` for the bash shell) to add Julia's bin
-folder to your system `PATH` environment variable.
-
-```sh
-export PATH="${PATH}:/your/path/here/julia-1.0.4/bin"
-```
-
 #### Installing Gurobi
 
 Download the most recent version of the
-[Gurobi optimizer](http://www.gurobi.com/downloads/gurobi-optimizer). A license is required to use
+[Gurobi optimizer](https://www.gurobi.com/downloads/gurobi-software/). A license is required to use
 Gurobi; free academic licenses are
-[available](https://user.gurobi.com/download/licenses/free-academic).
+[available](https://www.gurobi.com/academia/academic-program-and-licenses/).
 
 ##### On Ubuntu
 
 ```console
 $ cd /your/path/here
-  wget https://packages.gurobi.com/8.0/gurobi8.0.1_linux64.tar.gz
-  tar -xvf gurobi8.0.1_linux64.tar.gz
+$ wget https://packages.gurobi.com/11.0/gurobi11.0.1_linux64.tar.gz
+$ tar -xvf gurobi11.0.1_linux64.tar.gz
 ```
 
 Add the following environment variables to your startup file
@@ -74,16 +56,12 @@ export LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${GUROBI_HOME}/lib"
 
 Finally, install the license obtained on a terminal prompt
 
-```console
-$ grbgetkey aaaa0000-0000-0000-0000-000000000000
-```
-
 !!! note
 
     You will have to obtain your own license number from the Gurobi site.
 
-```sh
-Sample output:
+```console
+$ grbgetkey aaaa0000-0000-0000-0000-000000000000
 
 info  : grbgetkey version 8.0.1, build v8.0.1rc0
 info  : Contacting Gurobi key server...
