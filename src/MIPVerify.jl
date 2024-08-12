@@ -106,6 +106,7 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    activation_patterns::Vector{Vector{Bool}} = [],
 )::Dict
 
     total_time = @elapsed begin
@@ -131,7 +132,7 @@ function find_adversarial_example(
 
         # Only call optimizer if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
-            merge!(d, get_model(nn, input, pp, optimizer, tightening_options, tightening_algorithm))
+            merge!(d, get_model(nn, input, pp, optimizer, tightening_options, tightening_algorithm, activation_patterns))
             m = d[:Model]
 
             if adversarial_example_objective == closest

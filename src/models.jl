@@ -39,6 +39,7 @@ function get_model(
     optimizer,
     tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
+    activation_patterns::Vector{Vector{Bool}},
 )::Dict{Symbol,Any}
     notice(
         MIPVerify.LOGGER,
@@ -46,6 +47,32 @@ function get_model(
     )
     m = Model(optimizer_with_attributes(optimizer, tightening_options...))
     m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+
+    # Define variables a_i for each activation pattern
+    a_i = @variable(m, [1:length(activation_patterns)], Bin)
+
+    # Constraint: Only one activation pattern can be active
+    @constraint(m, sum(a_i) == 1)
+
+    # Create a variable for each neuron to represent the sum of relevant a_j variables
+    neuron_count = length(activation_patterns[1])  # Assuming all patterns are of equal length
+    neuron_activation_vars = @variable(m, [1:neuron_count])  # Variables for each neuron
+
+    for neuron_idx in 1:neuron_count
+        active_patterns = [j for j in 1:length(activation_patterns) if activation_patterns[j][neuron_idx]]
+
+        if !isempty(active_patterns)
+            @constraint(m, neuron_activation_vars[neuron_idx] == sum(a_i[j] for j in active_patterns))
+        else
+            @constraint(m, neuron_activation_vars[neuron_idx] == 0)  # Neuron is never active
+        end
+    end
+
+    # Store the variables in the model's ext for later use
+    m.ext[:activation_patterns] = activation_patterns
+    m.ext[:a_i] = a_i
+    m.ext[:neuron_activation_vars] = neuron_activation_vars
+
 
     d_common = Dict(
         :Model => m,

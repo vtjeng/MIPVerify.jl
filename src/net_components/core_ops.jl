@@ -2,6 +2,17 @@ using JuMP
 using Memento
 using MathOptInterface
 
+
+
+# Define the mutable struct
+mutable struct ReluContext
+    neuron_offset::Int  # Field to track the neuron offset
+end
+
+# Initialize the context with neuron_offset set to 0
+relu_context = ReluContext(0)
+
+
 """
 $(SIGNATURES)
 
@@ -164,15 +175,20 @@ function log_gap(m::JuMP.Model)
 end
 
 function relu(x::T)::T where {T<:Real}
+    println("m7mdddd 44444444444444444444")
     return max(zero(T), x)
 end
 
 function relu(x::AbstractArray{T}) where {T<:Real}
+    println("m7mdddd 555555555")
     return relu.(x)
 end
 
-function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+function relu(x::T, l::Real, u::Real, neuron_idx::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+    println("m7mdddd 6666666666666666666")
+    #println("Entering relu function: m7mddddddddddddd", x)
     if u < l
+	println("m7mdddd 666666666666.11111111111")
         # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds.
         # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
         Memento.warn(
@@ -184,29 +200,39 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     end
 
     if u <= 0
+	println("m7mdddd 666666666666.222222")
         # rectified value is always 0
         return zero(T)
     elseif u == l
+	println("m7mdddd 666666666666.333333333")
         return one(T) * l
     elseif u < l
+	println("m7mdddd 666666666666.444444444444")
         error(
             MIPVerify.LOGGER,
             "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u - l) is negative",
         )
     elseif l >= 0
+	println("m7mdddd 666666666666.55555555555")
         # rectified value is always x
         return x
     else
+	println("m7mdddd 666666666666.77777777777")
         # since we know that u!=l, x is not constant, and thus x must have an associated model
         model = owner_model(x)
         x_rect = @variable(model)
         a = @variable(model, binary = true)
 
+	#println("m7md: ", x)
+
+	activation = model.ext[:neuron_activation_vars][neuron_idx]
+
+
         # refined big-M formulation that takes advantage of the knowledge
         # that lower and upper bounds  are different.
-        @constraint(model, x_rect <= x + (-l) * (1 - a))
+        @constraint(model, x_rect <= x + (-l) * (1 - activation))
         @constraint(model, x_rect >= x)
-        @constraint(model, x_rect <= u * a)
+        @constraint(model, x_rect <= u * activation)
         @constraint(model, x_rect >= 0)
 
         # Manually set the bounds for x_rect so they can be used by downstream operations.
@@ -261,6 +287,7 @@ function lazy_tight_lowerbound(
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
+    println("m7mdddd 11111111111111111")
     u = tight_upperbound(x, cutoff = 0)
     l = lazy_tight_lowerbound(x, u, cutoff = 0)
     relu(x, l, u)
@@ -275,13 +302,16 @@ function relu(
     x::AbstractArray{T};
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    println("m7mdddd 2222222222222: ")
     show_progress_bar::Bool =
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     if !show_progress_bar
         u = tight_upperbound.(x, nta = nta, cutoff = 0)
         l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0)
+	println("m7mdddd 2222222222222.11111111: ")
         return relu.(x, l, u)
     else
+	println("m7mdddd 2222222222222.3333333: ")
         p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
         u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta = nta, cutoff = 0)), x)
         p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
@@ -291,11 +321,20 @@ function relu(
         Memento.info(MIPVerify.LOGGER, "$reluinfo")
 
         p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
-        return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
+
+        # Adjust indexing with neuron_offset
+        offset = relu_context.neuron_offset
+        result = map((v, i) -> (next!(p3); relu(v[1], v[2], v[3], i)), zip(x, l, u), offset+1:offset+length(x))
+        
+        # Update the offset for the next layer
+        relu_context.neuron_offset += length(x)
+        
+        return result
     end
 end
 
 function masked_relu(x::T, m::Real)::T where {T<:Real}
+    println("m7mdddd 333333333333333")
     if m < 0
         zero(T)
     elseif m > 0

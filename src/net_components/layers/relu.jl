@@ -18,6 +18,6 @@ function Base.show(io::IO, p::ReLU)
     print(io, "ReLU()")
 end
 
-(p::ReLU)(x::Array{<:Real}) = relu(x)
+(p::ReLU)(x::Array{<:Real}) = (println("m7md ReLU"); println("x: ", x); relu(x))
 (p::ReLU)(x::Array{<:JuMPLinearType}) =
-    (Memento.info(MIPVerify.LOGGER, "Applying $p ..."); relu(x, nta = p.tightening_algorithm))
+    (Memento.info(MIPVerify.LOGGER, "Applying $p ..."); println("m7md ReLU Optimizationnnnnnn:"); relu(x, nta = p.tightening_algorithm))
