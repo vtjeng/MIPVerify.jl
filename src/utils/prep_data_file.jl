@@ -1,6 +1,6 @@
 using Downloads
 
-const data_repo_path = "https://github.com/vtjeng/MIPVerify_data/raw/master"
+const data_repo_path = "https://storage.googleapis.com/mipverify-data"
 
 function prep_data_file(relative_dir::String, filename::String)::String
     absolute_dir = joinpath(dependencies_path, relative_dir)
