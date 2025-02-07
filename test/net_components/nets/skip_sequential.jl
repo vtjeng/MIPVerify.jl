@@ -1,7 +1,6 @@
 using Test
 using MIPVerify
 using JuMP
-using HiGHS
 @isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "skip_sequential.jl" begin
@@ -36,10 +35,10 @@ using HiGHS
             actual_output = String(take!(io))
             expected_output = """
             skip sequential net test_skip_net
-            (1) Linear(8 -> 6)
-            (2) ReLU()
-            (3) Linear(6 -> 5)
-            (4) SkipBlock
+              (1) Linear(8 -> 6)
+              (2) ReLU()
+              (3) Linear(6 -> 5)
+              (4) SkipBlock
                 (1) Linear(6 -> 4)
                 (2) Linear(5 -> 4)
 
@@ -74,9 +73,6 @@ using HiGHS
             @objective(model, Max, sum(output_var))
             optimize!(model)
             @test termination_status(model) == OPTIMAL
-            println("Optimal input: ", value.(x_var))
-            println("Optimal output: ", value.(output_var))
-            println("Objective value: ", objective_value(model))
             # When all inputs are 1, we get output of 144 (as shown in previous test)
             # Maximum should be 144 * output_size (when all inputs are 1)
             @test objective_value(model) ≈ 576.0 # 144 * 4
