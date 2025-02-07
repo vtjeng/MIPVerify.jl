@@ -1,6 +1,6 @@
 # MIPVerify.jl
 
-[![CI](https://github.com/vtjeng/MIPVerify.jl/workflows/CI/badge.svg)](https://github.com/vtjeng/MIPVerify.jl/actions?query=workflow%3ACI+branch%3Amaster)
+[![CI](https://github.com/vtjeng/MIPVerify.jl/workflows/CI/badge.svg?branch=master)](https://github.com/vtjeng/MIPVerify.jl/actions?query=workflow%3ACI+branch%3Amaster)
 [![PkgEval][pkgeval-img]][pkgeval-url]
 [![code coverage](https://codecov.io/gh/vtjeng/MIPVerify.jl/branch/master/graph/badge.svg)](http://codecov.io/github/vtjeng/MIPVerify.jl?branch=master)
 [![docs: stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://vtjeng.github.io/MIPVerify.jl/stable)
