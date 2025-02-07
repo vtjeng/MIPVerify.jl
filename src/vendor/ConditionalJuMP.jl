@@ -26,6 +26,7 @@ end
 # Supplements constructors in https://github.com/JuliaIntervals/IntervalArithmetic.jl/blob/master/src/intervals/construction.jl.
 IntervalArithmetic.interval(x::JuMP.VariableRef) =
     IntervalArithmetic.interval(lower_bound(x), upper_bound(x))
+
 function IntervalArithmetic.interval(e::JuMP.GenericAffExpr)
     result = IntervalArithmetic.interval(e.constant)
     for (var, coef) in e.terms

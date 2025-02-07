@@ -17,17 +17,11 @@ TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
         @test owner_model([2 * x + 3 * y, 3 * x + 5 * y]) == m
     end
 
-    @testset "interval, lower_bound, upper_bound" begin
+    @testset "interval, lower_bound, upper_bound for JuMP classes" begin
         m = Model()
         @variable(m, 1 <= x <= 3)
         @variable(m, 2 <= y <= 5)
         e = 2 * x + 1
-
-        @testset "Number" begin
-            i = IntervalArithmetic.interval(5.0)
-            @test lower_bound(i) == 5.0
-            @test upper_bound(i) == 5.0
-        end
 
         @testset "JuMP.VariableRef" begin
             @test lower_bound(x) == 1
@@ -54,6 +48,16 @@ TestHelpers.@timed_testset "ConditionalJuMP.jl" begin
             i = IntervalArithmetic.interval(e)
             @test lower_bound(i) == lower_bound(e)
             @test upper_bound(i) == upper_bound(e)
+        end
+    end
+
+    @testset "interval, lower_bound, upper_bound for regular values" begin
+        @testset "Number" begin
+            # Test both integer and floating point inputs
+            @test lower_bound(5) == 5
+            @test upper_bound(5) == 5
+            @test lower_bound(3.14) == 3.14
+            @test upper_bound(3.14) == 3.14
         end
 
         @testset "Interval" begin
