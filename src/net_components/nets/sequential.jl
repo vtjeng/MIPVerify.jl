@@ -15,7 +15,6 @@ struct Sequential <: NeuralNet
 end
 
 function Base.show(io::IO, p::Sequential)
-
     println(io, "sequential net $(p.UUID)")
     for (index, value) in enumerate(p.layers)
         println(io, "  ($index) $value")
