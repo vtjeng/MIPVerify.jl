@@ -34,10 +34,10 @@ using MIPVerify
             # Create input: [batch=1, height=10, width=10, channels=7]
             x_num = ones(1, 10, 10, 7)
             output_num = nnparams(x_num)
-            
+
             # Test output dimensions
             @test size(output_num) == (10,)  # Final linear layer outputs 10 values
-            
+
             # Test forward pass computation
             # Layer 1 (Conv2d):
             #   - Input: [1,10,10,7]
