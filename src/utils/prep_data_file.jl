@@ -1,3 +1,5 @@
+using Downloads
+
 const data_repo_path = "https://github.com/vtjeng/MIPVerify_data/raw/master"
 
 function prep_data_file(relative_dir::String, filename::String)::String
@@ -17,7 +19,7 @@ function prep_data_file(relative_dir::String, filename::String)::String
             relative_url_path = relative_file_path
         end
         url = string(data_repo_path, "/", relative_url_path)
-        download(url, absolute_file_path)
+        Downloads.download(url, absolute_file_path)
     end
 
     return absolute_file_path
