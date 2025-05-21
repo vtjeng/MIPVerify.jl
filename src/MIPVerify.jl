@@ -75,6 +75,8 @@ that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ ta
   - `closest` finds the closest adversarial example, as measured by the `norm_order` norm.
   - `worst` finds the adversarial example with the _largest_ gap between `max(y[j)` for `j ∈
     target_selection` and `max(y[i])` for all `i ∉ target_selection`.
+- `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
+    (by at least `margin`) than any non-target category. 
 - `tightening_algorithm`: Defaults to `mip`. Determines how we determine the upper and lower bounds
     on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
   - `interval_arithmetic` looks at the bounds on the output to the previous layer.
@@ -103,6 +105,7 @@ function find_adversarial_example(
     pp::PerturbationFamily = UnrestrictedPerturbationFamily(),
     norm_order::Real = 1,
     adversarial_example_objective::AdversarialExampleObjective = closest,
+    margin::Real = 0.0,
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
@@ -135,7 +138,7 @@ function find_adversarial_example(
             m = d[:Model]
 
             if adversarial_example_objective == closest
-                set_max_indexes(m, d[:Output], d[:TargetIndexes])
+                set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
 
                 # Set perturbation objective
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry
@@ -155,7 +158,7 @@ function find_adversarial_example(
                 # JuMP does not support strict inequalities; see 
                 # https://github.com/jump-dev/JuMP.jl/blob/24c0409c5fa5cae6a4ae64b1c82ab5f83d55fbc6/src/macros/%40variable.jl#L516-L523
                 # for more context.
-                @constraint(m, v_obj >= 0)
+                @constraint(m, v_obj >= margin)
                 @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
