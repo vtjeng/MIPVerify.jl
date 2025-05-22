@@ -2,11 +2,10 @@ using Test
 using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily
 using JuMP
-using Random
 
-include("../../TestHelpers.jl") # Added include for TestHelpers
+include("../../TestHelpers.jl")
+
 @testset "margin" begin
-
     # Simple neural network for testing
     # Input layer: 2 neurons
     # Hidden layer 1: 2 neurons, ReLU activation
@@ -35,8 +34,8 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
 
     @testset "closest objective" begin
         # For input [1.0, 0.5], original output is [0.5, -0.5].
-        # Without perturbation, the margin is -1.
-        # Predicted label is 1; let's try to make label 2 the target.
+        # Without perturbation: predicted label is 1, logits margin is -1.
+
         target_label = 2
         non_target_label = 1
 
@@ -82,12 +81,11 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
         target_label = 2
         non_target_label = 1
 
-        # Since we are going for the worst objective, the objective
-        # value should be the maximum possible difference.
-        # Despite the name `UnrestrictedPerturbationFamily`, since
-        # each element of the input is constrained to be in [0, 1]
-        # (see `get_perturbation_specific_keys`), the maximum
-        # difference in the logits is in fact 2.
+        # Since we are going for the worst objective, the objective value should
+        # be the maximum possible difference. Despite the name
+        # `UnrestrictedPerturbationFamily`, since each element of the input is
+        # constrained to be in [0, 1] (see `get_perturbation_specific_keys`), the
+        # maximum difference in the logits is in fact 2.
 
         for (test_name, margin, is_feasible) in
             [("positive margin, infeasible", 2.5, false), ("positive margin", 1.5, true)]
