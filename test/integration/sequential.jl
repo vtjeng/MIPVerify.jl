@@ -8,4 +8,5 @@ TestHelpers.@timed_testset "sequential/" begin
         # The corresponding networks are too large for CBC to deal with.
         include("sequential/trained_weights.jl")
     end
+    include("sequential/margin.jl")
 end

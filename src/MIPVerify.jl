@@ -92,6 +92,8 @@ that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ ta
     MIP problem since we already have an "adversarial example" --- namely, the input itself. We
     continue build the model and solve the (trivial) MIP problem if and only if
     `solve_if_predicted_in_targeted` is `true`.
+- `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
+    (by at least `margin`) than any non-target category. 
 """
 function find_adversarial_example(
     nn::NeuralNet,
@@ -106,6 +108,7 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    margin::Real = 0.0,
 )::Dict
 
     total_time = @elapsed begin
@@ -135,7 +138,7 @@ function find_adversarial_example(
             m = d[:Model]
 
             if adversarial_example_objective == closest
-                set_max_indexes(m, d[:Output], d[:TargetIndexes])
+                set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
 
                 # Set perturbation objective
                 # NOTE (vtjeng): It is important to set the objective immediately before we carry
@@ -155,7 +158,7 @@ function find_adversarial_example(
                 # JuMP does not support strict inequalities; see 
                 # https://github.com/jump-dev/JuMP.jl/blob/24c0409c5fa5cae6a4ae64b1c82ab5f83d55fbc6/src/macros/%40variable.jl#L516-L523
                 # for more context.
-                @constraint(m, v_obj >= 0)
+                @constraint(m, v_obj >= margin)
                 @objective(m, Max, v_obj)
             else
                 error("Unknown adversarial_example_objective $adversarial_example_objective")
