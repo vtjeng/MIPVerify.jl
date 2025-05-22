@@ -20,7 +20,7 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
     b2 = [0.0, 0.0]
     layer3 = MIPVerify.Linear(w2, b2)
     nn = MIPVerify.Sequential([layer1, layer2, layer3], "SimpleNet")
-    input = [1.0, -1.0]
+    input = [1.0, 0.5]
     # Expected output for this input without perturbation:
     # layer1_input = [x1, x2]
     # layer1_output = layer1 * input + b1 = [x1, x2]
@@ -34,13 +34,18 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
     main_solve_options = Dict() # Default to empty dict, add options if needed separately
 
     @testset "closest objective" begin
-        # For input [1.0, -1.0], original output is [1.0, -1.0]. Predicted label is 1.
-        # Let's try to make label 2 the target.
+        # For input [1.0, 0.5], original output is [0.5, -0.5].
+        # Without perturbation, the margin is -1.
+        # Predicted label is 1; let's try to make label 2 the target.
         target_label = 2
         non_target_label = 1
 
-        for (test_name, margin) in
-            [("positive margin", 0.5), ("zero margin", 0.0), ("negative margin", -0.5)]
+        for (test_name, margin, requires_perturbation) in [
+            ("positive margin", 0.5, true),
+            ("zero margin", 0.0, true),
+            ("negative margin", -0.5, true),
+            ("negative margin, no perturbation", -1.5, false),
+        ]
             @testset "$test_name" begin
                 d = find_adversarial_example(
                     nn,
@@ -55,22 +60,34 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
                     solve_if_predicted_in_targeted = true,
                 )
                 @test d[:SolveStatus] == MOI.OPTIMAL
-                perturbed_output = JuMP.value.(d[:PerturbedInput]) |> nn
+                perturbed_input = JuMP.value.(d[:PerturbedInput])
+                perturbed_output = perturbed_input |> nn
                 target_logit = perturbed_output[target_label]
                 non_target_logit = perturbed_output[non_target_label]
-                # We want y_target - y_nontarget >= margin
-                @test target_logit - non_target_logit >= margin - 1e-6 # allow for small numerical errors
-                # We do not assert the perturbation is zero, only that the margin constraint is satisfied.
+                objective_value = JuMP.objective_value(d[:Model])
+                if requires_perturbation
+                    @test isapprox(target_logit - non_target_logit, margin; atol = 1e-6)
+                    @test !isapprox(perturbed_input, input; atol = 1e-6)
+                    @test objective_value > 0
+                else
+                    @test isapprox(target_logit - non_target_logit, -1; atol = 1e-6)
+                    @test isapprox(perturbed_input, input; atol = 1e-6)
+                    @test isapprox(objective_value, 0; atol = 1e-6)
+                end
             end
         end
     end
 
     @testset "worst objective" begin
-        # Despite the choice of the `UnrestrictedPerturbationFamily`, since 
-        # each element of the input is constrained to be in [0, 1]
-        # (see `get_perturbation_specific_keys`), the maximum difference is 2.
         target_label = 2
         non_target_label = 1
+
+        # Since we are going for the worst objective, the objective
+        # value should be the maximum possible difference.
+        # Despite the name `UnrestrictedPerturbationFamily`, since
+        # each element of the input is constrained to be in [0, 1]
+        # (see `get_perturbation_specific_keys`), the maximum
+        # difference in the logits is in fact 2.
 
         for (test_name, margin, is_feasible) in
             [("positive margin, infeasible", 2.5, false), ("positive margin", 1.5, true)]
@@ -98,8 +115,8 @@ include("../../TestHelpers.jl") # Added include for TestHelpers
                     target_logit = perturbed_output[target_label]
                     non_target_logit = perturbed_output[non_target_label]
                     objective_value = JuMP.objective_value(d[:Model])
-                    @test objective_value == 2
-                    @test target_logit - non_target_logit == 2
+                    @test isapprox(objective_value, target_logit - non_target_logit; atol = 1e-6)
+                    @test isapprox(objective_value, 2; atol = 1e-6)
                 end
             end
         end
