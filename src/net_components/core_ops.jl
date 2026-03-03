@@ -171,15 +171,20 @@ function relu(x::AbstractArray{T}) where {T<:Real}
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+    bound_consistency_tolerance = 1e-8
     if u < l
-        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds.
-        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
-        Memento.warn(
-            MIPVerify.LOGGER,
-            "Inconsistent upper and lower bounds: u-l = $(u - l) is negative. Attempting to use interval arithmetic bounds instead ...",
-        )
-        u = upper_bound(x)
-        l = lower_bound(x)
+        delta = u - l
+        if delta >= -bound_consistency_tolerance
+            # Keep bounds consistent if the violation is within numerical tolerance.
+            u = l
+        else
+            Memento.warn(
+                MIPVerify.LOGGER,
+                "Inconsistent upper and lower bounds: u-l = $(delta) is negative. Attempting to use interval arithmetic bounds instead ...",
+            )
+            u = upper_bound(x)
+            l = lower_bound(x)
+        end
     end
 
     if u <= 0
@@ -188,6 +193,9 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
     elseif u == l
         return one(T) * l
     elseif u < l
+        if u - l >= -bound_consistency_tolerance
+            return one(T) * l
+        end
         error(
             MIPVerify.LOGGER,
             "Inconsistent upper and lower bounds even after using only interval arithmetic: u-l = $(u - l) is negative",
