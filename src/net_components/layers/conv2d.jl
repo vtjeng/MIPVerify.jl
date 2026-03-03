@@ -21,6 +21,23 @@ Represents 2-D convolution operation.
 `p(x)` is shorthand for [`conv2d(x, p)`](@ref) when `p` is an instance of
 `Conv2d`.
 
+## Dimension conventions (TensorFlow-style NHWC/HWIO):
+
+This follows the conventions of
+[`tf.nn.conv2d`](https://www.tensorflow.org/api_docs/python/tf/nn/conv2d):
+
+- **Input**: `(batch, height, width, in_channels)` — NHWC format,
+  matching TensorFlow's default `data_format="NHWC"`
+- **Filter**: `(filter_height, filter_width, in_channels, out_channels)` — HWIO format,
+  matching TensorFlow's filter shape for `tf.nn.conv2d`
+- **Output**: `(batch, out_height, out_width, out_channels)` — NHWC format
+
+To convert from PyTorch (OIHW filters, NCHW inputs), use
+[`convert_conv_filter_from_pytorch`](@ref) and [`convert_images_from_pytorch`](@ref).
+
+To convert from Flux.jl (WHIO filters, WHCN inputs), use
+[`convert_conv_filter_from_flux`](@ref) and [`convert_images_from_flux`](@ref).
+
 ## Fields:
 $(FIELDS)
 """
@@ -175,16 +192,21 @@ $(SIGNATURES)
 
 Computes the result of convolving `input` with the `filter` and `bias` stored in `params`.
 
-Mirrors `tf.nn.conv2d` from the `tensorflow` package, with
-`strides = [1, params.stride, params.stride, 1]`.
+Mirrors [`tf.nn.conv2d`](https://www.tensorflow.org/api_docs/python/tf/nn/conv2d)
+from TensorFlow, with `strides = [1, params.stride, params.stride, 1]`.
 
-Supports three types of padding:
-- 'same':  Specify via `SamePadding()`. Padding is added so that the output has the same size as the input.
-- 'valid': Specify via `FixedPadding()`. No padding is added.
-- 'fixed': Specify via:
+## Dimension conventions:
+- **Input**: `(batch, height, width, in_channels)` — NHWC format
+- **Filter**: `(filter_height, filter_width, in_channels, out_channels)` — HWIO format
+- **Output**: `(batch, out_height, out_width, out_channels)` — NHWC format
+
+## Padding:
+- `SamePadding()`: Padding is added so that the output has the same size as the input.
+- `ValidPadding()`: No padding is added.
+- Fixed padding, specified as:
   - A single integer, interpreted as padding for both axes
-  - A tuple of two integers, interpreted as (y_padding, x_padding)
-  - A tuple of four integers, interpreted as (top, bottom, left, right)
+  - A tuple of two integers, interpreted as `(y_padding, x_padding)`
+  - A tuple of four integers, interpreted as `(top, bottom, left, right)`
 
 # Throws
 * AssertionError if `input` and `filter` are not compatible.
