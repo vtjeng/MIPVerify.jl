@@ -7,6 +7,11 @@ Represents a pooling operation.
 
 `p(x)` is shorthand for [`pool(x, p)`](@ref) when `p` is an instance of `Pool`.
 
+## Stride convention:
+Strides are specified as an N-tuple matching the input dimensions.
+For 4D input in NHWC format: `(1, stride_height, stride_width, 1)`
+(batch and channel strides are typically 1).
+
 ## Fields:
 $(FIELDS)
 """

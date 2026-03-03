@@ -4,4 +4,5 @@ using Test
 TestHelpers.@timed_testset "utils/" begin
     include("utils/import_datasets.jl")
     include("utils/import_example_nets.jl")
+    include("utils/import_weights.jl")
 end

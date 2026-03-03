@@ -8,6 +8,15 @@ Represents matrix multiplication.
 `p(x)` is shorthand for [`matmul(x, p)`](@ref) when `p` is an instance of
 `Linear`.
 
+## Dimension convention:
+- **Weight matrix**: `(in_features, out_features)` — note: transposed during forward pass
+- **Bias**: `(out_features,)`
+- **Computation**: `transpose(matrix) * x + bias`
+
+This matches the TensorFlow/Keras Dense layer convention. To convert from PyTorch's
+`nn.Linear` (which stores weights as `(out_features, in_features)`), use
+[`convert_linear_weights_from_pytorch`](@ref).
+
 ## Fields:
 $(FIELDS)
 """
