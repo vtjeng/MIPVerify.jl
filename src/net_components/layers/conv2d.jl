@@ -201,7 +201,8 @@ from TensorFlow, with `strides = [1, params.stride, params.stride, 1]`.
 - **Output**: `(batch, out_height, out_width, out_channels)` — NHWC format
 
 ## Padding:
-- `SamePadding()`: Padding is added so that the output has the same size as the input.
+- `SamePadding()`: TensorFlow-style `SAME` padding is used, so output spatial size is
+  `(ceil(input_height / stride), ceil(input_width / stride))`.
 - `ValidPadding()`: No padding is added.
 - Fixed padding, specified as:
   - A single integer, interpreted as padding for both axes
