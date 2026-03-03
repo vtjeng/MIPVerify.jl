@@ -7,8 +7,21 @@ using Memento
 using DocStringExtensions
 using ProgressMeter
 
-# TODO: more reliable way to determine location for dependencies
-const dependencies_path = joinpath(@__DIR__, "..", "deps")
+function resolve_dependencies_path(;
+    env::AbstractDict = ENV,
+    package_root::Union{String,Nothing} = pkgdir(@__MODULE__),
+)::String
+    env_override = get(env, "MIPVERIFY_DEPS_PATH", "")
+    if !isempty(strip(env_override))
+        return abspath(env_override)
+    end
+    if package_root === nothing
+        return normpath(joinpath(@__DIR__, "..", "deps"))
+    end
+    return joinpath(package_root, "deps")
+end
+
+const dependencies_path = resolve_dependencies_path()
 
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 

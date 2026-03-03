@@ -112,14 +112,13 @@ function Base.show(io::IO, p::Conv2d)
     )
 end
 
-# TODO (vtjeng): Figure out how to actually mutate the underlying value of s
-# OR avoid all this confusion
-function add_to_expression!(s::Real, input_val::Real, filter_val::Real)
+function accumulate_expression(s::Real, input_val::Real, filter_val::Real)
     return s + input_val * filter_val
 end
 
-function add_to_expression!(s::JuMP.GenericAffExpr, input_val, filter_val)
-    return JuMP.add_to_expression!(s, input_val, filter_val)
+function accumulate_expression(s::JuMP.GenericAffExpr, input_val, filter_val)
+    JuMP.add_to_expression!(s, input_val, filter_val)
+    return s
 end
 
 function compute_output_parameters(
@@ -245,7 +244,7 @@ function conv2d(input::Array{T,4}, params::Conv2d{U,V}) where {T<:JuMPReal,U<:Ju
             input_index = (i_1, x, y, j_3)
             if checkbounds(Bool, input, input_index...)
                 # Effectively zero-padding the input.
-                (@nref 4 output i) = add_to_expression!(
+                (@nref 4 output i) = accumulate_expression(
                     (@nref 4 output i),
                     input[input_index...],
                     filter[j_1, j_2, j_3, i_4],
