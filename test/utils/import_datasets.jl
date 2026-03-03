@@ -3,6 +3,10 @@ using Statistics
 using MIPVerify
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
+struct DummyDatasetA <: MIPVerify.Dataset
+    x::Int
+end
+
 TestHelpers.@timed_testset "import_datasets.jl" begin
     @testset "NamedTrainTestDataset" begin
         @testset "Base.show" begin
@@ -17,6 +21,17 @@ TestHelpers.@timed_testset "import_datasets.jl" begin
                   `test`: {LabelledImageDataset}
                     `images`: 10000 images of size (28, 28, 1), with pixels in [0.0, 1.0].
                     `labels`: 10000 corresponding labels, with 10 unique labels in [0, 9]."""
+        end
+
+        @testset "constructor validates train/test struct type" begin
+            train = MIPVerify.LabelledImageDataset(zeros(Float32, 1, 1, 1, 1), Int32[0])
+            test = MIPVerify.LabelledImageDataset(zeros(Float64, 1, 1, 1, 1), Int64[0])
+            @test MIPVerify.NamedTrainTestDataset("dummy", train, test) isa MIPVerify.NamedTrainTestDataset
+            @test_throws AssertionError MIPVerify.NamedTrainTestDataset(
+                "invalid",
+                train,
+                DummyDatasetA(1),
+            )
         end
     end
 

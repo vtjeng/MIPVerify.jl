@@ -79,7 +79,11 @@ struct NamedTrainTestDataset{T<:Dataset,U<:Dataset} <: Dataset
     Test set.
     """
     test::U
-    # TODO (vtjeng): train and test should be the same type of struct (but might potentially have different parameters).
+
+    function NamedTrainTestDataset(name::String, train::T, test::U) where {T<:Dataset,U<:Dataset}
+        @assert Base.typename(T) === Base.typename(U) "Train and test datasets must be the same struct type. Got $(T) and $(U)."
+        return new{T,U}(name, train, test)
+    end
 end
 
 function Base.show(io::IO, dataset::NamedTrainTestDataset)

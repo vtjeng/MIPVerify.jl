@@ -192,8 +192,16 @@ function get_label(y::Array{<:Real,1}, test_index::Integer)::Int
     return y[test_index]
 end
 
+function get_label(dataset::LabelledImageDataset{T,U}, test_index::Integer)::Int where {T<:Real,U<:Integer}
+    return get_label(dataset.labels, test_index)
+end
+
 function get_image(x::Array{T,4}, test_index::Integer)::Array{T,4} where {T<:Real}
     return x[test_index:test_index, :, :, :]
+end
+
+function get_image(dataset::LabelledImageDataset{T,U}, test_index::Integer)::Array{T,4} where {T<:Real,U<:Integer}
+    return get_image(dataset.images, test_index)
 end
 
 """
@@ -214,8 +222,8 @@ function frac_correct(nn::NeuralNet, dataset::LabelledDataset, num_samples::Inte
     num_samples = min(num_samples, MIPVerify.num_samples(dataset))
     p = Progress(num_samples, desc = "Computing fraction correct...", enabled = isinteractive())
     for sample_index in 1:num_samples
-        input = get_image(dataset.images, sample_index)
-        actual_label = get_label(dataset.labels, sample_index)
+        input = get_image(dataset, sample_index)
+        actual_label = get_label(dataset, sample_index)
         predicted_label = (input |> nn |> get_max_index) - 1
         if actual_label == predicted_label
             num_correct += 1

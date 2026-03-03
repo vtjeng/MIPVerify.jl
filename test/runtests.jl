@@ -5,6 +5,7 @@ using JuMP
 
 using MIPVerify: set_log_level!
 using MIPVerify: get_max_index, get_norm, get_default_tightening_options
+using MIPVerify: get_image, get_label
 
 @isdefined(TestHelpers) || include("TestHelpers.jl")
 
@@ -31,6 +32,15 @@ using MIPVerify: get_max_index, get_norm, get_default_tightening_options
         @test get_max_index([3]) == 1
         @test get_max_index([3, 1, 4]) == 3
         @test get_max_index([3, 1, 4, 1, 5, 9, 2]) == 6
+    end
+
+    @testset "dataset access helpers" begin
+        images = reshape(collect(1.0:24.0), (2, 3, 4, 1))
+        labels = [7, 8]
+        dataset = MIPVerify.LabelledImageDataset(images, labels)
+        @test get_image(dataset, 2) == get_image(images, 2)
+        @test size(get_image(dataset, 1)) == (1, 3, 4, 1)
+        @test get_label(dataset, 2) == get_label(labels, 2)
     end
 
     @testset "get_norm" begin
