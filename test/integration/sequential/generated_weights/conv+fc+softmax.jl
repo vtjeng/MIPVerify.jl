@@ -53,7 +53,6 @@ TestHelpers.@timed_testset "conv+fc+softmax.jl" begin
 
     TestHelpers.@timed_testset "BlurringPerturbationFamily" begin
         pp_blur = BlurringPerturbationFamily((5, 5))
-        # TODO (vtjeng): Add example where blurring perturbation generates non-NaN results
         test_cases = [((2, pp_blur, 1), 6.959316), ((3, pp_blur, 1), NaN)]
 
         TestHelpers.batch_test_adversarial_example(nn, input, test_cases)

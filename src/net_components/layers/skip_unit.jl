@@ -40,12 +40,21 @@ function Base.show(io::IO, p::SkipBlock)
     end
 end
 
-# TODO(vtjeng): Add compile-time check that output of each layer is the same size.
-function apply(p::SkipBlock, xs::Array{<:Array{<:JuMPReal}})
+function apply(p::SkipBlock, xs::AbstractVector{<:AbstractArray{<:JuMPReal}})
     num_layers = length(p.layers)
+    @assert num_layers > 0 "SkipBlock must contain at least one layer."
     inputs = xs[end-num_layers+1:end]
     outputs = map((f, x) -> f(x), p.layers, inputs)
+
+    reference_size = size(outputs[1])
+    if any(size(output) != reference_size for output in outputs[2:end])
+        throw(
+            DimensionMismatch(
+                "All layer outputs in a SkipBlock must have the same size. Got sizes $(map(size, outputs)).",
+            ),
+        )
+    end
     return reduce((x1, x2) -> x1 .+ x2, outputs)
 end
 
-(p::SkipBlock)(xs::Array{<:Array{<:JuMPReal}}) = apply(p, xs)
+(p::SkipBlock)(xs::AbstractVector{<:AbstractArray{<:JuMPReal}}) = apply(p, xs)

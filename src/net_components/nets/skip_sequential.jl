@@ -23,11 +23,11 @@ function Base.show(io::IO, p::SkipSequential)
     end
 end
 
-# TODO (vtjeng): Think about the types carefully.
-function apply(p::SkipSequential, x::Array{<:JuMPReal})
-    xs::Array{Array} = [x]
+function apply(p::SkipSequential, x::AbstractArray{<:JuMPReal})
+    xs = Vector{AbstractArray{<:JuMPReal}}(undef, 1)
+    xs[1] = x
     for layer in p.layers
-        if typeof(layer) <: SkipBlock
+        if layer isa SkipBlock
             output = layer(xs)
         else
             output = layer(last(xs))
@@ -38,4 +38,4 @@ function apply(p::SkipSequential, x::Array{<:JuMPReal})
     return last(xs)
 end
 
-(p::SkipSequential)(x::Array{<:JuMPReal}) = apply(p, x)
+(p::SkipSequential)(x::AbstractArray{<:JuMPReal}) = apply(p, x)
