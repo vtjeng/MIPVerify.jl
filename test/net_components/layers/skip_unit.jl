@@ -71,5 +71,14 @@ using JuMP
             # Minimum should be -5 (when all inputs are -1)
             @test objective_value(model) ≈ -5.0
         end
+
+        @testset "throws for mismatched output sizes" begin
+            linear1 = Linear(ones(3, 2), [1.0, 2.0])
+            linear2 = Linear(ones(4, 3), [3.0, 4.0, 5.0])
+            skip_block = SkipBlock([linear1, linear2])
+            x1 = ones(3)
+            x2 = ones(4)
+            @test_throws DimensionMismatch skip_block([x1, x2])
+        end
     end
 end

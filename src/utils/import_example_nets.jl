@@ -1,3 +1,13 @@
+const EXAMPLE_NETWORK_NAME_MAP = Dict(
+    lowercase("MNIST.n1") => "MNIST.n1",
+    lowercase("MNIST.WK17a_linf0.1_authors") => "MNIST.WK17a_linf0.1_authors",
+    lowercase("MNIST.RSL18a_linf0.1_authors") => "MNIST.RSL18a_linf0.1_authors",
+)
+
+function canonical_example_network_name(name::String)::Union{String,Nothing}
+    return get(EXAMPLE_NETWORK_NAME_MAP, lowercase(strip(name)), nothing)
+end
+
 """
 $(SIGNATURES)
 
@@ -24,15 +34,23 @@ Makes named example neural networks available as a [`NeuralNet`](@ref) object.
           Is MNIST network for which results are reported in that paper.
 """
 function get_example_network_params(name::String)::NeuralNet
-    if name == "MNIST.n1"
+    canonical_name = canonical_example_network_name(name)
+    if canonical_name === nothing
+        throw(DomainError("No example network named $name."))
+    end
+
+    if canonical_name == "MNIST.n1"
         param_dict = prep_data_file(joinpath("weights", "mnist"), "n1.mat") |> matread
         fc1 = get_matrix_params(param_dict, "fc1", (784, 40))
         fc2 = get_matrix_params(param_dict, "fc2", (40, 20))
         logits = get_matrix_params(param_dict, "logits", (20, 10))
 
-        nn = Sequential([Flatten(4), fc1, ReLU(interval_arithmetic), fc2, ReLU(), logits], name)
+        nn = Sequential(
+            [Flatten(4), fc1, ReLU(interval_arithmetic), fc2, ReLU(), logits],
+            canonical_name,
+        )
         return nn
-    elseif name == "MNIST.WK17a_linf0.1_authors"
+    elseif canonical_name == "MNIST.WK17a_linf0.1_authors"
         param_dict =
             prep_data_file(
                 joinpath("weights", "mnist", "WK17a", "linf0.1"),
@@ -54,22 +72,24 @@ function get_example_network_params(name::String)::NeuralNet
                 ReLU(),
                 logits,
             ],
-            name,
+            canonical_name,
         )
         return nn
-    elseif name == "MNIST.RSL18a_linf0.1_authors"
+    elseif canonical_name == "MNIST.RSL18a_linf0.1_authors"
         param_dict =
             prep_data_file(joinpath("weights", "mnist", "RSL18a", "linf0.1"), "two-layer.mat") |>
             matread
         fc1 = get_matrix_params(param_dict, "fc1", (784, 500))
         logits = get_matrix_params(param_dict, "logits", (500, 10))
 
-        nn = Sequential([Flatten([1, 3, 2, 4]), fc1, ReLU(interval_arithmetic), logits], name)
+        nn = Sequential(
+            [Flatten([1, 3, 2, 4]), fc1, ReLU(interval_arithmetic), logits],
+            canonical_name,
+        )
         return nn
     else
         throw(DomainError("No example network named $name."))
     end
 end
 
-# TODO (vtjeng): Add mnist networks Ragunathan/Steinhardt/Liang.
-# TODO (vtjeng): Make network naming case insensitive.
+# Deferred follow-up: add additional MNIST networks. Tracked in TODO_TASKS.md (NET-002).
