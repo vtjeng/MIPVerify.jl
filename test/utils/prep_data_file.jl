@@ -5,14 +5,14 @@ using MIPVerify
 TestHelpers.@timed_testset "prep_data_file.jl" begin
     @testset "resolve_dependencies_path" begin
         @test MIPVerify.resolve_dependencies_path(
-            env = Dict("MIPVERIFY_DEPS_PATH" => "/tmp/custom_mipverify_deps"),
-            package_root = "/tmp/pkgroot",
-        ) == "/tmp/custom_mipverify_deps"
+            env = Dict("MIPVERIFY_DEPS_PATH" => joinpath("tmp", "custom_mipverify_deps")),
+            package_root = joinpath("tmp", "pkgroot"),
+        ) == abspath(joinpath("tmp", "custom_mipverify_deps"))
 
         @test MIPVerify.resolve_dependencies_path(
             env = Dict{String,String}(),
-            package_root = "/tmp/pkgroot",
-        ) == "/tmp/pkgroot/deps"
+            package_root = joinpath("tmp", "pkgroot"),
+        ) == joinpath("tmp", "pkgroot", "deps")
 
         @test MIPVerify.resolve_dependencies_path(
             env = Dict{String,String}(),
