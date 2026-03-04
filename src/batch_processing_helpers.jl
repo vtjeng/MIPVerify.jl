@@ -277,10 +277,9 @@ function batch_find_untargeted_attack(
     for sample_number in target_indices
         should_run = run_on_sample_for_untargeted_attack(sample_number, dt, solve_rerun_option)
         if should_run
-            # TODO (vtjeng): change function signature for get_image and get_label
             Memento.info(MIPVerify.LOGGER, "Working on index $(sample_number)")
-            input = MIPVerify.get_image(dataset.images, sample_number)
-            true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
+            input = MIPVerify.get_image(dataset, sample_number)
+            true_one_indexed_label = MIPVerify.get_label(dataset, sample_number) + 1
             d = find_adversarial_example(
                 nn,
                 input,
@@ -394,8 +393,8 @@ function batch_find_targeted_attack(
                 solve_rerun_option,
             )
             if should_run
-                input = MIPVerify.get_image(dataset.images, sample_number)
-                true_one_indexed_label = MIPVerify.get_label(dataset.labels, sample_number) + 1
+                input = MIPVerify.get_image(dataset, sample_number)
+                true_one_indexed_label = MIPVerify.get_label(dataset, sample_number) + 1
                 if true_one_indexed_label == target_label
                     continue
                 end
