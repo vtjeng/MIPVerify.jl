@@ -22,13 +22,29 @@ end
 
 function extract_results_for_save(d::Dict)::Dict
     m = d[:Model]
+    status = d[:SolveStatus]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
-    if !is_infeasible(d[:SolveStatus])
-        r[:ObjectiveBound] = JuMP.objective_bound(m)
-        r[:ObjectiveValue] = JuMP.objective_value(m)
+    if !is_infeasible(status) && JuMP.has_values(m)
+        r[:ObjectiveBound] = try
+            JuMP.objective_bound(m)
+        catch
+            NaN
+        end
+        r[:ObjectiveValue] = try
+            JuMP.objective_value(m)
+        catch
+            NaN
+        end
         r[:PerturbationValue] = d[:Perturbation] .|> JuMP.value
         r[:PerturbedInputValue] = d[:PerturbedInput] .|> JuMP.value
+    elseif !is_infeasible(status)
+        r[:ObjectiveBound] = try
+            JuMP.objective_bound(m)
+        catch
+            NaN
+        end
+        r[:ObjectiveValue] = NaN
     else
         r[:ObjectiveBound] = NaN
         r[:ObjectiveValue] = NaN

@@ -5,9 +5,12 @@ using MIPVerify:
     UnrestrictedPerturbationFamily,
     mkpath_if_not_present,
     create_summary_file_if_not_present,
-    verify_target_indices
+    verify_target_indices,
+    extract_results_for_save
 using MIPVerify: run_on_sample_for_untargeted_attack, run_on_sample_for_targeted_attack
 using DataFrames
+using MathOptInterface
+using JuMP
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 TestHelpers.@timed_testset "unit.jl" begin
@@ -108,5 +111,27 @@ TestHelpers.@timed_testset "unit.jl" begin
                 @test actual == expected
             end
         end
+    end
+
+    @testset "extract_results_for_save handles no-primal-solution status" begin
+        m = TestHelpers.get_new_model()
+        x = @variable(m, lower_bound = 0)
+        @objective(m, Min, x)
+        d = Dict(
+            :Model => m,
+            :SolveTime => 0.0,
+            :SolveStatus => MathOptInterface.TIME_LIMIT,
+            :Perturbation => [x],
+            :PerturbedInput => [x],
+            :TargetIndexes => [1],
+            :PredictedIndex => 1,
+            :TighteningApproach => :interval_arithmetic,
+            :TotalTime => 0.0,
+        )
+        result = extract_results_for_save(d)
+        @test isnan(result[:ObjectiveValue])
+        @test haskey(result, :ObjectiveBound)
+        @test !haskey(result, :PerturbationValue)
+        @test !haskey(result, :PerturbedInputValue)
     end
 end
