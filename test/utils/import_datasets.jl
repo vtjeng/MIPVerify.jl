@@ -26,7 +26,8 @@ TestHelpers.@timed_testset "import_datasets.jl" begin
         @testset "constructor validates train/test struct type" begin
             train = MIPVerify.LabelledImageDataset(zeros(Float32, 1, 1, 1, 1), Int32[0])
             test = MIPVerify.LabelledImageDataset(zeros(Float64, 1, 1, 1, 1), Int64[0])
-            @test MIPVerify.NamedTrainTestDataset("dummy", train, test) isa MIPVerify.NamedTrainTestDataset
+            @test MIPVerify.NamedTrainTestDataset("dummy", train, test) isa
+                  MIPVerify.NamedTrainTestDataset
             @test_throws AssertionError MIPVerify.NamedTrainTestDataset(
                 "invalid",
                 train,

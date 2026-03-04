@@ -192,7 +192,10 @@ function get_label(y::Array{<:Real,1}, test_index::Integer)::Int
     return y[test_index]
 end
 
-function get_label(dataset::LabelledImageDataset{T,U}, test_index::Integer)::Int where {T<:Real,U<:Integer}
+function get_label(
+    dataset::LabelledImageDataset{T,U},
+    test_index::Integer,
+)::Int where {T<:Real,U<:Integer}
     return get_label(dataset.labels, test_index)
 end
 
@@ -200,7 +203,10 @@ function get_image(x::Array{T,4}, test_index::Integer)::Array{T,4} where {T<:Rea
     return x[test_index:test_index, :, :, :]
 end
 
-function get_image(dataset::LabelledImageDataset{T,U}, test_index::Integer)::Array{T,4} where {T<:Real,U<:Integer}
+function get_image(
+    dataset::LabelledImageDataset{T,U},
+    test_index::Integer,
+)::Array{T,4} where {T<:Real,U<:Integer}
     return get_image(dataset.images, test_index)
 end
 
