@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   benchmark:
-    name: WK17a Benchmark (100 samples)
+    name: WK17a Benchmark (500 samples)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -38,7 +38,7 @@ jobs:
       - name: Run benchmark
         run: |
           julia --project benchmarks/benchmark_wk17a_first100.jl \
-            --samples 1:100 \
+            --samples 1:500 \
             --tightening lp \
             --main-time-limit 120 \
             --log-level warn \
