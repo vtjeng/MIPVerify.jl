@@ -50,9 +50,7 @@ function main()
         median_solve_time_seconds = [median_solve_time],
         p90_solve_time_seconds = [p90_solve_time],
         num_samples = [metrics[1, :num_samples]],
-        num_certified_no_adversarial_example = [
-            metrics[1, :num_certified_no_adversarial_example],
-        ],
+        num_certified_no_adversarial_example = [metrics[1, :num_certified_no_adversarial_example]],
         num_adversarial_example_found_or_best_known = [
             metrics[1, :num_adversarial_example_found_or_best_known],
         ],
