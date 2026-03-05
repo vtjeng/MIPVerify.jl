@@ -113,6 +113,17 @@ jobs:
               exit(1)
           end'
 
+  benchmark-tests:
+    name: Benchmark Helper Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+      - name: Run benchmark helper tests
+        run: julia benchmarks/test/runtests.jl
+
   format-check-prettier:
     name: "Check Formatting (.md, .yaml)"
     runs-on: ubuntu-latest

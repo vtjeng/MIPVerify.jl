@@ -2,26 +2,8 @@ using CSV
 using DataFrames
 using Statistics
 
-function parse_args(args::Vector{String})::Dict{String,String}
-    parsed = Dict{String,String}()
-    i = 1
-    while i <= length(args)
-        arg = args[i]
-        if startswith(arg, "--")
-            key = arg[3:end]
-            if i == length(args) || startswith(args[i+1], "--")
-                parsed[key] = "true"
-                i += 1
-            else
-                parsed[key] = args[i+1]
-                i += 2
-            end
-        else
-            i += 1
-        end
-    end
-    return parsed
-end
+include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
+using .BenchmarkHelpers
 
 function main()
     args = parse_args(ARGS)
