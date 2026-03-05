@@ -139,24 +139,33 @@ function main()
             tightening_options = tightening_options,
             solve_if_predicted_in_targeted = false,
         )
-        m = d[:Model]
         push!(total_times, Float64(d[:TotalTime]))
-        push!(solve_times, Float64(d[:SolveTime]))
-        push!(statuses, string(d[:SolveStatus]))
 
-        objective_value = try
-            Float64(JuMP.objective_value(m))
-        catch
-            missing
+        if haskey(d, :Model)
+            m = d[:Model]
+            push!(solve_times, Float64(d[:SolveTime]))
+            push!(statuses, string(d[:SolveStatus]))
+
+            objective_value = try
+                Float64(JuMP.objective_value(m))
+            catch
+                missing
+            end
+            objective_bound = try
+                Float64(JuMP.objective_bound(m))
+            catch
+                missing
+            end
+            push!(objective_values, objective_value)
+            push!(objective_bounds, objective_bound)
+            push!(semantic_outcomes, classify_semantic_outcome(statuses[end], objective_value))
+        else
+            push!(solve_times, 0.0)
+            push!(statuses, "SKIPPED_PREDICTED_IN_TARGETED")
+            push!(objective_values, missing)
+            push!(objective_bounds, missing)
+            push!(semantic_outcomes, "skipped_predicted_in_targeted")
         end
-        objective_bound = try
-            Float64(JuMP.objective_bound(m))
-        catch
-            missing
-        end
-        push!(objective_values, objective_value)
-        push!(objective_bounds, objective_bound)
-        push!(semantic_outcomes, classify_semantic_outcome(statuses[end], objective_value))
     end
     wall_clock_seconds = time() - wall_start
     completed_at = now()
