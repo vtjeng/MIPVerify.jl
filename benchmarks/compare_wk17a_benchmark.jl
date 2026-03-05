@@ -1,6 +1,9 @@
 using CSV
 using DataFrames
 
+include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
+using .BenchmarkHelpers: regression_ratio, percent
+
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
     i = 1
@@ -22,20 +25,6 @@ function load_metrics(dir::String)::DataFrame
     path = joinpath(abspath(dir), "benchmark_metrics.csv")
     @assert isfile(path) "Missing metrics file at $path"
     return DataFrame(CSV.File(path))
-end
-
-function regression_ratio(baseline::Float64, candidate::Float64)::Float64
-    if baseline == 0
-        return candidate == 0 ? 0.0 : Inf
-    end
-    return (candidate - baseline) / baseline
-end
-
-function percent(v::Float64)::String
-    if isfinite(v)
-        return string(round(v * 100; digits = 3), "%")
-    end
-    return "Inf%"
 end
 
 function main()
