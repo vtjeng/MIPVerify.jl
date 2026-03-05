@@ -35,9 +35,12 @@ jobs:
 
       - uses: julia-actions/julia-buildpkg@v1
 
+      - name: Instantiate benchmarks environment
+        run: julia --project=benchmarks -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+
       - name: Run benchmark
         run: |
-          julia --project benchmarks/benchmark_wk17a_first100.jl \
+          julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
             --samples 1:500 \
             --tightening lp \
             --main-time-limit 120 \
@@ -69,7 +72,7 @@ jobs:
           cp /tmp/bench-wk17a/benchmark_per_sample.csv /tmp/benchmark-results/runs/${DATE}/
 
           # Append to tracking CSV
-          julia --project benchmarks/append_to_tracking.jl \
+          julia --project=benchmarks benchmarks/append_to_tracking.jl \
             --metrics-csv /tmp/bench-wk17a/benchmark_metrics.csv \
             --per-sample-csv /tmp/bench-wk17a/benchmark_per_sample.csv \
             --tracking-csv /tmp/benchmark-results/tracking.csv \
