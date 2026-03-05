@@ -10,8 +10,7 @@ with it. This can only be true if it is an affine expression with no stored
 variables.
 """
 function is_constant(x::JuMP.AffExpr)
-    # TODO (vtjeng): Determine whether there is a built-in function for this as of JuMP>=0.19
-    all(values(x.terms) .== 0)
+    return iszero(x - JuMP.constant(x))
 end
 
 function is_constant(x::JuMP.VariableRef)
