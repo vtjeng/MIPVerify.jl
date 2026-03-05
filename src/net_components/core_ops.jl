@@ -357,6 +357,19 @@ function maximum_of_constants(xs::AbstractArray{T}) where {T<:JuMPLinearType}
     return one(JuMP.VariableRef) * max_val
 end
 
+function log_maximum_candidate_count(model::Model, num_candidates::Integer, num_inputs::Integer)
+    counter_key = :MIPVerifyMaximumCallCount
+    call_count = get(model.ext, counter_key, 0) + 1
+    model.ext[counter_key] = call_count
+
+    log_message = "Maximum call #$(call_count): $(num_candidates) of $(num_inputs) inputs can still attain the maximum."
+    if call_count == 1
+        Memento.info(MIPVerify.LOGGER, log_message)
+    else
+        Memento.debug(MIPVerify.LOGGER, log_message)
+    end
+end
+
 """
 $(SIGNATURES)
 Expresses a maximization constraint: output is constrained to be equal to `max(xs)`.
@@ -389,11 +402,7 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # at least one index will satisfy this property because of check above.
     filtered_indexes = us .> l
 
-    # TODO (vtjeng): Smarter log output if maximum function is being used more than once (for example, in a max-pooling layer).
-    Memento.info(
-        MIPVerify.LOGGER,
-        "Number of inputs to maximum function possibly taking maximum value: $(filtered_indexes |> sum)",
-    )
+    log_maximum_candidate_count(model, filtered_indexes |> sum, length(xs))
 
     return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
 end
