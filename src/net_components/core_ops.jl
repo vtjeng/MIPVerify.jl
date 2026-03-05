@@ -384,8 +384,6 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # at least one of xs is not constant.
     model = owner_model(xs)
 
-    # TODO (vtjeng): [PERF] skip calculating lower_bound for index if upper_bound is lower than
-    # largest current lower_bound.
     p1 = Progress(length(xs), desc = "  Calculating upper bounds: ", enabled = isinteractive())
     us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
     p2 = Progress(length(xs), desc = "  Calculating lower bounds: ", enabled = isinteractive())
@@ -399,11 +397,10 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         Memento.info(MIPVerify.LOGGER, "Output of maximum is constant.")
     end
     # at least one index will satisfy this property because of check above.
-    filtered_indexes = us .> l
+    active_indexes = findall(us .> l)
+    log_maximum_candidate_count(model, length(active_indexes), length(xs))
 
-    log_maximum_candidate_count(model, filtered_indexes |> sum, length(xs))
-
-    return maximum(xs[filtered_indexes], ls[filtered_indexes], us[filtered_indexes])
+    return maximum(xs[active_indexes], ls[active_indexes], us[active_indexes])
 end
 
 function maximum(
