@@ -37,6 +37,56 @@ julia --project benchmarks/benchmark_wk17a_first100.jl \
 - `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status counts, and run
   metadata
 
+## Nightly Benchmark Workflow
+
+A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the WK17a benchmark
+nightly on 500 samples with `lp` tightening.
+
+### Schedule
+
+Runs daily at 6 AM UTC, or manually via `gh workflow run nightly-benchmark.yml`.
+
+### Results storage
+
+Results are committed to the
+[`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch:
+
+- **`tracking.csv`** — one row per nightly run with aggregate metrics (append-only)
+- **`runs/YYYY-MM-DD/`** — full per-run CSVs (`benchmark_metrics.csv`, `benchmark_per_sample.csv`)
+
+### `tracking.csv` columns
+
+| Column                                        | Description                                 |
+| --------------------------------------------- | ------------------------------------------- |
+| `date`                                        | Run date (YYYY-MM-DD)                       |
+| `commit_sha`                                  | Git commit SHA benchmarked                  |
+| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run |
+| `sum_total_time_seconds`                      | Sum of per-sample total times               |
+| `sum_solve_time_seconds`                      | Sum of per-sample solve times               |
+| `median_solve_time_seconds`                   | Median per-sample solve time                |
+| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time       |
+| `num_samples`                                 | Number of samples evaluated                 |
+| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)          |
+| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found     |
+| `num_time_limit_unresolved`                   | Samples that hit the time limit             |
+| `num_no_primal_solution_other`                | Samples with other non-primal outcomes      |
+
+## `append_to_tracking.jl`
+
+Reads `benchmark_metrics.csv` and `benchmark_per_sample.csv`, computes median/p90 solve times, and
+appends a summary row to `tracking.csv`. Used by the nightly workflow.
+
+### Usage
+
+```sh
+julia --project benchmarks/append_to_tracking.jl \
+  --metrics-csv /tmp/bench/benchmark_metrics.csv \
+  --per-sample-csv /tmp/bench/benchmark_per_sample.csv \
+  --tracking-csv /path/to/tracking.csv \
+  --date 2024-01-15 \
+  --commit-sha abc1234
+```
+
 ## `compare_wk17a_benchmark.jl`
 
 Compares two benchmark runs and gates on a maximum allowed regression in wall-clock and total solve

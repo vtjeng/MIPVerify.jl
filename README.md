@@ -92,6 +92,12 @@ reached the time limit for some samples. Error is over the full MNIST test set o
 paper.<br> \* Neural network available for import via listed name using
 `get_example_network_params`.
 
+## Benchmarks
+
+Historical benchmark results are tracked on the
+[`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch, updated
+nightly by CI. See [`benchmarks/README.md`](./benchmarks/README.md) for details.
+
 ## Contributing
 
 Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for instructions.

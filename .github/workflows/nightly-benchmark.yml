@@ -1,0 +1,87 @@
+name: Nightly Benchmark
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # 6 AM UTC daily
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    name: WK17a Benchmark (500 samples)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: master
+
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+          show-versioninfo: true
+
+      - uses: actions/cache@v3
+        env:
+          cache-name: cache-artifacts-benchmark
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-benchmark-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-benchmark-${{ env.cache-name }}-
+            ${{ runner.os }}-benchmark-
+            ${{ runner.os }}-
+
+      - uses: julia-actions/julia-buildpkg@v1
+
+      - name: Run benchmark
+        run: |
+          julia --project benchmarks/benchmark_wk17a_first100.jl \
+            --samples 1:500 \
+            --tightening lp \
+            --main-time-limit 120 \
+            --log-level warn \
+            --out /tmp/bench-wk17a
+
+      - name: Check out benchmark-results branch
+        run: |
+          # Clone just the benchmark-results branch into a separate directory
+          git clone --single-branch --branch benchmark-results \
+            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
+            /tmp/benchmark-results 2>/dev/null || {
+            # Branch doesn't exist yet — create an orphan
+            mkdir -p /tmp/benchmark-results
+            cd /tmp/benchmark-results
+            git init
+            git checkout --orphan benchmark-results
+            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          }
+
+      - name: Copy results and update tracking CSV
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          COMMIT_SHA=${{ github.sha }}
+
+          # Copy run artifacts
+          mkdir -p /tmp/benchmark-results/runs/${DATE}
+          cp /tmp/bench-wk17a/benchmark_metrics.csv /tmp/benchmark-results/runs/${DATE}/
+          cp /tmp/bench-wk17a/benchmark_per_sample.csv /tmp/benchmark-results/runs/${DATE}/
+
+          # Append to tracking CSV
+          julia --project benchmarks/append_to_tracking.jl \
+            --metrics-csv /tmp/bench-wk17a/benchmark_metrics.csv \
+            --per-sample-csv /tmp/bench-wk17a/benchmark_per_sample.csv \
+            --tracking-csv /tmp/benchmark-results/tracking.csv \
+            --date "${DATE}" \
+            --commit-sha "${COMMIT_SHA}"
+
+      - name: Commit and push to benchmark-results
+        run: |
+          cd /tmp/benchmark-results
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          DATE=$(date -u +%Y-%m-%d)
+          git commit -m "Benchmark results for ${DATE} (${GITHUB_SHA::7})"
+          git push origin benchmark-results
