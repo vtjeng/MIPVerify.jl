@@ -69,7 +69,7 @@ Results are committed to the
 | `commit_sha`                                  | Git commit SHA benchmarked                             |
 | `julia_version`                               | Julia version used for the benchmark                   |
 | `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot     |
-| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot |
+| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
 | `wall_clock_seconds`                          | Total wall-clock time for the benchmark run            |
 | `sum_total_time_seconds`                      | Sum of per-sample total times                          |
 | `sum_solve_time_seconds`                      | Sum of per-sample solve times                          |

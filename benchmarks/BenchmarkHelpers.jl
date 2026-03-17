@@ -107,6 +107,7 @@ const SOURCE_KIND_PATH = "path"
 const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
+const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
 const TRACKING_COLUMNS = [
     :date,
     :run_id,
@@ -327,6 +328,15 @@ function dependency_change_summary(
     return join(changes, "; ")
 end
 
+function persisted_dependency_change_summary(
+    summary::Union{Missing,String},
+)::Union{Missing,String}
+    if ismissing(summary)
+        return missing
+    end
+    return isempty(summary) ? NO_DEPENDENCY_CHANGES : summary
+end
+
 # Note: reads tracking[end, :] without locking. This is safe because the nightly workflow
 # runs a single benchmark job at a time; concurrent appends are not expected.
 function previous_dependency_snapshot_path(
@@ -404,7 +414,13 @@ function append_tracking_csv!(;
         end
     end
 
-    row = build_tracking_row(metrics, date, commit_sha, run_id, dependency_summary)
+    row = build_tracking_row(
+        metrics,
+        date,
+        commit_sha,
+        run_id,
+        persisted_dependency_change_summary(dependency_summary),
+    )
 
     combined = nrow(tracking) == 0 ? row : vcat(tracking, row; cols = :union)
     ordered_columns = [column for column in TRACKING_COLUMNS if column in propertynames(combined)]
