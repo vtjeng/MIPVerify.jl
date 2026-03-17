@@ -4,6 +4,7 @@ using Dates
 using HiGHS
 using JuMP
 using MIPVerify
+using Statistics
 
 include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
 using .BenchmarkHelpers
@@ -36,6 +37,19 @@ function main()
 
     out_dir = abspath(args["out"])
     mkpath(out_dir)
+
+    dependency_snapshot = collect_dependency_snapshot()
+    dependency_versions_path = joinpath(out_dir, "dependency_versions.csv")
+    write_dependency_snapshot(dependency_versions_path, dependency_snapshot)
+
+    dependency_manifest_path = joinpath(out_dir, "dependency_manifest.toml")
+    cp(active_manifest_path(), dependency_manifest_path; force = true)
+
+    julia_version = string(VERSION)
+    dependency_snapshot_sha256 = dependency_snapshot_hash(
+        dependency_snapshot;
+        julia_version = julia_version,
+    )
 
     sample_spec = get(args, "samples", "1:100")
     sample_indices = parse_sample_spec(sample_spec)
@@ -131,6 +145,8 @@ function main()
         wall_clock_seconds = [wall_clock_seconds],
         sum_total_time_seconds = [safe_sum(total_times)],
         sum_solve_time_seconds = [safe_sum(solve_times)],
+        median_solve_time_seconds = [median(solve_times)],
+        p90_solve_time_seconds = [quantile(solve_times, 0.9)],
         num_samples = [length(sample_indices)],
         num_rows_in_summary = [nrow(per_sample)],
         num_optimal_status = [get(status_counts, "OPTIMAL", 0)],
@@ -151,6 +167,8 @@ function main()
         main_time_limit_seconds = [main_time_limit],
         started_at = [string(started_at)],
         completed_at = [string(completed_at)],
+        julia_version = [julia_version],
+        dependency_snapshot_sha256 = [dependency_snapshot_sha256],
         julia_threads = [Threads.nthreads()],
         per_sample_path = [per_sample_path],
     )

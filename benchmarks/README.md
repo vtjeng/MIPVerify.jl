@@ -35,7 +35,10 @@ julia --project benchmarks/benchmark_wk17a_first100.jl \
 - `benchmark_per_sample.csv` — per-sample solve status, timing, objective value, and semantic
   outcome
 - `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status counts, and run
-  metadata
+  metadata, including Julia version and dependency snapshot hash
+- `dependency_versions.csv` — normalized resolved-package snapshot with package versions, tree
+  hashes, source kind, and direct-dependency markers
+- `dependency_manifest.toml` — copy of the active benchmark manifest used for the run
 
 ## Nightly Benchmark Workflow
 
@@ -52,39 +55,47 @@ Results are committed to the
 [`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch:
 
 - **`tracking.csv`** — one row per nightly run with aggregate metrics (append-only)
-- **`runs/YYYY-MM-DD/`** — full per-run CSVs (`benchmark_metrics.csv`, `benchmark_per_sample.csv`)
+- **`runs/YYYY-MM-DD/<run_id>/`** — immutable per-run artifacts for each nightly or rerun
+  (`benchmark_metrics.csv`, `benchmark_per_sample.csv`, `dependency_versions.csv`,
+  `dependency_manifest.toml`)
 
 ### `tracking.csv` columns
 
-| Column                                        | Description                                 |
-| --------------------------------------------- | ------------------------------------------- |
-| `date`                                        | Run date (YYYY-MM-DD)                       |
-| `commit_sha`                                  | Git commit SHA benchmarked                  |
-| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run |
-| `sum_total_time_seconds`                      | Sum of per-sample total times               |
-| `sum_solve_time_seconds`                      | Sum of per-sample solve times               |
-| `median_solve_time_seconds`                   | Median per-sample solve time                |
-| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time       |
-| `num_samples`                                 | Number of samples evaluated                 |
-| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)          |
-| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found     |
-| `num_time_limit_unresolved`                   | Samples that hit the time limit             |
-| `num_no_primal_solution_other`                | Samples with other non-primal outcomes      |
+| Column                                        | Description                                              |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `date`                                        | Run date (YYYY-MM-DD)                                    |
+| `run_id`                                      | Immutable per-run identifier (`UTC timestamp` + SHA)     |
+| `commit_sha`                                  | Git commit SHA benchmarked                               |
+| `julia_version`                               | Julia version used for the benchmark                     |
+| `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot       |
+| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot   |
+| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run              |
+| `sum_total_time_seconds`                      | Sum of per-sample total times                            |
+| `sum_solve_time_seconds`                      | Sum of per-sample solve times                            |
+| `median_solve_time_seconds`                   | Median per-sample solve time                             |
+| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time                    |
+| `num_samples`                                 | Number of samples evaluated                              |
+| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)                       |
+| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                  |
+| `num_time_limit_unresolved`                   | Samples that hit the time limit                          |
+| `num_no_primal_solution_other`                | Samples with other non-primal outcomes                   |
 
 ## `append_to_tracking.jl`
 
-Reads `benchmark_metrics.csv` and `benchmark_per_sample.csv`, computes median/p90 solve times, and
-appends a summary row to `tracking.csv`. Used by the nightly workflow.
+Reads `benchmark_metrics.csv` and `dependency_versions.csv`, derives the dependency summary against
+the previous run when available, and appends a summary row to `tracking.csv`. Used by the nightly
+workflow.
 
 ### Usage
 
 ```sh
 julia --project benchmarks/append_to_tracking.jl \
   --metrics-csv /tmp/bench/benchmark_metrics.csv \
-  --per-sample-csv /tmp/bench/benchmark_per_sample.csv \
+  --dependency-versions-csv /tmp/bench/dependency_versions.csv \
   --tracking-csv /path/to/tracking.csv \
   --date 2024-01-15 \
-  --commit-sha abc1234
+  --commit-sha abc1234 \
+  --run-id 2024-01-15T06-00-00Z-abc1234
 ```
 
 ## `compare_wk17a_benchmark.jl`
