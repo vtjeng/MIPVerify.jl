@@ -61,24 +61,24 @@ Results are committed to the
 
 ### `tracking.csv` columns
 
-| Column                                        | Description                                              |
-| --------------------------------------------- | -------------------------------------------------------- |
-| `date`                                        | Run date (YYYY-MM-DD)                                    |
-| `run_id`                                      | Immutable per-run identifier (`UTC timestamp` + SHA)     |
-| `commit_sha`                                  | Git commit SHA benchmarked                               |
-| `julia_version`                               | Julia version used for the benchmark                     |
-| `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot       |
-| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot   |
-| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run              |
-| `sum_total_time_seconds`                      | Sum of per-sample total times                            |
-| `sum_solve_time_seconds`                      | Sum of per-sample solve times                            |
-| `median_solve_time_seconds`                   | Median per-sample solve time                             |
-| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time                    |
-| `num_samples`                                 | Number of samples evaluated                              |
-| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)                       |
-| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                  |
-| `num_time_limit_unresolved`                   | Samples that hit the time limit                          |
-| `num_no_primal_solution_other`                | Samples with other non-primal outcomes                   |
+| Column                                        | Description                                            |
+| --------------------------------------------- | ------------------------------------------------------ |
+| `date`                                        | Run date (YYYY-MM-DD)                                  |
+| `run_id`                                      | Immutable per-run identifier (`UTC timestamp` + SHA)   |
+| `commit_sha`                                  | Git commit SHA benchmarked                             |
+| `julia_version`                               | Julia version used for the benchmark                   |
+| `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot     |
+| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot |
+| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run            |
+| `sum_total_time_seconds`                      | Sum of per-sample total times                          |
+| `sum_solve_time_seconds`                      | Sum of per-sample solve times                          |
+| `median_solve_time_seconds`                   | Median per-sample solve time                           |
+| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time                  |
+| `num_samples`                                 | Number of samples evaluated                            |
+| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)                     |
+| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                |
+| `num_time_limit_unresolved`                   | Samples that hit the time limit                        |
+| `num_no_primal_solution_other`                | Samples with other non-primal outcomes                 |
 
 ## `append_to_tracking.jl`
 
