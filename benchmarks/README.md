@@ -38,7 +38,8 @@ julia --project benchmarks/benchmark_wk17a_first100.jl \
   metadata, including Julia version and dependency snapshot hash
 - `dependency_versions.csv` — normalized resolved-package snapshot with package versions, tree
   hashes, source kind, and direct-dependency markers
-- `dependency_manifest.toml` — copy of the active benchmark manifest used for the run
+- `dependency_manifest.toml` — copy of the active benchmark `Manifest.toml` for manual debugging
+  (not consumed by any scripts)
 
 ## Nightly Benchmark Workflow
 

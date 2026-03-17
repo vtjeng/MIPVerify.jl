@@ -83,7 +83,7 @@ end
         @test parse_sample_spec("3,7,11") == [3, 7, 11]
         @test parse_sample_spec("42") == [42]
         @test parse_sample_spec("1:1") == [1]
-        @test_throws AssertionError parse_sample_spec("1:2:3:4")
+        @test_throws ErrorException parse_sample_spec("1:2:3:4")
     end
 
     @testset "safe_sum" begin
@@ -199,10 +199,9 @@ end
         ordered_snapshot.source_path = ["/tmp/one", "/tmp/two"]
         reordered_snapshot.source_path = ["/var/tmp/one", "/var/tmp/two"]
 
-        hash_one = dependency_snapshot_hash(ordered_snapshot; julia_version = "1.11.5")
-        hash_two = dependency_snapshot_hash(reordered_snapshot; julia_version = "1.11.5")
+        hash_one = dependency_snapshot_hash(ordered_snapshot)
+        hash_two = dependency_snapshot_hash(reordered_snapshot)
         @test hash_one == hash_two
-        @test hash_one == dependency_snapshot_hash(ordered_snapshot; julia_version = "1.11.6")
 
         with_path_dep = dependency_snapshot(
             dependency_row(
@@ -238,8 +237,8 @@ end
             ),
         )
 
-        @test dependency_snapshot_hash(with_path_dep; julia_version = "1.11.5") ==
-              dependency_snapshot_hash(with_changed_path_dep; julia_version = "1.11.5")
+        @test dependency_snapshot_hash(with_path_dep) ==
+              dependency_snapshot_hash(with_changed_path_dep)
     end
 
     @testset "dependency change summary" begin
@@ -329,7 +328,7 @@ end
                 dependency_csv = joinpath(dir, "dependency_versions.csv")
                 write_dependency_snapshot(dependency_csv, current_snapshot)
 
-                current_hash = dependency_snapshot_hash(current_snapshot; julia_version = "1.11.5")
+                current_hash = dependency_snapshot_hash(current_snapshot)
                 metrics_csv = joinpath(dir, "benchmark_metrics.csv")
                 write_metrics_csv(
                     metrics_csv;
@@ -382,7 +381,7 @@ end
                 first_dependency_csv = joinpath(first_run_dir, "dependency_versions.csv")
                 write_dependency_snapshot(first_dependency_csv, first_snapshot)
 
-                first_hash = dependency_snapshot_hash(first_snapshot; julia_version = "1.11.5")
+                first_hash = dependency_snapshot_hash(first_snapshot)
                 first_metrics_csv = joinpath(dir, "first_metrics.csv")
                 write_metrics_csv(
                     first_metrics_csv;
@@ -421,7 +420,7 @@ end
                 second_dependency_csv = joinpath(second_run_dir, "dependency_versions.csv")
                 write_dependency_snapshot(second_dependency_csv, second_snapshot)
 
-                second_hash = dependency_snapshot_hash(second_snapshot; julia_version = "1.11.5")
+                second_hash = dependency_snapshot_hash(second_snapshot)
                 second_metrics_csv = joinpath(dir, "second_metrics.csv")
                 write_metrics_csv(
                     second_metrics_csv;
@@ -446,7 +445,7 @@ end
             end
         end
 
-        @testset "ignores Julia patch upgrades when diffing dependencies" begin
+        @testset "reports empty diff when only Julia version changes" begin
             mktempdir() do dir
                 tracking_csv = joinpath(dir, "tracking.csv")
 
@@ -465,7 +464,7 @@ end
                 first_dependency_csv = joinpath(first_run_dir, "dependency_versions.csv")
                 write_dependency_snapshot(first_dependency_csv, snapshot)
 
-                first_hash = dependency_snapshot_hash(snapshot; julia_version = "1.11.5")
+                first_hash = dependency_snapshot_hash(snapshot)
                 first_metrics_csv = joinpath(dir, "first_metrics.csv")
                 write_metrics_csv(
                     first_metrics_csv;
@@ -488,7 +487,7 @@ end
                 second_dependency_csv = joinpath(second_run_dir, "dependency_versions.csv")
                 write_dependency_snapshot(second_dependency_csv, snapshot)
 
-                second_hash = dependency_snapshot_hash(snapshot; julia_version = "1.11.6")
+                second_hash = dependency_snapshot_hash(snapshot)
                 second_metrics_csv = joinpath(dir, "second_metrics.csv")
                 write_metrics_csv(
                     second_metrics_csv;

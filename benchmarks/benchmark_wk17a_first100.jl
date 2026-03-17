@@ -46,8 +46,7 @@ function main()
     cp(active_manifest_path(), dependency_manifest_path; force = true)
 
     julia_version = string(VERSION)
-    dependency_snapshot_sha256 =
-        dependency_snapshot_hash(dependency_snapshot; julia_version = julia_version)
+    dependency_snapshot_sha256 = dependency_snapshot_hash(dependency_snapshot)
 
     sample_spec = get(args, "samples", "1:100")
     sample_indices = parse_sample_spec(sample_spec)

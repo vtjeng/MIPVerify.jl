@@ -44,7 +44,7 @@ end
 function parse_sample_spec(spec::String)::Vector{Int}
     if occursin(":", spec)
         parts = split(spec, ":")
-        @assert length(parts) in (2, 3) "Sample spec must be start:stop or start:step:stop."
+        length(parts) in (2, 3) || error("Sample spec must be start:stop or start:step:stop.")
         if length(parts) == 2
             start_idx = parse(Int, parts[1])
             stop_idx = parse(Int, parts[2])
@@ -128,9 +128,9 @@ const TRACKING_COLUMNS = [
 
 function active_manifest_path()::String
     project_file = Base.active_project()
-    @assert !isnothing(project_file) "No active project found for benchmark environment."
+    isnothing(project_file) && error("No active project found for benchmark environment.")
     manifest_path = joinpath(dirname(project_file), "Manifest.toml")
-    @assert isfile(manifest_path) "Missing manifest file at $manifest_path"
+    isfile(manifest_path) || error("Missing manifest file at $manifest_path")
     return manifest_path
 end
 
@@ -145,22 +145,29 @@ end
 function normalize_required_bool(value)::Bool
     value isa Bool && return value
     s = lowercase(strip(string(value)))
-    @assert s == "true" || s == "false" "Invalid boolean value: $value"
+    s in ("true", "false") || error("Invalid boolean value: $value")
     return s == "true"
 end
 
 const SNAPSHOT_COLUMNS =
     [:name, :uuid, :version, :tree_hash, :source_kind, :is_direct_dep, :git_revision]
 
+function normalize_required_string(value)::String
+    (ismissing(value) || isnothing(value)) && error("Required field is missing")
+    s = strip(string(value))
+    isempty(s) && error("Required field is empty")
+    return s
+end
+
 function normalize_dependency_snapshot(snapshot::DataFrame)::DataFrame
     get_col(col, default) =
         col in propertynames(snapshot) ? snapshot[!, col] : fill(default, nrow(snapshot))
     normalized = DataFrame(
-        name = string.(get_col(:name, missing)),
-        uuid = string.(get_col(:uuid, missing)),
+        name = normalize_required_string.(get_col(:name, missing)),
+        uuid = normalize_required_string.(get_col(:uuid, missing)),
         version = normalize_optional_string.(get_col(:version, missing)),
         tree_hash = normalize_optional_string.(get_col(:tree_hash, missing)),
-        source_kind = string.(get_col(:source_kind, missing)),
+        source_kind = normalize_required_string.(get_col(:source_kind, missing)),
         is_direct_dep = normalize_required_bool.(get_col(:is_direct_dep, missing)),
         git_revision = normalize_optional_string.(get_col(:git_revision, missing)),
     )
@@ -249,9 +256,7 @@ function dependency_row_hash_string(row::NamedTuple)::String
     )
 end
 
-function dependency_snapshot_hash(snapshot::DataFrame; julia_version::String = string(VERSION))
-    # Julia version is tracked separately in benchmark metrics; keep the keyword for compatibility.
-    _ = julia_version
+function dependency_snapshot_hash(snapshot::DataFrame)
     rows = sort(collect(values(snapshot_index(snapshot))); by = row -> (row.name, row.uuid))
     return bytes2hex(SHA.sha256(join(dependency_row_hash_string.(rows), "\n")))
 end
@@ -322,6 +327,8 @@ function dependency_change_summary(
     return join(changes, "; ")
 end
 
+# Note: reads tracking[end, :] without locking. This is safe because the nightly workflow
+# runs a single benchmark job at a time; concurrent appends are not expected.
 function previous_dependency_snapshot_path(
     tracking_csv::String,
     tracking::DataFrame,
