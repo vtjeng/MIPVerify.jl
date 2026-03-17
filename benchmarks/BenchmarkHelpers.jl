@@ -102,6 +102,11 @@ function percent(v::Float64)::String
 end
 
 const EXCLUDED_DEPENDENCY_NAMES = Set(["MIPVerify"])
+const SOURCE_KIND_STDLIB = "stdlib"
+const SOURCE_KIND_PATH = "path"
+const SOURCE_KIND_REPO = "repo"
+const SOURCE_KIND_REGISTRY = "registry"
+const SOURCE_KIND_UNKNOWN = "unknown"
 const TRACKING_COLUMNS = [
     :date,
     :run_id,
@@ -173,17 +178,17 @@ function dependency_source_kind(
     if !ismissing(normalized_source)
         stdlib_source = replace(normalized_source, "\\" => "/")
         if occursin("/stdlib/", stdlib_source)
-            return "stdlib"
+            return SOURCE_KIND_STDLIB
         end
     end
     if is_tracking_path
-        return "path"
+        return SOURCE_KIND_PATH
     elseif is_tracking_repo
-        return "repo"
+        return SOURCE_KIND_REPO
     elseif is_tracking_registry
-        return "registry"
+        return SOURCE_KIND_REGISTRY
     end
-    return "unknown"
+    return SOURCE_KIND_UNKNOWN
 end
 
 function collect_dependency_snapshot()::DataFrame
@@ -245,10 +250,10 @@ function dependency_row_hash_string(row::NamedTuple)::String
 end
 
 function dependency_snapshot_hash(snapshot::DataFrame; julia_version::String = string(VERSION))
-    lines = String["julia_version|$julia_version"]
+    # Julia version is tracked separately in benchmark metrics; keep the keyword for compatibility.
+    _ = julia_version
     rows = sort(collect(values(snapshot_index(snapshot))); by = row -> (row.name, row.uuid))
-    append!(lines, dependency_row_hash_string.(rows))
-    return bytes2hex(SHA.sha256(join(lines, "\n")))
+    return bytes2hex(SHA.sha256(join(dependency_row_hash_string.(rows), "\n")))
 end
 
 function dependency_row_summary(row::NamedTuple)::String
@@ -261,7 +266,7 @@ function dependency_row_summary(row::NamedTuple)::String
     end
 
     qualifiers = String[]
-    if row.source_kind != "registry"
+    if row.source_kind != SOURCE_KIND_REGISTRY
         push!(qualifiers, row.source_kind)
     end
     if row.is_direct_dep

@@ -202,6 +202,7 @@ end
         hash_one = dependency_snapshot_hash(ordered_snapshot; julia_version = "1.11.5")
         hash_two = dependency_snapshot_hash(reordered_snapshot; julia_version = "1.11.5")
         @test hash_one == hash_two
+        @test hash_one == dependency_snapshot_hash(ordered_snapshot; julia_version = "1.11.6")
 
         with_path_dep = dependency_snapshot(
             dependency_row(
@@ -442,6 +443,73 @@ end
                 @test ismissing(tracking[1, :dependency_change_summary])
                 @test tracking[2, :dependency_change_summary] ==
                       "CSV 0.10.15#oldcsvhash[direct] -> 0.10.16#newcsvhash[direct]"
+            end
+        end
+
+        @testset "ignores Julia patch upgrades when diffing dependencies" begin
+            mktempdir() do dir
+                tracking_csv = joinpath(dir, "tracking.csv")
+
+                first_run_id = "2026-03-09T06-00-00Z-abc1234"
+                snapshot = dependency_snapshot(
+                    dependency_row(
+                        "CSV",
+                        "11111111-1111-1111-1111-111111111111";
+                        version = "0.10.16",
+                        tree_hash = "csvhash",
+                        is_direct_dep = true,
+                    ),
+                )
+                first_run_dir = joinpath(dir, "runs", "2026-03-09", first_run_id)
+                mkpath(first_run_dir)
+                first_dependency_csv = joinpath(first_run_dir, "dependency_versions.csv")
+                write_dependency_snapshot(first_dependency_csv, snapshot)
+
+                first_hash = dependency_snapshot_hash(snapshot; julia_version = "1.11.5")
+                first_metrics_csv = joinpath(dir, "first_metrics.csv")
+                write_metrics_csv(
+                    first_metrics_csv;
+                    dependency_snapshot_sha256 = first_hash,
+                    julia_version = "1.11.5",
+                )
+
+                append_tracking_csv!(
+                    metrics_csv = first_metrics_csv,
+                    tracking_csv = tracking_csv,
+                    dependency_versions_csv = first_dependency_csv,
+                    date = "2026-03-09",
+                    commit_sha = "abc1234",
+                    run_id = first_run_id,
+                )
+
+                second_run_id = "2026-03-09T08-00-00Z-def5678"
+                second_run_dir = joinpath(dir, "runs", "2026-03-09", second_run_id)
+                mkpath(second_run_dir)
+                second_dependency_csv = joinpath(second_run_dir, "dependency_versions.csv")
+                write_dependency_snapshot(second_dependency_csv, snapshot)
+
+                second_hash = dependency_snapshot_hash(snapshot; julia_version = "1.11.6")
+                second_metrics_csv = joinpath(dir, "second_metrics.csv")
+                write_metrics_csv(
+                    second_metrics_csv;
+                    dependency_snapshot_sha256 = second_hash,
+                    julia_version = "1.11.6",
+                )
+
+                second_row = append_tracking_csv!(
+                    metrics_csv = second_metrics_csv,
+                    tracking_csv = tracking_csv,
+                    dependency_versions_csv = second_dependency_csv,
+                    date = "2026-03-09",
+                    commit_sha = "def5678",
+                    run_id = second_run_id,
+                )
+
+                tracking = CSV.read(tracking_csv, DataFrame)
+                @test nrow(tracking) == 2
+                @test tracking[1, :dependency_snapshot_sha256] == tracking[2, :dependency_snapshot_sha256]
+                @test tracking[2, :julia_version] == "1.11.6"
+                @test second_row[1, :dependency_change_summary] == ""
             end
         end
     end
