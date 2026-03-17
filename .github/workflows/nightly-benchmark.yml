@@ -65,19 +65,24 @@ jobs:
         run: |
           DATE=$(date -u +%Y-%m-%d)
           COMMIT_SHA=${{ github.sha }}
+          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}"
+          RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
 
           # Copy run artifacts
-          mkdir -p /tmp/benchmark-results/runs/${DATE}
-          cp /tmp/bench-wk17a/benchmark_metrics.csv /tmp/benchmark-results/runs/${DATE}/
-          cp /tmp/bench-wk17a/benchmark_per_sample.csv /tmp/benchmark-results/runs/${DATE}/
+          mkdir -p "${RUN_DIR}"
+          cp /tmp/bench-wk17a/benchmark_metrics.csv "${RUN_DIR}/"
+          cp /tmp/bench-wk17a/benchmark_per_sample.csv "${RUN_DIR}/"
+          cp /tmp/bench-wk17a/dependency_versions.csv "${RUN_DIR}/"
+          cp /tmp/bench-wk17a/dependency_manifest.toml "${RUN_DIR}/"
 
           # Append to tracking CSV
           julia --project=benchmarks benchmarks/append_to_tracking.jl \
             --metrics-csv /tmp/bench-wk17a/benchmark_metrics.csv \
-            --per-sample-csv /tmp/bench-wk17a/benchmark_per_sample.csv \
+            --dependency-versions-csv /tmp/bench-wk17a/dependency_versions.csv \
             --tracking-csv /tmp/benchmark-results/tracking.csv \
             --date "${DATE}" \
-            --commit-sha "${COMMIT_SHA}"
+            --commit-sha "${COMMIT_SHA}" \
+            --run-id "${RUN_ID}"
 
       - name: Commit and push to benchmark-results
         run: |

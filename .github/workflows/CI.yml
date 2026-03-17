@@ -121,8 +121,10 @@ jobs:
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
+      - name: Instantiate benchmarks environment
+        run: julia --project=benchmarks -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
       - name: Run benchmark helper tests
-        run: julia benchmarks/test/runtests.jl
+        run: julia --project=benchmarks benchmarks/test/runtests.jl
 
   format-check-prettier:
     name: "Check Formatting (.md, .yaml)"
