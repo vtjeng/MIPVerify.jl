@@ -506,7 +506,8 @@ end
 
                 tracking = CSV.read(tracking_csv, DataFrame)
                 @test nrow(tracking) == 2
-                @test tracking[1, :dependency_snapshot_sha256] == tracking[2, :dependency_snapshot_sha256]
+                @test tracking[1, :dependency_snapshot_sha256] ==
+                      tracking[2, :dependency_snapshot_sha256]
                 @test tracking[2, :julia_version] == "1.11.6"
                 @test second_row[1, :dependency_change_summary] ==
                       BenchmarkHelpers.NO_DEPENDENCY_CHANGES
