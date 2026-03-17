@@ -328,9 +328,7 @@ function dependency_change_summary(
     return join(changes, "; ")
 end
 
-function persisted_dependency_change_summary(
-    summary::Union{Missing,String},
-)::Union{Missing,String}
+function persisted_dependency_change_summary(summary::Union{Missing,String})::Union{Missing,String}
     if ismissing(summary)
         return missing
     end
