@@ -301,10 +301,7 @@ end
         )
 
         summary = dependency_change_summary(previous, current)
-        @test occursin(
-            "CSV 0.10.15#oldcsvhash[direct] -> 0.10.16#newcsvhash[direct]",
-            summary,
-        )
+        @test occursin("CSV 0.10.15#oldcsvhash[direct] -> 0.10.16#newcsvhash[direct]", summary)
         @test occursin("TreeOnly 1.0.0#beforetreehash -> 1.0.0#aftertreehash", summary)
         @test occursin("+NewPkg 3.0.0#newpkghash", summary)
         @test occursin("-OldPkg 2.0.0#oldpkghash", summary)

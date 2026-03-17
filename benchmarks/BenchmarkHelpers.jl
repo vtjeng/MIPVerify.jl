@@ -315,13 +315,17 @@ function dependency_row_summary(row::NamedTuple)::String
     return summary
 end
 
-function dependency_change_summary(previous_snapshot::DataFrame, current_snapshot::DataFrame)::String
+function dependency_change_summary(
+    previous_snapshot::DataFrame,
+    current_snapshot::DataFrame,
+)::String
     previous_index = snapshot_index(previous_snapshot)
     current_index = snapshot_index(current_snapshot)
 
     package_keys = sort(
         collect(union(keys(previous_index), keys(current_index)));
-        by = key -> haskey(current_index, key) ? current_index[key].name : previous_index[key].name,
+        by = key ->
+            haskey(current_index, key) ? current_index[key].name : previous_index[key].name,
     )
 
     changes = String[]
@@ -373,13 +377,8 @@ function previous_dependency_snapshot_path(
         return nothing
     end
 
-    snapshot_path = joinpath(
-        dirname(abspath(tracking_csv)),
-        "runs",
-        date,
-        run_id,
-        "dependency_versions.csv",
-    )
+    snapshot_path =
+        joinpath(dirname(abspath(tracking_csv)), "runs", date, run_id, "dependency_versions.csv")
     return isfile(snapshot_path) ? snapshot_path : nothing
 end
 
@@ -450,19 +449,9 @@ function append_tracking_csv!(;
 
     tracking = isfile(tracking_csv) ? CSV.read(tracking_csv, DataFrame) : DataFrame()
     current_hash = string(metrics[1, :dependency_snapshot_sha256])
-    dependency_summary = current_dependency_change_summary(
-        tracking,
-        tracking_csv,
-        dependency_snapshot,
-        current_hash,
-    )
-    row = build_tracking_row(
-        metrics,
-        date,
-        commit_sha,
-        run_id,
-        dependency_summary,
-    )
+    dependency_summary =
+        current_dependency_change_summary(tracking, tracking_csv, dependency_snapshot, current_hash)
+    row = build_tracking_row(metrics, date, commit_sha, run_id, dependency_summary)
 
     combined = nrow(tracking) == 0 ? row : vcat(tracking, row; cols = :union)
     ordered_columns = [column for column in TRACKING_COLUMNS if column in propertynames(combined)]
