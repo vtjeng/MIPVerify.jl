@@ -137,52 +137,27 @@ function normalize_optional_string(value)::Union{Missing,String}
     return isempty(normalized) ? missing : normalized
 end
 
-function normalize_required_string(value, field::Symbol)::String
-    normalized = normalize_optional_string(value)
-    @assert !ismissing(normalized) "Missing required dependency field $field"
-    return normalized
+function normalize_required_bool(value)::Bool
+    value isa Bool && return value
+    s = lowercase(strip(string(value)))
+    @assert s == "true" || s == "false" "Invalid boolean value: $value"
+    return s == "true"
 end
 
-function normalize_required_bool(value, field::Symbol)::Bool
-    if value isa Bool
-        return value
-    end
-    normalized = normalize_optional_string(value)
-    @assert !ismissing(normalized) "Missing required dependency field $field"
-    lowered = lowercase(normalized)
-    @assert lowered == "true" || lowered == "false" "Invalid boolean value for $field: $value"
-    return lowered == "true"
-end
-
-function snapshot_column(snapshot::DataFrame, column::Symbol, default)
-    if column in propertynames(snapshot)
-        return snapshot[!, column]
-    end
-    return fill(default, nrow(snapshot))
-end
+const SNAPSHOT_COLUMNS =
+    [:name, :uuid, :version, :tree_hash, :source_kind, :is_direct_dep, :git_revision]
 
 function normalize_dependency_snapshot(snapshot::DataFrame)::DataFrame
-    num_rows = nrow(snapshot)
-    names_col = snapshot_column(snapshot, :name, missing)
-    uuids_col = snapshot_column(snapshot, :uuid, missing)
-    versions_col = snapshot_column(snapshot, :version, missing)
-    tree_hashes_col = snapshot_column(snapshot, :tree_hash, missing)
-    source_kinds_col = snapshot_column(snapshot, :source_kind, missing)
-    direct_dep_col = snapshot_column(snapshot, :is_direct_dep, missing)
-    git_revisions_col = snapshot_column(snapshot, :git_revision, missing)
-
+    get_col(col, default) =
+        col in propertynames(snapshot) ? snapshot[!, col] : fill(default, nrow(snapshot))
     normalized = DataFrame(
-        name = [normalize_required_string(names_col[i], :name) for i in 1:num_rows],
-        uuid = [normalize_required_string(uuids_col[i], :uuid) for i in 1:num_rows],
-        version = [normalize_optional_string(versions_col[i]) for i in 1:num_rows],
-        tree_hash = [normalize_optional_string(tree_hashes_col[i]) for i in 1:num_rows],
-        source_kind = [
-            normalize_required_string(source_kinds_col[i], :source_kind) for i in 1:num_rows
-        ],
-        is_direct_dep = [
-            normalize_required_bool(direct_dep_col[i], :is_direct_dep) for i in 1:num_rows
-        ],
-        git_revision = [normalize_optional_string(git_revisions_col[i]) for i in 1:num_rows],
+        name = string.(get_col(:name, missing)),
+        uuid = string.(get_col(:uuid, missing)),
+        version = normalize_optional_string.(get_col(:version, missing)),
+        tree_hash = normalize_optional_string.(get_col(:tree_hash, missing)),
+        source_kind = string.(get_col(:source_kind, missing)),
+        is_direct_dep = normalize_required_bool.(get_col(:is_direct_dep, missing)),
+        git_revision = normalize_optional_string.(get_col(:git_revision, missing)),
     )
     sort!(normalized, [:name, :uuid])
     return normalized
@@ -236,7 +211,7 @@ function collect_dependency_snapshot()::DataFrame
 end
 
 function write_dependency_snapshot(path::String, snapshot::DataFrame)
-    CSV.write(path, normalize_dependency_snapshot(snapshot))
+    CSV.write(path, snapshot)
 end
 
 function load_dependency_snapshot(path::String)::DataFrame
@@ -245,19 +220,11 @@ end
 
 function snapshot_index(snapshot::DataFrame)::Dict{String,NamedTuple}
     index = Dict{String,NamedTuple}()
-    for row in eachrow(normalize_dependency_snapshot(snapshot))
+    for row in eachrow(snapshot)
         if row.name in EXCLUDED_DEPENDENCY_NAMES
             continue
         end
-        index[row.uuid] = (
-            name = row.name,
-            uuid = row.uuid,
-            version = row.version,
-            tree_hash = row.tree_hash,
-            source_kind = row.source_kind,
-            is_direct_dep = row.is_direct_dep,
-            git_revision = row.git_revision,
-        )
+        index[row.uuid] = (; (col => row[col] for col in SNAPSHOT_COLUMNS)...)
     end
     return index
 end
@@ -282,15 +249,6 @@ function dependency_snapshot_hash(snapshot::DataFrame; julia_version::String = s
     rows = sort(collect(values(snapshot_index(snapshot))); by = row -> (row.name, row.uuid))
     append!(lines, dependency_row_hash_string.(rows))
     return bytes2hex(SHA.sha256(join(lines, "\n")))
-end
-
-function dependency_row_changed(previous::NamedTuple, current::NamedTuple)::Bool
-    return !isequal(previous.name, current.name) ||
-           !isequal(previous.version, current.version) ||
-           !isequal(previous.tree_hash, current.tree_hash) ||
-           !isequal(previous.source_kind, current.source_kind) ||
-           !isequal(previous.is_direct_dep, current.is_direct_dep) ||
-           !isequal(previous.git_revision, current.git_revision)
 end
 
 function dependency_row_summary(row::NamedTuple)::String
@@ -343,7 +301,7 @@ function dependency_change_summary(
 
         previous = previous_index[key]
         current = current_index[key]
-        if dependency_row_changed(previous, current)
+        if !isequal(previous, current)
             push!(
                 changes,
                 string(
@@ -382,31 +340,6 @@ function previous_dependency_snapshot_path(
     return isfile(snapshot_path) ? snapshot_path : nothing
 end
 
-function current_dependency_change_summary(
-    tracking::DataFrame,
-    tracking_csv::String,
-    current_snapshot::DataFrame,
-    current_hash::String,
-)::Union{Missing,String}
-    if nrow(tracking) == 0 || !(:dependency_snapshot_sha256 in propertynames(tracking))
-        return missing
-    end
-
-    previous_hash = normalize_optional_string(tracking[end, :dependency_snapshot_sha256])
-    if ismissing(previous_hash)
-        return missing
-    end
-    if previous_hash == current_hash
-        return ""
-    end
-
-    previous_snapshot = previous_dependency_snapshot_path(tracking_csv, tracking)
-    if isnothing(previous_snapshot)
-        return missing
-    end
-    return dependency_change_summary(load_dependency_snapshot(previous_snapshot), current_snapshot)
-end
-
 function build_tracking_row(
     metrics::DataFrame,
     date::String,
@@ -414,26 +347,17 @@ function build_tracking_row(
     run_id::String,
     dependency_summary::Union{Missing,String},
 )::DataFrame
-    return DataFrame(
-        date = [date],
-        run_id = [run_id],
-        commit_sha = [commit_sha],
-        julia_version = [string(metrics[1, :julia_version])],
-        dependency_snapshot_sha256 = [string(metrics[1, :dependency_snapshot_sha256])],
-        dependency_change_summary = [dependency_summary],
-        wall_clock_seconds = [metrics[1, :wall_clock_seconds]],
-        sum_total_time_seconds = [metrics[1, :sum_total_time_seconds]],
-        sum_solve_time_seconds = [metrics[1, :sum_solve_time_seconds]],
-        median_solve_time_seconds = [metrics[1, :median_solve_time_seconds]],
-        p90_solve_time_seconds = [metrics[1, :p90_solve_time_seconds]],
-        num_samples = [metrics[1, :num_samples]],
-        num_certified_no_adversarial_example = [metrics[1, :num_certified_no_adversarial_example]],
-        num_adversarial_example_found_or_best_known = [
-            metrics[1, :num_adversarial_example_found_or_best_known],
-        ],
-        num_time_limit_unresolved = [metrics[1, :num_time_limit_unresolved]],
-        num_no_primal_solution_other = [metrics[1, :num_no_primal_solution_other]],
+    overrides = Dict{Symbol,Any}(
+        :date => date,
+        :run_id => run_id,
+        :commit_sha => commit_sha,
+        :dependency_change_summary => dependency_summary,
     )
+    row = Dict{Symbol,Any}()
+    for col in TRACKING_COLUMNS
+        row[col] = haskey(overrides, col) ? overrides[col] : metrics[1, col]
+    end
+    return DataFrame(Dict(k => [v] for (k, v) in row))
 end
 
 function append_tracking_csv!(;
@@ -445,12 +369,29 @@ function append_tracking_csv!(;
     run_id::String,
 )
     metrics = CSV.read(metrics_csv, DataFrame)
-    dependency_snapshot = load_dependency_snapshot(dependency_versions_csv)
+    current_snapshot = load_dependency_snapshot(dependency_versions_csv)
 
     tracking = isfile(tracking_csv) ? CSV.read(tracking_csv, DataFrame) : DataFrame()
     current_hash = string(metrics[1, :dependency_snapshot_sha256])
-    dependency_summary =
-        current_dependency_change_summary(tracking, tracking_csv, dependency_snapshot, current_hash)
+
+    dependency_summary = missing
+    if nrow(tracking) > 0 && :dependency_snapshot_sha256 in propertynames(tracking)
+        previous_hash = normalize_optional_string(tracking[end, :dependency_snapshot_sha256])
+        if !ismissing(previous_hash)
+            if previous_hash == current_hash
+                dependency_summary = ""
+            else
+                prev_path = previous_dependency_snapshot_path(tracking_csv, tracking)
+                if !isnothing(prev_path)
+                    dependency_summary = dependency_change_summary(
+                        load_dependency_snapshot(prev_path),
+                        current_snapshot,
+                    )
+                end
+            end
+        end
+    end
+
     row = build_tracking_row(metrics, date, commit_sha, run_id, dependency_summary)
 
     combined = nrow(tracking) == 0 ? row : vcat(tracking, row; cols = :union)
