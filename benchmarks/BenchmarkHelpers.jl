@@ -130,8 +130,8 @@ const TRACKING_COLUMNS = [
 function active_manifest_path()::String
     project_file = Base.active_project()
     isnothing(project_file) && error("No active project found for benchmark environment.")
-    manifest_path = joinpath(dirname(project_file), "Manifest.toml")
-    isfile(manifest_path) || error("Missing manifest file at $manifest_path")
+    manifest_path = Base.project_file_manifest_path(project_file)
+    isnothing(manifest_path) && error("No manifest file found for project at $project_file")
     return manifest_path
 end
 
