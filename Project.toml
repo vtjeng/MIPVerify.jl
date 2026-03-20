@@ -1,6 +1,6 @@
 name = "MIPVerify"
 uuid = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
-version = "0.5.4"
+version = "0.6.0"
 authors = ["Vincent Tjeng"]
 
 [deps]
