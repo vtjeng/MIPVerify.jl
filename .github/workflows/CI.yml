@@ -126,6 +126,41 @@ jobs:
       - name: Run benchmark helper tests
         run: julia --project=benchmarks benchmarks/test/runtests.jl
 
+  notebook-tests:
+    name: "Notebook: ${{ matrix.notebook }}"
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        notebook:
+          - "00_quickstart.ipynb"
+          - "01_importing_your_own_neural_net.ipynb"
+          # 02 excluded — too slow for PR CI (~3 hours without time limits)
+          - "03_interpreting_the_output_of_find_adversarial_example.ipynb"
+          - "04_managing_log_output.ipynb"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: julia-actions/setup-julia@v1
+        with:
+          version: "1"
+      - uses: actions/cache@v3
+        env:
+          cache-name: cache-artifacts
+        with:
+          path: ~/.julia/artifacts
+          key: ${{ runner.os }}-notebook-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-notebook-${{ env.cache-name }}-
+            ${{ runner.os }}-notebook-
+            ${{ runner.os }}-
+      - name: Instantiate examples environment
+        run: julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+      - name: Execute notebook
+        env:
+          NOTEBOOK: ${{ matrix.notebook }}
+        run: julia --project=examples examples/test/runtests.jl
+
   format-check-prettier:
     name: "Check Formatting (.md, .yaml)"
     runs-on: ubuntu-latest
