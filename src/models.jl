@@ -39,13 +39,14 @@ function get_model(
     optimizer,
     tightening_options::Dict,
     tightening_algorithm::TighteningAlgorithm,
+    collect_stats::Bool = false,
 )::Dict{Symbol,Any}
     notice(
         MIPVerify.LOGGER,
         "Determining upper and lower bounds for the input to each non-linear unit.",
     )
     m = Model(optimizer_with_attributes(optimizer, tightening_options...))
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm)
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm, collect_stats)
 
     d_common = Dict(
         :Model => m,
@@ -53,7 +54,15 @@ function get_model(
         :TighteningApproach => string(tightening_algorithm),
     )
 
-    return merge(d_common, get_perturbation_specific_keys(nn, input, pp, m))
+    stats = get_verification_stats(m)
+    perturbation_specific_keys = if stats === nothing
+        get_perturbation_specific_keys(nn, input, pp, m)
+    else
+        with_verification_stats(stats) do
+            get_perturbation_specific_keys(nn, input, pp, m)
+        end
+    end
+    return merge(d_common, perturbation_specific_keys)
 end
 
 function get_perturbation_specific_keys(
@@ -125,8 +134,4 @@ function get_perturbation_specific_keys(
     v_output = v_x0 |> nn
 
     return Dict(:PerturbedInput => v_x0, :Perturbation => v_e, :Output => v_output)
-end
-
-struct MIPVerifyExt
-    tightening_algorithm::TighteningAlgorithm
 end

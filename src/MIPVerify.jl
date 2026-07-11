@@ -29,6 +29,8 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 
+include("instrumentation.jl")
+
 # importing vendor/ConditionalJuMP.jl first as the remaining files use functions
 # defined in it. we're unsure if this is necessary.
 include("vendor/ConditionalJuMP.jl")
@@ -107,6 +109,8 @@ that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ ta
     `solve_if_predicted_in_targeted` is `true`.
 - `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
     (by at least `margin`) than any non-target category. 
+- `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
+    tightening work, ReLU stability, and main-solver work in the returned dictionary.
 """
 function find_adversarial_example(
     nn::NeuralNet,
@@ -122,6 +126,7 @@ function find_adversarial_example(
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     margin::Real = 0.0,
+    collect_stats::Bool = false,
 )::Dict
 
     total_time = @elapsed begin
@@ -147,7 +152,19 @@ function find_adversarial_example(
 
         # Only call optimizer if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
-            merge!(d, get_model(nn, input, pp, optimizer, tightening_options, tightening_algorithm))
+            formulation_start = collect_stats ? time_ns() : UInt64(0)
+            merge!(
+                d,
+                get_model(
+                    nn,
+                    input,
+                    pp,
+                    optimizer,
+                    tightening_options,
+                    tightening_algorithm,
+                    collect_stats,
+                ),
+            )
             m = d[:Model]
 
             if adversarial_example_objective == closest
@@ -178,9 +195,32 @@ function find_adversarial_example(
             end
             set_optimizer(m, optimizer)
             set_optimizer_attributes(m, main_solve_options...)
+            if collect_stats
+                d[:FormulationTime] = elapsed_seconds(formulation_start)
+                merge!(d, summarize_verification_stats(m))
+                d[:FormulationExcludingBoundSolveTime] =
+                    max(0.0, d[:FormulationTime] - d[:BoundSolverWallTime])
+                d[:NumVariables] = JuMP.num_variables(m)
+                d[:NumBinaryVariables] =
+                    JuMP.num_constraints(m, JuMP.VariableRef, MathOptInterface.ZeroOne)
+                d[:NumStructuralConstraints] =
+                    num_model_constraints(m; count_variable_in_set_constraints = false)
+                d[:NumTotalConstraints] =
+                    num_model_constraints(m; count_variable_in_set_constraints = true)
+            end
+            main_solve_start = collect_stats ? time_ns() : UInt64(0)
             optimize!(m)
             d[:SolveStatus] = JuMP.termination_status(m)
             d[:SolveTime] = JuMP.solve_time(m)
+            if collect_stats
+                d[:MainSolveWallTime] = elapsed_seconds(main_solve_start)
+                d[:MainNodeCount] = safe_solve_metric(JuMP.node_count, m, missing)
+                d[:MainSimplexIterations] =
+                    safe_solve_metric(JuMP.simplex_iterations, m, missing)
+                d[:MainBarrierIterations] =
+                    safe_solve_metric(JuMP.barrier_iterations, m, missing)
+                d[:MainRelativeGap] = safe_solve_metric(JuMP.relative_gap, m, missing)
+            end
         end
     end
 

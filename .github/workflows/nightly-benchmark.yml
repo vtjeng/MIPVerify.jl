@@ -72,6 +72,8 @@ jobs:
           mkdir -p "${RUN_DIR}"
           cp /tmp/bench-wk17a/benchmark_metrics.csv "${RUN_DIR}/"
           cp /tmp/bench-wk17a/benchmark_per_sample.csv "${RUN_DIR}/"
+          cp /tmp/bench-wk17a/benchmark_relu_layers.csv "${RUN_DIR}/"
+          cp /tmp/bench-wk17a/benchmark_tightening.csv "${RUN_DIR}/"
           cp /tmp/bench-wk17a/dependency_versions.csv "${RUN_DIR}/"
           cp /tmp/bench-wk17a/dependency_manifest.toml "${RUN_DIR}/"
 

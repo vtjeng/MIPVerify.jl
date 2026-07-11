@@ -2,7 +2,14 @@ using CSV
 using DataFrames
 
 include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
-using .BenchmarkHelpers: regression_ratio, percent
+using .BenchmarkHelpers:
+    regression_ratio,
+    percent,
+    benchmark_schema_version,
+    semantic_outcome_schema_version,
+    semantic_partition_matches,
+    semantic_partition_is_complete,
+    SEMANTIC_OUTCOME_SCHEMA_VERSION
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -37,6 +44,20 @@ function main()
     baseline = load_metrics(args["baseline"])
     candidate = load_metrics(args["candidate"])
 
+    baseline_benchmark_schema = benchmark_schema_version(baseline)
+    candidate_benchmark_schema = benchmark_schema_version(candidate)
+    baseline_semantic_schema = semantic_outcome_schema_version(baseline)
+    candidate_semantic_schema = semantic_outcome_schema_version(candidate)
+    if baseline_benchmark_schema != candidate_benchmark_schema ||
+       baseline_semantic_schema != candidate_semantic_schema
+        println(
+            "Schema mismatch: baseline=(benchmark=$baseline_benchmark_schema, semantic=$baseline_semantic_schema), " *
+            "candidate=(benchmark=$candidate_benchmark_schema, semantic=$candidate_semantic_schema)",
+        )
+        println("Gate verdict: FAIL (schema mismatch)")
+        exit(1)
+    end
+
     base_wall = Float64(baseline[1, :wall_clock_seconds])
     cand_wall = Float64(candidate[1, :wall_clock_seconds])
     base_total = Float64(baseline[1, :sum_total_time_seconds])
@@ -49,17 +70,20 @@ function main()
     println("wall_clock_seconds,$base_wall,$cand_wall,$(percent(wall_delta))")
     println("sum_total_time_seconds,$base_total,$cand_total,$(percent(total_delta))")
 
-    semantic_cols = [
+    outcome_cols = [
+        "num_skipped_predicted_in_targeted",
         "num_certified_no_adversarial_example",
         "num_adversarial_example_found_or_best_known",
         "num_time_limit_unresolved",
         "num_no_primal_solution_other",
         "num_missing_objective_value",
     ]
-    if all(col -> col in names(baseline) && col in names(candidate), semantic_cols)
+    comparable_outcome_cols =
+        filter(col -> col in names(baseline) && col in names(candidate), outcome_cols)
+    if !isempty(comparable_outcome_cols)
         println()
-        println("Semantic outcomes (counts):")
-        for col in semantic_cols
+        println("Outcome and skipped-input counts:")
+        for col in comparable_outcome_cols
             base_val = Int(baseline[1, Symbol(col)])
             cand_val = Int(candidate[1, Symbol(col)])
             delta = cand_val - base_val
@@ -69,7 +93,14 @@ function main()
 
     wall_ok = wall_delta <= max_regression
     total_ok = total_delta <= max_regression
-    passed = wall_ok && total_ok
+    semantic_ok = semantic_partition_matches(baseline, candidate)
+    partition_complete = if baseline_semantic_schema >= SEMANTIC_OUTCOME_SCHEMA_VERSION
+        semantic_partition_is_complete(baseline) && semantic_partition_is_complete(candidate)
+    else
+        true
+    end
+    println("Semantic verdict: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
+    passed = wall_ok && total_ok && semantic_ok && partition_complete
     threshold_text = percent(max_regression)
     verdict = passed ? "PASS" : "FAIL"
     println("Gate verdict: $verdict (max regression: $threshold_text)")
