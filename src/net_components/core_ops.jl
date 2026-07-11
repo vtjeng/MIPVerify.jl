@@ -179,12 +179,39 @@ function tight_bound_helper(
     end
 end
 
+function optimization_bound(
+    x::JuMPLinearType,
+    tightening_algorithm::TighteningAlgorithm,
+    bound_type::BoundType,
+    fallback_bound::Real,
+    stats::Union{Nothing,VerificationStats};
+    integrality_is_relaxed::Bool = false,
+)::Real
+    bound_type_name = bound_type == lower_bound_type ? "lower" : "upper"
+    record_bound_request!(stats, tightening_algorithm, bound_type_name)
+    model = owner_model(x)
+    if tightening_algorithm != lp || integrality_is_relaxed
+        return tight_bound_helper(model, bound_type, x, fallback_bound, tightening_algorithm, stats)
+    end
+    return relax_integrality_context(model, true) do relaxed_model
+        tight_bound_helper(
+            relaxed_model,
+            bound_type,
+            x,
+            fallback_bound,
+            tightening_algorithm,
+            stats,
+        )
+    end
+end
+
 """
 Calculates a tight bound of type `bound_type` on the variable `x` using the specified
 tightening algorithm `nta`.
 
 If an upper bound is proven to be below cutoff, or a lower bound is proven to above cutoff,
-the algorithm returns early with whatever value was found.
+the algorithm returns early with whatever value was found. MIP tightening first tries the LP
+relaxation and passes its certified result to the MIP solve.
 """
 function tight_bound(
     x::JuMPLinearType,
@@ -195,30 +222,28 @@ function tight_bound(
     tightening_algorithm = get_tightening_algorithm(x, nta)
     b_0 = bound_f[bound_type](x)
     stats = get_verification_stats(x)
-    if stats === nothing
-        # Only skip-or-not matters here, so check `interval_arithmetic` first:
-        # `is_constant` allocates a temporary expression for `AffExpr` inputs.
-        if tightening_algorithm == interval_arithmetic ||
-           is_constant(x) ||
-           bound_operator[bound_type](b_0, cutoff)
-            return b_0
-        end
-    else
-        skip_reason =
-            is_constant(x) ? SKIP_CONSTANT_EXPRESSION :
-            tightening_algorithm == interval_arithmetic ? SKIP_INTERVAL_ARITHMETIC :
-            bound_operator[bound_type](b_0, cutoff) ? SKIP_INTERVAL_PROVES_CUTOFF : nothing
-        if skip_reason !== nothing
-            record_bound_skip!(stats, tightening_algorithm, bound_name[bound_type], skip_reason)
-            return b_0
-        end
-        record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
+    bound_type_name = bound_name[bound_type]
+    if is_constant(x)
+        record_bound_skip!(stats, tightening_algorithm, bound_type_name, SKIP_CONSTANT_EXPRESSION)
+        return b_0
+    elseif tightening_algorithm == interval_arithmetic
+        record_bound_skip!(stats, tightening_algorithm, bound_type_name, SKIP_INTERVAL_ARITHMETIC)
+        return b_0
     end
-    should_relax_integrality = (tightening_algorithm == lp)
-    # x is not constant, and thus x must have an associated model
-    return relax_integrality_context(owner_model(x), should_relax_integrality) do m
-        tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm, stats)
+
+    first_optimization = tightening_algorithm == mip ? lp : tightening_algorithm
+    if bound_operator[bound_type](b_0, cutoff)
+        record_bound_skip!(stats, first_optimization, bound_type_name, SKIP_INTERVAL_PROVES_CUTOFF)
+        return b_0
     end
+
+    lp_bound = optimization_bound(x, lp, bound_type, b_0, stats)
+    if tightening_algorithm == lp
+        return lp_bound
+    elseif bound_operator[bound_type](lp_bound, cutoff)
+        return lp_bound
+    end
+    return optimization_bound(x, mip, bound_type, lp_bound, stats)
 end
 
 function tight_upperbound(
@@ -278,6 +303,270 @@ function consistent_relu_bounds(x::JuMPLinearType, l::Real, u::Real)::Tuple{Real
         l = lower_bound(x)
     end
     return (l, u)
+end
+
+function map_with_progress(f, description::String, show_progress_bar::Bool, arrays...)
+    if !show_progress_bar
+        return map(f, arrays...)
+    end
+    progress = Progress(length(first(arrays)), desc = description, enabled = isinteractive())
+    return map(arrays...) do values...
+        next!(progress)
+        f(values...)
+    end
+end
+
+function interval_lowerbound_for_relu(x::JuMPLinearType, interval_upper::Real)::Real
+    return interval_upper <= 0 ? interval_upper : lower_bound(x)
+end
+
+function relu_tightening_algorithm(
+    x::AbstractArray{T},
+    constant_mask::AbstractArray{Bool},
+    nta::Union{TighteningAlgorithm,Nothing},
+)::TighteningAlgorithm where {T<:JuMPLinearType}
+    first_nonconstant_index = findfirst(!, constant_mask)
+    return first_nonconstant_index === nothing ? interval_arithmetic :
+           get_tightening_algorithm(x[first_nonconstant_index], nta)
+end
+
+function lp_relu_upperbound(
+    x::JuMPLinearType,
+    constant_expression::Bool,
+    interval_lower::Real,
+    interval_upper::Real,
+    requested_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
+)::Real
+    first_algorithm =
+        constant_expression ? interval_arithmetic :
+        requested_algorithm == mip ? lp : requested_algorithm
+    if constant_expression
+        record_bound_skip!(stats, first_algorithm, "upper", SKIP_CONSTANT_EXPRESSION)
+    elseif requested_algorithm == interval_arithmetic
+        record_bound_skip!(stats, first_algorithm, "upper", SKIP_INTERVAL_ARITHMETIC)
+    elseif interval_upper <= 0
+        record_bound_skip!(stats, first_algorithm, "upper", SKIP_INTERVAL_PROVES_CUTOFF)
+    elseif interval_lower >= 0
+        record_bound_skip!(
+            stats,
+            first_algorithm,
+            "upper",
+            SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER,
+        )
+    else
+        return optimization_bound(
+            x,
+            lp,
+            upper_bound_type,
+            interval_upper,
+            stats;
+            integrality_is_relaxed = true,
+        )
+    end
+    return interval_upper
+end
+
+function lp_relu_lowerbound(
+    x::JuMPLinearType,
+    constant_expression::Bool,
+    interval_lower::Real,
+    lp_upper::Real,
+    requested_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
+)::Real
+    first_algorithm =
+        constant_expression ? interval_arithmetic :
+        requested_algorithm == mip ? lp : requested_algorithm
+    if lp_upper <= 0
+        record_bound_skip!(
+            stats,
+            first_algorithm,
+            "lower",
+            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
+        )
+        return lp_upper
+    elseif constant_expression
+        record_bound_skip!(stats, first_algorithm, "lower", SKIP_CONSTANT_EXPRESSION)
+    elseif requested_algorithm == interval_arithmetic
+        record_bound_skip!(stats, first_algorithm, "lower", SKIP_INTERVAL_ARITHMETIC)
+    elseif interval_lower >= 0
+        record_bound_skip!(stats, first_algorithm, "lower", SKIP_INTERVAL_PROVES_CUTOFF)
+    else
+        return optimization_bound(
+            x,
+            lp,
+            lower_bound_type,
+            interval_lower,
+            stats;
+            integrality_is_relaxed = true,
+        )
+    end
+    return interval_lower
+end
+
+function requires_lp_relu_tightening(
+    constant_expression::Bool,
+    interval_lower::Real,
+    interval_upper::Real,
+    requested_algorithm::TighteningAlgorithm,
+)::Bool
+    return !constant_expression &&
+           requested_algorithm != interval_arithmetic &&
+           !(interval_upper <= 0 || interval_lower >= 0)
+end
+
+function lp_relu_bounds(
+    x::AbstractArray{T},
+    constant_mask::AbstractArray{Bool},
+    interval_lower::AbstractArray{<:Real},
+    interval_upper::AbstractArray{<:Real},
+    requested_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
+    show_progress_bar::Bool,
+) where {T<:JuMPLinearType}
+    function calculate_bounds()
+        lp_upper = map_with_progress(
+            (x_i, is_constant_i, l_i, u_i) ->
+                lp_relu_upperbound(x_i, is_constant_i, l_i, u_i, requested_algorithm, stats),
+            "  Tightening LP upper bounds: ",
+            show_progress_bar,
+            x,
+            constant_mask,
+            interval_lower,
+            interval_upper,
+        )
+        lp_lower = map_with_progress(
+            (x_i, is_constant_i, l_i, u_i) ->
+                lp_relu_lowerbound(x_i, is_constant_i, l_i, u_i, requested_algorithm, stats),
+            "  Tightening LP lower bounds: ",
+            show_progress_bar,
+            x,
+            constant_mask,
+            interval_lower,
+            lp_upper,
+        )
+        return (lp_lower, lp_upper)
+    end
+
+    first_lp_index = findfirst(
+        index -> requires_lp_relu_tightening(
+            constant_mask[index],
+            interval_lower[index],
+            interval_upper[index],
+            requested_algorithm,
+        ),
+        eachindex(x),
+    )
+    if first_lp_index === nothing
+        return calculate_bounds()
+    end
+    model = owner_model(x[first_lp_index])
+    for index in eachindex(x)
+        if requires_lp_relu_tightening(
+            constant_mask[index],
+            interval_lower[index],
+            interval_upper[index],
+            requested_algorithm,
+        ) && owner_model(x[index]) !== model
+            throw(ArgumentError("all LP-tightened ReLU inputs must belong to the same model"))
+        end
+    end
+    return relax_integrality_context(model, true) do _
+        calculate_bounds()
+    end
+end
+
+function mip_relu_upperbound(
+    x::JuMPLinearType,
+    lp_lower::Real,
+    lp_upper::Real,
+    stats::Union{Nothing,VerificationStats},
+)::Real
+    if !(lp_lower < 0 < lp_upper)
+        return lp_upper
+    end
+    return optimization_bound(x, mip, upper_bound_type, lp_upper, stats)
+end
+
+function mip_relu_lowerbound(
+    x::JuMPLinearType,
+    lp_lower::Real,
+    lp_upper::Real,
+    mip_upper::Real,
+    stats::Union{Nothing,VerificationStats},
+)::Real
+    if !(lp_lower < 0 < lp_upper)
+        return lp_lower
+    elseif mip_upper <= 0
+        record_bound_skip!(stats, mip, "lower", SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER)
+        return mip_upper
+    end
+    return optimization_bound(x, mip, lower_bound_type, lp_lower, stats)
+end
+
+function mip_relu_bounds(
+    x::AbstractArray{T},
+    lp_lower::AbstractArray{<:Real},
+    lp_upper::AbstractArray{<:Real},
+    requested_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
+    show_progress_bar::Bool,
+) where {T<:JuMPLinearType}
+    requested_algorithm == mip || return (lp_lower, lp_upper)
+    has_mip_candidate = any(l_i < 0 < u_i for (l_i, u_i) in zip(lp_lower, lp_upper))
+    has_mip_candidate || return (lp_lower, lp_upper)
+
+    mip_upper = map_with_progress(
+        (x_i, l_i, u_i) -> mip_relu_upperbound(x_i, l_i, u_i, stats),
+        "  Tightening MIP upper bounds: ",
+        show_progress_bar,
+        x,
+        lp_lower,
+        lp_upper,
+    )
+    mip_lower = map_with_progress(
+        (x_i, l_i, u_i, mip_u_i) -> mip_relu_lowerbound(x_i, l_i, u_i, mip_u_i, stats),
+        "  Tightening MIP lower bounds: ",
+        show_progress_bar,
+        x,
+        lp_lower,
+        lp_upper,
+        mip_upper,
+    )
+    return (mip_lower, mip_upper)
+end
+
+function progressive_relu_bounds(
+    x::AbstractArray{T},
+    constant_mask::AbstractArray{Bool},
+    requested_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
+    show_progress_bar::Bool,
+) where {T<:JuMPLinearType}
+    interval_upper = map_with_progress(
+        upper_bound,
+        "  Calculating interval upper bounds: ",
+        show_progress_bar,
+        x,
+    )
+    interval_lower = map_with_progress(
+        interval_lowerbound_for_relu,
+        "  Calculating interval lower bounds: ",
+        show_progress_bar,
+        x,
+        interval_upper,
+    )
+    lp_lower, lp_upper = lp_relu_bounds(
+        x,
+        constant_mask,
+        interval_lower,
+        interval_upper,
+        requested_algorithm,
+        stats,
+        show_progress_bar,
+    )
+    return mip_relu_bounds(x, lp_lower, lp_upper, requested_algorithm, stats, show_progress_bar)
 end
 
 function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
@@ -371,8 +660,14 @@ function lazy_tight_lowerbound(
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
-    u = tight_upperbound(x, cutoff = 0)
-    l = lazy_tight_lowerbound(x, u, cutoff = 0)
+    inputs = [x]
+    stats = get_verification_stats(inputs)
+    constant_mask = is_constant.(inputs)
+    tightening_algorithm = relu_tightening_algorithm(inputs, constant_mask, nothing)
+    l_array, u_array =
+        progressive_relu_bounds(inputs, constant_mask, tightening_algorithm, stats, false)
+    l = only(l_array)
+    u = only(u_array)
     relu(x, l, u)
 end
 
@@ -386,40 +681,21 @@ function relu(
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     stats::Union{Nothing,VerificationStats} = get_verification_stats(x),
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    constant_mask = is_constant.(x)
+    tightening_algorithm = relu_tightening_algorithm(x, constant_mask, nta)
     show_progress_bar::Bool =
+        isinteractive() &&
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
 
     layer_stats = if stats === nothing
         nothing
     else
-        first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
-        # A layer with no nonconstant inputs needs no bound solves, so interval arithmetic
-        # is the algorithm actually applied regardless of the configured default.
-        tightening_algorithm =
-            first_nonconstant_index === nothing ? interval_arithmetic :
-            get_tightening_algorithm(x[first_nonconstant_index], nta)
         begin_relu_layer!(stats, size(x), tightening_algorithm)
     end
 
     bounds_start = time_ns()
-    # The task-local scope lets the per-element bound computations resolve `stats` even for
-    # constant expressions, which have no owner model.
-    (u, l) = with_verification_stats(stats) do
-        if !show_progress_bar
-            u = tight_upperbound.(x, nta = nta, cutoff = 0)
-            l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0)
-        else
-            p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-            u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta = nta, cutoff = 0)), x)
-            p2 = Progress(
-                length(x),
-                desc = "  Calculating lower bounds: ",
-                enabled = isinteractive(),
-            )
-            l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta = nta, cutoff = 0)), zip(x, u))
-        end
-        (u, l)
-    end
+    (l, u) =
+        progressive_relu_bounds(x, constant_mask, tightening_algorithm, stats, show_progress_bar)
     bounds_time = elapsed_seconds(bounds_start)
 
     if stats !== nothing

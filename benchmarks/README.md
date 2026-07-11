@@ -69,7 +69,9 @@ The two solver timing fields have different sources:
 - `solve_time_seconds` is the final solve time reported by HiGHS.
 
 The bound columns report logical requests, actual solver calls and statuses, progressive skips,
-solver time, and work counters. ReLU columns use the formulation's four phase classes:
+solver time, and work counters. Tightening rows name the algorithm used at that stage, so a layer
+requested with MIP tightening can produce separate LP and MIP rows. ReLU columns use the
+formulation's four phase classes:
 `zero_output`, `linear_in_input`, `constant_output`, and `split`. Stable count is the sum of the
 first three; unstable count is `split`.
 
@@ -78,10 +80,11 @@ first three; unstable count is `split`.
 gap fields are missing when the solver does not expose a nonnegative value.
 
 In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted semicolon-separated
-`name=count` pairs. Dedicated columns cover optimal and time-limit statuses and the four expected
-progressive skip reasons.
+`name=count` pairs. Dedicated columns cover optimal and time-limit statuses and common progressive
+skip reasons.
 
-`benchmark_schema_version` identifies the timing and output schema.
+`benchmark_schema_version` identifies the timing and output schema. Schema 3 records LP and MIP
+stages separately when progressive MIP tightening is requested.
 `semantic_outcome_schema_version` identifies the outcome-counting rules. Semantic schema 1, used by
 historical runs through 2026-07-10, omitted already-misclassified skipped inputs from the
 adversarial count. Semantic schema 2 includes them. Comparison tooling rejects runs with different

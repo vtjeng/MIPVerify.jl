@@ -644,6 +644,54 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test tight_lowerbound(x1) == 1
         end
 
+        @testset "MIP bounds progress through the LP relaxation" begin
+            m_upper = TestHelpers.get_new_model()
+            m_upper.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            @variable(m_upper, 0 <= a[1:2] <= 1, Bin)
+            @constraint(m_upper, 2 * sum(a) <= 3)
+
+            upper = tight_upperbound(sum(a); nta = mip)
+
+            upper_stats = MIPVerify.get_verification_stats(m_upper)
+            @test upper >= 1
+            @test upper ≈ 1
+            @test upper_stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
+            @test upper_stats.bound_tightening[(0, "mip", "upper")].solver_call_count == 1
+            @test count_binary_variables(m_upper) == 2
+
+            m_lower = TestHelpers.get_new_model()
+            m_lower.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            @variable(m_lower, 0 <= b[1:2] <= 1, Bin)
+            @constraint(m_lower, 2 * sum(b) >= 1)
+
+            lower = tight_lowerbound(sum(b); nta = mip)
+
+            lower_stats = MIPVerify.get_verification_stats(m_lower)
+            @test lower <= 1
+            @test lower ≈ 1
+            @test lower_stats.bound_tightening[(0, "lp", "lower")].solver_call_count == 1
+            @test lower_stats.bound_tightening[(0, "mip", "lower")].solver_call_count == 1
+            @test count_binary_variables(m_lower) == 2
+        end
+
+        @testset "LP cutoff skips the MIP stage" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            @variable(m, 0 <= a[1:2] <= 1, Bin)
+            @constraint(m, 2 * sum(a) <= 3)
+
+            upper = tight_upperbound(sum(a); nta = mip, cutoff = 1.5001)
+
+            stats = MIPVerify.get_verification_stats(m)
+            @test upper >= 1.5
+            @test upper <= 1.5001
+            @test stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
+            @test !haskey(stats.bound_tightening, (0, "mip", "upper"))
+            @test count_binary_variables(m) == 2
+        end
+
     end
 
     @testset "verification instrumentation" begin
@@ -723,6 +771,112 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 1
         end
 
+        @testset "uses both interval bounds before LP tightening" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
+            x_inactive = @variable(m, lower_bound = -3, upper_bound = -1)
+            x_active = @variable(m, lower_bound = 1, upper_bound = 3)
+            x_split = @variable(m, lower_bound = -1, upper_bound = 2)
+
+            relu([1.0 * x_inactive, 1.0 * x_active, 1.0 * x_split]; nta = lp)
+
+            stats = MIPVerify.get_verification_stats(m)
+            upper_stats = stats.bound_tightening[(1, "lp", "upper")]
+            lower_stats = stats.bound_tightening[(1, "lp", "lower")]
+            layer = only(stats.relu_layers)
+            @test upper_stats.request_count == 3
+            @test upper_stats.solver_call_count == 1
+            @test upper_stats.skip_counts["interval_proves_cutoff"] == 1
+            @test upper_stats.skip_counts["upper_skipped_by_nonnegative_interval_lower"] == 1
+            @test lower_stats.request_count == 3
+            @test lower_stats.solver_call_count == 1
+            @test lower_stats.skip_counts["lower_skipped_by_nonpositive_upper"] == 1
+            @test lower_stats.skip_counts["interval_proves_cutoff"] == 1
+            @test layer.num_zero_output == 1
+            @test layer.num_linear_in_input == 1
+            @test layer.num_split == 1
+            @test count_binary_variables(m) == 1
+        end
+
+        @testset "rejects LP batches spanning multiple models" begin
+            m_1 = TestHelpers.get_new_model()
+            m_2 = TestHelpers.get_new_model()
+            x_1 = @variable(m_1, lower_bound = -1, upper_bound = 1)
+            x_2 = @variable(m_2, lower_bound = -1, upper_bound = 1)
+
+            @test_throws ArgumentError relu([1.0 * x_1, 1.0 * x_2]; nta = lp)
+        end
+
+        @testset "LP screening skips MIP tightening for stable units" begin
+            m_active = TestHelpers.get_new_model()
+            m_active.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            x_active = @variable(m_active, lower_bound = -1, upper_bound = 1)
+            @constraint(m_active, x_active >= 0.5)
+
+            relu([1.0 * x_active]; nta = mip)
+
+            active_stats = MIPVerify.get_verification_stats(m_active)
+            @test active_stats.bound_tightening[(1, "lp", "upper")].solver_call_count == 1
+            @test active_stats.bound_tightening[(1, "lp", "lower")].solver_call_count == 1
+            @test !haskey(active_stats.bound_tightening, (1, "mip", "upper"))
+            @test !haskey(active_stats.bound_tightening, (1, "mip", "lower"))
+            @test only(active_stats.relu_layers).num_linear_in_input == 1
+            @test count_binary_variables(m_active) == 0
+
+            m_inactive = TestHelpers.get_new_model()
+            m_inactive.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            x_inactive = @variable(m_inactive, lower_bound = -1, upper_bound = 1)
+            @constraint(m_inactive, x_inactive <= -0.5)
+
+            relu([1.0 * x_inactive]; nta = mip)
+
+            inactive_stats = MIPVerify.get_verification_stats(m_inactive)
+            @test inactive_stats.bound_tightening[(1, "lp", "upper")].solver_call_count == 1
+            @test inactive_stats.bound_tightening[(1, "lp", "lower")].solver_call_count == 0
+            @test !haskey(inactive_stats.bound_tightening, (1, "mip", "upper"))
+            @test !haskey(inactive_stats.bound_tightening, (1, "mip", "lower"))
+            @test only(inactive_stats.relu_layers).num_zero_output == 1
+            @test count_binary_variables(m_inactive) == 0
+        end
+
+        @testset "MIP tightening receives LP-certified bounds" begin
+            m_active = TestHelpers.get_new_model()
+            m_active.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            a_active = @variable(m_active, binary = true, lower_bound = 0, upper_bound = 1)
+            @constraint(m_active, a_active >= 0.5)
+
+            relu([1.0 * a_active - 0.75]; nta = mip)
+
+            active_stats = MIPVerify.get_verification_stats(m_active)
+            @test active_stats.bound_tightening[(1, "lp", "upper")].solver_call_count == 1
+            @test active_stats.bound_tightening[(1, "lp", "lower")].solver_call_count == 1
+            @test active_stats.bound_tightening[(1, "mip", "upper")].solver_call_count == 1
+            @test active_stats.bound_tightening[(1, "mip", "lower")].solver_call_count == 1
+            @test only(active_stats.relu_layers).num_constant_output == 1
+            @test count_binary_variables(m_active) == 1
+
+            m_inactive = TestHelpers.get_new_model()
+            m_inactive.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            a_inactive = @variable(m_inactive, binary = true, lower_bound = 0, upper_bound = 1)
+            @constraint(m_inactive, a_inactive <= 0.5)
+
+            relu([1.0 * a_inactive - 0.25]; nta = mip)
+
+            inactive_stats = MIPVerify.get_verification_stats(m_inactive)
+            @test inactive_stats.bound_tightening[(1, "lp", "upper")].solver_call_count == 1
+            @test inactive_stats.bound_tightening[(1, "lp", "lower")].solver_call_count == 1
+            @test inactive_stats.bound_tightening[(1, "mip", "upper")].solver_call_count == 1
+            mip_lower_stats = inactive_stats.bound_tightening[(1, "mip", "lower")]
+            @test mip_lower_stats.solver_call_count == 0
+            @test mip_lower_stats.skip_counts["lower_skipped_by_nonpositive_upper"] == 1
+            @test only(inactive_stats.relu_layers).num_zero_output == 1
+            @test count_binary_variables(m_inactive) == 1
+        end
+
         @testset "skips lower solve after upper bound fixes inactive phase" begin
             m = TestHelpers.get_new_model()
             m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
@@ -763,6 +917,53 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test haskey(stats.bound_tightening, (1, "interval_arithmetic", "upper"))
         end
 
+        @testset "skips active LP upper solve when statistics are disabled" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            x = @variable(m, lower_bound = 0.5, upper_bound = 1)
+
+            relu([1.0 * x]; nta = lp)
+
+            @test JuMP.termination_status(m) == MathOptInterface.OPTIMIZE_NOT_CALLED
+            @test MIPVerify.get_verification_stats(m) === nothing
+            @test count_binary_variables(m) == 0
+        end
+
+        @testset "skips active LP upper solve for a scalar ReLU" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
+            x = @variable(m, lower_bound = 0.5, upper_bound = 1)
+
+            relu(x)
+
+            stats = MIPVerify.get_verification_stats(m)
+            upper_stats = stats.bound_tightening[(0, "lp", "upper")]
+            @test JuMP.termination_status(m) == MathOptInterface.OPTIMIZE_NOT_CALLED
+            @test upper_stats.solver_call_count == 0
+            @test upper_stats.skip_counts["upper_skipped_by_nonnegative_interval_lower"] == 1
+            @test count_binary_variables(m) == 0
+        end
+
+        @testset "scalar ReLU progresses from LP to MIP" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            @variable(m, 0 <= a[1:2] <= 1, Bin)
+            @constraint(m, 2 * sum(a) <= 3)
+
+            output = relu(sum(a) - 1.25)
+
+            stats = MIPVerify.get_verification_stats(m)
+            @test is_constant(output)
+            @test output.constant == 0
+            @test stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
+            @test stats.bound_tightening[(0, "lp", "lower")].solver_call_count == 1
+            @test stats.bound_tightening[(0, "mip", "upper")].solver_call_count == 1
+            mip_lower = stats.bound_tightening[(0, "mip", "lower")]
+            @test mip_lower.solver_call_count == 0
+            @test mip_lower.skip_counts["lower_skipped_by_nonpositive_upper"] == 1
+            @test count_binary_variables(m) == 2
+        end
+
         @testset "remains disabled by default" begin
             m = TestHelpers.get_new_model()
             m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic)
@@ -788,6 +989,28 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test layer.num_zero_output == 1
             @test layer.num_linear_in_input == 1
             @test layer.num_constant_output == 0
+            @test layer.num_split == 1
+            @test count_binary_variables(m) == 1
+        end
+
+        @testset "tightens only ambiguous unmasked units" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
+            x_masked_zero = @variable(m, lower_bound = -1, upper_bound = 2)
+            x_masked_linear = @variable(m, lower_bound = -1, upper_bound = 2)
+            x_active = @variable(m, lower_bound = 0.5, upper_bound = 1)
+            x_split = @variable(m, lower_bound = -1, upper_bound = 2)
+            x = [x_masked_zero, x_masked_linear, x_active, x_split]
+
+            masked_relu(x, [-1, 1, 0, 0]; nta = lp)
+
+            stats = MIPVerify.get_verification_stats(m)
+            layer = only(stats.relu_layers)
+            @test sum(group.request_count for group in values(stats.bound_tightening)) == 4
+            @test sum(group.solver_call_count for group in values(stats.bound_tightening)) == 2
+            @test layer.input_shape == (4,)
+            @test layer.num_zero_output == 1
+            @test layer.num_linear_in_input == 2
             @test layer.num_split == 1
             @test count_binary_variables(m) == 1
         end
