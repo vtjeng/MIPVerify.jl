@@ -88,9 +88,8 @@ reached the time limit for some samples. Error is over the full MNIST test set o
 | MNIST   | [Wong et al. (2017)](https://arxiv.org/abs/1711.00851)       | 0.1   | 4.11%                         | **4.38%**                | 5.82%                     | **4.38%**                | `MNIST.WK17a_linf0.1_authors`  |
 | MNIST   | [Ragunathan et al. (2018)](https://arxiv.org/abs/1801.09344) | 0.1   | 11.51%                        | **14.36%**               | 34.77%                    | **30.81%**               | `MNIST.RSL18a_linf0.1_authors` |
 
-\^ Values in this column represent previous state-of-the-art (SOA), as described in our
-paper.<br> \* Neural network available for import via listed name using
-`get_example_network_params`.
+\^ Values in this column represent previous state-of-the-art (SOA), as described in our paper.<br>
+\* Neural network available for import via listed name using `get_example_network_params`.
 
 ## Benchmarks
 
