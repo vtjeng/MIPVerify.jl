@@ -102,6 +102,13 @@ arithmetic, as a backup.
   certificate is.
 - If we reach the user-defined time limit, return `b_0`.
 - For all other solve statuses, we warn the user and report `b_0`.
+
+Whenever an optimal solution is reported, its objective value is cross-checked against `b_0`.
+The solution is a feasible point of the model, so its value can never lie outside a bound that
+interval arithmetic computed for the same model; if it does (beyond solver feasibility
+tolerances), the solver and our view of the model disagree — solver numerics have failed or the
+model plumbing is desynced — and no bound computed by this run can be trusted, so we raise an
+error rather than continue.
 """
 function tight_bound_helper(
     m::Model,
@@ -114,6 +121,19 @@ function tight_bound_helper(
     optimize!(m)
     status = JuMP.termination_status(m)
     if status == MathOptInterface.OPTIMAL
+        incumbent =
+            solver_attribute_or_nothing(() -> JuMP.objective_value(m), "the solver objective value")
+        if incumbent !== nothing
+            violation = bound_type == lower_bound_type ? b_0 - incumbent : incumbent - b_0
+            if violation > 1e-8 * (1 + abs(b_0))
+                Memento.error(
+                    MIPVerify.LOGGER,
+                    "The solver reported a feasible point with objective value $(incumbent), " *
+                    "outside the interval-arithmetic bound $(b_0). The solver and the model " *
+                    "disagree, so no bound computed by this run can be trusted.",
+                )
+            end
+        end
         if tightening_algorithm == lp
             if !JuMP.has_duals(m)
                 Memento.debug(

@@ -423,6 +423,45 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         )
     end
 
+    @testset "errors when a feasible point lies outside the interval-arithmetic bound" begin
+        # A feasible point can never beat a bound that interval arithmetic computed for the
+        # same model; if the solver reports one that does, the solver and our view of the
+        # model disagree and no bound from the run can be trusted.
+        upper_mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.Model{Float64}();
+            eval_objective_value = false,
+        )
+        MathOptInterface.Utilities.set_mock_optimize!(
+            upper_mock,
+            optimizer -> begin
+                MathOptInterface.Utilities.mock_optimize!(optimizer, MathOptInterface.OPTIMAL, [3.0])
+                MathOptInterface.set(optimizer, MathOptInterface.ObjectiveValue(), 3.0)
+            end,
+        )
+        m_upper = Model(() -> upper_mock)
+        m_upper.ext[:MIPVerify] = MIPVerifyExt(mip)
+        @variable(m_upper, 0 <= x <= 2)
+
+        @test_throws ErrorException tight_upperbound(x; nta = mip)
+
+        lower_mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.Model{Float64}();
+            eval_objective_value = false,
+        )
+        MathOptInterface.Utilities.set_mock_optimize!(
+            lower_mock,
+            optimizer -> begin
+                MathOptInterface.Utilities.mock_optimize!(optimizer, MathOptInterface.OPTIMAL, [-3.0])
+                MathOptInterface.set(optimizer, MathOptInterface.ObjectiveValue(), -3.0)
+            end,
+        )
+        m_lower = Model(() -> lower_mock)
+        m_lower.ext[:MIPVerify] = MIPVerifyExt(mip)
+        @variable(m_lower, -2 <= y <= 0)
+
+        @test_throws ErrorException tight_lowerbound(y; nta = mip)
+    end
+
     @testset "projected_dual_and_reference ignores unsupported sets" begin
         @test projected_dual_and_reference(MathOptInterface.ZeroOne(), 1.0) === nothing
     end
