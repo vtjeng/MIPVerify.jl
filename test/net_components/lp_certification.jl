@@ -6,14 +6,17 @@ using MathOptInterface: MathOptInterface
 using MIPVerify:
     MIPVerifyExt,
     certified_lp_bound,
+    constraint_dual_or_nothing,
     lower_bound,
     lower_bound_type,
     lp,
     mip,
+    projected_dual_and_reference,
     tight_lowerbound,
     tight_upperbound,
     upper_bound,
-    upper_bound_type
+    upper_bound_type,
+    variable_interval_or_nothing
 
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
@@ -367,5 +370,90 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @constraint(m_lower, y >= -1)
 
         @test tight_lowerbound(y; nta = mip) == -1.0
+    end
+
+    @testset "falls back when the MIP objective bound is not finite" begin
+        mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.Model{Float64}();
+            eval_objective_value = false,
+        )
+        MathOptInterface.Utilities.set_mock_optimize!(
+            mock,
+            optimizer -> begin
+                MathOptInterface.Utilities.mock_optimize!(optimizer, MathOptInterface.OPTIMAL, [0.999])
+                MathOptInterface.set(optimizer, MathOptInterface.ObjectiveValue(), 0.999)
+                MathOptInterface.set(optimizer, MathOptInterface.ObjectiveBound(), Inf)
+            end,
+        )
+        m = Model(() -> mock)
+        m.ext[:MIPVerify] = MIPVerifyExt(mip)
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x <= 1)
+
+        @test tight_upperbound(x; nta = mip) == 2.0
+    end
+
+    @testset "propagates unexpected errors when reading the MIP objective bound" begin
+        # MockOptimizer throws a KeyError when ObjectiveBound was never set; only the three
+        # whitelisted MOI attribute errors are converted into a fallback to b_0.
+        mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.Model{Float64}();
+            eval_objective_value = false,
+        )
+        MathOptInterface.Utilities.set_mock_optimize!(
+            mock,
+            optimizer -> MathOptInterface.Utilities.mock_optimize!(
+                optimizer,
+                MathOptInterface.OPTIMAL,
+                [0.999],
+            ),
+        )
+        m = Model(() -> mock)
+        m.ext[:MIPVerify] = MIPVerifyExt(mip)
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x <= 1)
+
+        @test_throws KeyError tight_upperbound(x; nta = mip)
+    end
+
+    @testset "projected_dual_and_reference ignores unsupported sets" begin
+        @test projected_dual_and_reference(MathOptInterface.ZeroOne(), 1.0) === nothing
+    end
+
+    @testset "constraint_dual_or_nothing classifies retrieval errors" begin
+        unsupported = MathOptInterface.UnsupportedAttribute(MathOptInterface.ConstraintDual())
+        @test constraint_dual_or_nothing(:constraint, _ -> throw(unsupported)) === nothing
+        @test_throws ErrorException constraint_dual_or_nothing(:constraint, _ -> error("boom"))
+    end
+
+    @testset "variable_interval_or_nothing clamps binaries and rejects empty intervals" begin
+        m = Model()
+        b = @variable(m, binary = true)
+        binary_interval = variable_interval_or_nothing(b)
+        @test lower_bound(binary_interval) == 0.0
+        @test upper_bound(binary_interval) == 1.0
+
+        inverted = @variable(m)
+        set_lower_bound(inverted, 1.0)
+        set_upper_bound(inverted, 0.0)
+        @test variable_interval_or_nothing(inverted) === nothing
+    end
+
+    @testset "falls back when a residual variable has an invalid or unbounded interval" begin
+        m_invalid = Model()
+        @variable(m_invalid, 0 <= x <= 1)
+        y = @variable(m_invalid)
+        set_lower_bound(y, 1.0)
+        set_upper_bound(y, 0.0)
+        invalid_result =
+            certified_lp_bound(m_invalid, lower_bound_type, x + y, -2.5; dual_value = _ -> 0.0)
+        @test invalid_result == -2.5
+
+        m_unbounded = Model()
+        @variable(m_unbounded, 0 <= z <= 1)
+        free = @variable(m_unbounded)
+        unbounded_result =
+            certified_lp_bound(m_unbounded, lower_bound_type, z + free, -2.5; dual_value = _ -> 0.0)
+        @test unbounded_result == -2.5
     end
 end
