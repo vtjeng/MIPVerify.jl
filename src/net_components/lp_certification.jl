@@ -23,18 +23,42 @@ end
 
 projected_dual_and_reference(::MathOptInterface.AbstractScalarSet, ::Real) = nothing
 
-function constraint_dual_or_nothing(constraint, dual_value)
+"""
+    solver_attribute_or_nothing(f, description)
+
+Run `f` and return its result if it is a finite `Real`, and `nothing` otherwise.
+
+Reading an optional solver attribute (a row dual, an objective bound) can tighten a bound but
+is never required for soundness, so the caller always has a valid fallback. The three MOI
+errors that signal an unavailable attribute are expected and return `nothing` quietly. Any
+other error is logged at warn level and also returns `nothing`, so one failed read degrades a
+single bound instead of crashing the run; interrupts and resource exhaustion still propagate.
+"""
+function solver_attribute_or_nothing(f, description::AbstractString)
     value = try
-        dual_value(constraint)
+        f()
     catch error
-        if error isa MathOptInterface.ResultIndexBoundsError ||
-           error isa MathOptInterface.UnsupportedAttribute ||
-           error isa MathOptInterface.GetAttributeNotAllowed
-            return nothing
+        if error isa InterruptException || error isa OutOfMemoryError || error isa StackOverflowError
+            rethrow()
         end
-        rethrow()
+        if !(
+            error isa MathOptInterface.ResultIndexBoundsError ||
+            error isa MathOptInterface.UnsupportedAttribute ||
+            error isa MathOptInterface.GetAttributeNotAllowed
+        )
+            Memento.warn(
+                MIPVerify.LOGGER,
+                "Unexpected error reading $(description); treating it as unavailable: " *
+                sprint(showerror, error),
+            )
+        end
+        return nothing
     end
     return value isa Real && isfinite(value) ? value : nothing
+end
+
+function constraint_dual_or_nothing(constraint, dual_value)
+    return solver_attribute_or_nothing(() -> dual_value(constraint), "a constraint dual")
 end
 
 function variable_interval_or_nothing(variable::JuMP.VariableRef)

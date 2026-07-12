@@ -4,6 +4,7 @@ using HiGHS
 using JuMP
 using MathOptInterface: MathOptInterface
 using MIPVerify:
+    MIPVerify,
     MIPVerifyExt,
     certified_lp_bound,
     constraint_dual_or_nothing,
@@ -393,9 +394,10 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test tight_upperbound(x; nta = mip) == 2.0
     end
 
-    @testset "propagates unexpected errors when reading the MIP objective bound" begin
-        # MockOptimizer throws a KeyError when ObjectiveBound was never set; only the three
-        # whitelisted MOI attribute errors are converted into a fallback to b_0.
+    @testset "falls back when reading the MIP objective bound throws unexpectedly" begin
+        # MockOptimizer throws a KeyError when ObjectiveBound was never set. Unexpected
+        # errors are logged at warn level and treated as an unavailable attribute, so the
+        # bound falls back to b_0 instead of crashing the run.
         mock = MathOptInterface.Utilities.MockOptimizer(
             MathOptInterface.Utilities.Model{Float64}();
             eval_objective_value = false,
@@ -413,7 +415,12 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @variable(m, 0 <= x <= 2)
         @constraint(m, x <= 1)
 
-        @test_throws KeyError tight_upperbound(x; nta = mip)
+        MIPVerify.Memento.TestUtils.@test_log(
+            MIPVerify.LOGGER,
+            "warn",
+            "Unexpected error reading the solver objective bound",
+            @test(tight_upperbound(x; nta = mip) == 2.0)
+        )
     end
 
     @testset "projected_dual_and_reference ignores unsupported sets" begin
@@ -421,9 +428,21 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
     end
 
     @testset "constraint_dual_or_nothing classifies retrieval errors" begin
+        # expected MOI attribute-unavailable errors fall back quietly
         unsupported = MathOptInterface.UnsupportedAttribute(MathOptInterface.ConstraintDual())
         @test constraint_dual_or_nothing(:constraint, _ -> throw(unsupported)) === nothing
-        @test_throws ErrorException constraint_dual_or_nothing(:constraint, _ -> error("boom"))
+        # unexpected errors are logged at warn level and treated as unavailable
+        MIPVerify.Memento.TestUtils.@test_log(
+            MIPVerify.LOGGER,
+            "warn",
+            "Unexpected error reading a constraint dual",
+            @test(constraint_dual_or_nothing(:constraint, _ -> error("boom")) === nothing)
+        )
+        # interrupts still propagate
+        @test_throws InterruptException constraint_dual_or_nothing(
+            :constraint,
+            _ -> throw(InterruptException()),
+        )
     end
 
     @testset "variable_interval_or_nothing clamps binaries and rejects empty intervals" begin

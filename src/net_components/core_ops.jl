@@ -71,17 +71,10 @@ function relax_integrality_context(f, model::Model, should_relax_integrality::Bo
 end
 
 function objective_bound_or_nothing(model::JuMP.Model)
-    value = try
-        JuMP.objective_bound(model)
-    catch error
-        if error isa MathOptInterface.ResultIndexBoundsError ||
-           error isa MathOptInterface.UnsupportedAttribute ||
-           error isa MathOptInterface.GetAttributeNotAllowed
-            return nothing
-        end
-        rethrow()
-    end
-    return value isa Real && isfinite(value) ? value : nothing
+    return solver_attribute_or_nothing(
+        () -> JuMP.objective_bound(model),
+        "the solver objective bound",
+    )
 end
 
 """
