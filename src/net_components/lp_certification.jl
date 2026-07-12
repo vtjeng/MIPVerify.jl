@@ -119,11 +119,32 @@ function certified_lp_bound(
     for (variable, coefficient) in coefficients
         IntervalArithmetic.isthinzero(coefficient) && continue
         variable_interval = variable_interval_or_nothing(variable)
-        variable_interval === nothing && return interval_bound
-        certificate += coefficient * variable_interval
+        if variable_interval === nothing
+            Memento.debug(
+                MIPVerify.LOGGER,
+                "Using interval-arithmetic bound: $(variable) has an invalid declared interval.",
+            )
+            return interval_bound
+        end
+        term = coefficient * variable_interval
+        if !isfinite(lower_bound(term))
+            Memento.debug(
+                MIPVerify.LOGGER,
+                "Using interval-arithmetic bound: $(variable) has a nonzero stationarity " *
+                "residual but no finite declared bound to absorb it.",
+            )
+            return interval_bound
+        end
+        certificate += term
     end
     transformed_lower = lower_bound(certificate)
-    isfinite(transformed_lower) || return interval_bound
+    if !isfinite(transformed_lower)
+        Memento.debug(
+            MIPVerify.LOGGER,
+            "Using interval-arithmetic bound: the certificate value is not finite.",
+        )
+        return interval_bound
+    end
     candidate = bound_type == lower_bound_type ? transformed_lower : -transformed_lower
     if bound_type == lower_bound_type
         return max(interval_bound, candidate)

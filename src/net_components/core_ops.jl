@@ -122,11 +122,23 @@ function tight_bound_helper(
     status = JuMP.termination_status(m)
     if status == MathOptInterface.OPTIMAL
         if tightening_algorithm == lp
-            JuMP.has_duals(m) || return b_0
+            if !JuMP.has_duals(m)
+                Memento.debug(
+                    MIPVerify.LOGGER,
+                    "Using interval-arithmetic bound: LP solver reported no dual solution.",
+                )
+                return b_0
+            end
             return certified_lp_bound(m, bound_type, objective, b_0)
         end
         solver_bound = objective_bound_or_nothing(m)
-        solver_bound === nothing && return b_0
+        if solver_bound === nothing
+            Memento.debug(
+                MIPVerify.LOGGER,
+                "Using interval-arithmetic bound: solver reported no finite objective bound.",
+            )
+            return b_0
+        end
         return bound_type == lower_bound_type ? max(b_0, solver_bound) : min(b_0, solver_bound)
     elseif status == MathOptInterface.TIME_LIMIT
         return b_0
@@ -486,6 +498,12 @@ function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearTy
     model = owner_model(xs)
     x_max = @variable(model)
     @constraint(model, x_max .>= xs)
+    # In the standard flow x_max is only created after bound tightening has completed, but
+    # declare the lower bound implied by the constraints above anyway: if a variable with no
+    # finite declared bounds is present in a model during a later `certified_lp_bound` call,
+    # any nonzero stationarity residual on it forces the certificate to be abandoned.
+    implied_lower = maximum(lower_bound.(xs))
+    isfinite(implied_lower) && set_lower_bound(x_max, implied_lower)
     return x_max
 end
 
