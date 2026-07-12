@@ -1,6 +1,7 @@
+const ZERO_INTERVAL = IntervalArithmetic.interval(0.0)
+
 function add_interval_coefficient!(coefficients, variable::JuMP.VariableRef, delta)
-    zero_interval = IntervalArithmetic.interval(0.0)
-    coefficients[variable] = get(coefficients, variable, zero_interval) + delta
+    coefficients[variable] = get(coefficients, variable, ZERO_INTERVAL) + delta
     return nothing
 end
 
@@ -95,9 +96,7 @@ function certified_lp_bound(
     interval_bound::Real;
     dual_value = JuMP.dual,
 )::Real
-    zero_interval = IntervalArithmetic.interval(0.0)
-    interval_type = typeof(zero_interval)
-    coefficients = Dict{JuMP.VariableRef,interval_type}()
+    coefficients = Dict{JuMP.VariableRef,typeof(ZERO_INTERVAL)}()
     objective_affine = convert(JuMP.AffExpr, objective)
     objective_multiplier = bound_type == lower_bound_type ? 1.0 : -1.0
     certificate =
