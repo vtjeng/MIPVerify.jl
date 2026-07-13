@@ -7,6 +7,7 @@ using .BenchmarkHelpers:
     percent,
     benchmark_schema_version,
     semantic_outcome_schema_version,
+    semantic_partition_columns_present,
     semantic_partition_matches,
     semantic_partition_is_complete,
     SEMANTIC_OUTCOME_SCHEMA_VERSION
@@ -91,19 +92,33 @@ function main()
         end
     end
 
-    wall_ok = wall_delta <= max_regression
-    total_ok = total_delta <= max_regression
+    threshold_text = percent(max_regression)
     semantic_ok = semantic_partition_matches(baseline, candidate)
     partition_complete = if baseline_semantic_schema >= SEMANTIC_OUTCOME_SCHEMA_VERSION
         semantic_partition_is_complete(baseline) && semantic_partition_is_complete(candidate)
     else
         true
     end
+
+    failures = String[]
+    wall_delta <= max_regression || push!(failures, "wall-clock regression exceeds $threshold_text")
+    total_delta <= max_regression ||
+        push!(failures, "total-time regression exceeds $threshold_text")
+    if !semantic_partition_columns_present(baseline) ||
+       !semantic_partition_columns_present(candidate)
+        push!(failures, "semantic outcome columns missing from baseline or candidate")
+    elseif !semantic_ok
+        push!(failures, "semantic outcome counts differ")
+    end
+    partition_complete || push!(failures, "semantic partition counts do not sum to num_samples")
+
     println("Semantic verdict: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
-    passed = wall_ok && total_ok && semantic_ok && partition_complete
-    threshold_text = percent(max_regression)
-    verdict = passed ? "PASS" : "FAIL"
-    println("Gate verdict: $verdict (max regression: $threshold_text)")
+    passed = isempty(failures)
+    if passed
+        println("Gate verdict: PASS (max regression: $threshold_text)")
+    else
+        println("Gate verdict: FAIL ($(join(failures, "; ")))")
+    end
 
     exit(passed ? 0 : 1)
 end

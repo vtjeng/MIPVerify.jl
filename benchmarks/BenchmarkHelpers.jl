@@ -21,6 +21,7 @@ export parse_args,
     write_dependency_snapshot,
     benchmark_schema_version,
     semantic_outcome_schema_version,
+    semantic_partition_columns_present,
     semantic_partition_matches,
     semantic_partition_is_complete,
     BENCHMARK_SCHEMA_VERSION,
@@ -156,12 +157,13 @@ benchmark_schema_version(metrics::DataFrame)::Int =
 semantic_outcome_schema_version(metrics::DataFrame)::Int =
     schema_version(metrics, :semantic_outcome_schema_version)
 
+function semantic_partition_columns_present(metrics::DataFrame)::Bool
+    return all(column -> column in propertynames(metrics), SEMANTIC_PARTITION_COLUMNS)
+end
+
 function semantic_partition_matches(baseline::DataFrame, candidate::DataFrame)::Bool
-    all_columns_present = all(
-        column -> column in propertynames(baseline) && column in propertynames(candidate),
-        SEMANTIC_PARTITION_COLUMNS,
-    )
-    all_columns_present || return false
+    semantic_partition_columns_present(baseline) && semantic_partition_columns_present(candidate) ||
+        return false
     return all(
         column -> Int(baseline[1, column]) == Int(candidate[1, column]),
         SEMANTIC_PARTITION_COLUMNS,

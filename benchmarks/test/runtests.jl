@@ -132,6 +132,9 @@ end
 
         @test benchmark_schema_version(legacy) == 1
         @test semantic_outcome_schema_version(legacy) == 1
+        @test semantic_partition_columns_present(legacy)
+        @test !semantic_partition_columns_present(DataFrame(num_samples = [2]))
+        @test !semantic_partition_matches(DataFrame(num_samples = [2]), current)
         @test benchmark_schema_version(current) == BENCHMARK_SCHEMA_VERSION
         @test semantic_outcome_schema_version(current) == SEMANTIC_OUTCOME_SCHEMA_VERSION
         @test semantic_partition_is_complete(current)

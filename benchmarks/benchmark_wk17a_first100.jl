@@ -69,43 +69,48 @@ function validate_instrumentation(d::Dict, stats::MIPVerify.VerificationStats)
     return nothing
 end
 
-function missing_instrumentation_fields()
-    return (
-        formulation_time_seconds = missing,
-        bound_tightening_time_seconds = missing,
-        bound_solver_wall_time_seconds = missing,
-        bound_solver_reported_time_seconds = missing,
-        formulation_excluding_bound_solver_time_seconds = missing,
-        formulation_residual_time_seconds = missing,
-        main_solve_wall_time_seconds = missing,
-        bound_request_count = missing,
-        bound_solver_call_count = missing,
-        bound_optimal_count = missing,
-        bound_time_limit_count = missing,
-        bound_interval_arithmetic_count = missing,
-        bound_constant_expression_count = missing,
-        bound_interval_cutoff_count = missing,
-        bound_lower_skipped_count = missing,
-        bound_simplex_iterations = missing,
-        bound_barrier_iterations = missing,
-        bound_node_count = missing,
-        relu_layer_count = missing,
-        relu_total_count = missing,
-        relu_stable_count = missing,
-        relu_unstable_count = missing,
-        relu_zero_output_count = missing,
-        relu_linear_in_input_count = missing,
-        relu_constant_output_count = missing,
-        num_variables = missing,
-        num_binary_variables = missing,
-        num_structural_constraints = missing,
-        num_total_constraints = missing,
-        main_node_count = missing,
-        main_simplex_iterations = missing,
-        main_barrier_iterations = missing,
-        main_relative_gap = missing,
-    )
-end
+# Single source of truth for the per-sample instrumentation columns. Samples without a
+# model get all-missing fields; `collect_instrumentation_fields` asserts against this list
+# so the two row shapes cannot drift apart (mismatched keys would only fail at
+# `DataFrame(sample_rows)`, after the whole benchmark has run).
+const INSTRUMENTATION_COLUMNS = (
+    :formulation_time_seconds,
+    :bound_tightening_time_seconds,
+    :bound_solver_wall_time_seconds,
+    :bound_solver_reported_time_seconds,
+    :formulation_excluding_bound_solver_time_seconds,
+    :formulation_residual_time_seconds,
+    :main_solve_wall_time_seconds,
+    :bound_request_count,
+    :bound_solver_call_count,
+    :bound_optimal_count,
+    :bound_time_limit_count,
+    :bound_interval_arithmetic_count,
+    :bound_constant_expression_count,
+    :bound_interval_cutoff_count,
+    :bound_lower_skipped_count,
+    :bound_simplex_iterations,
+    :bound_barrier_iterations,
+    :bound_node_count,
+    :relu_layer_count,
+    :relu_total_count,
+    :relu_stable_count,
+    :relu_unstable_count,
+    :relu_zero_output_count,
+    :relu_linear_in_input_count,
+    :relu_constant_output_count,
+    :num_variables,
+    :num_binary_variables,
+    :num_structural_constraints,
+    :num_total_constraints,
+    :main_node_count,
+    :main_simplex_iterations,
+    :main_barrier_iterations,
+    :main_relative_gap,
+)
+
+missing_instrumentation_fields() =
+    NamedTuple{INSTRUMENTATION_COLUMNS}(ntuple(_ -> missing, length(INSTRUMENTATION_COLUMNS)))
 
 function collect_instrumentation_fields(d::Dict, stats::MIPVerify.VerificationStats)
     relu_bounds_time = sum((layer.bounds_time_seconds for layer in stats.relu_layers); init = 0.0)
@@ -119,7 +124,7 @@ function collect_instrumentation_fields(d::Dict, stats::MIPVerify.VerificationSt
     bound_tightening_time = relu_bounds_time + unscoped_bound_solver_time
     relu_stable_count = Int(d[:ReLUStableCount])
     relu_unstable_count = Int(d[:ReLUSplitCount])
-    return (
+    fields = (
         formulation_time_seconds = Float64(d[:FormulationTime]),
         bound_tightening_time_seconds = bound_tightening_time,
         bound_solver_wall_time_seconds = Float64(d[:BoundSolverWallTime]),
@@ -159,6 +164,9 @@ function collect_instrumentation_fields(d::Dict, stats::MIPVerify.VerificationSt
         main_barrier_iterations = d[:MainBarrierIterations],
         main_relative_gap = d[:MainRelativeGap],
     )
+    keys(fields) == INSTRUMENTATION_COLUMNS ||
+        error("Instrumentation fields do not match INSTRUMENTATION_COLUMNS")
+    return fields
 end
 
 function main()
@@ -182,6 +190,8 @@ function main()
 
     sample_spec = get(args, "samples", "1:100")
     sample_indices = parse_sample_spec(sample_spec)
+    isempty(sample_indices) &&
+        error("--samples $(sample_spec) selects no samples; nothing to benchmark")
     tightening_algorithm = parse_tightening_algorithm(get(args, "tightening", "mip"))
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
@@ -307,22 +317,30 @@ function main()
                         simplex_iterations = group.simplex_iterations,
                         barrier_iterations = group.barrier_iterations,
                         node_count = group.node_count,
-                        optimal_count = get(group.status_counts, "OPTIMAL", 0),
-                        time_limit_count = get(group.status_counts, "TIME_LIMIT", 0),
+                        optimal_count = get(group.status_counts, MIPVerify.BOUND_STATUS_OPTIMAL, 0),
+                        time_limit_count = get(
+                            group.status_counts,
+                            MIPVerify.BOUND_STATUS_TIME_LIMIT,
+                            0,
+                        ),
                         interval_arithmetic_count = get(
                             group.skip_counts,
-                            "interval_arithmetic",
+                            MIPVerify.SKIP_INTERVAL_ARITHMETIC,
                             0,
                         ),
                         constant_expression_count = get(
                             group.skip_counts,
-                            "constant_expression",
+                            MIPVerify.SKIP_CONSTANT_EXPRESSION,
                             0,
                         ),
-                        interval_cutoff_count = get(group.skip_counts, "interval_proves_cutoff", 0),
+                        interval_cutoff_count = get(
+                            group.skip_counts,
+                            MIPVerify.SKIP_INTERVAL_PROVES_CUTOFF,
+                            0,
+                        ),
                         lower_skipped_count = get(
                             group.skip_counts,
-                            "lower_skipped_by_nonpositive_upper",
+                            MIPVerify.SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
                             0,
                         ),
                         status_counts = format_counts(group.status_counts),
