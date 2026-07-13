@@ -92,6 +92,18 @@ TestHelpers.@timed_testset "core_ops.jl" begin
         end
     end
 
+    @testset "relax_integrality_context restores integrality after errors" begin
+        m = TestHelpers.get_new_model()
+        @variable(m, x, Bin)
+
+        @test_throws ErrorException MIPVerify.relax_integrality_context(m, true) do model
+            @test count_binary_variables(model) == 0
+            error("test error")
+        end
+
+        @test count_binary_variables(m) == 1
+    end
+
     @testset "maximum(xs)" begin
         @testset "single variable to maximize over" begin
             m = TestHelpers.get_new_model()
@@ -613,8 +625,15 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm)
                     output = (x |> p1 |> ReLU() |> p2)
 
-                    @test tight_upperbound(output[1], nta = algorithm) ≈ u
-                    @test tight_lowerbound(output[2], nta = algorithm) ≈ l
+                    ub = tight_upperbound(output[1], nta = algorithm)
+                    lb = tight_lowerbound(output[2], nta = algorithm)
+                    # Computed bounds must never be tighter than the true extremum
+                    # (modulo solver numerics), but are only guaranteed to match it
+                    # up to solver tolerances: mip returns the solver's dual bound,
+                    # within the MIP gap tolerance (default 1e-4 relative) of the
+                    # optimum, and lp rounds the certified bound outward.
+                    @test u - 1e-6 <= ub <= u + abs(u) * 1e-3
+                    @test l - abs(l) * 1e-3 <= lb <= l + 1e-6
                 end
             end
         end

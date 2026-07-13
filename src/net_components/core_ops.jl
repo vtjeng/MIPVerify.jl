@@ -43,15 +43,13 @@ bound_obj = Dict(
     lower_bound_type => MathOptInterface.MIN_SENSE,
     upper_bound_type => MathOptInterface.MAX_SENSE
 )
-bound_delta_f = Dict(
-    lower_bound_type => (b, b_0) -> b - b_0,
-    upper_bound_type => (b, b_0) -> b_0 - b
-)
 bound_operator = Dict(
     lower_bound_type => >=,
     upper_bound_type => <=
 )
 #! format: on
+
+include("lp_certification.jl")
 
 """
 $(SIGNATURES)
@@ -60,14 +58,23 @@ Context manager for running `f` on `model`. If `should_relax_integrality` is tru
 integrality constraints are relaxed before `f` is run and re-imposed after.
 """
 function relax_integrality_context(f, model::Model, should_relax_integrality::Bool)
-    if should_relax_integrality
-        undo_relax = relax_integrality(model)
+    if !should_relax_integrality
+        return f(model)
     end
-    r = f(model)
-    if should_relax_integrality
+
+    undo_relax = relax_integrality(model)
+    try
+        return f(model)
+    finally
         undo_relax()
     end
-    return r
+end
+
+function objective_bound_or_nothing(model::JuMP.Model)
+    return solver_attribute_or_nothing(
+        () -> JuMP.objective_bound(model),
+        "the solver objective bound",
+    )
 end
 
 """
@@ -76,28 +83,76 @@ $(SIGNATURES)
 Optimizes the value of `objective` based on `bound_type`, with `b_0`, computed via interval
 arithmetic, as a backup.
 
-- If an optimal solution is reached, we return the objective value. We also verify that the 
-  objective found is better than the bound `b_0` provided; if this is not the case, we throw an
-  error.
-- If we reach the user-defined time limit, we compute the best objective bound found. We compare 
-  this to `b_0` and return the better result.
+- If an optimal LP solution is reached and row duals are available, validate them and return the
+  resulting certified Lagrangian bound. The certificate is re-verified here with outward
+  rounding, so its validity does not depend on the solver's duals being exactly feasible.
+  Otherwise, return `b_0`.
+- If an optimal MIP solution is reached, return the solver's objective bound (its dual bound).
+  In exact arithmetic, weak duality places the objective bound on the valid side of the true
+  optimum, overshooting it by at most the achieved gap (objective bound minus incumbent
+  objective value), and OPTIMAL termination keeps that gap within the solver's gap tolerance.
+  The incumbent objective value can sit on the invalid side by up to the same gap, which is why
+  it is not used here. Two claims are trusted rather than verified: (1) the reported bound is
+  assembled from floating-point node relaxation bounds without directed rounding, so its
+  validity is subject to the solver's numerics; (2) the incumbent is feasible only up to the
+  solver's feasibility and integrality tolerances, so the true conservatism can exceed the
+  reported gap by a tolerance-scale amount (this weakens the tightness claim, but a
+  super-optimal incumbent cannot invalidate the bound). Solvers expose no independently
+  checkable MIP certificate through JuMP, so neither claim can be re-verified the way the LP
+  certificate is.
+- If we reach the user-defined time limit, return `b_0`.
 - For all other solve statuses, we warn the user and report `b_0`.
+
+Whenever an optimal solution is reported, its objective value is cross-checked against `b_0`.
+The solution is a feasible point of the model, so its value can never lie outside a bound that
+interval arithmetic computed for the same model; if it does (beyond solver feasibility
+tolerances), the solver and our view of the model disagree — solver numerics have failed or the
+model plumbing is desynced — and no bound computed by this run can be trusted, so we raise an
+error rather than continue.
 """
-function tight_bound_helper(m::Model, bound_type::BoundType, objective::JuMPLinearType, b_0::Number)
+function tight_bound_helper(
+    m::Model,
+    bound_type::BoundType,
+    objective::JuMPLinearType,
+    b_0::Number,
+    tightening_algorithm::TighteningAlgorithm,
+)
     @objective(m, bound_obj[bound_type], objective)
     optimize!(m)
     status = JuMP.termination_status(m)
     if status == MathOptInterface.OPTIMAL
-        b = JuMP.objective_value(m)
-        db = bound_delta_f[bound_type](b, b_0)
-        if db < -1e-8
-            Memento.warn(MIPVerify.LOGGER, "Δb = $(db)")
-            Memento.error(
-                MIPVerify.LOGGER,
-                "Δb = $(db). Tightening via interval arithmetic should not give a better result than an optimal optimization.",
-            )
+        incumbent =
+            solver_attribute_or_nothing(() -> JuMP.objective_value(m), "the solver objective value")
+        if incumbent !== nothing
+            violation = bound_type == lower_bound_type ? b_0 - incumbent : incumbent - b_0
+            if violation > 1e-8 * (1 + abs(b_0))
+                Memento.error(
+                    MIPVerify.LOGGER,
+                    "The solver reported a feasible point with objective value $(incumbent), " *
+                    "outside the interval-arithmetic bound $(b_0). The solver and the model " *
+                    "disagree, so no bound computed by this run can be trusted.",
+                )
+            end
         end
-        return b
+        if tightening_algorithm == lp
+            if !JuMP.has_duals(m)
+                Memento.debug(
+                    MIPVerify.LOGGER,
+                    "Using interval-arithmetic bound: LP solver reported no dual solution.",
+                )
+                return b_0
+            end
+            return certified_lp_bound(m, bound_type, objective, b_0)
+        end
+        solver_bound = objective_bound_or_nothing(m)
+        if solver_bound === nothing
+            Memento.debug(
+                MIPVerify.LOGGER,
+                "Using interval-arithmetic bound: solver reported no finite objective bound.",
+            )
+            return b_0
+        end
+        return bound_type == lower_bound_type ? max(b_0, solver_bound) : min(b_0, solver_bound)
     elseif status == MathOptInterface.TIME_LIMIT
         return b_0
     else
@@ -132,7 +187,7 @@ function tight_bound(
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
     bound_value = return relax_integrality_context(owner_model(x), should_relax_integrality) do m
-        tight_bound_helper(m, bound_type, x, b_0)
+        tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm)
     end
 
     return bound_value
@@ -456,6 +511,12 @@ function maximum_ge(xs::AbstractArray{T})::JuMPLinearType where {T<:JuMPLinearTy
     model = owner_model(xs)
     x_max = @variable(model)
     @constraint(model, x_max .>= xs)
+    # In the standard flow x_max is only created after bound tightening has completed, but
+    # declare the lower bound implied by the constraints above anyway: if a variable with no
+    # finite declared bounds is present in a model during a later `certified_lp_bound` call,
+    # any nonzero stationarity residual on it forces the certificate to be abandoned.
+    implied_lower = maximum(lower_bound.(xs))
+    isfinite(implied_lower) && set_lower_bound(x_max, implied_lower)
     return x_max
 end
 
