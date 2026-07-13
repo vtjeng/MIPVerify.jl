@@ -13,3 +13,11 @@ repo_root=$(git rev-parse --show-toplevel)
     format(".", verbose=true)
   '
 )
+
+# Format Markdown and YAML with the same pinned Prettier version that CI uses
+# (see format-check-prettier in .github/workflows/CI.yml).
+if command -v npx > /dev/null; then
+  (cd "${repo_root}" && npx --yes prettier@3.9.5 --write "**/*.{md,yaml}")
+else
+  echo "WARNING: npx not found; skipping Prettier formatting of Markdown and YAML files." >&2
+fi

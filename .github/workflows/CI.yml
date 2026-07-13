@@ -170,4 +170,8 @@ jobs:
       - name: "Verify that Prettier does not find any code style issues."
         uses: creyD/prettier_action@v4.3
         with:
+          # Keep this version in sync with scripts/format.sh. Without a pin, the action
+          # installs the latest Prettier, and new releases change formatting rules and
+          # break CI on unchanged files.
+          prettier_version: "3.9.5"
           prettier_options: --check **/*.{md,yaml}
