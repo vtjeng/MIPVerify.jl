@@ -435,7 +435,7 @@ function relu(
         Memento.info(MIPVerify.LOGGER, "$reluinfo")
     end
 
-    formulation_start = time_ns()
+    constraint_start = time_ns()
     if !show_progress_bar
         x_r = relu.(x, l, u)
     else
@@ -448,7 +448,7 @@ function relu(
             stats,
             layer_stats,
             bounds_time,
-            elapsed_seconds(formulation_start),
+            elapsed_seconds(constraint_start),
             count(==(zero_output), relutypes),
             count(==(linear_in_input), relutypes),
             count(==(constant_output), relutypes),

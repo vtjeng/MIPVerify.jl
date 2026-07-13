@@ -29,7 +29,7 @@ mutable struct ReLULayerStats
     input_shape::Tuple
     tightening_algorithm::String
     bounds_time_seconds::Float64
-    formulation_time_seconds::Float64
+    constraint_time_seconds::Float64
     num_zero_output::Int
     num_linear_in_input::Int
     num_constant_output::Int
@@ -174,7 +174,7 @@ function finish_relu_layer!(
     stats::Union{Nothing,VerificationStats},
     layer::Union{Nothing,ReLULayerStats},
     bounds_time_seconds::Float64,
-    formulation_time_seconds::Float64,
+    constraint_time_seconds::Float64,
     num_zero_output::Int,
     num_linear_in_input::Int,
     num_constant_output::Int,
@@ -184,7 +184,7 @@ function finish_relu_layer!(
         return nothing
     end
     layer.bounds_time_seconds = bounds_time_seconds
-    layer.formulation_time_seconds = formulation_time_seconds
+    layer.constraint_time_seconds = constraint_time_seconds
     layer.num_zero_output = num_zero_output
     layer.num_linear_in_input = num_linear_in_input
     layer.num_constant_output = num_constant_output

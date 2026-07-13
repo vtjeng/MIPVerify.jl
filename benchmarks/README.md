@@ -36,7 +36,8 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 - `benchmark_per_sample.csv` — per-sample solve outcome, timing, formulation structure, aggregate
   bound-tightening work, ReLU stability, and main-solver work
 - `benchmark_relu_layers.csv` — one row per sample and ReLU layer, with layer shape, configured
-  tightening algorithm, timing, and stable or unstable counts
+  tightening algorithm, bounds and constraint-imposition timing (`bounds_time_seconds`,
+  `constraint_time_seconds`), and stable or unstable counts
 - `benchmark_tightening.csv` — one row per sample, ReLU layer, effective tightening algorithm, and
   bound direction; layer index `0` identifies bounds computed outside a ReLU layer
 - `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status counts, and run

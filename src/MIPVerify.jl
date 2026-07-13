@@ -110,7 +110,9 @@ that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ ta
 - `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
     (by at least `margin`) than any non-target category. 
 - `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
-    tightening work, ReLU stability, and main-solver work in the returned dictionary.
+    tightening work, ReLU stability, and main-solver work in the returned dictionary. The
+    statistics keys are absent when no model is built (that is, when the predicted index is in
+    `target_selection` and `solve_if_predicted_in_targeted` is `false`).
 """
 function find_adversarial_example(
     nn::NeuralNet,
