@@ -253,10 +253,23 @@ function relu(x::AbstractArray{T}) where {T<:Real}
     return relu.(x)
 end
 
+"""
+    consistent_relu_bounds(x, l, u) -> (lower, upper)
+
+Choose the bounds on the ReLU input `x` to use when formulating `relu(x)`.
+
+If `u < l`, the candidate bounds contradict each other. Log a warning and replace
+both with the interval-arithmetic bounds computed from `x`; otherwise, return
+`(l, u)` unchanged. This fallback handles numerical errors in solver-derived
+bounds.
+
+Only `u < l` is considered inconsistent. Ordered candidates are not checked
+against `x`, and the interval-arithmetic fallback is returned without another
+ordering check.
+"""
 function consistent_relu_bounds(x::JuMPLinearType, l::Real, u::Real)::Tuple{Real,Real}
     if u < l
-        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds.
-        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
+        # This fallback was first needed for sample 4872 (1-indexed) on the lp0.4 network.
         Memento.warn(
             MIPVerify.LOGGER,
             "Inconsistent upper and lower bounds: u-l = $(u - l) is negative. Attempting to use interval arithmetic bounds instead ...",

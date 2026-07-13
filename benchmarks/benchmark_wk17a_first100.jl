@@ -40,6 +40,13 @@ end
 
 const WK17A_RELU_LAYER_SHAPES = Tuple[(1, 14, 14, 16), (1, 7, 7, 32), (100,)]
 
+"""
+    validate_instrumentation(stats)
+
+Check that the recorded ReLU layer shapes and aggregate phase counts match the
+fixed WK17a architecture. Throw an error on a mismatch so the benchmark does not
+write incomplete ReLU instrumentation.
+"""
 function validate_instrumentation(stats::MIPVerify.VerificationStats)
     recorded_shapes = [layer.input_shape for layer in stats.relu_layers]
     recorded_shapes == WK17A_RELU_LAYER_SHAPES ||
