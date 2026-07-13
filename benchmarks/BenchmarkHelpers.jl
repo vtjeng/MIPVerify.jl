@@ -141,10 +141,7 @@ const TRACKING_COLUMNS = [
     :p90_solve_time_seconds,
     :num_samples,
     :num_skipped_predicted_in_targeted,
-    :num_certified_no_adversarial_example,
-    :num_adversarial_example_found_or_best_known,
-    :num_time_limit_unresolved,
-    :num_no_primal_solution_other,
+    SEMANTIC_PARTITION_COLUMNS...,
 ]
 
 function schema_version(metrics::DataFrame, column::Symbol)::Int

@@ -52,7 +52,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
         x1 = one(JuMP.VariableRef) * 1
         x2 = one(JuMP.VariableRef) * 2
         @test MIPVerify.owner_model([x1, y1]) == m
-        @test_throws MethodError MIPVerify.owner_model([x1, x2])
+        @test MIPVerify.owner_model([x1, x2]) === nothing
     end
 
     @testset "get_tightening_algorithm" begin

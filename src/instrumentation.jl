@@ -71,17 +71,23 @@ function get_verification_stats(model::Model)::Union{Nothing,VerificationStats}
     return nothing
 end
 
+function scoped_verification_stats()::Union{Nothing,VerificationStats}
+    scoped_stats = get(task_local_storage(), VERIFICATION_STATS_TASK_LOCAL_KEY, nothing)
+    return scoped_stats isa VerificationStats ? scoped_stats : nothing
+end
+
+function get_verification_stats(
+    x::Union{JuMP.VariableRef,JuMP.GenericAffExpr},
+)::Union{Nothing,VerificationStats}
+    model = owner_model(x)
+    return model === nothing ? scoped_verification_stats() : get_verification_stats(model)
+end
+
 function get_verification_stats(
     xs::AbstractArray{T},
 )::Union{Nothing,VerificationStats} where {T<:Union{JuMP.VariableRef,JuMP.GenericAffExpr}}
-    for x in xs
-        model = owner_model(x)
-        if model !== nothing
-            return get_verification_stats(model)
-        end
-    end
-    scoped_stats = get(task_local_storage(), VERIFICATION_STATS_TASK_LOCAL_KEY, nothing)
-    return scoped_stats isa VerificationStats ? scoped_stats : nothing
+    model = owner_model(xs)
+    return model === nothing ? scoped_verification_stats() : get_verification_stats(model)
 end
 
 elapsed_seconds(start_time_ns::UInt64)::Float64 = (time_ns() - start_time_ns) / 1.0e9

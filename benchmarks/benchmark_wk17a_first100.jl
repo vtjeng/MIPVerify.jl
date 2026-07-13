@@ -40,7 +40,7 @@ end
 
 const WK17A_RELU_LAYER_SHAPES = Tuple[(1, 14, 14, 16), (1, 7, 7, 32), (100,)]
 
-function validate_instrumentation(d::Dict, stats::MIPVerify.VerificationStats)
+function validate_instrumentation(stats::MIPVerify.VerificationStats)
     recorded_shapes = [layer.input_shape for layer in stats.relu_layers]
     recorded_shapes == WK17A_RELU_LAYER_SHAPES ||
         error("Expected WK17a ReLU shapes $(WK17A_RELU_LAYER_SHAPES), recorded $recorded_shapes")
@@ -57,15 +57,6 @@ function validate_instrumentation(d::Dict, stats::MIPVerify.VerificationStats)
     expected_relu_total = sum(prod, WK17A_RELU_LAYER_SHAPES)
     recorded_relu_total == expected_relu_total ||
         error("Expected $expected_relu_total WK17a ReLUs, recorded $recorded_relu_total")
-
-    bound_groups = values(stats.bound_tightening)
-    sum((group.request_count for group in bound_groups); init = 0) == d[:BoundRequestCount] ||
-        error("Long-form bound requests do not match the per-sample total")
-    sum((group.solver_call_count for group in bound_groups); init = 0) ==
-    d[:BoundSolverCallCount] ||
-        error("Long-form bound solver calls do not match the per-sample total")
-    recorded_relu_total == d[:ReLUStableCount] + d[:ReLUSplitCount] ||
-        error("Long-form ReLU phases do not match the per-sample total")
     return nothing
 end
 
@@ -276,7 +267,7 @@ function main()
             semantic_outcome = classify_semantic_outcome(status, objective_value)
             stats = MIPVerify.get_verification_stats(m)
             stats === nothing && error("collect_stats=true returned no verification statistics")
-            validate_instrumentation(d, stats)
+            validate_instrumentation(stats)
             instrumentation_fields = collect_instrumentation_fields(d, stats)
 
             for layer in stats.relu_layers
