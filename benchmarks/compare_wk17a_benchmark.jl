@@ -49,14 +49,14 @@ function main()
     candidate_benchmark_schema = benchmark_schema_version(candidate)
     baseline_semantic_schema = semantic_outcome_schema_version(baseline)
     candidate_semantic_schema = semantic_outcome_schema_version(candidate)
-    if baseline_benchmark_schema != candidate_benchmark_schema ||
-       baseline_semantic_schema != candidate_semantic_schema
+    schemas_match =
+        baseline_benchmark_schema == candidate_benchmark_schema &&
+        baseline_semantic_schema == candidate_semantic_schema
+    if !schemas_match
         println(
             "Schema mismatch: baseline=(benchmark=$baseline_benchmark_schema, semantic=$baseline_semantic_schema), " *
             "candidate=(benchmark=$candidate_benchmark_schema, semantic=$candidate_semantic_schema)",
         )
-        println("Gate verdict: FAIL (schema mismatch)")
-        exit(1)
     end
 
     base_wall = Float64(baseline[1, :wall_clock_seconds])
@@ -93,26 +93,31 @@ function main()
     end
 
     threshold_text = percent(max_regression)
-    semantic_ok = semantic_partition_matches(baseline, candidate)
-    partition_complete = if baseline_semantic_schema >= SEMANTIC_OUTCOME_SCHEMA_VERSION
-        semantic_partition_is_complete(baseline) && semantic_partition_is_complete(candidate)
-    else
-        true
-    end
 
     failures = String[]
+    schemas_match || push!(failures, "schema mismatch")
     wall_delta <= max_regression || push!(failures, "wall-clock regression exceeds $threshold_text")
     total_delta <= max_regression ||
         push!(failures, "total-time regression exceeds $threshold_text")
-    if !semantic_partition_columns_present(baseline) ||
-       !semantic_partition_columns_present(candidate)
-        push!(failures, "semantic outcome columns missing from baseline or candidate")
-    elseif !semantic_ok
-        push!(failures, "semantic outcome counts differ")
+    if !schemas_match
+        # Semantic outcomes are only comparable under identical counting rules.
+        println("Semantic verdict: SKIPPED (schema mismatch)")
+    else
+        semantic_ok = semantic_partition_matches(baseline, candidate)
+        partition_complete = if baseline_semantic_schema >= SEMANTIC_OUTCOME_SCHEMA_VERSION
+            semantic_partition_is_complete(baseline) && semantic_partition_is_complete(candidate)
+        else
+            true
+        end
+        if !semantic_partition_columns_present(baseline) ||
+           !semantic_partition_columns_present(candidate)
+            push!(failures, "semantic outcome columns missing from baseline or candidate")
+        elseif !semantic_ok
+            push!(failures, "semantic outcome counts differ")
+        end
+        partition_complete || push!(failures, "semantic partition counts do not sum to num_samples")
+        println("Semantic verdict: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
     end
-    partition_complete || push!(failures, "semantic partition counts do not sum to num_samples")
-
-    println("Semantic verdict: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
     passed = isempty(failures)
     if passed
         println("Gate verdict: PASS (max regression: $threshold_text)")

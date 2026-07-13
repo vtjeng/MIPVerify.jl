@@ -657,6 +657,30 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test summary[:ReLUSplitCount] == 0
         end
 
+        @testset "safe_solve_metric" begin
+            m = TestHelpers.get_new_model()
+            @test MIPVerify.safe_solve_metric(_ -> 5, m, missing) == 5
+            @test MIPVerify.safe_solve_metric(_ -> -1, m, missing) === missing
+            @test MIPVerify.safe_solve_metric(_ -> NaN, m, missing) === missing
+            @test MIPVerify.safe_solve_metric(
+                _ -> throw(MathOptInterface.UnsupportedAttribute(MathOptInterface.NodeCount())),
+                m,
+                missing,
+            ) === missing
+            @test MIPVerify.safe_solve_metric(
+                _ -> throw(
+                    MathOptInterface.GetAttributeNotAllowed(
+                        MathOptInterface.SimplexIterations(),
+                        "",
+                    ),
+                ),
+                m,
+                missing,
+            ) === missing
+            # Errors that do not signal attribute unavailability must propagate.
+            @test_throws ErrorException MIPVerify.safe_solve_metric(_ -> error("bug"), m, missing)
+        end
+
         @testset "records a fully constant layer from scoped model context" begin
             stats = MIPVerify.VerificationStats()
             MIPVerify.with_verification_stats(stats) do

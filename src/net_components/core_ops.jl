@@ -196,6 +196,8 @@ function tight_bound(
 )
     tightening_algorithm = get_tightening_algorithm(x, nta)
     b_0 = bound_f[bound_type](x)
+    # Constant expressions have no owner model to resolve statistics from, so their skips
+    # go unrecorded unless the caller passes `stats` explicitly (as `relu` does).
     if resolve_stats && stats === nothing && !is_constant(x)
         stats = get_verification_stats(owner_model(x))
     end
@@ -216,21 +218,21 @@ function tight_bound(
 end
 
 function tight_upperbound(
-    x::JuMPLinearType;
+    x::JuMPLinearType,
+    stats::Union{Nothing,VerificationStats} = nothing,
+    resolve_stats::Bool = true;
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff::Real = -Inf,
-    stats::Union{Nothing,VerificationStats} = nothing,
-    resolve_stats::Bool = true,
 )
     tight_bound(x, nta, upper_bound_type, cutoff, stats, resolve_stats)
 end
 
 function tight_lowerbound(
-    x::JuMPLinearType;
+    x::JuMPLinearType,
+    stats::Union{Nothing,VerificationStats} = nothing,
+    resolve_stats::Bool = true;
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff::Real = Inf,
-    stats::Union{Nothing,VerificationStats} = nothing,
-    resolve_stats::Bool = true,
 )
     tight_bound(x, nta, lower_bound_type, cutoff, stats, resolve_stats)
 end
@@ -338,11 +340,11 @@ the ReLU to be fixed to zero anyway.
 """
 function lazy_tight_lowerbound(
     x::JuMPLinearType,
-    u::Real;
+    u::Real,
+    stats::Union{Nothing,VerificationStats} = nothing,
+    resolve_stats::Bool = true;
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff = 0,
-    stats::Union{Nothing,VerificationStats} = nothing,
-    resolve_stats::Bool = true,
 )::Real
     if resolve_stats && stats === nothing && !is_constant(x)
         stats = get_verification_stats(owner_model(x))
@@ -356,7 +358,7 @@ function lazy_tight_lowerbound(
         )
         return u
     end
-    return tight_lowerbound(x; nta = nta, cutoff = cutoff, stats = stats, resolve_stats = false)
+    return tight_lowerbound(x, stats, false; nta = nta, cutoff = cutoff)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
@@ -382,6 +384,8 @@ function relu(
         nothing
     else
         first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
+        # A layer with no nonconstant inputs needs no bound solves, so interval arithmetic
+        # is the algorithm actually applied regardless of the configured default.
         tightening_algorithm =
             first_nonconstant_index === nothing ? interval_arithmetic :
             get_tightening_algorithm(x[first_nonconstant_index], nta)
@@ -390,36 +394,19 @@ function relu(
 
     bounds_start = time_ns()
     if !show_progress_bar
-        u = tight_upperbound.(x, nta = nta, cutoff = 0, stats = stats, resolve_stats = false)
-        l =
-            lazy_tight_lowerbound.(
-                x,
-                u,
-                nta = nta,
-                cutoff = 0,
-                stats = stats,
-                resolve_stats = false,
-            )
+        u = tight_upperbound.(x, Ref(stats), false; nta = nta, cutoff = 0)
+        l = lazy_tight_lowerbound.(x, u, Ref(stats), false; nta = nta, cutoff = 0)
     else
         p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-        u = map(
-            x_i -> begin
-                next!(p1)
-                tight_upperbound(x_i, nta = nta, cutoff = 0, stats = stats, resolve_stats = false)
-            end,
-            x,
-        )
+        u = map(x_i -> begin
+            next!(p1)
+            tight_upperbound(x_i, stats, false; nta = nta, cutoff = 0)
+        end, x)
         p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
         l = map(
             v -> begin
                 next!(p2)
-                lazy_tight_lowerbound(
-                    v...,
-                    nta = nta,
-                    cutoff = 0,
-                    stats = stats,
-                    resolve_stats = false,
-                )
+                lazy_tight_lowerbound(v..., stats, false; nta = nta, cutoff = 0)
             end,
             zip(x, u),
         )

@@ -35,10 +35,11 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 
 - `benchmark_per_sample.csv` — per-sample solve outcome, timing, formulation structure, aggregate
   bound-tightening work, ReLU stability, and main-solver work
-- `benchmark_relu_layers.csv` — one row per sample and ReLU layer, with layer shape, configured
-  tightening algorithm, bounds and constraint-imposition timing (`bounds_time_seconds`,
+- `benchmark_relu_layers.csv` — one row per sample and ReLU layer, with layer shape, applied
+  tightening algorithm (`interval_arithmetic` when the layer has no nonconstant inputs, since
+  constants need no bound solves), bounds and constraint-imposition timing (`bounds_time_seconds`,
   `constraint_time_seconds`), and stable or unstable counts
-- `benchmark_tightening.csv` — one row per sample, ReLU layer, effective tightening algorithm, and
+- `benchmark_tightening.csv` — one row per sample, ReLU layer, applied tightening algorithm, and
   bound direction; layer index `0` identifies bounds computed outside a ReLU layer
 - `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status counts, and run
   metadata, including Julia version and dependency snapshot hash
@@ -123,9 +124,9 @@ Results are committed to the
 | `median_solve_time_seconds`                   | Median per-sample solve time                                                                                               |
 | `p90_solve_time_seconds`                      | 90th percentile per-sample solve time                                                                                      |
 | `num_samples`                                 | Number of samples evaluated                                                                                                |
+| `num_skipped_predicted_in_targeted`           | Already-misclassified inputs skipped before model construction; subset of adversarial outcomes                             |
 | `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)                                                                                         |
 | `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                                                                                    |
-| `num_skipped_predicted_in_targeted`           | Already-misclassified inputs skipped before model construction; subset of adversarial outcomes                             |
 | `num_time_limit_unresolved`                   | Samples that hit the time limit                                                                                            |
 | `num_no_primal_solution_other`                | Samples with other non-primal outcomes                                                                                     |
 

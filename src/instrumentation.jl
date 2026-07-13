@@ -125,7 +125,9 @@ function safe_solve_metric(f, model::Model, default)
     value = try
         f(model)
     catch error
-        if error isa InterruptException || error isa OutOfMemoryError || error isa StackOverflowError
+        # Only attribute-availability errors mean "this solver cannot report the metric";
+        # anything else is a genuine bug and must propagate.
+        if !(error isa Union{MathOptInterface.NotAllowedError,MathOptInterface.UnsupportedError})
             rethrow()
         end
         return default
