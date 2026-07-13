@@ -683,9 +683,9 @@ function relu(
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     constant_mask = is_constant.(x)
     tightening_algorithm = relu_tightening_algorithm(x, constant_mask, nta)
-    show_progress_bar::Bool =
-        isinteractive() &&
+    log_bounds_summary::Bool =
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
+    show_progress_bar::Bool = isinteractive() && log_bounds_summary
 
     layer_stats = if stats === nothing
         nothing
@@ -699,12 +699,14 @@ function relu(
     bounds_time = elapsed_seconds(bounds_start)
 
     if stats !== nothing
+        # Repair inconsistent bounds before classifying phases. The scalar ReLU below repeats
+        # this repair on its inputs, but the recorded phase counts need the repaired bounds.
         consistent_bounds = consistent_relu_bounds.(x, l, u)
         l = first.(consistent_bounds)
         u = last.(consistent_bounds)
     end
 
-    if show_progress_bar
+    if log_bounds_summary
         reluinfo = ReLUInfo(l, u)
         Memento.info(MIPVerify.LOGGER, "$reluinfo")
     end
