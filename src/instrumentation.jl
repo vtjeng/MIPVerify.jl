@@ -1,3 +1,13 @@
+# Skip reasons and solver statuses recorded in bound-tightening statistics. Consumers
+# (e.g. the benchmark driver's CSV columns) must reference these constants rather than
+# repeating the strings, so that a rename cannot silently zero their counts.
+const SKIP_CONSTANT_EXPRESSION = "constant_expression"
+const SKIP_INTERVAL_ARITHMETIC = "interval_arithmetic"
+const SKIP_INTERVAL_PROVES_CUTOFF = "interval_proves_cutoff"
+const SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER = "lower_skipped_by_nonpositive_upper"
+const BOUND_STATUS_OPTIMAL = string(MathOptInterface.OPTIMAL)
+const BOUND_STATUS_TIME_LIMIT = string(MathOptInterface.TIME_LIMIT)
+
 mutable struct BoundTighteningStats
     request_count::Int
     solver_call_count::Int
@@ -53,11 +63,6 @@ end
 MIPVerifyExt(tightening_algorithm::TighteningAlgorithm) =
     MIPVerifyExt(tightening_algorithm, nothing)
 
-function MIPVerifyExt(tightening_algorithm::TighteningAlgorithm, collect_stats::Bool)
-    stats = collect_stats ? VerificationStats() : nothing
-    return MIPVerifyExt(tightening_algorithm, stats)
-end
-
 function get_verification_stats(model::Model)::Union{Nothing,VerificationStats}
     extension = get(model.ext, :MIPVerify, nothing)
     if extension isa MIPVerifyExt
@@ -80,16 +85,6 @@ function get_verification_stats(
 end
 
 elapsed_seconds(start_time_ns::UInt64)::Float64 = (time_ns() - start_time_ns) / 1.0e9
-
-function num_model_constraints(model::Model; count_variable_in_set_constraints::Bool)::Int
-    total = 0
-    for (function_type, set_type) in JuMP.list_of_constraint_types(model)
-        if count_variable_in_set_constraints || function_type != JuMP.VariableRef
-            total += JuMP.num_constraints(model, function_type, set_type)
-        end
-    end
-    return total
-end
 
 function get_bound_tightening_stats(
     stats::VerificationStats,
@@ -231,12 +226,12 @@ function summarize_verification_stats(stats::VerificationStats)::Dict{Symbol,Any
         :BoundBarrierIterations =>
             sum((group.barrier_iterations for group in bound_groups); init = 0),
         :BoundNodeCount => sum((group.node_count for group in bound_groups); init = 0),
-        :BoundOptimalCount => count_status(stats, "OPTIMAL"),
-        :BoundTimeLimitCount => count_status(stats, "TIME_LIMIT"),
-        :BoundIntervalArithmeticCount => count_skip(stats, "interval_arithmetic"),
-        :BoundConstantExpressionCount => count_skip(stats, "constant_expression"),
-        :BoundIntervalCutoffCount => count_skip(stats, "interval_proves_cutoff"),
-        :BoundLowerSkippedCount => count_skip(stats, "lower_skipped_by_nonpositive_upper"),
+        :BoundOptimalCount => count_status(stats, BOUND_STATUS_OPTIMAL),
+        :BoundTimeLimitCount => count_status(stats, BOUND_STATUS_TIME_LIMIT),
+        :BoundIntervalArithmeticCount => count_skip(stats, SKIP_INTERVAL_ARITHMETIC),
+        :BoundConstantExpressionCount => count_skip(stats, SKIP_CONSTANT_EXPRESSION),
+        :BoundIntervalCutoffCount => count_skip(stats, SKIP_INTERVAL_PROVES_CUTOFF),
+        :BoundLowerSkippedCount => count_skip(stats, SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER),
         :ReLULayerCount => length(relu_layers),
         :ReLUZeroOutputCount => num_zero_output,
         :ReLULinearInInputCount => num_linear_in_input,

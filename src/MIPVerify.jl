@@ -152,7 +152,7 @@ function find_adversarial_example(
 
         # Only call optimizer if predicted index is not found among target indexes.
         if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
-            formulation_start = collect_stats ? time_ns() : UInt64(0)
+            formulation_start = time_ns()
             merge!(
                 d,
                 get_model(
@@ -204,11 +204,11 @@ function find_adversarial_example(
                 d[:NumBinaryVariables] =
                     JuMP.num_constraints(m, JuMP.VariableRef, MathOptInterface.ZeroOne)
                 d[:NumStructuralConstraints] =
-                    num_model_constraints(m; count_variable_in_set_constraints = false)
+                    JuMP.num_constraints(m; count_variable_in_set_constraints = false)
                 d[:NumTotalConstraints] =
-                    num_model_constraints(m; count_variable_in_set_constraints = true)
+                    JuMP.num_constraints(m; count_variable_in_set_constraints = true)
             end
-            main_solve_start = collect_stats ? time_ns() : UInt64(0)
+            main_solve_start = time_ns()
             optimize!(m)
             d[:SolveStatus] = JuMP.termination_status(m)
             d[:SolveTime] = JuMP.solve_time(m)

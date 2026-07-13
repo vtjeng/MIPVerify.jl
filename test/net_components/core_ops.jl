@@ -657,16 +657,6 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test summary[:ReLUSplitCount] == 0
         end
 
-        @testset "separates structural and variable-in-set constraints" begin
-            m = TestHelpers.get_new_model()
-            x = @variable(m, lower_bound = 0, upper_bound = 1)
-            a = @variable(m, binary = true)
-            @constraint(m, x + a <= 1)
-
-            @test MIPVerify.num_model_constraints(m; count_variable_in_set_constraints = false) == 1
-            @test MIPVerify.num_model_constraints(m; count_variable_in_set_constraints = true) == 4
-        end
-
         @testset "records a fully constant layer from scoped model context" begin
             stats = MIPVerify.VerificationStats()
             MIPVerify.with_verification_stats(stats) do
@@ -683,7 +673,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "records ReLU phases without solver calls" begin
             m = TestHelpers.get_new_model()
-            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, true)
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
             x_inactive = @variable(m, lower_bound = -3, upper_bound = -1)
             x_active = @variable(m, lower_bound = 1, upper_bound = 3)
             x_split = @variable(m, lower_bound = -1, upper_bound = 2)
@@ -711,7 +701,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "skips lower solve after upper bound fixes inactive phase" begin
             m = TestHelpers.get_new_model()
-            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, true)
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
             x = @variable(m, lower_bound = -1, upper_bound = 1)
             @constraint(m, x <= -0.5)
 
@@ -742,7 +732,8 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "counts masked phase fixes in the full layer" begin
             m = TestHelpers.get_new_model()
-            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic, true)
+            m.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(interval_arithmetic, MIPVerify.VerificationStats())
             x = @variable(m, [i = 1:3], lower_bound = -1, upper_bound = 2)
 
             masked_relu(x, [-1, 0, 1]; nta = interval_arithmetic)
@@ -759,7 +750,8 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "summarizes a fully masked layer" begin
             m = TestHelpers.get_new_model()
-            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic, true)
+            m.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(interval_arithmetic, MIPVerify.VerificationStats())
             x = @variable(m, [i = 1:2], lower_bound = -1, upper_bound = 2)
 
             masked_relu(x, [-1, 1]; nta = interval_arithmetic)

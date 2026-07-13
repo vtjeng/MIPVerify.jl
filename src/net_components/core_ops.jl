@@ -47,6 +47,10 @@ bound_operator = Dict(
     lower_bound_type => >=,
     upper_bound_type => <=
 )
+bound_name = Dict(
+    lower_bound_type => "lower",
+    upper_bound_type => "upper"
+)
 #! format: on
 
 include("lp_certification.jl")
@@ -119,25 +123,18 @@ function tight_bound_helper(
     stats::Union{Nothing,VerificationStats},
 )
     @objective(m, bound_obj[bound_type], objective)
-    if stats === nothing
-        optimize!(m)
-    else
-        solve_start = time_ns()
-        optimize!(m)
-        solve_wall_time = elapsed_seconds(solve_start)
-    end
+    solve_start = time_ns()
+    optimize!(m)
+    solve_wall_time = elapsed_seconds(solve_start)
     status = JuMP.termination_status(m)
-    if stats !== nothing
-        bound_type_name = bound_type == lower_bound_type ? "lower" : "upper"
-        record_bound_solve!(
-            stats,
-            tightening_algorithm,
-            bound_type_name,
-            m,
-            status,
-            solve_wall_time,
-        )
-    end
+    record_bound_solve!(
+        stats,
+        tightening_algorithm,
+        bound_name[bound_type],
+        m,
+        status,
+        solve_wall_time,
+    )
     if status == MathOptInterface.OPTIMAL
         incumbent =
             solver_attribute_or_nothing(() -> JuMP.objective_value(m), "the solver objective value")
@@ -202,36 +199,20 @@ function tight_bound(
     if resolve_stats && stats === nothing && !is_constant(x)
         stats = get_verification_stats(owner_model(x))
     end
-    if stats === nothing
-        if tightening_algorithm == interval_arithmetic ||
-           is_constant(x) ||
-           bound_operator[bound_type](b_0, cutoff)
-            return b_0
-        end
-        should_relax_integrality = (tightening_algorithm == lp)
-        return relax_integrality_context(owner_model(x), should_relax_integrality) do m
-            tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm, nothing)
-        end
-    end
-    bound_type_name = bound_type == lower_bound_type ? "lower" : "upper"
-    if is_constant(x)
-        record_bound_skip!(stats, tightening_algorithm, bound_type_name, "constant_expression")
-        return b_0
-    elseif tightening_algorithm == interval_arithmetic
-        record_bound_skip!(stats, tightening_algorithm, bound_type_name, "interval_arithmetic")
-        return b_0
-    elseif bound_operator[bound_type](b_0, cutoff)
-        record_bound_skip!(stats, tightening_algorithm, bound_type_name, "interval_proves_cutoff")
+    skip_reason =
+        is_constant(x) ? SKIP_CONSTANT_EXPRESSION :
+        tightening_algorithm == interval_arithmetic ? SKIP_INTERVAL_ARITHMETIC :
+        bound_operator[bound_type](b_0, cutoff) ? SKIP_INTERVAL_PROVES_CUTOFF : nothing
+    if skip_reason !== nothing
+        record_bound_skip!(stats, tightening_algorithm, bound_name[bound_type], skip_reason)
         return b_0
     end
-    record_bound_request!(stats, tightening_algorithm, bound_type_name)
+    record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    bound_value = return relax_integrality_context(owner_model(x), should_relax_integrality) do m
+    return relax_integrality_context(owner_model(x), should_relax_integrality) do m
         tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm, stats)
     end
-
-    return bound_value
 end
 
 function tight_upperbound(
@@ -366,21 +347,16 @@ function lazy_tight_lowerbound(
     if resolve_stats && stats === nothing && !is_constant(x)
         stats = get_verification_stats(owner_model(x))
     end
-    if stats === nothing
-        return (u <= cutoff) ? u :
-               tight_lowerbound(x; nta = nta, cutoff = cutoff, resolve_stats = resolve_stats)
-    end
     if u <= cutoff
-        tightening_algorithm = get_tightening_algorithm(x, nta)
-        record_bound_skip!(
+        stats === nothing || record_bound_skip!(
             stats,
-            tightening_algorithm,
-            "lower",
-            "lower_skipped_by_nonpositive_upper",
+            get_tightening_algorithm(x, nta),
+            bound_name[lower_bound_type],
+            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
         )
         return u
     end
-    return tight_lowerbound(x; nta = nta, cutoff = cutoff, stats = stats)
+    return tight_lowerbound(x; nta = nta, cutoff = cutoff, stats = stats, resolve_stats = false)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
@@ -397,56 +373,53 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 function relu(
     x::AbstractArray{T};
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
+    stats::Union{Nothing,VerificationStats} = get_verification_stats(x),
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
-    stats = get_verification_stats(x)
     show_progress_bar::Bool =
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
-    if stats === nothing
-        if !show_progress_bar
-            u = tight_upperbound.(x, nta = nta, cutoff = 0, resolve_stats = false)
-            l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0, resolve_stats = false)
-            return relu.(x, l, u)
-        end
 
-        p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-        u = map(x_i -> (next!(p1);
-        tight_upperbound(x_i, nta = nta, cutoff = 0, resolve_stats = false)), x)
-        p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
-        l = map(
-            v -> (next!(p2);
-            lazy_tight_lowerbound(v..., nta = nta, cutoff = 0, resolve_stats = false)),
-            zip(x, u),
-        )
-
-        reluinfo = ReLUInfo(l, u)
-        Memento.info(MIPVerify.LOGGER, "$reluinfo")
-
-        p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
-        return map(v -> (next!(p3); relu(v...)), zip(x, l, u))
-    end
-
-    first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
-    tightening_algorithm = if first_nonconstant_index === nothing
-        interval_arithmetic
+    layer_stats = if stats === nothing
+        nothing
     else
-        get_tightening_algorithm(x[first_nonconstant_index], nta)
+        first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
+        tightening_algorithm =
+            first_nonconstant_index === nothing ? interval_arithmetic :
+            get_tightening_algorithm(x[first_nonconstant_index], nta)
+        begin_relu_layer!(stats, size(x), tightening_algorithm)
     end
-    layer_stats = begin_relu_layer!(stats, size(x), tightening_algorithm)
+
     bounds_start = time_ns()
     if !show_progress_bar
-        u = tight_upperbound.(x, nta = nta, cutoff = 0, stats = stats)
-        l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0, stats = stats)
+        u = tight_upperbound.(x, nta = nta, cutoff = 0, stats = stats, resolve_stats = false)
+        l =
+            lazy_tight_lowerbound.(
+                x,
+                u,
+                nta = nta,
+                cutoff = 0,
+                stats = stats,
+                resolve_stats = false,
+            )
     else
         p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-        u = map(x_i -> begin
-            next!(p1)
-            tight_upperbound(x_i, nta = nta, cutoff = 0, stats = stats)
-        end, x)
+        u = map(
+            x_i -> begin
+                next!(p1)
+                tight_upperbound(x_i, nta = nta, cutoff = 0, stats = stats, resolve_stats = false)
+            end,
+            x,
+        )
         p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
         l = map(
             v -> begin
                 next!(p2)
-                lazy_tight_lowerbound(v..., nta = nta, cutoff = 0, stats = stats)
+                lazy_tight_lowerbound(
+                    v...,
+                    nta = nta,
+                    cutoff = 0,
+                    stats = stats,
+                    resolve_stats = false,
+                )
             end,
             zip(x, u),
         )
@@ -469,18 +442,19 @@ function relu(
         p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
         x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
     end
-    formulation_time = elapsed_seconds(formulation_start)
-    relutypes = get_relu_type.(l, u)
-    finish_relu_layer!(
-        stats,
-        layer_stats,
-        bounds_time,
-        formulation_time,
-        count(==(zero_output), relutypes),
-        count(==(linear_in_input), relutypes),
-        count(==(constant_output), relutypes),
-        count(==(split), relutypes),
-    )
+    if stats !== nothing
+        relutypes = get_relu_type.(l, u)
+        finish_relu_layer!(
+            stats,
+            layer_stats,
+            bounds_time,
+            elapsed_seconds(formulation_start),
+            count(==(zero_output), relutypes),
+            count(==(linear_in_input), relutypes),
+            count(==(constant_output), relutypes),
+            count(==(split), relutypes),
+        )
+    end
     return x_r
 end
 
@@ -526,10 +500,9 @@ function masked_relu(
     @assert(size(x) == size(m))
     s = size(m)
     stats = get_verification_stats(x)
-    num_recorded_layers = stats === nothing ? 0 : length(stats.relu_layers)
     # We add the constraints corresponding to the active ReLUs to the model
     zero_idx = Iterators.filter(i -> m[i] == 0, CartesianIndices(s)) |> collect
-    d = Dict(zip(zero_idx, relu(x[zero_idx], nta = nta)))
+    d = Dict(zip(zero_idx, relu(x[zero_idx], nta = nta, stats = stats)))
 
     # We determine the output of the masked relu, which is either:
     #  1) the output of the relu that we have previously determined when adding the
@@ -537,33 +510,12 @@ function masked_relu(
     #  2, 3) the result of applying the (elementwise) masked_relu function.
     output = map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianIndices(s))
     if stats !== nothing
-        num_masked_zero = count(m .< 0)
-        num_masked_linear = count(m .> 0)
-        if length(stats.relu_layers) > num_recorded_layers
-            layer_stats = stats.relu_layers[end]
-            layer_stats.input_shape = size(x)
-            layer_stats.num_zero_output += num_masked_zero
-            layer_stats.num_linear_in_input += num_masked_linear
-        else
-            first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
-            tightening_algorithm = if first_nonconstant_index === nothing
-                interval_arithmetic
-            else
-                get_tightening_algorithm(x[first_nonconstant_index], nta)
-            end
-            layer_stats = begin_relu_layer!(stats, size(x), tightening_algorithm)
-            rectified_types = get_relu_type.(lower_bound.(x[zero_idx]), upper_bound.(x[zero_idx]))
-            finish_relu_layer!(
-                stats,
-                layer_stats,
-                0.0,
-                0.0,
-                num_masked_zero + count(==(zero_output), rectified_types),
-                num_masked_linear + count(==(linear_in_input), rectified_types),
-                count(==(constant_output), rectified_types),
-                count(==(split), rectified_types),
-            )
-        end
+        # `relu` recorded a layer covering only the unmasked entries; widen it to the full
+        # layer shape and add the entries whose phase the mask fixes.
+        layer_stats = stats.relu_layers[end]
+        layer_stats.input_shape = size(x)
+        layer_stats.num_zero_output += count(<(0), m)
+        layer_stats.num_linear_in_input += count(>(0), m)
     end
     return output
 end

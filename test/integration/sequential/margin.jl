@@ -98,9 +98,9 @@ include("../../TestHelpers.jl")
         @test d[:NumBinaryVariables] ==
               JuMP.num_constraints(d[:Model], JuMP.VariableRef, MOI.ZeroOne)
         @test d[:NumStructuralConstraints] ==
-              MIPVerify.num_model_constraints(d[:Model]; count_variable_in_set_constraints = false)
+              JuMP.num_constraints(d[:Model]; count_variable_in_set_constraints = false)
         @test d[:NumTotalConstraints] ==
-              MIPVerify.num_model_constraints(d[:Model]; count_variable_in_set_constraints = true)
+              JuMP.num_constraints(d[:Model]; count_variable_in_set_constraints = true)
         @test d[:FormulationTime] >= d[:BoundSolverWallTime]
         @test d[:MainSolveWallTime] >= 0
         @test MIPVerify.get_verification_stats(d[:Model]) !== nothing

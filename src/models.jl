@@ -46,7 +46,8 @@ function get_model(
         "Determining upper and lower bounds for the input to each non-linear unit.",
     )
     m = Model(optimizer_with_attributes(optimizer, tightening_options...))
-    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm, collect_stats)
+    stats = collect_stats ? VerificationStats() : nothing
+    m.ext[:MIPVerify] = MIPVerifyExt(tightening_algorithm, stats)
 
     d_common = Dict(
         :Model => m,
@@ -54,13 +55,10 @@ function get_model(
         :TighteningApproach => string(tightening_algorithm),
     )
 
-    stats = get_verification_stats(m)
-    perturbation_specific_keys = if stats === nothing
+    # The task-local scope lets bound computations on constant expressions (which have no
+    # owner model) find the same statistics object.
+    perturbation_specific_keys = with_verification_stats(stats) do
         get_perturbation_specific_keys(nn, input, pp, m)
-    else
-        with_verification_stats(stats) do
-            get_perturbation_specific_keys(nn, input, pp, m)
-        end
     end
     return merge(d_common, perturbation_specific_keys)
 end
