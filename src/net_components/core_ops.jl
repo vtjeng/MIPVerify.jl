@@ -426,9 +426,11 @@ function relu(
     end
     bounds_time = elapsed_seconds(bounds_start)
 
-    consistent_bounds = consistent_relu_bounds.(x, l, u)
-    l = first.(consistent_bounds)
-    u = last.(consistent_bounds)
+    if stats !== nothing
+        consistent_bounds = consistent_relu_bounds.(x, l, u)
+        l = first.(consistent_bounds)
+        u = last.(consistent_bounds)
+    end
 
     if show_progress_bar
         reluinfo = ReLUInfo(l, u)
