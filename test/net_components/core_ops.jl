@@ -52,7 +52,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
         x1 = one(JuMP.VariableRef) * 1
         x2 = one(JuMP.VariableRef) * 2
         @test MIPVerify.owner_model([x1, y1]) == m
-        @test_throws MethodError MIPVerify.owner_model([x1, x2])
+        @test MIPVerify.owner_model([x1, x2]) === nothing
     end
 
     @testset "get_tightening_algorithm" begin
@@ -644,6 +644,149 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test tight_lowerbound(x1) == 1
         end
 
+    end
+
+    @testset "verification instrumentation" begin
+        @testset "summarizes empty statistics" begin
+            summary = MIPVerify.summarize_verification_stats(MIPVerify.VerificationStats())
+            @test summary[:BoundRequestCount] == 0
+            @test summary[:BoundSolverCallCount] == 0
+            @test summary[:BoundSolverWallTime] == 0.0
+            @test summary[:ReLULayerCount] == 0
+            @test summary[:ReLUStableCount] == 0
+            @test summary[:ReLUSplitCount] == 0
+        end
+
+        @testset "safe_solve_metric" begin
+            m = TestHelpers.get_new_model()
+            @test MIPVerify.safe_solve_metric(_ -> 5, m, missing) == 5
+            @test MIPVerify.safe_solve_metric(_ -> -1, m, missing) === missing
+            @test MIPVerify.safe_solve_metric(_ -> NaN, m, missing) === missing
+            @test MIPVerify.safe_solve_metric(
+                _ -> throw(MathOptInterface.UnsupportedAttribute(MathOptInterface.NodeCount())),
+                m,
+                missing,
+            ) === missing
+            @test MIPVerify.safe_solve_metric(
+                _ -> throw(
+                    MathOptInterface.GetAttributeNotAllowed(
+                        MathOptInterface.SimplexIterations(),
+                        "",
+                    ),
+                ),
+                m,
+                missing,
+            ) === missing
+            # Errors that do not signal attribute unavailability must propagate.
+            @test_throws ErrorException MIPVerify.safe_solve_metric(_ -> error("bug"), m, missing)
+        end
+
+        @testset "records a fully constant layer from scoped model context" begin
+            stats = MIPVerify.VerificationStats()
+            MIPVerify.with_verification_stats(stats) do
+                relu([2.0 * one(JuMP.VariableRef), -1.0 * one(JuMP.VariableRef)])
+            end
+
+            summary = MIPVerify.summarize_verification_stats(stats)
+            @test summary[:ReLULayerCount] == 1
+            @test summary[:ReLUZeroOutputCount] == 1
+            @test summary[:ReLUConstantOutputCount] == 1
+            @test summary[:ReLUStableCount] == 2
+            @test summary[:ReLUSplitCount] == 0
+        end
+
+        @testset "records ReLU phases without solver calls" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
+            x_inactive = @variable(m, lower_bound = -3, upper_bound = -1)
+            x_active = @variable(m, lower_bound = 1, upper_bound = 3)
+            x_split = @variable(m, lower_bound = -1, upper_bound = 2)
+            constant_value = 2.0 * one(JuMP.VariableRef)
+            inputs = [1.0 * x_inactive, 1.0 * x_active, constant_value, 1.0 * x_split]
+
+            relu(inputs; nta = interval_arithmetic)
+
+            stats = MIPVerify.get_verification_stats(m)
+            summary = MIPVerify.summarize_verification_stats(stats)
+            @test length(stats.relu_layers) == 1
+            @test stats.relu_layers[1].input_shape == (4,)
+            @test stats.relu_layers[1].tightening_algorithm == "interval_arithmetic"
+            @test summary[:BoundRequestCount] == 8
+            @test summary[:BoundSolverCallCount] == 0
+            @test summary[:BoundIntervalArithmeticCount] == 5
+            @test summary[:BoundConstantExpressionCount] == 2
+            @test summary[:BoundLowerSkippedCount] == 1
+            @test summary[:ReLUZeroOutputCount] == 1
+            @test summary[:ReLULinearInInputCount] == 1
+            @test summary[:ReLUConstantOutputCount] == 1
+            @test summary[:ReLUSplitCount] == 1
+            @test count_binary_variables(m) == 1
+        end
+
+        @testset "skips lower solve after upper bound fixes inactive phase" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, MIPVerify.VerificationStats())
+            x = @variable(m, lower_bound = -1, upper_bound = 1)
+            @constraint(m, x <= -0.5)
+
+            relu([1.0 * x]; nta = lp)
+
+            stats = MIPVerify.get_verification_stats(m)
+            upper_stats = stats.bound_tightening[(1, "lp", "upper")]
+            lower_stats = stats.bound_tightening[(1, "lp", "lower")]
+            @test upper_stats.request_count == 1
+            @test upper_stats.solver_call_count == 1
+            @test get(upper_stats.status_counts, "OPTIMAL", 0) == 1
+            @test lower_stats.request_count == 1
+            @test lower_stats.solver_call_count == 0
+            @test lower_stats.skip_counts["lower_skipped_by_nonpositive_upper"] == 1
+            @test count_binary_variables(m) == 0
+        end
+
+        @testset "remains disabled by default" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic)
+            x = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            relu([1.0 * x]; nta = interval_arithmetic)
+
+            @test MIPVerify.get_verification_stats(m) === nothing
+            @test count_binary_variables(m) == 1
+        end
+
+        @testset "counts masked phase fixes in the full layer" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(interval_arithmetic, MIPVerify.VerificationStats())
+            x = @variable(m, [i = 1:3], lower_bound = -1, upper_bound = 2)
+
+            masked_relu(x, [-1, 0, 1]; nta = interval_arithmetic)
+
+            stats = MIPVerify.get_verification_stats(m)
+            layer = only(stats.relu_layers)
+            @test layer.input_shape == (3,)
+            @test layer.num_zero_output == 1
+            @test layer.num_linear_in_input == 1
+            @test layer.num_constant_output == 0
+            @test layer.num_split == 1
+            @test count_binary_variables(m) == 1
+        end
+
+        @testset "summarizes a fully masked layer" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] =
+                MIPVerify.MIPVerifyExt(interval_arithmetic, MIPVerify.VerificationStats())
+            x = @variable(m, [i = 1:2], lower_bound = -1, upper_bound = 2)
+
+            masked_relu(x, [-1, 1]; nta = interval_arithmetic)
+
+            summary = MIPVerify.summarize_verification_stats(m)
+            @test summary[:BoundRequestCount] == 0
+            @test summary[:ReLULayerCount] == 1
+            @test summary[:ReLUZeroOutputCount] == 1
+            @test summary[:ReLULinearInInputCount] == 1
+            @test summary[:ReLUSplitCount] == 0
+        end
     end
 
     @testset "get_relu_type" begin

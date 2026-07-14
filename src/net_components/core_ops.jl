@@ -47,6 +47,10 @@ bound_operator = Dict(
     lower_bound_type => >=,
     upper_bound_type => <=
 )
+bound_name = Dict(
+    lower_bound_type => "lower",
+    upper_bound_type => "upper"
+)
 #! format: on
 
 include("lp_certification.jl")
@@ -116,10 +120,21 @@ function tight_bound_helper(
     objective::JuMPLinearType,
     b_0::Number,
     tightening_algorithm::TighteningAlgorithm,
+    stats::Union{Nothing,VerificationStats},
 )
     @objective(m, bound_obj[bound_type], objective)
+    solve_start = time_ns()
     optimize!(m)
+    solve_wall_time = elapsed_seconds(solve_start)
     status = JuMP.termination_status(m)
+    record_bound_solve!(
+        stats,
+        tightening_algorithm,
+        bound_name[bound_type],
+        m,
+        status,
+        solve_wall_time,
+    )
     if status == MathOptInterface.OPTIMAL
         incumbent =
             solver_attribute_or_nothing(() -> JuMP.objective_value(m), "the solver objective value")
@@ -179,18 +194,31 @@ function tight_bound(
 )
     tightening_algorithm = get_tightening_algorithm(x, nta)
     b_0 = bound_f[bound_type](x)
-    if tightening_algorithm == interval_arithmetic ||
-       is_constant(x) ||
-       bound_operator[bound_type](b_0, cutoff)
-        return b_0
+    stats = get_verification_stats(x)
+    if stats === nothing
+        # Only skip-or-not matters here, so check `interval_arithmetic` first:
+        # `is_constant` allocates a temporary expression for `AffExpr` inputs.
+        if tightening_algorithm == interval_arithmetic ||
+           is_constant(x) ||
+           bound_operator[bound_type](b_0, cutoff)
+            return b_0
+        end
+    else
+        skip_reason =
+            is_constant(x) ? SKIP_CONSTANT_EXPRESSION :
+            tightening_algorithm == interval_arithmetic ? SKIP_INTERVAL_ARITHMETIC :
+            bound_operator[bound_type](b_0, cutoff) ? SKIP_INTERVAL_PROVES_CUTOFF : nothing
+        if skip_reason !== nothing
+            record_bound_skip!(stats, tightening_algorithm, bound_name[bound_type], skip_reason)
+            return b_0
+        end
+        record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
     end
     should_relax_integrality = (tightening_algorithm == lp)
     # x is not constant, and thus x must have an associated model
-    bound_value = return relax_integrality_context(owner_model(x), should_relax_integrality) do m
-        tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm)
+    return relax_integrality_context(owner_model(x), should_relax_integrality) do m
+        tight_bound_helper(m, bound_type, x, b_0, tightening_algorithm, stats)
     end
-
-    return bound_value
 end
 
 function tight_upperbound(
@@ -225,10 +253,23 @@ function relu(x::AbstractArray{T}) where {T<:Real}
     return relu.(x)
 end
 
-function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+"""
+    consistent_relu_bounds(x, l, u) -> (lower, upper)
+
+Choose the bounds on the ReLU input `x` to use when formulating `relu(x)`.
+
+If `u < l`, the candidate bounds contradict each other. Log a warning and replace
+both with the interval-arithmetic bounds computed from `x`; otherwise, return
+`(l, u)` unchanged. This fallback handles numerical errors in solver-derived
+bounds.
+
+Only `u < l` is considered inconsistent. Ordered candidates are not checked
+against `x`, and the interval-arithmetic fallback is returned without another
+ordering check.
+"""
+function consistent_relu_bounds(x::JuMPLinearType, l::Real, u::Real)::Tuple{Real,Real}
     if u < l
-        # TODO (vtjeng): This check is in place in case of numerical error in the calculation of bounds.
-        # See sample number 4872 (1-indexed) when verified on the lp0.4 network.
+        # This fallback was first needed for sample 4872 (1-indexed) on the lp0.4 network.
         Memento.warn(
             MIPVerify.LOGGER,
             "Inconsistent upper and lower bounds: u-l = $(u - l) is negative. Attempting to use interval arithmetic bounds instead ...",
@@ -236,6 +277,11 @@ function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
         u = upper_bound(x)
         l = lower_bound(x)
     end
+    return (l, u)
+end
+
+function relu(x::T, l::Real, u::Real)::JuMP.AffExpr where {T<:JuMPLinearType}
+    (l, u) = consistent_relu_bounds(x, l, u)
 
     if u <= 0
         # rectified value is always 0
@@ -311,7 +357,17 @@ function lazy_tight_lowerbound(
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff = 0,
 )::Real
-    (u <= cutoff) ? u : tight_lowerbound(x; nta = nta, cutoff = cutoff)
+    if u <= cutoff
+        stats = get_verification_stats(x)
+        stats === nothing || record_bound_skip!(
+            stats,
+            get_tightening_algorithm(x, nta),
+            bound_name[lower_bound_type],
+            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
+        )
+        return u
+    end
+    return tight_lowerbound(x; nta = nta, cutoff = cutoff)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr
@@ -328,25 +384,76 @@ Expresses a rectified-linearity constraint: output is constrained to be equal to
 function relu(
     x::AbstractArray{T};
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
+    stats::Union{Nothing,VerificationStats} = get_verification_stats(x),
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     show_progress_bar::Bool =
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
-    if !show_progress_bar
-        u = tight_upperbound.(x, nta = nta, cutoff = 0)
-        l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0)
-        return relu.(x, l, u)
-    else
-        p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-        u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta = nta, cutoff = 0)), x)
-        p2 = Progress(length(x), desc = "  Calculating lower bounds: ", enabled = isinteractive())
-        l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta = nta, cutoff = 0)), zip(x, u))
 
+    layer_stats = if stats === nothing
+        nothing
+    else
+        first_nonconstant_index = findfirst(x_i -> !is_constant(x_i), x)
+        # A layer with no nonconstant inputs needs no bound solves, so interval arithmetic
+        # is the algorithm actually applied regardless of the configured default.
+        tightening_algorithm =
+            first_nonconstant_index === nothing ? interval_arithmetic :
+            get_tightening_algorithm(x[first_nonconstant_index], nta)
+        begin_relu_layer!(stats, size(x), tightening_algorithm)
+    end
+
+    bounds_start = time_ns()
+    # The task-local scope lets the per-element bound computations resolve `stats` even for
+    # constant expressions, which have no owner model.
+    (u, l) = with_verification_stats(stats) do
+        if !show_progress_bar
+            u = tight_upperbound.(x, nta = nta, cutoff = 0)
+            l = lazy_tight_lowerbound.(x, u, nta = nta, cutoff = 0)
+        else
+            p1 = Progress(length(x), desc = "  Calculating upper bounds: ", enabled = isinteractive())
+            u = map(x_i -> (next!(p1); tight_upperbound(x_i, nta = nta, cutoff = 0)), x)
+            p2 = Progress(
+                length(x),
+                desc = "  Calculating lower bounds: ",
+                enabled = isinteractive(),
+            )
+            l = map(v -> (next!(p2); lazy_tight_lowerbound(v..., nta = nta, cutoff = 0)), zip(x, u))
+        end
+        (u, l)
+    end
+    bounds_time = elapsed_seconds(bounds_start)
+
+    if stats !== nothing
+        consistent_bounds = consistent_relu_bounds.(x, l, u)
+        l = first.(consistent_bounds)
+        u = last.(consistent_bounds)
+    end
+
+    if show_progress_bar
         reluinfo = ReLUInfo(l, u)
         Memento.info(MIPVerify.LOGGER, "$reluinfo")
-
-        p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
-        return x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
     end
+
+    constraint_start = time_ns()
+    if !show_progress_bar
+        x_r = relu.(x, l, u)
+    else
+        p3 = Progress(length(x), desc = "  Imposing relu constraint: ", enabled = isinteractive())
+        x_r = map(v -> (next!(p3); relu(v...)), zip(x, l, u))
+    end
+    if stats !== nothing
+        relutypes = get_relu_type.(l, u)
+        finish_relu_layer!(
+            stats,
+            layer_stats,
+            bounds_time,
+            elapsed_seconds(constraint_start),
+            count(==(zero_output), relutypes),
+            count(==(linear_in_input), relutypes),
+            count(==(constant_output), relutypes),
+            count(==(split), relutypes),
+        )
+    end
+    return x_r
 end
 
 function masked_relu(x::T, m::Real)::T where {T<:Real}
@@ -390,15 +497,25 @@ function masked_relu(
 )::Array{JuMP.AffExpr}
     @assert(size(x) == size(m))
     s = size(m)
+    stats = get_verification_stats(x)
     # We add the constraints corresponding to the active ReLUs to the model
     zero_idx = Iterators.filter(i -> m[i] == 0, CartesianIndices(s)) |> collect
-    d = Dict(zip(zero_idx, relu(x[zero_idx], nta = nta)))
+    d = Dict(zip(zero_idx, relu(x[zero_idx], nta = nta, stats = stats)))
 
     # We determine the output of the masked relu, which is either:
     #  1) the output of the relu that we have previously determined when adding the
     #     constraints to the model.
     #  2, 3) the result of applying the (elementwise) masked_relu function.
-    return map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianIndices(s))
+    output = map(i -> m[i] == 0 ? d[i] : masked_relu(x[i], m[i]), CartesianIndices(s))
+    if stats !== nothing
+        # `relu` recorded a layer covering only the unmasked entries; widen it to the full
+        # layer shape and add the entries whose phase the mask fixes.
+        layer_stats = stats.relu_layers[end]
+        layer_stats.input_shape = size(x)
+        layer_stats.num_zero_output += count(<(0), m)
+        layer_stats.num_linear_in_input += count(>(0), m)
+    end
+    return output
 end
 
 function maximum(xs::AbstractArray{T})::T where {T<:Real}

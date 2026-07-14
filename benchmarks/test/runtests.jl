@@ -31,12 +31,15 @@ end
 
 function write_metrics_csv(path::String; dependency_snapshot_sha256::String, julia_version::String)
     metrics = DataFrame(
+        benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION],
+        semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION],
         wall_clock_seconds = [10.0],
         sum_total_time_seconds = [9.0],
         sum_solve_time_seconds = [4.0],
         median_solve_time_seconds = [2.0],
         p90_solve_time_seconds = [3.0],
         num_samples = [2],
+        num_skipped_predicted_in_targeted = [1],
         num_certified_no_adversarial_example = [1],
         num_adversarial_example_found_or_best_known = [1],
         num_time_limit_unresolved = [0],
@@ -108,6 +111,39 @@ end
         @test classify_semantic_outcome("INFEASIBLE", 0.5) == "certified_no_adversarial_example"
         @test classify_semantic_outcome("TIME_LIMIT", missing) == "time_limit_unresolved"
         @test classify_semantic_outcome("OTHER", missing) == "no_primal_solution_other"
+        @test classify_semantic_outcome("SKIPPED_PREDICTED_IN_TARGETED", 0.0) ==
+              "adversarial_example_found_or_best_known"
+    end
+
+    @testset "benchmark schema and semantic partition" begin
+        legacy = DataFrame(
+            num_samples = [2],
+            num_certified_no_adversarial_example = [1],
+            num_adversarial_example_found_or_best_known = [1],
+            num_time_limit_unresolved = [0],
+            num_no_primal_solution_other = [0],
+        )
+        current = copy(legacy)
+        current.benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION]
+        current.semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION]
+        changed = copy(current)
+        changed.num_certified_no_adversarial_example = [0]
+        changed.num_time_limit_unresolved = [1]
+
+        @test benchmark_schema_version(legacy) == 1
+        @test semantic_outcome_schema_version(legacy) == 1
+        @test semantic_partition_columns_present(legacy)
+        @test !semantic_partition_columns_present(DataFrame(num_samples = [2]))
+        @test !semantic_partition_matches(DataFrame(num_samples = [2]), current)
+        @test benchmark_schema_version(current) == BENCHMARK_SCHEMA_VERSION
+        @test semantic_outcome_schema_version(current) == SEMANTIC_OUTCOME_SCHEMA_VERSION
+        @test semantic_partition_is_complete(current)
+        @test semantic_partition_matches(current, copy(current))
+        @test !semantic_partition_matches(current, changed)
+
+        incomplete = copy(current)
+        incomplete.num_adversarial_example_found_or_best_known = [0]
+        @test !semantic_partition_is_complete(incomplete)
     end
 
     @testset "maybe_parse_norm_order" begin
@@ -349,9 +385,15 @@ end
                 @test nrow(tracking) == 2
                 @test ismissing(tracking[1, :run_id])
                 @test tracking[2, :run_id] == "2026-03-09T06-00-00Z-def5678"
+                @test ismissing(tracking[1, :benchmark_schema_version])
+                @test tracking[2, :benchmark_schema_version] == BENCHMARK_SCHEMA_VERSION
+                @test tracking[2, :semantic_outcome_schema_version] ==
+                      SEMANTIC_OUTCOME_SCHEMA_VERSION
                 @test tracking[2, :julia_version] == "1.11.5"
                 @test tracking[2, :dependency_snapshot_sha256] == current_hash
                 @test ismissing(tracking[2, :dependency_change_summary])
+                @test ismissing(tracking[1, :num_skipped_predicted_in_targeted])
+                @test tracking[2, :num_skipped_predicted_in_targeted] == 1
             end
         end
 

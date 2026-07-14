@@ -18,7 +18,15 @@ export parse_args,
     dependency_change_summary,
     dependency_snapshot_hash,
     load_dependency_snapshot,
-    write_dependency_snapshot
+    write_dependency_snapshot,
+    benchmark_schema_version,
+    semantic_outcome_schema_version,
+    semantic_partition_columns_present,
+    semantic_partition_matches,
+    semantic_partition_is_complete,
+    BENCHMARK_SCHEMA_VERSION,
+    SEMANTIC_OUTCOME_SCHEMA_VERSION,
+    SEMANTIC_PARTITION_COLUMNS
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -108,10 +116,21 @@ const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
 const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
+const BENCHMARK_SCHEMA_VERSION = 2
+const SEMANTIC_OUTCOME_SCHEMA_VERSION = 2
+const LEGACY_SCHEMA_VERSION = 1
+const SEMANTIC_PARTITION_COLUMNS = [
+    :num_certified_no_adversarial_example,
+    :num_adversarial_example_found_or_best_known,
+    :num_time_limit_unresolved,
+    :num_no_primal_solution_other,
+]
 const TRACKING_COLUMNS = [
     :date,
     :run_id,
     :commit_sha,
+    :benchmark_schema_version,
+    :semantic_outcome_schema_version,
     :julia_version,
     :dependency_snapshot_sha256,
     :dependency_change_summary,
@@ -121,11 +140,76 @@ const TRACKING_COLUMNS = [
     :median_solve_time_seconds,
     :p90_solve_time_seconds,
     :num_samples,
-    :num_certified_no_adversarial_example,
-    :num_adversarial_example_found_or_best_known,
-    :num_time_limit_unresolved,
-    :num_no_primal_solution_other,
+    :num_skipped_predicted_in_targeted,
+    SEMANTIC_PARTITION_COLUMNS...,
 ]
+
+function schema_version(metrics::DataFrame, column::Symbol)::Int
+    return column in propertynames(metrics) ? Int(metrics[1, column]) : LEGACY_SCHEMA_VERSION
+end
+
+"""
+    benchmark_schema_version(metrics) -> Int
+
+Return the benchmark timing and output schema version from the first row of
+`metrics`. Treat metrics without a `benchmark_schema_version` column as legacy
+schema version `1`.
+"""
+benchmark_schema_version(metrics::DataFrame)::Int =
+    schema_version(metrics, :benchmark_schema_version)
+
+"""
+    semantic_outcome_schema_version(metrics) -> Int
+
+Return the semantic outcome schema recorded in the first metrics row. This schema
+tracks how samples are counted across outcome categories, separately from the
+timing and output schema. Treat metrics without a
+`semantic_outcome_schema_version` column as legacy schema version `1`.
+"""
+semantic_outcome_schema_version(metrics::DataFrame)::Int =
+    schema_version(metrics, :semantic_outcome_schema_version)
+
+"""
+    semantic_partition_columns_present(metrics) -> Bool
+
+Return whether `metrics` has every outcome-count column in
+`SEMANTIC_PARTITION_COLUMNS`. This checks column presence only; it does not
+validate the counts or require `num_samples`.
+"""
+function semantic_partition_columns_present(metrics::DataFrame)::Bool
+    return all(column -> column in propertynames(metrics), SEMANTIC_PARTITION_COLUMNS)
+end
+
+"""
+    semantic_partition_matches(baseline, candidate) -> Bool
+
+Return whether the first row of `baseline` and `candidate` has identical counts
+in every `SEMANTIC_PARTITION_COLUMNS` category. Return `false` if either data
+frame lacks a required column. This does not check that the counts cover every
+sample; use `semantic_partition_is_complete` for that.
+"""
+function semantic_partition_matches(baseline::DataFrame, candidate::DataFrame)::Bool
+    semantic_partition_columns_present(baseline) && semantic_partition_columns_present(candidate) ||
+        return false
+    return all(
+        column -> Int(baseline[1, column]) == Int(candidate[1, column]),
+        SEMANTIC_PARTITION_COLUMNS,
+    )
+end
+
+"""
+    semantic_partition_is_complete(metrics) -> Bool
+
+Return whether the first row's counts in `SEMANTIC_PARTITION_COLUMNS` sum to
+`num_samples`. Return `false` if `num_samples` or any semantic partition column
+is absent. Callers decide which semantic schema versions require completeness.
+"""
+function semantic_partition_is_complete(metrics::DataFrame)::Bool
+    required_columns = vcat([:num_samples], SEMANTIC_PARTITION_COLUMNS)
+    all(column -> column in propertynames(metrics), required_columns) || return false
+    partition_total = sum(Int(metrics[1, column]) for column in SEMANTIC_PARTITION_COLUMNS)
+    return partition_total == Int(metrics[1, :num_samples])
+end
 
 function active_manifest_path()::String
     project_file = Base.active_project()
@@ -371,6 +455,8 @@ function build_tracking_row(
         :date => date,
         :run_id => run_id,
         :commit_sha => commit_sha,
+        :benchmark_schema_version => benchmark_schema_version(metrics),
+        :semantic_outcome_schema_version => semantic_outcome_schema_version(metrics),
         :dependency_change_summary => dependency_summary,
     )
     row = Dict{Symbol,Any}()

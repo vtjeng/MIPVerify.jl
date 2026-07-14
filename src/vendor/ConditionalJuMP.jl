@@ -13,7 +13,7 @@ function owner_model(x::JuMP.GenericAffExpr)::Union{Model,Nothing}
 end
 function owner_model(
     xs::AbstractArray{T},
-)::Model where {T<:Union{JuMP.VariableRef,JuMP.GenericAffExpr}}
+)::Union{Model,Nothing} where {T<:Union{JuMP.VariableRef,JuMP.GenericAffExpr}}
     for x in xs
         m = owner_model(x)
         if m !== nothing
