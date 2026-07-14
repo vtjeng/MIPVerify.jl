@@ -5,8 +5,7 @@ const SKIP_CONSTANT_EXPRESSION = "constant_expression"
 const SKIP_INTERVAL_ARITHMETIC = "interval_arithmetic"
 const SKIP_INTERVAL_PROVES_CUTOFF = "interval_proves_cutoff"
 const SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER = "lower_skipped_by_nonpositive_upper"
-const SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER =
-    "upper_skipped_by_nonnegative_interval_lower"
+const SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER = "upper_skipped_by_nonnegative_interval_lower"
 const BOUND_STATUS_OPTIMAL = string(MathOptInterface.OPTIMAL)
 const BOUND_STATUS_TIME_LIMIT = string(MathOptInterface.TIME_LIMIT)
 

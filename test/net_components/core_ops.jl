@@ -646,8 +646,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "MIP bounds progress through the LP relaxation" begin
             m_upper = TestHelpers.get_new_model()
-            m_upper.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_upper.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             @variable(m_upper, 0 <= a[1:2] <= 1, Bin)
             @constraint(m_upper, 2 * sum(a) <= 3)
 
@@ -661,8 +660,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m_upper) == 2
 
             m_lower = TestHelpers.get_new_model()
-            m_lower.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_lower.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             @variable(m_lower, 0 <= b[1:2] <= 1, Bin)
             @constraint(m_lower, 2 * sum(b) >= 1)
 
@@ -809,8 +807,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "LP screening skips MIP tightening for stable units" begin
             m_active = TestHelpers.get_new_model()
-            m_active.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_active.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             x_active = @variable(m_active, lower_bound = -1, upper_bound = 1)
             @constraint(m_active, x_active >= 0.5)
 
@@ -825,8 +822,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m_active) == 0
 
             m_inactive = TestHelpers.get_new_model()
-            m_inactive.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_inactive.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             x_inactive = @variable(m_inactive, lower_bound = -1, upper_bound = 1)
             @constraint(m_inactive, x_inactive <= -0.5)
 
@@ -843,8 +839,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
 
         @testset "MIP tightening receives LP-certified bounds" begin
             m_active = TestHelpers.get_new_model()
-            m_active.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_active.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             a_active = @variable(m_active, binary = true, lower_bound = 0, upper_bound = 1)
             @constraint(m_active, a_active >= 0.5)
 
@@ -859,8 +854,7 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m_active) == 1
 
             m_inactive = TestHelpers.get_new_model()
-            m_inactive.ext[:MIPVerify] =
-                MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
+            m_inactive.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip, MIPVerify.VerificationStats())
             a_inactive = @variable(m_inactive, binary = true, lower_bound = 0, upper_bound = 1)
             @constraint(m_inactive, a_inactive <= 0.5)
 

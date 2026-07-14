@@ -379,12 +379,7 @@ function lp_relu_lowerbound(
         constant_expression ? interval_arithmetic :
         requested_algorithm == mip ? lp : requested_algorithm
     if lp_upper <= 0
-        record_bound_skip!(
-            stats,
-            first_algorithm,
-            "lower",
-            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
-        )
+        record_bound_skip!(stats, first_algorithm, "lower", SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER)
         return lp_upper
     elseif constant_expression
         record_bound_skip!(stats, first_algorithm, "lower", SKIP_CONSTANT_EXPRESSION)
