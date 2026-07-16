@@ -134,6 +134,14 @@ function is_usable_constraint_dual(row_dual)
     return is_finite_real(row_dual) && !iszero(row_dual)
 end
 
+"""
+    constraint_certificate_term!(coefficients, constraint, row_dual)
+
+Apply one row's certificate contribution, split in two: the row's variable terms are subtracted
+into `coefficients` (mutated in place), and its scalar `multiplier * (reference - constant)`
+term is returned. Returns `nothing`, leaving `coefficients` unchanged, when the row's set is
+unsupported or the projected multiplier or reference is unusable.
+"""
 function constraint_certificate_term!(coefficients, constraint, row_dual::Real)
     constraint_object = JuMP.constraint_object(constraint)
     projected = projected_dual_and_reference(constraint_object.set, row_dual)

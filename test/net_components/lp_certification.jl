@@ -602,8 +602,9 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "retries scalar duals when a batch fails or has the wrong length" begin
         m = Model(HiGHS.Optimizer)
         set_silent(m)
-        # Finite [0, 4] bounds let the certificate absorb residuals, while the two independent
-        # rows x >= 1 and y >= 2 require both recovered scalar duals to prove the lower bound 3.
+        # Unit duals on the two independent rows x >= 1 and y >= 2 cancel the objective
+        # coefficients exactly, so certifying 1*1 + 1*2 = 3 requires both scalar retries to
+        # recover their duals; the [0, 4] bounds are never consulted.
         @variable(m, 0 <= x <= 4)
         @variable(m, 0 <= y <= 4)
         @constraint(m, x >= 1)
@@ -638,8 +639,9 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
 
     @testset "treats invalid batch elements as independently unavailable" begin
         m = Model()
-        # The four distinct right-hand sides identify which batch element remains usable, and the
-        # [0, 5] variable range keeps the interval fallback finite.
+        # The four distinct right-hand sides identify which batch element remains usable. The
+        # single valid unit dual cancels x's objective coefficient exactly, so the [0, 5] bounds
+        # never enter the certificate.
         @variable(m, 0 <= x <= 5)
         @constraint(m, x >= 1)
         @constraint(m, x >= 2)
