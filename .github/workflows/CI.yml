@@ -73,8 +73,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
+        id: setup-julia
         with:
           version: "1"
+      - name: Set weekly cache epoch
+        id: cache-epoch
+        run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache documentation Julia depot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          key: ${{ runner.os }}-docs-julia-${{ steps.setup-julia.outputs.julia-version }}-${{ steps.cache-epoch.outputs.value }}-${{ hashFiles('Project.toml', 'docs/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-docs-julia-${{ steps.setup-julia.outputs.julia-version }}-
       - run: |
           julia --project=docs -e '
             using Pkg
@@ -139,8 +154,23 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
+        id: setup-julia
         with:
           version: "1"
+      - name: Set weekly cache epoch
+        id: cache-epoch
+        run: echo "value=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+      - name: Cache benchmark Julia depot
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          key: ${{ runner.os }}-benchmarks-julia-${{ steps.setup-julia.outputs.julia-version }}-${{ steps.cache-epoch.outputs.value }}-${{ hashFiles('Project.toml', 'benchmarks/Project.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-benchmarks-julia-${{ steps.setup-julia.outputs.julia-version }}-
       - name: Instantiate benchmarks environment
         run: julia --project=benchmarks -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
       - name: Run benchmark helper tests
