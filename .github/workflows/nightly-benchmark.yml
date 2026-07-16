@@ -13,7 +13,7 @@ jobs:
     name: WK17a Benchmark (500 samples)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
         with:
           ref: master
 
@@ -22,7 +22,7 @@ jobs:
           version: "1"
           show-versioninfo: true
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts-benchmark
         with:

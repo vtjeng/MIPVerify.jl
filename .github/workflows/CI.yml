@@ -39,13 +39,13 @@ jobs:
         arch:
           - x64
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts
         with:
@@ -63,15 +63,15 @@ jobs:
           # Julia version cannot silently disable this check.
           MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && 'true' || 'false' }}
       - uses: julia-actions/julia-processcoverage@v1
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v7
         with:
-          file: lcov.info
+          files: lcov.info
 
   docs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
@@ -98,7 +98,7 @@ jobs:
     name: "Check Formatting (.jl)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1"
@@ -122,7 +122,7 @@ jobs:
     name: "Check Formatting and Linting (.py)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: "Verify that Ruff does not find any code style issues."
         uses: astral-sh/ruff-action@v4.1.0
         with:
@@ -137,7 +137,7 @@ jobs:
     name: Benchmark Helper Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
@@ -160,11 +160,11 @@ jobs:
           - "03_interpreting_the_output_of_find_adversarial_example.ipynb"
           - "04_managing_log_output.ipynb"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts
         with:
@@ -186,7 +186,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: "Verify that Prettier does not find any code style issues."
         uses: creyD/prettier_action@v4.3
         with:
