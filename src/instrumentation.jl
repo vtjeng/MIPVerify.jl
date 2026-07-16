@@ -5,6 +5,7 @@ const SKIP_CONSTANT_EXPRESSION = "constant_expression"
 const SKIP_INTERVAL_ARITHMETIC = "interval_arithmetic"
 const SKIP_INTERVAL_PROVES_CUTOFF = "interval_proves_cutoff"
 const SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER = "lower_skipped_by_nonpositive_upper"
+const SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER = "upper_skipped_by_nonnegative_interval_lower"
 const BOUND_STATUS_OPTIMAL = string(MathOptInterface.OPTIMAL)
 const BOUND_STATUS_TIME_LIMIT = string(MathOptInterface.TIME_LIMIT)
 
@@ -333,6 +334,8 @@ function summarize_verification_stats(stats::VerificationStats)::Dict{Symbol,Any
         :BoundIntervalArithmeticCount => count_skip(stats, SKIP_INTERVAL_ARITHMETIC),
         :BoundConstantExpressionCount => count_skip(stats, SKIP_CONSTANT_EXPRESSION),
         :BoundIntervalCutoffCount => count_skip(stats, SKIP_INTERVAL_PROVES_CUTOFF),
+        :BoundUpperSkippedCount =>
+            count_skip(stats, SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER),
         :BoundLowerSkippedCount => count_skip(stats, SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER),
         :ReLULayerCount => length(relu_layers),
         :ReLUZeroOutputCount => num_zero_output,

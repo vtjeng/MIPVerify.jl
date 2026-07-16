@@ -9,4 +9,5 @@ TestHelpers.@timed_testset "sequential/" begin
         include("sequential/trained_weights.jl")
     end
     include("sequential/margin.jl")
+    include("sequential/verification_statistics.jl")
 end
