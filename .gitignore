@@ -26,3 +26,9 @@ TODO.md
 # omit Manifest.toml from packages, per
 # https://discourse.julialang.org/t/does-manifest-toml-belong-in-the-repository/12029/13
 Manifest.toml
+
+# Claude Code: agent worktrees are throwaway full working copies, and the "local"
+# settings variant is per-user by design. Shared agent config (.claude/settings.json,
+# .claude/skills/, .claude/agents/) stays trackable.
+.claude/worktrees/
+.claude/settings.local.json
