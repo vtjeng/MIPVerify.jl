@@ -59,7 +59,9 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         env:
           # Validate the large CIFAR10 asset once without charging every matrix job for it.
-          MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1.12' && 'true' || 'false' }}
+          # Key on the permanent "1" (latest stable) leg so bumping the minimum supported
+          # Julia version cannot silently disable this check.
+          MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && 'true' || 'false' }}
       - uses: julia-actions/julia-processcoverage@v1
       - uses: codecov/codecov-action@v3
         with:

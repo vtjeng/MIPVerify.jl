@@ -45,7 +45,8 @@ julia --project -e 'using Pkg; Pkg.test("MIPVerify")'
 ```
 
 The default suite skips validation of the full CIFAR10 data asset because loading it requires about
-1.5 GiB of memory. CI enables the check on its Julia 1.12 Linux job. Include it locally with:
+1.5 GiB of memory. CI enables the check on its Linux job running the latest stable Julia. Include it
+locally with:
 
 ```sh
 MIPVERIFY_RUN_LARGE_DATASET_TESTS=true julia --project -e 'using Pkg; Pkg.test("MIPVerify")'

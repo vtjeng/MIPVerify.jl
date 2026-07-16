@@ -1,4 +1,5 @@
 using Test
+using CSV
 using DataFrames
 using MIPVerify
 using MIPVerify: LInfNormBoundedPerturbationFamily
@@ -43,7 +44,7 @@ TestHelpers.@timed_testset "integration.jl" begin
 
     function read_batch_output(dir)
         main_path = only(filter(isdir, readdir(dir; join = true)))
-        summary = DataFrame(MIPVerify.CSV.File(joinpath(main_path, "summary.csv")))
+        summary = DataFrame(CSV.File(joinpath(main_path, "summary.csv")))
         result_files = readdir(joinpath(main_path, "run_results"))
         return summary, result_files
     end
@@ -75,7 +76,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             # Solvers may distinguish proven infeasibility from infeasible-or-unbounded.
             @test summary.SolveStatus[robust_row] in ["INFEASIBLE", "INFEASIBLE_OR_UNBOUNDED"]
             @test summary.SolveStatus[[attackable_row, misclassified_row]] == ["OPTIMAL", "OPTIMAL"]
-            @test summary.IsInfeasible == [true, false, false]
+            @test summary.IsInfeasible[[robust_row, attackable_row, misclassified_row]] ==
+                  [true, false, false]
             # Saved metadata verifies that the batch API forwarded the requested algorithm.
             @test summary.TighteningApproach[[robust_row, attackable_row]] ==
                   [string(interval_arithmetic), string(interval_arithmetic)]
