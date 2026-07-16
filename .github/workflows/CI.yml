@@ -133,6 +133,9 @@ jobs:
         run: ./scripts/format.sh
       - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
+          # The backticks below are Julia Cmd-literal syntax, not shell substitution
+          # accidentally left in single quotes.
+          # shellcheck disable=SC2016
           julia -e '
           out = Cmd(`git diff --name-only`) |> read |> String
           if out == ""
