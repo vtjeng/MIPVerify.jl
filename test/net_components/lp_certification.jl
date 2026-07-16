@@ -583,37 +583,20 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
     end
 
     @testset "default dual retrieval returns duals in constraint order" begin
-        mock = MathOptInterface.Utilities.MockOptimizer(
-            MathOptInterface.Utilities.UniversalFallback(
-                MathOptInterface.Utilities.Model{Float64}(),
-            );
-            eval_variable_constraint_dual = false,
-        )
-        function_type = MathOptInterface.ScalarAffineFunction{Float64}
-        MathOptInterface.Utilities.set_mock_optimize!(
-            mock,
-            optimizer -> MathOptInterface.Utilities.mock_optimize!(
-                optimizer,
-                MathOptInterface.OPTIMAL,
-                # This is the sole variable's primal result; only dual reads matter here.
-                [0.0],
-                # Distinct values make the order of the returned row duals observable.
-                (function_type, MathOptInterface.LessThan{Float64}) => [1.0, 2.0],
-            ),
-        )
-        m = Model(() -> mock; add_bridges = false)
+        m = Model(HiGHS.Optimizer)
+        set_silent(m)
         @variable(m, x)
-        constraints = [
-            # Non-unit coefficients keep these as scalar-affine rather than variable rows.
-            @constraint(m, 2x <= 1.0),
-            @constraint(m, 3x <= 1.0),
-        ]
+        @variable(m, y)
+        constraints = [@constraint(m, x >= 1), @constraint(m, y >= 2)]
+        # Both rows are active at the optimum, so each row's dual equals its variable's objective
+        # coefficient; the distinct coefficients 2 and 3 make the returned order observable.
+        @objective(m, Min, 2x + 3y)
 
         # Before any solve there are no duals, so the batch read reports them unavailable.
         @test MIPVerify.default_constraint_duals(m, constraints) === nothing
 
         optimize!(m)
-        @test MIPVerify.default_constraint_duals(m, constraints) == [1.0, 2.0]
+        @test MIPVerify.default_constraint_duals(m, constraints) == [2.0, 3.0]
     end
 
     @testset "retries scalar duals when a batch fails or has the wrong length" begin
@@ -628,38 +611,29 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @objective(m, Min, x + y)
         optimize!(m)
 
-        failed_batch_calls = Ref(0)
-        failed_batch_bound = certified_lp_bound(
-            m,
-            lower_bound_type,
-            x + y,
-            0.0;
-            dual_values = _ -> begin
-                failed_batch_calls[] += 1
-                error("batch retrieval failed")
-            end,
+        for make_bad_batch in (
+            # An erroring batch read exercises the exception fallback.
+            _ -> error("batch retrieval failed"),
+            # One value cannot represent the two affine rows, so retrieval must retry scalars.
+            _ -> [0.0],
         )
-        # Both scalar retries recover the solver duals and certify 1 + 2 = 3.
-        @test failed_batch_bound == 3.0
-        # Both affine rows share one GreaterThan batch.
-        @test failed_batch_calls[] == 1
-
-        wrong_length_batch_calls = Ref(0)
-        wrong_length_bound = certified_lp_bound(
-            m,
-            lower_bound_type,
-            x + y,
-            0.0;
-            dual_values = _ -> begin
-                wrong_length_batch_calls[] += 1
-                # One value cannot represent the two affine rows, so retrieval must retry scalars.
-                return [0.0]
-            end,
-        )
-        # The wrong-length vector is discarded; both scalar duals again certify 1 + 2 = 3.
-        @test wrong_length_bound == 3.0
-        # The homogeneous GreaterThan group is attempted once before scalar fallback.
-        @test wrong_length_batch_calls[] == 1
+            batch_calls = Ref(0)
+            bound = certified_lp_bound(
+                m,
+                lower_bound_type,
+                x + y,
+                0.0;
+                dual_values = constraints -> begin
+                    batch_calls[] += 1
+                    make_bad_batch(constraints)
+                end,
+            )
+            # The failed batch is discarded; both scalar retries recover the solver duals and
+            # certify 1 + 2 = 3.
+            @test bound == 3.0
+            # Both affine rows share one GreaterThan batch, attempted once before scalar fallback.
+            @test batch_calls[] == 1
+        end
     end
 
     @testset "treats invalid batch elements as independently unavailable" begin

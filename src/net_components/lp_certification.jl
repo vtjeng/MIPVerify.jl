@@ -24,18 +24,6 @@ end
 
 projected_dual_and_reference(::MathOptInterface.AbstractScalarSet, ::Real) = nothing
 
-function is_fatal_solver_attribute_error(error)
-    return error isa InterruptException ||
-           error isa OutOfMemoryError ||
-           error isa StackOverflowError
-end
-
-function is_unavailable_solver_attribute_error(error)
-    return error isa MathOptInterface.ResultIndexBoundsError ||
-           error isa MathOptInterface.UnsupportedAttribute ||
-           error isa MathOptInterface.GetAttributeNotAllowed
-end
-
 """
     solver_read_or_nothing(f, log_unexpected, description, consequence)
 
@@ -57,8 +45,16 @@ function solver_read_or_nothing(
     try
         return f()
     catch error
-        is_fatal_solver_attribute_error(error) && rethrow()
-        if !is_unavailable_solver_attribute_error(error)
+        if error isa InterruptException ||
+           error isa OutOfMemoryError ||
+           error isa StackOverflowError
+            rethrow()
+        end
+        if !(
+            error isa MathOptInterface.ResultIndexBoundsError ||
+            error isa MathOptInterface.UnsupportedAttribute ||
+            error isa MathOptInterface.GetAttributeNotAllowed
+        )
             log_unexpected(
                 MIPVerify.LOGGER,
                 "Unexpected error reading $(description); $(consequence): " *
@@ -69,6 +65,8 @@ function solver_read_or_nothing(
     end
 end
 
+is_finite_real(value) = value isa Real && isfinite(value)
+
 """
     solver_attribute_or_nothing(f, description)
 
@@ -76,11 +74,16 @@ Run `f` and return its result if it is a finite `Real`, and `nothing` otherwise.
 """
 function solver_attribute_or_nothing(f, description::AbstractString)
     value = solver_read_or_nothing(f, Memento.warn, description, "treating it as unavailable")
-    return value isa Real && isfinite(value) ? value : nothing
+    return is_finite_real(value) ? value : nothing
 end
 
 function constraint_dual_or_nothing(constraint, dual_value)
-    return solver_attribute_or_nothing(() -> dual_value(constraint), "a constraint dual")
+    return solver_read_or_nothing(
+        () -> dual_value(constraint),
+        Memento.warn,
+        "a constraint dual",
+        "treating it as unavailable",
+    )
 end
 
 function default_constraint_duals(model::JuMP.Model, constraints)
@@ -128,7 +131,7 @@ function variable_interval_or_nothing(variable::JuMP.VariableRef)
 end
 
 function is_usable_constraint_dual(row_dual)
-    return row_dual isa Real && isfinite(row_dual) && !iszero(row_dual)
+    return is_finite_real(row_dual) && !iszero(row_dual)
 end
 
 function constraint_certificate_term!(coefficients, constraint, row_dual::Real)
@@ -160,6 +163,14 @@ function add_constraint_duals_to_certificate!(coefficients, certificate, constra
         certificate += term
     end
     return certificate
+end
+
+function resolve_row_duals(constraints, batched_dual_values, scalar_dual_value)
+    if batched_dual_values !== nothing
+        row_duals = constraint_duals_or_nothing(constraints, batched_dual_values)
+        row_duals !== nothing && return row_duals
+    end
+    return [constraint_dual_or_nothing(c, scalar_dual_value) for c in constraints]
 end
 
 """
@@ -219,12 +230,7 @@ function certified_lp_bound(
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
         constraints = JuMP.all_constraints(model, function_type, set_type)
-        row_duals =
-            batched_dual_values === nothing ? nothing :
-            constraint_duals_or_nothing(constraints, batched_dual_values)
-        if row_duals === nothing
-            row_duals = [constraint_dual_or_nothing(c, scalar_dual_value) for c in constraints]
-        end
+        row_duals = resolve_row_duals(constraints, batched_dual_values, scalar_dual_value)
         certificate =
             add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
     end
