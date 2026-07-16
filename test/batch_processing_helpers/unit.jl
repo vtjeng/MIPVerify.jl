@@ -156,9 +156,10 @@ TestHelpers.@timed_testset "unit.jl" begin
     @testset "verified witness rerun semantics" begin
         # Each row isolates one semantic result: ambiguous infeasible-or-unbounded status, verified
         # witness at a solution limit, rejected witness at an objective limit, unresolved time
-        # limit, optimal exact witness, and optimal verdict-only witness. Objective 0.9 on the
-        # rejected row checks that explicit witness verification overrides the legacy fallback.
-        sample_numbers = [201, 202, 203, 204, 205, 206]
+        # limit, optimal exact witness, optimal verdict-only witness, and a rejected witness paired
+        # with a contradictory infeasible status. Objective 0.9 on the objective-limit row checks
+        # that explicit witness verification overrides the legacy fallback.
+        sample_numbers = [201, 202, 203, 204, 205, 206, 207]
         dt = DataFrame(
             SampleNumber = sample_numbers,
             SolveStatus = [
@@ -168,11 +169,12 @@ TestHelpers.@timed_testset "unit.jl" begin
                 "TIME_LIMIT",
                 "OPTIMAL",
                 "OPTIMAL",
+                "INFEASIBLE",
             ],
-            ObjectiveValue = [NaN, 0.8, 0.9, NaN, 0.7, 0.0],
-            WitnessAvailable = [false, true, true, false, true, true],
-            WitnessVerified = [false, true, false, false, true, true],
-            VerdictOnly = [false, false, false, false, false, true],
+            ObjectiveValue = [NaN, 0.8, 0.9, NaN, 0.7, 0.0, NaN],
+            WitnessAvailable = [false, true, true, false, true, true, true],
+            WitnessVerified = [false, true, false, false, true, true, false],
+            VerdictOnly = [false, false, false, false, false, true, false],
         )
 
         resolve_results = map(
@@ -184,7 +186,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             sample_numbers,
         )
         # `INFEASIBLE_OR_UNBOUNDED` is not a proof of infeasibility, so it remains ambiguous.
-        @test resolve_results == [true, false, true, true, false, false]
+        @test resolve_results == [true, false, true, true, false, false, true]
 
         refine_results = map(
             sample -> run_on_sample_for_untargeted_attack(
@@ -194,7 +196,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             ),
             sample_numbers,
         )
-        @test refine_results == [false, true, false, false, false, true]
+        @test refine_results == [false, true, false, false, false, true, false]
     end
 
     @testset "run_on_sample_for_targeted_attack" begin

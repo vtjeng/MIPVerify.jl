@@ -252,8 +252,21 @@ function has_verified_witness(row::DataFrames.DataFrameRow)::Bool
     return has_legacy_objective_value(row)
 end
 
+function has_available_unverified_witness(row::DataFrames.DataFrameRow)::Bool
+    witness_available =
+        :WitnessAvailable in propertynames(row) &&
+        !ismissing(row[:WitnessAvailable]) &&
+        row[:WitnessAvailable]
+    witness_verified =
+        :WitnessVerified in propertynames(row) &&
+        !ismissing(row[:WitnessVerified]) &&
+        row[:WitnessVerified]
+    return witness_available && !witness_verified
+end
+
 function should_resolve_ambiguous(row::DataFrames.DataFrameRow)::Bool
-    return !is_proven_infeasible_status(row[:SolveStatus]) && !has_verified_witness(row)
+    return has_available_unverified_witness(row) ||
+           (!is_proven_infeasible_status(row[:SolveStatus]) && !has_verified_witness(row))
 end
 
 function is_verdict_only(row::DataFrames.DataFrameRow)::Bool
@@ -294,7 +307,8 @@ Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
 + `always`: `true` always.
 + `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the
-    most recent completed solve has neither a verified counterexample nor a proof of infeasibility.
+    most recent completed solve has neither a verified counterexample nor a proof of infeasibility,
+    or if an available witness failed verification despite a contradictory infeasible status.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
     recent complete solve a) did find a verified counterexample but b) did not reach a
     provably optimal exact objective. A verdict-only result therefore still needs refinement even
