@@ -171,7 +171,7 @@ then `d[:PerturbedInputValue]` belongs to `pp` around `input`, and
 `y[j] - y[i] ≥ margin` within the documented comparison tolerance for some
 `j ∈ target_selection` and for all `i ∉ target_selection`. These claims are checked numerically;
 a solver termination status alone does not establish them. Custom perturbation families fail this
-check unless they implement [`verify_perturbation_witness`](@ref).
+check unless they implement `verify_perturbation_witness`.
 
 # Keyword Arguments:
 - `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to be its
