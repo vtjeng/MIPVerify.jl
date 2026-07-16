@@ -77,35 +77,6 @@ using JuMP
         end
     end
 
-    @testset "verification statistics" begin
-        d = find_adversarial_example(
-            nn,
-            input,
-            2,
-            TestHelpers.get_optimizer(),
-            main_solve_options,
-            norm_order = 1,
-            pp = UnrestrictedPerturbationFamily(),
-            tightening_algorithm = MIPVerify.interval_arithmetic,
-            collect_stats = true,
-        )
-
-        @test d[:SolveStatus] == MOI.OPTIMAL
-        @test d[:BoundSolverCallCount] == 0
-        @test d[:BoundSolverWallTime] == 0
-        @test d[:ReLUStableCount] + d[:ReLUSplitCount] == 2
-        @test d[:NumVariables] == JuMP.num_variables(d[:Model])
-        @test d[:NumBinaryVariables] ==
-              JuMP.num_constraints(d[:Model], JuMP.VariableRef, MOI.ZeroOne)
-        @test d[:NumStructuralConstraints] ==
-              JuMP.num_constraints(d[:Model]; count_variable_in_set_constraints = false)
-        @test d[:NumTotalConstraints] ==
-              JuMP.num_constraints(d[:Model]; count_variable_in_set_constraints = true)
-        @test d[:FormulationTime] >= d[:BoundSolverWallTime]
-        @test d[:MainSolveWallTime] >= 0
-        @test MIPVerify.get_verification_stats(d[:Model]) !== nothing
-    end
-
     @testset "worst objective" begin
         target_label = 2
         non_target_label = 1

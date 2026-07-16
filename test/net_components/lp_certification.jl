@@ -514,4 +514,38 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             certified_lp_bound(m_unbounded, lower_bound_type, z + free, -2.5; dual_value = _ -> 0.0)
         @test unbounded_result == -2.5
     end
+
+    @testset "retains the LP certificate when MIP tightening times out" begin
+        call_count = Ref(0)
+        mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.Model{Float64}();
+            eval_variable_constraint_dual = false,
+        )
+        MathOptInterface.Utilities.set_mock_optimize!(
+            mock,
+            optimizer -> begin
+                call_count[] += 1
+                if call_count[] == 1
+                    MathOptInterface.Utilities.mock_optimize!(
+                        optimizer,
+                        MathOptInterface.OPTIMAL,
+                        [1.499],
+                        (
+                            MathOptInterface.ScalarAffineFunction{Float64},
+                            MathOptInterface.LessThan{Float64},
+                        ) => [-1.0],
+                    )
+                else
+                    MathOptInterface.Utilities.mock_optimize!(optimizer, MathOptInterface.TIME_LIMIT)
+                end
+            end,
+        )
+        m = Model(() -> mock)
+        m.ext[:MIPVerify] = MIPVerifyExt(mip)
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x <= 1.5)
+
+        @test tight_upperbound(x; nta = mip) == 1.5
+        @test call_count[] == 2
+    end
 end
