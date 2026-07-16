@@ -20,3 +20,8 @@ For failures unrelated to the PR's changes:
    with "Append new occurrences to this table."
 4. If the same leg fails twice in a row on one PR, stop rerunning and report it — repetition
    suggests a real regression, not flake.
+
+## Performance log
+
+When a PR changes verification (solve) or CI performance, append a row to the matching section of
+PERFORMANCE.md in the same PR, with the measured impact and an evidence link.
