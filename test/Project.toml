@@ -17,6 +17,7 @@ MIPVerify = {path = ".."}
 [compat]
 HiGHS = "1.4"
 # HiGHS 1.15.x introduced a parallel MIP solver that segfaults and returns
-# nondeterministic results (issue #219); unpin once upstream stabilizes.
+# nondeterministic results, even with threads=1 (issue #219); unpin once
+# upstream stabilizes.
 HiGHS_jll = "~1.14"
 TimerOutputs = "0.5"
