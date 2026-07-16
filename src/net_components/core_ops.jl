@@ -35,19 +35,19 @@ end
 
 @enum BoundType lower_bound_type = -1 upper_bound_type = 1
 #! format: off
-bound_f = Dict(
+const bound_f = Dict(
     lower_bound_type => lower_bound,
     upper_bound_type => upper_bound
 )
-bound_obj = Dict(
+const bound_obj = Dict(
     lower_bound_type => MathOptInterface.MIN_SENSE,
     upper_bound_type => MathOptInterface.MAX_SENSE
 )
-bound_operator = Dict(
+const bound_operator = Dict(
     lower_bound_type => >=,
     upper_bound_type => <=
 )
-bound_name = Dict(
+const bound_name = Dict(
     lower_bound_type => "lower",
     upper_bound_type => "upper"
 )
@@ -179,6 +179,12 @@ function tight_bound_helper(
     end
 end
 
+# The stage that performs the first optimization solve, and thus the stage credited with any
+# interval-level skip. MIP tightening screens with an LP relaxation first, so its pre-solve skips
+# are attributed to `lp`; every other algorithm screens under its own name.
+first_optimization_stage(algorithm::TighteningAlgorithm)::TighteningAlgorithm =
+    algorithm == mip ? lp : algorithm
+
 function optimization_bound(
     x::JuMPLinearType,
     tightening_algorithm::TighteningAlgorithm,
@@ -187,8 +193,7 @@ function optimization_bound(
     stats::Union{Nothing,VerificationStats};
     integrality_is_relaxed::Bool = false,
 )::Real
-    bound_type_name = bound_type == lower_bound_type ? "lower" : "upper"
-    record_bound_request!(stats, tightening_algorithm, bound_type_name)
+    record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
     model = owner_model(x)
     if tightening_algorithm != lp || integrality_is_relaxed
         return tight_bound_helper(model, bound_type, x, fallback_bound, tightening_algorithm, stats)
@@ -231,7 +236,7 @@ function tight_bound(
         return b_0
     end
 
-    first_optimization = tightening_algorithm == mip ? lp : tightening_algorithm
+    first_optimization = first_optimization_stage(tightening_algorithm)
     if bound_operator[bound_type](b_0, cutoff)
         record_bound_skip!(stats, first_optimization, bound_type_name, SKIP_INTERVAL_PROVES_CUTOFF)
         return b_0
@@ -316,6 +321,10 @@ function map_with_progress(f, description::String, show_progress_bar::Bool, arra
     end
 end
 
+# Interval lower bound used to screen a ReLU. When `interval_upper <= 0` the unit is already
+# fixed to zero, so the lower bound is irrelevant; return `interval_upper` as a stand-in to skip
+# the `lower_bound(x)` computation (which allocates for `AffExpr` inputs). Every downstream
+# consumer short-circuits on `interval_upper <= 0` before reading this value.
 function interval_lowerbound_for_relu(x::JuMPLinearType, interval_upper::Real)::Real
     return interval_upper <= 0 ? interval_upper : lower_bound(x)
 end
@@ -338,20 +347,20 @@ function lp_relu_upperbound(
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
 )::Real
+    upper = bound_name[upper_bound_type]
     first_algorithm =
-        constant_expression ? interval_arithmetic :
-        requested_algorithm == mip ? lp : requested_algorithm
+        constant_expression ? interval_arithmetic : first_optimization_stage(requested_algorithm)
     if constant_expression
-        record_bound_skip!(stats, first_algorithm, "upper", SKIP_CONSTANT_EXPRESSION)
+        record_bound_skip!(stats, first_algorithm, upper, SKIP_CONSTANT_EXPRESSION)
     elseif requested_algorithm == interval_arithmetic
-        record_bound_skip!(stats, first_algorithm, "upper", SKIP_INTERVAL_ARITHMETIC)
+        record_bound_skip!(stats, first_algorithm, upper, SKIP_INTERVAL_ARITHMETIC)
     elseif interval_upper <= 0
-        record_bound_skip!(stats, first_algorithm, "upper", SKIP_INTERVAL_PROVES_CUTOFF)
+        record_bound_skip!(stats, first_algorithm, upper, SKIP_INTERVAL_PROVES_CUTOFF)
     elseif interval_lower >= 0
         record_bound_skip!(
             stats,
             first_algorithm,
-            "upper",
+            upper,
             SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER,
         )
     else
@@ -375,18 +384,18 @@ function lp_relu_lowerbound(
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
 )::Real
+    lower = bound_name[lower_bound_type]
     first_algorithm =
-        constant_expression ? interval_arithmetic :
-        requested_algorithm == mip ? lp : requested_algorithm
+        constant_expression ? interval_arithmetic : first_optimization_stage(requested_algorithm)
     if lp_upper <= 0
-        record_bound_skip!(stats, first_algorithm, "lower", SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER)
+        record_bound_skip!(stats, first_algorithm, lower, SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER)
         return lp_upper
     elseif constant_expression
-        record_bound_skip!(stats, first_algorithm, "lower", SKIP_CONSTANT_EXPRESSION)
+        record_bound_skip!(stats, first_algorithm, lower, SKIP_CONSTANT_EXPRESSION)
     elseif requested_algorithm == interval_arithmetic
-        record_bound_skip!(stats, first_algorithm, "lower", SKIP_INTERVAL_ARITHMETIC)
+        record_bound_skip!(stats, first_algorithm, lower, SKIP_INTERVAL_ARITHMETIC)
     elseif interval_lower >= 0
-        record_bound_skip!(stats, first_algorithm, "lower", SKIP_INTERVAL_PROVES_CUTOFF)
+        record_bound_skip!(stats, first_algorithm, lower, SKIP_INTERVAL_PROVES_CUTOFF)
     else
         return optimization_bound(
             x,
@@ -494,7 +503,12 @@ function mip_relu_lowerbound(
     if !(lp_lower < 0 < lp_upper)
         return lp_lower
     elseif mip_upper <= 0
-        record_bound_skip!(stats, mip, "lower", SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER)
+        record_bound_skip!(
+            stats,
+            mip,
+            bound_name[lower_bound_type],
+            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
+        )
         return mip_upper
     end
     return optimization_bound(x, mip, lower_bound_type, lp_lower, stats)
@@ -629,29 +643,6 @@ function Base.show(io::IO, s::ReLUInfo)
             print(io, ", ")
         end
     end
-end
-
-"""
-Calculates the lower_bound only if `u` is positive; otherwise, returns `u` (since we expect)
-the ReLU to be fixed to zero anyway.
-"""
-function lazy_tight_lowerbound(
-    x::JuMPLinearType,
-    u::Real;
-    nta::Union{TighteningAlgorithm,Nothing} = nothing,
-    cutoff = 0,
-)::Real
-    if u <= cutoff
-        stats = get_verification_stats(x)
-        stats === nothing || record_bound_skip!(
-            stats,
-            get_tightening_algorithm(x, nta),
-            bound_name[lower_bound_type],
-            SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER,
-        )
-        return u
-    end
-    return tight_lowerbound(x; nta = nta, cutoff = cutoff)
 end
 
 function relu(x::JuMPLinearType)::JuMP.AffExpr

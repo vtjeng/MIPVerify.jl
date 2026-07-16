@@ -79,8 +79,8 @@ Stable count is the sum of the first three; unstable count is `split`.
 gap fields are missing when the solver does not expose a nonnegative value.
 
 In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted semicolon-separated
-`name=count` pairs. Dedicated columns cover optimal and time-limit statuses and common progressive
-skip reasons.
+`name=count` pairs. Dedicated columns cover optimal and time-limit statuses and each progressive
+skip reason.
 
 `benchmark_schema_version` identifies the timing and output schema. Schema 3 records LP and MIP
 stages separately when progressive MIP tightening is requested. `semantic_outcome_schema_version`

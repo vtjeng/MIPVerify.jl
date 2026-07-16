@@ -334,6 +334,8 @@ function summarize_verification_stats(stats::VerificationStats)::Dict{Symbol,Any
         :BoundIntervalArithmeticCount => count_skip(stats, SKIP_INTERVAL_ARITHMETIC),
         :BoundConstantExpressionCount => count_skip(stats, SKIP_CONSTANT_EXPRESSION),
         :BoundIntervalCutoffCount => count_skip(stats, SKIP_INTERVAL_PROVES_CUTOFF),
+        :BoundUpperSkippedCount =>
+            count_skip(stats, SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER),
         :BoundLowerSkippedCount => count_skip(stats, SKIP_LOWER_SKIPPED_BY_NONPOSITIVE_UPPER),
         :ReLULayerCount => length(relu_layers),
         :ReLUZeroOutputCount => num_zero_output,

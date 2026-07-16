@@ -86,6 +86,7 @@ const INSTRUMENTATION_COLUMNS = (
     :bound_interval_arithmetic_count,
     :bound_constant_expression_count,
     :bound_interval_cutoff_count,
+    :bound_upper_skipped_count,
     :bound_lower_skipped_count,
     :bound_simplex_iterations,
     :bound_barrier_iterations,
@@ -142,6 +143,7 @@ function collect_instrumentation_fields(d::Dict, stats::MIPVerify.VerificationSt
         bound_interval_arithmetic_count = Int(d[:BoundIntervalArithmeticCount]),
         bound_constant_expression_count = Int(d[:BoundConstantExpressionCount]),
         bound_interval_cutoff_count = Int(d[:BoundIntervalCutoffCount]),
+        bound_upper_skipped_count = Int(d[:BoundUpperSkippedCount]),
         bound_lower_skipped_count = Int(d[:BoundLowerSkippedCount]),
         bound_simplex_iterations = Int(d[:BoundSimplexIterations]),
         bound_barrier_iterations = Int(d[:BoundBarrierIterations]),
@@ -236,6 +238,7 @@ function main()
         interval_arithmetic_count = Int[],
         constant_expression_count = Int[],
         interval_cutoff_count = Int[],
+        upper_skipped_count = Int[],
         lower_skipped_count = Int[],
         status_counts = String[],
         skip_counts = String[],
@@ -334,6 +337,11 @@ function main()
                         interval_cutoff_count = get(
                             group.skip_counts,
                             MIPVerify.SKIP_INTERVAL_PROVES_CUTOFF,
+                            0,
+                        ),
+                        upper_skipped_count = get(
+                            group.skip_counts,
+                            MIPVerify.SKIP_UPPER_SKIPPED_BY_NONNEGATIVE_INTERVAL_LOWER,
                             0,
                         ),
                         lower_skipped_count = get(

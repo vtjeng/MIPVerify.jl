@@ -790,6 +790,9 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test lower_stats.solver_call_count == 1
             @test lower_stats.skip_counts["lower_skipped_by_nonpositive_upper"] == 1
             @test lower_stats.skip_counts["interval_proves_cutoff"] == 1
+            summary = MIPVerify.summarize_verification_stats(stats)
+            @test summary[:BoundUpperSkippedCount] == 1
+            @test summary[:BoundLowerSkippedCount] == 1
             @test layer.num_zero_output == 1
             @test layer.num_linear_in_input == 1
             @test layer.num_split == 1
