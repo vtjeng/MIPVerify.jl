@@ -81,6 +81,9 @@ function test_find_adversarial_example(
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||
               d[:SolveStatus] == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
     else
+        # Distinguishes solver wrong answers (OPTIMAL at a bad objective) from early
+        # termination with a feasible incumbent; see issue #219.
+        @test d[:SolveStatus] == MathOptInterface.OPTIMAL
         actual_objective_value = JuMP.objective_value(d[:Model])
         if expected_objective_value == 0
             @test isapprox(actual_objective_value, expected_objective_value; atol = 1e-4)
