@@ -847,10 +847,8 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # at least one of xs is not constant.
     model = owner_model(xs)
 
-    p1 = Progress(length(xs), desc = "  Calculating upper bounds: ", enabled = isinteractive())
-    us = map(x_i -> (next!(p1); tight_upperbound(x_i)), xs)
-    p2 = Progress(length(xs), desc = "  Calculating lower bounds: ", enabled = isinteractive())
-    ls = map(x_i -> (next!(p2); tight_lowerbound(x_i)), xs)
+    us = map_with_progress(tight_upperbound, "  Calculating upper bounds: ", isinteractive(), xs)
+    ls = map_with_progress(tight_lowerbound, "  Calculating lower bounds: ", isinteractive(), xs)
 
     l = Base.maximum(ls)
     u = Base.maximum(us)
