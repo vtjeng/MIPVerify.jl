@@ -152,7 +152,10 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
     top10_share = float(cum[min(10, n) - 1] / total_abs) if total_abs > 0 else float("nan")
     k5 = max(1, math.ceil(0.05 * n))
     top5pct_share = float(cum[k5 - 1] / total_abs) if total_abs > 0 else float("nan")
-    q = lambda x: float(np.quantile(ratios, x))
+
+    def q(x):
+        return float(np.quantile(ratios, x))
+
     return {
         "series": series.key,
         "label": series.label,

@@ -24,6 +24,14 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      # Lets the Codecov upload authenticate via GitHub OIDC. The repository has no
+      # CODECOV_TOKEN secret, and codecov-action v4+ rejects unauthenticated uploads
+      # from this repository's own branches ("Token required because branch is
+      # protected"). Fork PRs are not granted this permission; their uploads fail
+      # without failing CI, matching previous behavior.
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -49,13 +57,13 @@ jobs:
             version: "1"
             primary: true
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
           show-versioninfo: true
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts
         with:
@@ -73,16 +81,24 @@ jobs:
           MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.primary || false }}
       - uses: julia-actions/julia-processcoverage@v1
         if: matrix.primary
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v7
         if: matrix.primary
         with:
-          file: lcov.info
+          files: lcov.info
+          # Upload exactly the file julia-processcoverage produced instead of also
+          # searching the workspace for anything coverage-shaped.
+          disable_search: true
+          use_oidc: true
+          # Fail the job when the upload breaks: the action's lenient default let
+          # rate-limited uploads drop silently and would equally hide a broken OIDC
+          # setup. Fork PRs cannot obtain an OIDC token, so stay lenient there.
+          fail_ci_if_error: ${{ !github.event.pull_request.head.repo.fork }}
 
   docs:
     name: Documentation
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
@@ -109,7 +125,7 @@ jobs:
     name: "Check Formatting (.jl)"
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1"
@@ -129,11 +145,26 @@ jobs:
               exit(1)
           end'
 
+  format-check-python:
+    name: "Check Formatting and Linting (.py)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Verify that Ruff does not find any code style issues."
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          # Keep this version in sync with scripts/format.sh.
+          version: "0.15.21"
+          args: "format --check --diff"
+          src: "benchmarks/analysis/"
+      - name: "Verify that Ruff does not find any lint issues."
+        run: ruff check benchmarks/analysis/
+
   benchmark-tests:
     name: Benchmark Helper Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
@@ -156,11 +187,11 @@ jobs:
           - "03_interpreting_the_output_of_find_adversarial_example.ipynb"
           - "04_managing_log_output.ipynb"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
         with:
           version: "1"
-      - uses: actions/cache@v3
+      - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts
         with:
@@ -182,7 +213,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v7
       - name: "Verify that Prettier does not find any code style issues."
         uses: creyD/prettier_action@v4.3
         with:
