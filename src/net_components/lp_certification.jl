@@ -187,8 +187,6 @@ function certified_lp_bound(
         )
     end
 
-    # TODO: Run a controlled 500-sample WK17a comparison after progressive tightening
-    # (#209) lands and record the end-to-end wall-time impact.
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
         constraints = JuMP.all_constraints(model, function_type, set_type)
