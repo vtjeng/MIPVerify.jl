@@ -8,6 +8,8 @@
 # usage:
 #   run_pair.sh --base <commit> --candidate <commit> --out <dir> \
 #     [--samples 1:100] [--tightening lp] [--main-time-limit 120] [--norm-order Inf] \
+#     [--base-mode verdict-only|exact-distortion] \
+#     [--candidate-mode verdict-only|exact-distortion] \
 #     [--base-label ...] [--candidate-label ...]
 #
 # Produces <out>/base, <out>/candidate (benchmark outputs) and <out>/analysis (plots + tables).
@@ -18,7 +20,7 @@ REPO="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 
 BASE=""; CAND=""; OUT=""
 SAMPLES="1:100"; TIGHTENING="lp"; MAIN_TL="120"; NORM="Inf"
-BASE_LABEL=""; CAND_LABEL=""
+BASE_MODE=""; CAND_MODE=""; BASE_LABEL=""; CAND_LABEL=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --base) BASE="$2"; shift 2;;
@@ -28,6 +30,8 @@ while [ $# -gt 0 ]; do
         --tightening) TIGHTENING="$2"; shift 2;;
         --main-time-limit) MAIN_TL="$2"; shift 2;;
         --norm-order) NORM="$2"; shift 2;;
+        --base-mode) BASE_MODE="$2"; shift 2;;
+        --candidate-mode) CAND_MODE="$2"; shift 2;;
         --base-label) BASE_LABEL="$2"; shift 2;;
         --candidate-label) CAND_LABEL="$2"; shift 2;;
         *) echo "unknown argument: $1" >&2; exit 2;;
@@ -35,9 +39,20 @@ while [ $# -gt 0 ]; do
 done
 if [ -z "$BASE" ] || [ -z "$CAND" ] || [ -z "$OUT" ]; then
     echo "usage: $0 --base <commit> --candidate <commit> --out <dir> [--samples 1:100]" \
-         "[--tightening lp] [--main-time-limit 120] [--norm-order Inf]" >&2
+         "[--tightening lp] [--main-time-limit 120] [--norm-order Inf]" \
+         "[--base-mode MODE] [--candidate-mode MODE]" >&2
     exit 2
 fi
+
+validate_mode() {
+    case "$1" in
+        ""|verdict-only|exact-distortion) ;;
+        *) echo "invalid benchmark mode: $1" >&2; exit 2;;
+    esac
+}
+validate_mode "$BASE_MODE"
+validate_mode "$CAND_MODE"
+
 BASE_LABEL="${BASE_LABEL:-base $BASE}"
 CAND_LABEL="${CAND_LABEL:-candidate $CAND}"
 
@@ -51,19 +66,24 @@ cleanup() {
 trap cleanup EXIT
 
 run_side() {
-    local name="$1" sha="$2"
+    local name="$1" sha="$2" mode="$3"
+    local mode_args=()
+    if [ -n "$mode" ]; then
+        mode_args=(--mode "$mode")
+    fi
     local wt; wt="$(mktemp -d)"; WORKTREES+=("$wt")
     echo "[$name @ $sha] add worktree + instantiate benchmarks env"
     git -C "$REPO" worktree add -q --detach "$wt" "$sha"
     ( cd "$wt" && julia --project=benchmarks -e 'using Pkg; Pkg.instantiate()' )
-    echo "[$name @ $sha] run WK17a benchmark (samples $SAMPLES, tightening $TIGHTENING)"
+    echo "[$name @ $sha] run WK17a benchmark (samples $SAMPLES, tightening $TIGHTENING, mode ${mode:-commit-default})"
     ( cd "$wt" && julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
         --out "$OUT/$name" --samples "$SAMPLES" --tightening "$TIGHTENING" \
-        --main-time-limit "$MAIN_TL" --norm-order "$NORM" --log-level warn )
+        --main-time-limit "$MAIN_TL" --norm-order "$NORM" --log-level warn \
+        "${mode_args[@]}" )
 }
 
-run_side base "$BASE"
-run_side candidate "$CAND"
+run_side base "$BASE" "$BASE_MODE"
+run_side candidate "$CAND" "$CAND_MODE"
 
 echo "analyzing pair -> $OUT/analysis"
 ( cd "$SCRIPT_DIR/analysis" && uv run analyze_pair.py \

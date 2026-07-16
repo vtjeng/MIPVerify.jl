@@ -34,6 +34,10 @@ function format_counts(counts::Dict{String,Int})::String
     return join(("$(name)=$(count)" for (name, count) in entries), ";")
 end
 
+function format_numeric_array(values)::String
+    return join((string(Float64(value)) for value in vec(values)), ";")
+end
+
 function sum_nonmissing_times(values)::Float64
     return safe_sum(Float64[value for value in skipmissing(values)])
 end
@@ -195,6 +199,8 @@ function main()
     tightening_algorithm = parse_tightening_algorithm(get(args, "tightening", "mip"))
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
+    mode = parse_benchmark_mode(get(args, "mode", "verdict-only"))
+    verdict_only = mode == "verdict-only"
 
     (optimizer, main_solve_options, tightening_options) =
         get_optimizer_main_and_tightening_options(main_time_limit)
@@ -259,7 +265,18 @@ function main()
             tightening_options = tightening_options,
             solve_if_predicted_in_targeted = false,
             collect_stats = true,
+            verdict_only = verdict_only,
         )
+
+        result_verdict_only = Bool(d[:VerdictOnly])
+        result_verdict_only == verdict_only ||
+            error("Requested verdict_only=$verdict_only, result recorded $(d[:VerdictOnly])")
+        witness_available = Bool(d[:WitnessAvailable])
+        witness_verified = Bool(d[:WitnessVerified])
+        witness_margin = witness_available ? Float64(d[:WitnessMargin]) : missing
+        witness_output = witness_available ? format_numeric_array(d[:WitnessOutput]) : missing
+        perturbed_input_value =
+            witness_available ? format_numeric_array(d[:PerturbedInputValue]) : missing
 
         if haskey(d, :Model)
             m = d[:Model]
@@ -274,7 +291,6 @@ function main()
             catch
                 missing
             end
-            semantic_outcome = classify_semantic_outcome(status, objective_value)
             stats = MIPVerify.get_verification_stats(m)
             stats === nothing && error("collect_stats=true returned no verification statistics")
             validate_instrumentation(stats)
@@ -360,9 +376,9 @@ function main()
             # adversarial example even though model construction and solving are skipped.
             objective_value = 0.0
             objective_bound = 0.0
-            semantic_outcome = classify_semantic_outcome(status, objective_value)
             instrumentation_fields = missing_instrumentation_fields()
         end
+        semantic_outcome = classify_semantic_outcome(status, witness_available, witness_verified)
         push!(
             sample_rows,
             merge(
@@ -370,6 +386,13 @@ function main()
                     sample_index = sample_index,
                     solve_status = status,
                     semantic_outcome = semantic_outcome,
+                    mode = mode,
+                    verdict_only = result_verdict_only,
+                    witness_available = witness_available,
+                    witness_verified = witness_verified,
+                    witness_margin = witness_margin,
+                    witness_output = witness_output,
+                    perturbed_input_value = perturbed_input_value,
                     total_time_seconds = Float64(d[:TotalTime]),
                     solve_time_seconds = haskey(d, :Model) ? Float64(d[:SolveTime]) : 0.0,
                     objective_value = objective_value,
@@ -395,6 +418,8 @@ function main()
     statuses = per_sample.solve_status
     semantic_outcomes = per_sample.semantic_outcome
     objective_values = per_sample.objective_value
+    witness_available_values = per_sample.witness_available
+    witness_verified_values = per_sample.witness_verified
 
     status_counts = Dict{String,Int}()
     for status in statuses
@@ -427,6 +452,8 @@ function main()
         num_infeasible_status = [get(status_counts, "INFEASIBLE", 0)],
         num_infeasible_or_unbounded_status = [get(status_counts, "INFEASIBLE_OR_UNBOUNDED", 0)],
         num_time_limit_status = [get(status_counts, "TIME_LIMIT", 0)],
+        num_solution_limit_status = [get(status_counts, "SOLUTION_LIMIT", 0)],
+        num_objective_limit_status = [get(status_counts, "OBJECTIVE_LIMIT", 0)],
         num_skipped_predicted_in_targeted = [
             get(status_counts, "SKIPPED_PREDICTED_IN_TARGETED", 0),
         ],
@@ -438,7 +465,11 @@ function main()
         ],
         num_time_limit_unresolved = [get(semantic_counts, "time_limit_unresolved", 0)],
         num_no_primal_solution_other = [get(semantic_counts, "no_primal_solution_other", 0)],
+        num_witness_verification_failed = [get(semantic_counts, "witness_verification_failed", 0)],
+        num_witness_available = [count(identity, witness_available_values)],
+        num_witness_verified = [count(identity, witness_verified_values)],
         num_missing_objective_value = [sum(ismissing.(objective_values))],
+        mode = [mode],
         tightening_algorithm = [string(tightening_algorithm)],
         norm_order = [string(norm_order)],
         main_time_limit_seconds = [main_time_limit],
@@ -465,6 +496,7 @@ function main()
     )
     println("  time_limit_unresolved=$(metrics[1, :num_time_limit_unresolved])")
     println("  no_primal_solution_other=$(metrics[1, :num_no_primal_solution_other])")
+    println("  witness_verification_failed=$(metrics[1, :num_witness_verification_failed])")
     println("  skipped_already_misclassified=$(metrics[1, :num_skipped_predicted_in_targeted])")
     println("Wrote metrics to $metrics_path")
 end

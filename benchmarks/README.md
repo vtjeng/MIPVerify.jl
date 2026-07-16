@@ -16,6 +16,7 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
   --samples 1:100 \
   --tightening interval_arithmetic \
   --main-time-limit 120 \
+  --mode verdict-only \
   --norm-order Inf \
   --log-level warn
 ```
@@ -28,21 +29,27 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 | `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated) |
 | `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, or `mip`          |
 | `--main-time-limit` | `120`          | Time limit in seconds for the main solve                             |
+| `--mode`            | `verdict-only` | Solve mode: `verdict-only` or `exact-distortion`                     |
 | `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                  |
 | `--log-level`       | `warn`         | MIPVerify log level                                                  |
 
+The benchmark defaults to `verdict-only` because its primary series tracks fixed-budget robustness
+verdicts. MIPVerify's public API still defaults to exact minimum distortion. Pass
+`--mode exact-distortion` to run that variant.
+
 ### Output
 
-- `benchmark_per_sample.csv` — per-sample solve outcome, timing, formulation structure, aggregate
-  bound-tightening work, ReLU stability, and main-solver work
+- `benchmark_per_sample.csv` — per-sample solve outcome, mode, verified-witness diagnostics, timing,
+  formulation structure, aggregate bound-tightening work, ReLU stability, and main-solver work;
+  `witness_output` and `perturbed_input_value` are semicolon-separated numeric arrays
 - `benchmark_relu_layers.csv` — one row per sample and ReLU layer, with layer shape, applied
   tightening algorithm (`interval_arithmetic` when the layer has no nonconstant inputs, since
   constants need no bound solves), bounds and constraint-imposition timing (`bounds_time_seconds`,
   `constraint_time_seconds`), and stable or unstable counts
 - `benchmark_tightening.csv` — one row per sample, ReLU layer, applied tightening algorithm, and
   bound direction; layer index `0` identifies bounds computed outside a ReLU layer
-- `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status counts, and run
-  metadata, including Julia version and dependency snapshot hash
+- `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status and witness
+  counts, and run metadata, including mode, Julia version, and dependency snapshot hash
 - `dependency_versions.csv` — normalized resolved-package snapshot with package versions, tree
   hashes, source kind, and direct-dependency markers
 - `dependency_manifest.toml` — copy of the active benchmark `Manifest.toml` for manual debugging
@@ -51,6 +58,10 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 Inputs that the network already misclassifies have status `SKIPPED_PREDICTED_IN_TARGETED`. They do
 not require a model or solve, but they count as zero-distance adversarial examples in the semantic
 totals and have objective value and bound `0`.
+
+Only `INFEASIBLE` counts as a robustness certificate. `INFEASIBLE_OR_UNBOUNDED` does not identify
+which condition the solver established, so the benchmark leaves it unresolved. It does not promote
+the benchmark formulation's expected boundedness into a solver proof.
 
 ### Per-sample instrumentation
 
@@ -82,20 +93,24 @@ In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted 
 `name=count` pairs. Dedicated columns cover optimal and time-limit statuses and each progressive
 skip reason.
 
-`benchmark_schema_version` identifies the timing and output schema. Schema 3 records LP and MIP
-stages separately when progressive MIP tightening is requested. `semantic_outcome_schema_version`
-identifies the outcome-counting rules. Semantic schema 1, used by historical runs through
-2026-07-10, omitted already-misclassified skipped inputs from the adversarial count. Semantic schema
-2 includes them. Comparison tooling rejects runs with different schema versions.
+`benchmark_schema_version` identifies the timing and output schema. Schema 4 adds solve mode,
+verified-witness fields, and solution- and objective-limit status counts. Schema 3 records LP and
+MIP stages separately when progressive MIP tightening is requested.
+`semantic_outcome_schema_version` identifies the outcome-counting rules. Semantic schema 3 requires
+a verified witness before counting an adversarial example and records failed verification
+separately. Semantic schema 2 added already-misclassified skipped inputs to the adversarial count.
+Comparison tooling rejects runs with different schema versions or solve modes. Metrics without a
+mode predate verdict-only benchmarking and are treated as `exact-distortion`.
 
 ## Nightly Benchmark Workflow
 
-A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the WK17a benchmark
-nightly on 500 samples with `lp` tightening.
+A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the verdict-only WK17a
+benchmark nightly on 500 samples with `lp` tightening.
 
 ### Schedule
 
-Runs daily at 6 AM UTC, or manually via `gh workflow run nightly-benchmark.yml`.
+Runs daily at 6 AM UTC. Manual runs default to verdict-only; select the exact variant with
+`gh workflow run nightly-benchmark.yml -f mode=exact-distortion`.
 
 ### Results storage
 
@@ -116,6 +131,7 @@ Results are committed to the
 | `commit_sha`                                  | Git commit SHA benchmarked                                                                                                 |
 | `benchmark_schema_version`                    | Version of the benchmark timing and output schema                                                                          |
 | `semantic_outcome_schema_version`             | Version of the semantic outcome-counting rules                                                                             |
+| `mode`                                        | `verdict-only` or `exact-distortion`; missing historical values mean exact distortion                                      |
 | `julia_version`                               | Julia version used for the benchmark                                                                                       |
 | `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot                                                                         |
 | `dependency_change_summary`                   | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
@@ -130,6 +146,7 @@ Results are committed to the
 | `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                                                                                    |
 | `num_time_limit_unresolved`                   | Samples that hit the time limit                                                                                            |
 | `num_no_primal_solution_other`                | Samples with other non-primal outcomes                                                                                     |
+| `num_witness_verification_failed`             | Samples with a solver witness that failed the numerical forward-pass check                                                 |
 
 ## `append_to_tracking.jl`
 
@@ -192,8 +209,12 @@ untouched.
 ```sh
 benchmarks/run_pair.sh \
   --base <base-commit> --candidate <candidate-commit> \
-  --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120
+  --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120 \
+  --base-mode exact-distortion --candidate-mode verdict-only
 ```
+
+The side-specific mode flags are optional, so older commits whose benchmark driver has no `--mode`
+argument still work when their mode flag is omitted.
 
 Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-<slug>/analysis`
 (plots + tables).

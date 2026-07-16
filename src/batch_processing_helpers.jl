@@ -25,7 +25,16 @@ function extract_results_for_save(d::Dict)::Dict
     status = d[:SolveStatus]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
-    if !is_infeasible(status) && JuMP.has_values(m)
+    r[:VerdictOnly] = d[:VerdictOnly]
+    r[:WitnessAvailable] = d[:WitnessAvailable]
+    r[:WitnessVerified] = d[:WitnessVerified]
+    if d[:WitnessAvailable]
+        r[:WitnessMargin] = d[:WitnessMargin]
+        r[:WitnessOutput] = d[:WitnessOutput]
+        r[:PerturbedInputValue] = d[:PerturbedInputValue]
+        r[:WitnessDistance] = d[:WitnessDistance]
+    end
+    if !is_infeasible(status) && d[:WitnessAvailable]
         r[:ObjectiveBound] = try
             JuMP.objective_bound(m)
         catch
@@ -37,7 +46,6 @@ function extract_results_for_save(d::Dict)::Dict
             NaN
         end
         r[:PerturbationValue] = d[:Perturbation] .|> JuMP.value
-        r[:PerturbedInputValue] = d[:PerturbedInput] .|> JuMP.value
     elseif !is_infeasible(status)
         r[:ObjectiveBound] = try
             JuMP.objective_bound(m)
@@ -57,8 +65,30 @@ function extract_results_for_save(d::Dict)::Dict
     return r
 end
 
+const SUMMARY_HEADER = [
+    "SampleNumber",
+    "ResultRelativePath",
+    "PredictedIndex",
+    "TargetIndexes",
+    "SolveTime",
+    "SolveStatus",
+    "IsInfeasible",
+    "ObjectiveValue",
+    "ObjectiveBound",
+    "TighteningApproach",
+    "TotalTime",
+    "VerdictOnly",
+    "WitnessAvailable",
+    "WitnessVerified",
+    "WitnessMargin",
+]
+
+function summary_witness_margin(d::Dict)
+    return d[:WitnessAvailable] ? d[:WitnessMargin] : NaN
+end
+
 function is_infeasible(s::MathOptInterface.TerminationStatusCode)::Bool
-    s == MathOptInterface.INFEASIBLE || s == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+    return s == MathOptInterface.INFEASIBLE
 end
 
 function get_uuid()::String
@@ -82,6 +112,10 @@ function generate_csv_summary_line(
         r[:ObjectiveBound],
         r[:TighteningApproach],
         r[:TotalTime],
+        r[:VerdictOnly],
+        r[:WitnessAvailable],
+        r[:WitnessVerified],
+        summary_witness_margin(r),
     ] .|> string
 end
 
@@ -99,29 +133,43 @@ function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
         0,
         :NA,
         d[:TotalTime],
+        d[:VerdictOnly],
+        d[:WitnessAvailable],
+        d[:WitnessVerified],
+        summary_witness_margin(d),
     ] .|> string
 end
 
 function create_summary_file_if_not_present(summary_file_path::String)
     if !isfile(summary_file_path)
-        summary_header_line = [
-            "SampleNumber",
-            "ResultRelativePath",
-            "PredictedIndex",
-            "TargetIndexes",
-            "SolveTime",
-            "SolveStatus",
-            "IsInfeasible",
-            "ObjectiveValue",
-            "ObjectiveBound",
-            "TighteningApproach",
-            "TotalTime",
-        ]
-
         open(summary_file_path, "w") do file
-            writedlm(file, [summary_header_line], ',')
+            writedlm(file, [SUMMARY_HEADER], ',')
         end
     end
+end
+
+function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
+    dt = DataFrame(CSV.File(summary_file_path))
+    schema_changed = false
+    if :IsInfeasible in propertynames(dt)
+        proven_infeasible = string.(dt[!, :SolveStatus]) .== "INFEASIBLE"
+        if dt[!, :IsInfeasible] != proven_infeasible
+            dt[!, :IsInfeasible] = proven_infeasible
+            schema_changed = true
+        end
+    end
+    if :VerdictOnly ∉ propertynames(dt)
+        dt[!, :VerdictOnly] = falses(nrow(dt))
+        schema_changed = true
+    end
+    for column in (:WitnessAvailable, :WitnessVerified, :WitnessMargin)
+        if column ∉ propertynames(dt)
+            dt[!, column] = fill(missing, nrow(dt))
+            schema_changed = true
+        end
+    end
+    schema_changed && CSV.write(summary_file_path, dt)
+    return dt
 end
 
 function verify_target_indices(
@@ -155,7 +203,7 @@ function initialize_batch_solve(
     summary_file_path = joinpath(main_path, summary_file_name)
     summary_file_path |> create_summary_file_if_not_present
 
-    dt = DataFrame(CSV.File(summary_file_path))
+    dt = read_summary_file(summary_file_path)
     return (results_dir, main_path, summary_file_path, dt)
 end
 
@@ -165,9 +213,8 @@ function save_to_disk(
     results_dir::String,
     summary_file_path::String,
     d::Dict,
-    solve_if_predicted_in_targeted::Bool,
 )
-    if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
+    if haskey(d, :Model)
         r = extract_results_for_save(d)
         results_file_uuid = get_uuid()
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
@@ -185,6 +232,53 @@ function save_to_disk(
     end
 end
 
+function is_proven_infeasible_status(status)::Bool
+    return string(status) == "INFEASIBLE"
+end
+
+function has_legacy_objective_value(row::DataFrames.DataFrameRow)::Bool
+    objective_value = row[:ObjectiveValue]
+    return !ismissing(objective_value) && !(objective_value |> isnan)
+end
+
+function has_verified_witness(row::DataFrames.DataFrameRow)::Bool
+    if :WitnessVerified in propertynames(row) && !ismissing(row[:WitnessVerified])
+        witness_available =
+            :WitnessAvailable in propertynames(row) &&
+            !ismissing(row[:WitnessAvailable]) &&
+            row[:WitnessAvailable]
+        return witness_available && row[:WitnessVerified]
+    end
+    return has_legacy_objective_value(row)
+end
+
+function should_resolve_ambiguous(row::DataFrames.DataFrameRow)::Bool
+    return !is_proven_infeasible_status(row[:SolveStatus]) && !has_verified_witness(row)
+end
+
+function is_verdict_only(row::DataFrames.DataFrameRow)::Bool
+    return :VerdictOnly in propertynames(row) && !ismissing(row[:VerdictOnly]) && row[:VerdictOnly]
+end
+
+function should_refine_insecure(row::DataFrames.DataFrameRow)::Bool
+    needs_exact_refinement = is_verdict_only(row) || string(row[:SolveStatus]) != "OPTIMAL"
+    return needs_exact_refinement && has_verified_witness(row)
+end
+
+function validate_batch_refinement_mode(
+    solve_rerun_option::MIPVerify.SolveRerunOption,
+    verdict_only::Bool,
+)::Nothing
+    if solve_rerun_option == MIPVerify.refine_insecure_cases && verdict_only
+        throw(
+            ArgumentError(
+                "refine_insecure_cases requires verdict_only=false because refinement computes an exact objective",
+            ),
+        )
+    end
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -193,17 +287,18 @@ looking up information on the most recent completed solve recorded in `summary_d
 matching `sample_number`.
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
-and `:ObjectiveValue`.
+`:ObjectiveValue`, `:WitnessAvailable`, and `:WitnessVerified`. Summaries created before witness
+verification use the presence of an objective value as a compatibility fallback.
 
 Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
 + `always`: `true` always.
 + `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the
-    most recent completed solve a) did not find a counter-example BUT b) the optimization
-    was not demosntrated to be infeasible.
+    most recent completed solve has neither a verified counterexample nor a proof of infeasibility.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
-    recent complete solve a) did find a counter-example BUT b) we did not reach a
-    provably optimal solution.
+    recent complete solve a) did find a verified counterexample but b) did not reach a
+    provably optimal exact objective. A verdict-only result therefore still needs refinement even
+    when its feasibility objective terminated with `OPTIMAL`.
 """
 function run_on_sample_for_untargeted_attack(
     sample_number::Integer,
@@ -221,13 +316,9 @@ function run_on_sample_for_untargeted_attack(
     elseif solve_rerun_option == MIPVerify.always
         return true
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "TIME_LIMIT") && (last_objective_value |> isnan)
+        return should_resolve_ambiguous(previous_solves[end, :])
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return !(last_solve_status == "OPTIMAL") && !(last_objective_value |> isnan)
+        return should_refine_insecure(previous_solves[end, :])
     else
         throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
@@ -243,12 +334,12 @@ to the complement of the true label.
 It creates a named directory in `save_path`, with the name summarizing
   1) the name of the network in `nn`,
   2) the perturbation family `pp`,
-  3) the `norm_order`
+  3) the `norm_order`.
 
 Within this directory, a summary of all the results is stored in `summary.csv`, and
 results from individual runs are stored in the subfolder `run_results`.
 
-This functioned is designed so that it can be interrupted and restarted cleanly; it relies
+This function is designed so that it can be interrupted and restarted cleanly; it relies
 on the `summary.csv` file to determine what the results of previous runs are (so modifying
 this file manually can lead to unexpected behavior.)
 
@@ -262,13 +353,14 @@ main solve.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, tightening_algorithm, tightening_options,
++ `pp, norm_order, tightening_algorithm, tightening_options, verdict_only,
   solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`.
   See [`run_on_sample_for_untargeted_attack`](@ref) for more details.
+  `refine_insecure_cases` requires `verdict_only=false` because it computes an exact objective.
 """
 function batch_find_untargeted_attack(
     nn::NeuralNet,
@@ -284,8 +376,10 @@ function batch_find_untargeted_attack(
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
+    verdict_only::Bool = false,
 )::Nothing
 
+    validate_batch_refinement_mode(solve_rerun_option, verdict_only)
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
@@ -309,16 +403,10 @@ function batch_find_untargeted_attack(
                 tightening_options = tightening_options,
                 solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 adversarial_example_objective = adversarial_example_objective,
+                verdict_only = verdict_only,
             )
 
-            save_to_disk(
-                sample_number,
-                main_path,
-                results_dir,
-                summary_file_path,
-                d,
-                solve_if_predicted_in_targeted,
-            )
+            save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)
         end
     end
     return nothing
@@ -331,8 +419,9 @@ Determines whether to run a solve on a sample depending on the `solve_rerun_opti
 looking up information on the most recent completed solve recorded in `summary_dt`
 matching `sample_number`.
 
-`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:TargetIndexes`, `:SolveStatus`,
-and `:ObjectiveValue`.
+`summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:TargetIndexes`,
+`:SolveStatus`, `:ObjectiveValue`, `:WitnessAvailable`, and `:WitnessVerified`. Summaries created
+before witness verification use the presence of an objective value as a compatibility fallback.
 """
 function run_on_sample_for_targeted_attack(
     sample_number::Integer,
@@ -357,13 +446,9 @@ function run_on_sample_for_targeted_attack(
         last_solve_status = previous_solves[end, :SolveStatus]
         return (last_solve_status == "INFEASIBLE")
     elseif solve_rerun_option == MIPVerify.resolve_ambiguous_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return (last_solve_status == "TIME_LIMIT") && (last_objective_value |> isnan)
+        return should_resolve_ambiguous(previous_solves[end, :])
     elseif solve_rerun_option == MIPVerify.refine_insecure_cases
-        last_solve_status = previous_solves[end, :SolveStatus]
-        last_objective_value = previous_solves[end, :ObjectiveValue]
-        return !(last_solve_status == "OPTIMAL") && !(last_objective_value |> isnan)
+        return should_refine_insecure(previous_solves[end, :])
     else
         throw(DomainError("SolveRerunOption $(solve_rerun_option) unknown."))
     end
@@ -392,10 +477,12 @@ function batch_find_targeted_attack(
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    verdict_only::Bool = false,
 )::Nothing
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
+    validate_batch_refinement_mode(solve_rerun_option, verdict_only)
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
@@ -432,16 +519,10 @@ function batch_find_targeted_attack(
                     tightening_algorithm = tightening_algorithm,
                     tightening_options = tightening_options,
                     solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
+                    verdict_only = verdict_only,
                 )
 
-                save_to_disk(
-                    sample_number,
-                    main_path,
-                    results_dir,
-                    summary_file_path,
-                    d,
-                    solve_if_predicted_in_targeted,
-                )
+                save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)
             end
         end
     end

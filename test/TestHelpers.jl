@@ -80,17 +80,21 @@ function test_find_adversarial_example(
     if isnan(expected_objective_value)
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||
               d[:SolveStatus] == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+        @test !d[:WitnessAvailable]
+        @test !d[:WitnessVerified]
     else
         # Distinguishes solver wrong answers (OPTIMAL at a bad objective) from early
         # termination with a feasible incumbent; see issue #219.
         @test d[:SolveStatus] == MathOptInterface.OPTIMAL
+        @test d[:WitnessAvailable]
+        @test d[:WitnessVerified]
         actual_objective_value = JuMP.objective_value(d[:Model])
         if expected_objective_value == 0
             @test isapprox(actual_objective_value, expected_objective_value; atol = 1e-4)
         else
             @test isapprox(actual_objective_value, expected_objective_value; rtol = 5e-5)
 
-            perturbed_output = JuMP.value.(d[:PerturbedInput]) |> nn
+            perturbed_output = d[:WitnessOutput]
             perturbed_target_output =
                 maximum(perturbed_output[Bool[i ∈ d[:TargetIndexes] for i in 1:length(d[:Output])]])
             maximum_perturbed_other_output =

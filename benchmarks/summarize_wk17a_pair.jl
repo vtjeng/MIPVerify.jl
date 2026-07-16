@@ -12,6 +12,9 @@ using CSV
 using DataFrames
 using Statistics
 
+include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
+using .BenchmarkHelpers: benchmark_mode
+
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
     i = 1
@@ -51,6 +54,12 @@ function main()
     cand = CSV.read(joinpath(candidate_dir, "benchmark_per_sample.csv"), DataFrame)
     base_metrics = CSV.read(joinpath(baseline_dir, "benchmark_metrics.csv"), DataFrame)
     cand_metrics = CSV.read(joinpath(candidate_dir, "benchmark_metrics.csv"), DataFrame)
+    base_mode = benchmark_mode(base_metrics)
+    cand_mode = benchmark_mode(cand_metrics)
+    modes_match = base_mode == cand_mode
+
+    println("benchmark_mode,baseline,candidate")
+    println("mode,$base_mode,$cand_mode")
 
     println("metric,baseline,candidate,delta")
     for column in (:wall_clock_seconds, :sum_total_time_seconds, :sum_solve_time_seconds)
@@ -101,16 +110,23 @@ function main()
         )
     end
 
-    solved_both = filter(
-        r -> !ismissing(r.objective_value_baseline) && !ismissing(r.objective_value_candidate),
-        joined,
-    )
-    println("objective_value_comparable_samples,$(nrow(solved_both))")
-    if nrow(solved_both) > 0
-        diffs = abs.(solved_both.objective_value_baseline .- solved_both.objective_value_candidate)
-        println("objective_value_max_abs_diff,$(maximum(diffs))")
-        println("objective_value_mean_abs_diff,$(mean(diffs))")
-        println("objective_value_diff_count_gt_1e-6,$(count(>(1e-6), diffs))")
+    if modes_match
+        solved_both = filter(
+            r ->
+                !ismissing(r.objective_value_baseline) &&
+                    !ismissing(r.objective_value_candidate),
+            joined,
+        )
+        println("objective_value_comparable_samples,$(nrow(solved_both))")
+        if nrow(solved_both) > 0
+            diffs =
+                abs.(solved_both.objective_value_baseline .- solved_both.objective_value_candidate)
+            println("objective_value_max_abs_diff,$(maximum(diffs))")
+            println("objective_value_mean_abs_diff,$(mean(diffs))")
+            println("objective_value_diff_count_gt_1e-6,$(count(>(1e-6), diffs))")
+        end
+    else
+        println("objective_value_comparison_skipped,benchmark mode mismatch")
     end
 
     base_hash = string(base_metrics[1, :dependency_snapshot_sha256])

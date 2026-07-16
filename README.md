@@ -52,6 +52,32 @@ perturbation of that input causes a misclassification) corresponds to solving an
 problem. For piecewise-linear neural networks, the optimization problem can be expressed as a
 mixed-integer linear programming (MILP) problem.
 
+## Choose an exact distortion or a verdict
+
+`find_adversarial_example` computes the exact objective optimum by default. Use this mode when you
+need the minimum adversarial distortion or the worst target margin.
+
+For certification at a fixed perturbation budget, set `verdict_only=true`:
+
+```julia
+result = find_adversarial_example(
+    nn,
+    input,
+    target_selection,
+    optimizer,
+    main_solve_options;
+    verdict_only = true,
+)
+```
+
+Verdict-only mode solves a feasibility problem. It can stop as soon as it finds an adversarial
+example, while robust inputs still require an infeasibility proof. It does not compute a minimum
+distortion. It does not set solution- or objective-limit attributes, whose support varies by
+optimizer. In both modes, MIPVerify extracts each solver incumbent, runs the perturbed input through
+the numeric network, and sets `result[:WitnessVerified]` only when that output satisfies the
+requested target and margin. Treat results without either an infeasibility proof or a verified
+witness as unresolved.
+
 ## Features
 
 `MIPVerify.jl` translates your query on the robustness of a neural network for some input into an

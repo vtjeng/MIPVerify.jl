@@ -46,7 +46,7 @@ TestHelpers.@timed_testset "integration.jl" begin
         main_path = only(filter(isdir, readdir(dir; join = true)))
         summary = DataFrame(CSV.File(joinpath(main_path, "summary.csv")))
         result_files = readdir(joinpath(main_path, "run_results"))
-        return summary, result_files
+        return main_path, summary, result_files
     end
 
     row_for_sample(summary, sample) = only(findall(==(sample), summary.SampleNumber))
@@ -68,16 +68,26 @@ TestHelpers.@timed_testset "integration.jl" begin
                 save_path = dir,
             )
 
-            summary, result_files = read_batch_output(dir)
+            main_path, summary, result_files = read_batch_output(dir)
             @test summary.SampleNumber == [robust_sample, attackable_sample, misclassified_sample]
             robust_row = row_for_sample(summary, robust_sample)
             attackable_row = row_for_sample(summary, attackable_sample)
             misclassified_row = row_for_sample(summary, misclassified_sample)
-            # Solvers may distinguish proven infeasibility from infeasible-or-unbounded.
+            # Solvers may report infeasible-or-unbounded, which remains unresolved rather than a
+            # proof of infeasibility even though this fixture is mathematically bounded.
             @test summary.SolveStatus[robust_row] in ["INFEASIBLE", "INFEASIBLE_OR_UNBOUNDED"]
             @test summary.SolveStatus[[attackable_row, misclassified_row]] == ["OPTIMAL", "OPTIMAL"]
-            @test summary.IsInfeasible[[robust_row, attackable_row, misclassified_row]] ==
-                  [true, false, false]
+            @test summary.IsInfeasible[robust_row] ==
+                  (summary.SolveStatus[robust_row] == "INFEASIBLE")
+            @test summary.IsInfeasible[[attackable_row, misclassified_row]] == [false, false]
+            @test summary.VerdictOnly == [false, false, false]
+            @test summary.WitnessAvailable == [false, true, true]
+            @test summary.WitnessVerified == [false, true, true]
+            @test isnan(summary.WitnessMargin[robust_row])
+            @test all(
+                summary.WitnessMargin[[attackable_row, misclassified_row]] .>=
+                [-objective_tolerance, 0.0],
+            )
             # Saved metadata verifies that the batch API forwarded the requested algorithm.
             @test summary.TighteningApproach[[robust_row, attackable_row]] ==
                   [string(interval_arithmetic), string(interval_arithmetic)]
@@ -89,6 +99,78 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test !ismissing(summary.ResultRelativePath[attackable_row])
             @test ismissing(summary.ResultRelativePath[misclassified_row])
             @test length(result_files) == 2 # Only the two rows that ran a solve write MAT files.
+
+            robust_result =
+                MIPVerify.matread(joinpath(main_path, summary.ResultRelativePath[robust_row]))
+            @test haskey(robust_result, "WitnessAvailable")
+            @test haskey(robust_result, "WitnessVerified")
+            @test !haskey(robust_result, "WitnessOutput")
+
+            attackable_result =
+                MIPVerify.matread(joinpath(main_path, summary.ResultRelativePath[attackable_row]))
+            # Array-valued witnesses stay in the MAT artifact instead of expanding the CSV row.
+            @test all(
+                key -> haskey(attackable_result, key),
+                [
+                    "VerdictOnly",
+                    "WitnessAvailable",
+                    "WitnessVerified",
+                    "WitnessMargin",
+                    "WitnessDistance",
+                    "WitnessOutput",
+                    "PerturbedInputValue",
+                ],
+            )
+        end
+    end
+
+    @testset "batch_find_untargeted_attack exact refinement" begin
+        mktempdir() do dir
+            MIPVerify.batch_find_untargeted_attack(
+                nn,
+                dataset,
+                [attackable_sample],
+                TestHelpers.get_optimizer(),
+                TestHelpers.get_main_solve_options(),
+                solve_rerun_option = MIPVerify.never,
+                pp = pp,
+                norm_order = Inf,
+                tightening_algorithm = interval_arithmetic,
+                tightening_options = TestHelpers.get_tightening_options(),
+                verdict_only = true,
+                save_path = dir,
+            )
+
+            main_path, summary, result_files = read_batch_output(dir)
+            @test summary.VerdictOnly == [true]
+            @test summary.WitnessAvailable == [true]
+            @test summary.WitnessVerified == [true]
+            # The zero-margin target constraint permits a boundary tie, with solver-scale noise.
+            @test summary.WitnessMargin[1] >= -objective_tolerance
+            @test length(result_files) == 1
+
+            MIPVerify.batch_find_untargeted_attack(
+                nn,
+                dataset,
+                [attackable_sample],
+                TestHelpers.get_optimizer(),
+                TestHelpers.get_main_solve_options(),
+                solve_rerun_option = MIPVerify.refine_insecure_cases,
+                pp = pp,
+                norm_order = Inf,
+                tightening_algorithm = interval_arithmetic,
+                tightening_options = TestHelpers.get_tightening_options(),
+                verdict_only = false,
+                save_path = dir,
+            )
+
+            refined_main_path, refined_summary, refined_result_files = read_batch_output(dir)
+            @test refined_main_path == main_path
+            @test refined_summary.VerdictOnly == [true, false]
+            @test refined_summary.WitnessVerified == [true, true]
+            @test refined_summary.ObjectiveValue[2] ≈ class_boundary - attackable_input atol =
+                objective_tolerance
+            @test length(refined_result_files) == 2
         end
     end
 
@@ -112,13 +194,16 @@ TestHelpers.@timed_testset "integration.jl" begin
                 save_path = dir,
             )
 
-            summary, result_files = read_batch_output(dir)
+            _, summary, result_files = read_batch_output(dir)
             @test summary.SampleNumber == [attackable_sample, misclassified_sample]
             @test summary.TargetIndexes == ["[$target_class]", "[$target_class]"]
             attackable_row = row_for_sample(summary, attackable_sample)
             misclassified_row = row_for_sample(summary, misclassified_sample)
             # The attackable row solves; the already-target row takes the zero-objective skip.
             @test summary.SolveStatus == ["OPTIMAL", "OPTIMAL"]
+            @test summary.VerdictOnly == [false, false]
+            @test summary.WitnessAvailable == [true, true]
+            @test summary.WitnessVerified == [true, true]
             @test summary.TighteningApproach[attackable_row] == string(interval_arithmetic)
             @test summary.ObjectiveValue[attackable_row] ≈ class_boundary - attackable_input atol =
                 objective_tolerance

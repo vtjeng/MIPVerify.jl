@@ -21,9 +21,10 @@ Each run dir must contain a `benchmark_per_sample.csv` (as written by
 
 ## Outputs (into `<out-dir>`)
 
-- `improvement_stats.md` / `.csv` — per-sample ratio distribution (min…max sweep,
-  improved/regressed), aggregate saving + concentration, per-side solve-status counts, and verdict
-  flips grouped by transition.
+- `improvement_stats.md` / `.csv` — each run's benchmark mode, per-sample ratio distribution
+  (min…max sweep, improved/regressed), aggregate saving + concentration, per-side solve-status
+  counts, and verdict flips grouped by transition. Historical output without a mode is
+  `exact-distortion`; cross-mode reports carry a prominent warning.
 - `ratio_ecdf.png` — paired relative view: ECDF of per-sample `candidate/baseline` ratios, all
   series overlaid (dimensionless, so they share one axis).
 - `absolute_runtime_ecdf.png`, `absolute_calls_ecdf.png` — per-side distributions (baseline vs

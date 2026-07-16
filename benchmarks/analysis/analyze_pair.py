@@ -31,6 +31,9 @@ import numpy as np
 import pandas as pd
 
 SKIPPED_STATUS = "SKIPPED_PREDICTED_IN_TARGETED"
+EXACT_DISTORTION_MODE = "exact-distortion"
+VERDICT_ONLY_MODE = "verdict-only"
+BENCHMARK_MODES = {EXACT_DISTORTION_MODE, VERDICT_ONLY_MODE}
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
 
@@ -111,6 +114,26 @@ def load_per_sample(run_dir: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def benchmark_mode(frame: pd.DataFrame, side: str) -> str:
+    """Return one run's solve mode, treating pre-mode benchmark output as exact distortion."""
+    if "mode" not in frame.columns or frame.empty:
+        return EXACT_DISTORTION_MODE
+
+    modes = set()
+    for raw in frame["mode"]:
+        mode = (
+            EXACT_DISTORTION_MODE
+            if pd.isna(raw) or not str(raw).strip()
+            else str(raw).strip().lower()
+        )
+        if mode not in BENCHMARK_MODES:
+            raise ValueError(f"{side} per-sample CSV has unsupported benchmark mode {raw!r}")
+        modes.add(mode)
+    if len(modes) != 1:
+        raise ValueError(f"{side} per-sample CSV has inconsistent benchmark modes: {sorted(modes)}")
+    return modes.pop()
+
+
 def joined_frame(baseline: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
     """Inner-join on sample_index, dropping inputs skipped on either side."""
     for frame, side in ((baseline, "baseline"), (candidate, "candidate")):
@@ -181,8 +204,30 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
     }
 
 
-def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) -> str:
+def stats_markdown(
+    rows: list[dict],
+    baseline_label: str,
+    candidate_label: str,
+    baseline_mode: str,
+    candidate_mode: str,
+) -> str:
     out = [
+        "# Paired benchmark report",
+        "",
+        "| run | benchmark mode |",
+        "|---|---|",
+        f"| {baseline_label} | `{baseline_mode}` |",
+        f"| {candidate_label} | `{candidate_mode}` |",
+        "",
+    ]
+    if baseline_mode != candidate_mode:
+        out += [
+            "> **Cross-mode comparison.** These runs use different solve goals. Interpret the "
+            "timings as the performance tradeoff between exact distortion and a verdict-only "
+            "solve.",
+            "",
+        ]
+    out += [
         f"Paired per-sample analysis: **{candidate_label}** vs **{baseline_label}**",
         "",
         "### Per-sample ratio distribution",
@@ -314,7 +359,11 @@ def plot_ratio_ecdf(frames, out_path, baseline_label, candidate_label):
     ax.set_ylabel("cumulative fraction of samples")
     ax.set_ylim(0, 1)
     ax.legend(frameon=False, loc="best")
-    fig.suptitle("Relative cost — paired ECDF (all series)", fontsize=13.5, fontweight="bold")
+    fig.suptitle(
+        f"Relative cost — paired ECDF (all series)\n{candidate_label} vs {baseline_label}",
+        fontsize=13.5,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path)
     plt.close(fig)
@@ -355,7 +404,8 @@ def plot_absolute_ecdf(frames, out_path, baseline_label, candidate_label, unit="
         ax.set_ylim(0, 1)
         ax.legend(frameon=False, loc="best", fontsize=9)
     fig.suptitle(
-        f"{meta['metric']} — absolute distribution per side (ECDF)",
+        f"{meta['metric']} — absolute distribution per side (ECDF)\n"
+        f"{candidate_label} vs {baseline_label}",
         fontsize=13.5,
         fontweight="bold",
         y=0.98,
@@ -420,7 +470,10 @@ def plot_magnitude_scatter(frames, out_path, baseline_label, candidate_label, un
             color="#555555",
         )
     fig.suptitle(
-        f"{meta['metric']} — per-sample paired (scatter)", fontsize=13.5, fontweight="bold", y=0.98
+        f"{meta['metric']} — per-sample paired (scatter)\n{candidate_label} vs {baseline_label}",
+        fontsize=13.5,
+        fontweight="bold",
+        y=0.98,
     )
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     fig.savefig(out_path)
@@ -485,6 +538,10 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
+    baseline_mode = benchmark_mode(baseline_df, "baseline")
+    candidate_mode = benchmark_mode(candidate_df, "candidate")
+    baseline_label = f"{args.baseline_label} [{baseline_mode}]"
+    candidate_label = f"{args.candidate_label} [{candidate_mode}]"
     merged = joined_frame(baseline_df, candidate_df)
 
     frames, rows, skipped = {}, [], []
@@ -494,14 +551,18 @@ def main() -> None:
             skipped.append(series.label)
             continue
         frames[series.key] = frame
-        rows.append(series_stats(series, frame))
+        row = dict(
+            baseline_mode=baseline_mode,
+            candidate_mode=candidate_mode,
+            comparison_mode="same-mode" if baseline_mode == candidate_mode else "cross-mode",
+            **series_stats(series, frame),
+        )
+        rows.append(row)
     if not frames:
         raise SystemExit("no analysable series found in the given run directories")
 
-    md = stats_markdown(rows, args.baseline_label, args.candidate_label)
-    status_md = status_markdown(
-        baseline_df, candidate_df, args.baseline_label, args.candidate_label
-    )
+    md = stats_markdown(rows, baseline_label, candidate_label, baseline_mode, candidate_mode)
+    status_md = status_markdown(baseline_df, candidate_df, baseline_label, candidate_label)
     full_md = md + "\n" + status_md
     (args.out / "improvement_stats.md").write_text(full_md)
     pd.DataFrame(rows).to_csv(args.out / "improvement_stats.csv", index=False)
@@ -520,7 +581,7 @@ def main() -> None:
     written = []
     for name, fn in outputs:
         path = args.out / name
-        if fn(frames, path, args.baseline_label, args.candidate_label):
+        if fn(frames, path, baseline_label, candidate_label):
             written.append(path)
 
     print(f"joined samples (solved both sides): {len(merged)}")

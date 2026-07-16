@@ -28,6 +28,8 @@ export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 @enum TighteningAlgorithm interval_arithmetic = 1 lp = 2 mip = 3
 @enum AdversarialExampleObjective closest = 1 worst = 2
 const DEFAULT_TIGHTENING_ALGORITHM = mip
+const WITNESS_VERIFICATION_ATOL = 1e-8
+const WITNESS_VERIFICATION_RTOL = 1e-8
 
 include("instrumentation.jl")
 
@@ -41,6 +43,70 @@ include("logging.jl")
 
 function get_max_index(x::Array{<:Real,1})::Integer
     return findmax(x)[2]
+end
+
+"""
+    get_target_margin(output, target_indexes)
+
+Return the largest target logit minus the largest non-target logit. If every
+index is targeted, return `Inf` because the target condition is vacuous.
+"""
+function get_target_margin(
+    output::AbstractVector{<:Real},
+    target_indexes::AbstractVector{<:Integer},
+)::Real
+    isempty(target_indexes) && throw(ArgumentError("target_indexes must not be empty"))
+    all(i -> i in eachindex(output), target_indexes) ||
+        throw(ArgumentError("target_indexes contains an index outside output"))
+
+    is_target = [i in target_indexes for i in eachindex(output)]
+    maximum_target = maximum(output[is_target])
+    all(is_target) && return Inf
+    return maximum_target - maximum(output[.!is_target])
+end
+
+function witness_satisfies_target(
+    output::AbstractVector{<:Real},
+    target_indexes::AbstractVector{<:Integer},
+    margin::Real,
+)::Tuple{Real,Bool}
+    witness_margin = get_target_margin(output, target_indexes)
+    finite_output = all(isfinite, output)
+    verified =
+        finite_output && (
+            witness_margin >= margin || isapprox(
+                witness_margin,
+                margin;
+                atol = WITNESS_VERIFICATION_ATOL,
+                rtol = WITNESS_VERIFICATION_RTOL,
+            )
+        )
+    return witness_margin, verified
+end
+
+function record_no_witness!(d::Dict)::Nothing
+    d[:WitnessAvailable] = false
+    d[:WitnessVerified] = false
+    d[:WitnessMargin] = missing
+    return nothing
+end
+
+function record_witness!(
+    d::Dict,
+    nn::NeuralNet,
+    perturbed_input::Array{<:Real},
+    margin::Real;
+    primal_feasible::Bool = true,
+)::Nothing
+    witness_output = perturbed_input |> nn
+    witness_margin, satisfies_target =
+        witness_satisfies_target(witness_output, d[:TargetIndexes], margin)
+    d[:WitnessAvailable] = true
+    d[:WitnessVerified] = primal_feasible && all(isfinite, perturbed_input) && satisfies_target
+    d[:PerturbedInputValue] = perturbed_input
+    d[:WitnessOutput] = witness_output
+    d[:WitnessMargin] = witness_margin
+    return nothing
 end
 
 function get_default_tightening_options(optimizer)::Dict
@@ -69,14 +135,20 @@ IMPORTANT:
 
 `optimizer` is used to build and solve the MIP problem.
 
-The output dictionary has keys `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus,
-:Perturbation, :PerturbedInput, :Output`. See the
+The output dictionary records whether a numeric incumbent was available in `:WitnessAvailable` and
+whether an independent network forward pass satisfied the target condition in `:WitnessVerified`.
+Verified witnesses also have numeric `:PerturbedInputValue`, `:WitnessOutput`, `:WitnessMargin`, and
+`:WitnessDistance` entries. The comparison allows an absolute and relative tolerance of `1e-8` at
+the requested margin. Solver-backed results also have keys `:Model, :PerturbationFamily,
+:TargetIndexes, :SolveStatus, :PrimalStatus, :Perturbation, :PerturbedInput, :Output`. See the
 [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
 on what individual dictionary entries correspond to.
 
-*Formal Definition*: If there are a total of `n` categories, the (perturbed) output vector
-`y=d[:Output]=d[:PerturbedInput] |> nn` has length `n`. If `:SolveStatus` is feasible, we guarantee
-that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ target_selection`.
+*Formal Definition*: If there are a total of `n` categories, the numeric output vector
+`y=d[:WitnessOutput]=d[:PerturbedInputValue] |> nn` has length `n`. If `:WitnessVerified` is true,
+then `y[j] - y[i] ≥ margin` within the documented comparison tolerance for some
+`j ∈ target_selection` and for all `i ∉ target_selection`. A solver termination status alone does
+not establish this claim.
 
 # Keyword Arguments:
 - `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to be its
@@ -107,6 +179,9 @@ that `y[j] - y[i] ≥ 0` for some `j ∈ target_selection` and for all `i ∉ ta
     MIP problem since we already have an "adversarial example" --- namely, the input itself. We
     continue build the model and solve the (trivial) MIP problem if and only if
     `solve_if_predicted_in_targeted` is `true`.
+- `verdict_only`: Defaults to `false`, which computes the exact objective optimum. If `true`, stops
+    once the solver finds a feasible adversarial example. In either mode, a returned incumbent is
+    independently checked with a numeric network forward pass before `:WitnessVerified` is true.
 - `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
     (by at least `margin`) than any non-target category. 
 - `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
@@ -127,12 +202,14 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    verdict_only::Bool = false,
     margin::Real = 0.0,
     collect_stats::Bool = false,
 )::Dict
 
     total_time = @elapsed begin
-        d = Dict()
+        d = Dict{Symbol,Any}(:VerdictOnly => verdict_only)
+        record_no_witness!(d)
 
         # Calculate predicted index
         predicted_output = input |> nn
@@ -152,8 +229,19 @@ function find_adversarial_example(
             "Attempting to find adversarial example. Neural net predicted label is $(predicted_index), target labels are $(d[:TargetIndexes])",
         )
 
-        # Only call optimizer if predicted index is not found among target indexes.
-        if !(d[:PredictedIndex] in d[:TargetIndexes]) || solve_if_predicted_in_targeted
+        _, original_input_is_witness =
+            witness_satisfies_target(predicted_output, d[:TargetIndexes], margin)
+
+        # Skip the optimizer only when the unperturbed input satisfies the complete target
+        # condition, including a requested positive margin.
+        skip_solve =
+            d[:PredictedIndex] in d[:TargetIndexes] &&
+            !solve_if_predicted_in_targeted &&
+            original_input_is_witness
+        if skip_solve
+            record_witness!(d, nn, copy(input), margin)
+            d[:WitnessDistance] = zero(float(norm_order))
+        else
             formulation_start = time_ns()
             merge!(
                 d,
@@ -169,7 +257,12 @@ function find_adversarial_example(
             )
             m = d[:Model]
 
-            if adversarial_example_objective == closest
+            if verdict_only
+                # A feasibility objective is solver-independent. Once a feasible point is found,
+                # there is no remaining optimality gap to close.
+                set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
+                JuMP.set_objective_sense(m, MathOptInterface.FEASIBILITY_SENSE)
+            elseif adversarial_example_objective == closest
                 set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
 
                 # Set perturbation objective
@@ -212,10 +305,28 @@ function find_adversarial_example(
             end
             main_solve_start = time_ns()
             optimize!(m)
-            d[:SolveStatus] = JuMP.termination_status(m)
-            d[:SolveTime] = JuMP.solve_time(m)
             if collect_stats
                 d[:MainSolveWallTime] = elapsed_seconds(main_solve_start)
+            end
+            d[:SolveStatus] = JuMP.termination_status(m)
+            d[:PrimalStatus] = JuMP.primal_status(m)
+            d[:SolveTime] = JuMP.solve_time(m)
+            if d[:PrimalStatus] == MathOptInterface.FEASIBLE_POINT
+                perturbed_input = JuMP.value.(d[:PerturbedInput])
+                record_witness!(d, nn, perturbed_input, margin; primal_feasible = true)
+                d[:WitnessDistance] = get_norm(norm_order, perturbed_input - input)
+                if !d[:WitnessVerified]
+                    Memento.warn(
+                        MIPVerify.LOGGER,
+                        "Solver returned a primal point, but the numeric witness did not verify. " *
+                        "primal_status=$(d[:PrimalStatus]), witness_margin=$(d[:WitnessMargin]), " *
+                        "required_margin=$margin",
+                    )
+                end
+            else
+                record_no_witness!(d)
+            end
+            if collect_stats
                 d[:MainNodeCount] = safe_solve_metric(JuMP.node_count, m, missing)
                 d[:MainSimplexIterations] =
                     safe_solve_metric(JuMP.simplex_iterations, m, missing)
