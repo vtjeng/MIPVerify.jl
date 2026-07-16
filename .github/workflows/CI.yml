@@ -182,6 +182,9 @@ jobs:
         run: ./scripts/format.sh
       - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
+          # The backticks below are Julia Cmd-literal syntax, not shell substitution
+          # accidentally left in single quotes.
+          # shellcheck disable=SC2016
           julia -e '
           out = Cmd(`git diff --name-only`) |> read |> String
           if out == ""
@@ -272,18 +275,9 @@ jobs:
           key: ${{ steps.benchmark-final-key.outputs.key }}
 
   notebook-tests:
-    name: "Notebook: ${{ matrix.notebook }}"
+    name: Notebook Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        notebook:
-          - "00_quickstart.ipynb"
-          - "01_importing_your_own_neural_net.ipynb"
-          # 02 excluded — too slow for PR CI (~3 hours without time limits)
-          - "03_interpreting_the_output_of_find_adversarial_example.ipynb"
-          - "04_managing_log_output.ipynb"
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v1
@@ -301,9 +295,10 @@ jobs:
             ${{ runner.os }}-
       - name: Instantiate examples environment
         run: julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
-      - name: Execute notebook
+      - name: Execute notebooks
         env:
-          NOTEBOOK: ${{ matrix.notebook }}
+          # 02 excluded — too slow for PR CI (~3 hours without time limits)
+          NOTEBOOKS: "00_quickstart.ipynb,01_importing_your_own_neural_net.ipynb,03_interpreting_the_output_of_find_adversarial_example.ipynb,04_managing_log_output.ipynb"
         run: julia --project=examples examples/test/runtests.jl
 
   format-check-prettier:
@@ -320,3 +315,15 @@ jobs:
           # break CI on unchanged files.
           prettier_version: "3.9.5"
           prettier_options: --check **/*.{md,yaml}
+
+  lint-workflows:
+    name: "Lint GitHub Actions Workflows"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Verify that actionlint finds no issues in .github/workflows."
+        # Pinned so new lint rules cannot break CI on unchanged files. The image
+        # bundles shellcheck and pyflakes, so `run:` blocks are checked too.
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
