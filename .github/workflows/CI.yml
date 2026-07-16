@@ -38,6 +38,16 @@ jobs:
           - windows-latest
         arch:
           - x64
+        include:
+          # Designate one leg to carry once-per-run work: validating the large
+          # CIFAR10 asset, and collecting and uploading coverage. Doing both on the
+          # same leg keeps the coverage report inclusive of the CIFAR10 code path.
+          # Keying on the permanent "1" (latest stable) selector means bumping the
+          # minimum supported Julia version cannot silently disable this; `primary`
+          # stays unset (falsy) on the other five legs.
+          - os: ubuntu-latest
+            version: "1"
+            primary: true
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
@@ -58,19 +68,13 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
-          # The latest Ubuntu/latest Julia leg runs the most complete suite, including
-          # the large CIFAR10 test, so collect coverage there and avoid instrumenting
-          # the other five matrix legs.
-          coverage: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
+          coverage: ${{ matrix.primary || false }}
         env:
-          # Validate the large CIFAR10 asset once without charging every matrix job for it.
-          # Key on the permanent "1" (latest stable) leg so bumping the minimum supported
-          # Julia version cannot silently disable this check.
-          MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && 'true' || 'false' }}
+          MIPVERIFY_RUN_LARGE_DATASET_TESTS: ${{ matrix.primary || false }}
       - uses: julia-actions/julia-processcoverage@v1
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.primary
       - uses: codecov/codecov-action@v3
-        if: matrix.os == 'ubuntu-latest' && matrix.version == '1'
+        if: matrix.primary
         with:
           file: lcov.info
 
