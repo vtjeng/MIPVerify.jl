@@ -92,7 +92,12 @@ SERIES: list[Series] = [
     Series("build_tighten", "Build + bound tightening", "s", _build_and_tighten),
     Series("main_solve", "Main solve time", "s", lambda d: _pair(d, "solve_time_seconds")),
     Series("total_time", "Total end-to-end time", "s", lambda d: _pair(d, "total_time_seconds")),
-    Series("bound_solver_calls", "Bound solver calls", "calls", lambda d: _pair(d, "bound_solver_call_count")),
+    Series(
+        "bound_solver_calls",
+        "Bound solver calls",
+        "calls",
+        lambda d: _pair(d, "bound_solver_call_count"),
+    ),
 ]
 
 # One fixed color per phase/series, reused across all three plots.
@@ -186,9 +191,17 @@ def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) 
         out.append(
             "| {label} | {n} | {mn:.2f} | {p10:.2f} | {p25:.2f} | {med:.2f} | {p75:.2f} | {p90:.2f} "
             "| {mx:.2f} | {imp:.0f}% | {reg:.0f}% |".format(
-                label=r["label"], n=r["n"], mn=r["min_ratio"], p10=r["p10"], p25=r["p25"],
-                med=r["median_ratio"], p75=r["p75"], p90=r["p90"], mx=r["max_ratio"],
-                imp=r["pct_improved"], reg=r["pct_regressed"],
+                label=r["label"],
+                n=r["n"],
+                mn=r["min_ratio"],
+                p10=r["p10"],
+                p25=r["p25"],
+                med=r["median_ratio"],
+                p75=r["p75"],
+                p90=r["p90"],
+                mx=r["max_ratio"],
+                imp=r["pct_improved"],
+                reg=r["pct_regressed"],
             )
         )
     out += [
@@ -211,8 +224,13 @@ def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) 
         u = r["unit"]
         out.append(
             "| {label} | {b:.0f} {u} | {c:.0f} {u} | {net:+.0f} {u} | {pooled:.2f} | {t10:.0f}% |".format(
-                label=r["label"], b=r["base_sum"], c=r["cand_sum"], net=r["net_saved"], u=u,
-                pooled=r["pooled_ratio"], t10=100 * r["top10_share"],
+                label=r["label"],
+                b=r["base_sum"],
+                c=r["cand_sum"],
+                net=r["net_saved"],
+                u=u,
+                pooled=r["pooled_ratio"],
+                t10=100 * r["top10_share"],
             )
         )
     return "\n".join(out) + "\n"
@@ -263,7 +281,9 @@ def _frames_for_unit(frames, unit):
 # words for the lower-is-better / higher-is-worse directions.
 _UNIT_META = {
     "s": dict(value_label="seconds", metric="Runtime", floor=1e-3, lower="faster", higher="slower"),
-    "calls": dict(value_label="calls", metric="Solver calls", floor=1.0, lower="fewer", higher="more"),
+    "calls": dict(
+        value_label="calls", metric="Solver calls", floor=1.0, lower="fewer", higher="more"
+    ),
 }
 
 
@@ -277,8 +297,14 @@ def plot_ratio_ecdf(frames, out_path, baseline_label, candidate_label):
         r = np.sort(frame["ratio"].to_numpy())
         all_ratios.append(r)
         y = np.arange(1, len(r) + 1) / len(r)
-        ax.step(np.concatenate([r, r[-1:]]), np.concatenate([[0], y]), where="post",
-                color=COLOR_BY_KEY[key], linewidth=2.0, label=label)
+        ax.step(
+            np.concatenate([r, r[-1:]]),
+            np.concatenate([[0], y]),
+            where="post",
+            color=COLOR_BY_KEY[key],
+            linewidth=2.0,
+            label=label,
+        )
     ax.axvline(1.0, color=COLOR_REFERENCE, linestyle="--", linewidth=1.0)
     _log2_axis(ax, np.concatenate(all_ratios), "x")
     ax.set_xlabel("candidate / baseline ratio  (← faster / fewer)")
@@ -301,7 +327,9 @@ def plot_absolute_ecdf(frames, out_path, baseline_label, candidate_label, unit="
     if not series:
         return False
     meta = _UNIT_META[unit]
-    fig, axes = plt.subplots(1, len(series), figsize=(max(5.0 * len(series), 6.5), 4.9), squeeze=False)
+    fig, axes = plt.subplots(
+        1, len(series), figsize=(max(5.0 * len(series), 6.5), 4.9), squeeze=False
+    )
     for ax, (key, label, frame) in zip(axes.flat, series):
         for side, color, name in (
             ("base", COLOR_BASELINE, "baseline"),
@@ -309,16 +337,26 @@ def plot_absolute_ecdf(frames, out_path, baseline_label, candidate_label, unit="
         ):
             v = np.sort(np.maximum(frame[side].to_numpy(), meta["floor"]))
             y = np.arange(1, len(v) + 1) / len(v)
-            ax.step(np.concatenate([v, v[-1:]]), np.concatenate([[0], y]), where="post",
-                    color=color, linewidth=2.0, label=name)
+            ax.step(
+                np.concatenate([v, v[-1:]]),
+                np.concatenate([[0], y]),
+                where="post",
+                color=color,
+                linewidth=2.0,
+                label=name,
+            )
         ax.set_xscale("log")
         ax.set_title(label)
         ax.set_xlabel(f"{meta['value_label']}  (← {meta['lower']})")
         ax.set_ylabel("cumulative fraction")
         ax.set_ylim(0, 1)
         ax.legend(frameon=False, loc="best", fontsize=9)
-    fig.suptitle(f"{meta['metric']} — absolute distribution per side (ECDF)",
-                 fontsize=13.5, fontweight="bold", y=0.98)
+    fig.suptitle(
+        f"{meta['metric']} — absolute distribution per side (ECDF)",
+        fontsize=13.5,
+        fontweight="bold",
+        y=0.98,
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.93))
     fig.savefig(out_path)
     plt.close(fig)
@@ -334,7 +372,9 @@ def plot_magnitude_scatter(frames, out_path, baseline_label, candidate_label, un
     if not series:
         return False
     meta = _UNIT_META[unit]
-    fig, axes = plt.subplots(1, len(series), figsize=(max(4.9 * len(series), 6.5), 5.3), squeeze=False)
+    fig, axes = plt.subplots(
+        1, len(series), figsize=(max(4.9 * len(series), 6.5), 5.3), squeeze=False
+    )
     for ax, (key, label, frame) in zip(axes.flat, series):
         base = np.maximum(frame["base"].to_numpy(), meta["floor"])
         cand = np.maximum(frame["cand"].to_numpy(), meta["floor"])
@@ -345,7 +385,9 @@ def plot_magnitude_scatter(frames, out_path, baseline_label, candidate_label, un
         # Shade the upper half-plane -- candidate above baseline = worse -- in neutral grey as a
         # reminder of which side is the regression; hue stays reserved for the series.
         ax.fill_between([lo, hi], [lo, hi], hi, color=COLOR_BASELINE, alpha=0.12, zorder=0)
-        ax.scatter(base, cand, s=12, alpha=0.4, color=COLOR_BY_KEY[key], edgecolors="none", zorder=2)
+        ax.scatter(
+            base, cand, s=12, alpha=0.4, color=COLOR_BY_KEY[key], edgecolors="none", zorder=2
+        )
         ax.plot([lo, hi], [lo, hi], color=COLOR_REFERENCE, linestyle="--", linewidth=1.0, zorder=1)
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -356,12 +398,27 @@ def plot_magnitude_scatter(frames, out_path, baseline_label, candidate_label, un
         ax.set_xlabel(f"baseline {meta['value_label']}")
         ax.set_ylabel(f"candidate {meta['value_label']}")
         # Label each half in its own region: worse in the shaded upper-left, better below.
-        ax.annotate(f"{meta['higher']} · {worse}", xy=(0.05, 0.95), xycoords="axes fraction",
-                    va="top", ha="left", fontsize=9, color="#555555")
-        ax.annotate(f"{meta['lower']} · {better}", xy=(0.95, 0.05), xycoords="axes fraction",
-                    va="bottom", ha="right", fontsize=9, color="#555555")
-    fig.suptitle(f"{meta['metric']} — per-sample paired (scatter)",
-                 fontsize=13.5, fontweight="bold", y=0.98)
+        ax.annotate(
+            f"{meta['higher']} · {worse}",
+            xy=(0.05, 0.95),
+            xycoords="axes fraction",
+            va="top",
+            ha="left",
+            fontsize=9,
+            color="#555555",
+        )
+        ax.annotate(
+            f"{meta['lower']} · {better}",
+            xy=(0.95, 0.05),
+            xycoords="axes fraction",
+            va="bottom",
+            ha="right",
+            fontsize=9,
+            color="#555555",
+        )
+    fig.suptitle(
+        f"{meta['metric']} — per-sample paired (scatter)", fontsize=13.5, fontweight="bold", y=0.98
+    )
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     fig.savefig(out_path)
     plt.close(fig)
@@ -403,7 +460,9 @@ def status_markdown(baseline_df, candidate_df, baseline_label, candidate_label, 
             lines.append(f"| `{before}` → `{after}` | {len(ids)} | {shown} |")
         return lines
 
-    out += grouped_flips("solve_status_base", "solve_status_cand", "### Verdict flips — solve status")
+    out += grouped_flips(
+        "solve_status_base", "solve_status_cand", "### Verdict flips — solve status"
+    )
     if has_outcome:
         out += grouped_flips(
             "semantic_outcome_base", "semantic_outcome_cand", "### Verdict flips — semantic outcome"
@@ -437,7 +496,9 @@ def main() -> None:
         raise SystemExit("no analysable series found in the given run directories")
 
     md = stats_markdown(rows, args.baseline_label, args.candidate_label)
-    status_md = status_markdown(baseline_df, candidate_df, args.baseline_label, args.candidate_label)
+    status_md = status_markdown(
+        baseline_df, candidate_df, args.baseline_label, args.candidate_label
+    )
     full_md = md + "\n" + status_md
     (args.out / "improvement_stats.md").write_text(full_md)
     pd.DataFrame(rows).to_csv(args.out / "improvement_stats.csv", index=False)
@@ -447,7 +508,10 @@ def main() -> None:
         ("ratio_ecdf.png", lambda f, p, b, c: plot_ratio_ecdf(f, p, b, c) or True),
         ("absolute_runtime_ecdf.png", lambda f, p, b, c: plot_absolute_ecdf(f, p, b, c, unit="s")),
         ("magnitude_scatter.png", lambda f, p, b, c: plot_magnitude_scatter(f, p, b, c, unit="s")),
-        ("absolute_calls_ecdf.png", lambda f, p, b, c: plot_absolute_ecdf(f, p, b, c, unit="calls")),
+        (
+            "absolute_calls_ecdf.png",
+            lambda f, p, b, c: plot_absolute_ecdf(f, p, b, c, unit="calls"),
+        ),
         ("calls_scatter.png", lambda f, p, b, c: plot_magnitude_scatter(f, p, b, c, unit="calls")),
     ]
     written = []
