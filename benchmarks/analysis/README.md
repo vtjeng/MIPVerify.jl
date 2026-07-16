@@ -1,8 +1,8 @@
 # Paired benchmark analysis
 
-`analyze_pair.py` turns two `benchmark_wk17a_first100.jl` runs (a baseline and a candidate) into
-the **distribution of per-sample improvements** — not just aggregate totals. It joins the two runs
-on `sample_index` and emits a stats table plus plots.
+`analyze_pair.py` turns two `benchmark_wk17a_first100.jl` runs (a baseline and a candidate) into the
+**distribution of per-sample improvements** — not just aggregate totals. It joins the two runs on
+`sample_index` and emits a stats table plus plots.
 
 The point: an aggregate like "−30% wall clock" hides the spread. The per-sample view shows whether
 the change helps every sample or a few, whether the expensive samples benefit, and whether verdicts
@@ -16,15 +16,16 @@ Managed with [uv](https://docs.astral.sh/uv/); dependencies are pinned in `uv.lo
       --baseline <baseline-run-dir> --candidate <candidate-run-dir> --out <out-dir> \
       --baseline-label "base <sha>" --candidate-label "candidate <sha>"
 
-Each run dir must contain a `benchmark_per_sample.csv` (as written by `benchmark_wk17a_first100.jl`).
+Each run dir must contain a `benchmark_per_sample.csv` (as written by
+`benchmark_wk17a_first100.jl`).
 
 ## Outputs (into `<out-dir>`)
 
-- `improvement_stats.md` / `.csv` — per-sample ratio distribution (min…max sweep, improved/regressed),
-  aggregate saving + concentration, per-side solve-status counts, and verdict flips grouped by
-  transition.
-- `ratio_ecdf.png` — paired relative view: ECDF of per-sample `candidate/baseline` ratios, all series
-  overlaid (dimensionless, so they share one axis).
+- `improvement_stats.md` / `.csv` — per-sample ratio distribution (min…max sweep,
+  improved/regressed), aggregate saving + concentration, per-side solve-status counts, and verdict
+  flips grouped by transition.
+- `ratio_ecdf.png` — paired relative view: ECDF of per-sample `candidate/baseline` ratios, all
+  series overlaid (dimensionless, so they share one axis).
 - `absolute_runtime_ecdf.png`, `absolute_calls_ecdf.png` — per-side distributions (baseline vs
   candidate), grouped by unit.
 - `magnitude_scatter.png`, `calls_scatter.png` — paired log-log candidate-vs-baseline scatter; below
