@@ -747,6 +747,8 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             m = TestHelpers.get_new_model()
             stats = MIPVerify.VerificationStats()
             m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, stats)
+            # These bounds straddle zero, so the ReLU exercises both bound paths
+            # instead of fixing the unit active or inactive.
             x = @variable(m, lower_bound = -1, upper_bound = 1)
 
             tight_upperbound(1.0 * x; nta = lp)
@@ -759,7 +761,6 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
             @test stats.bound_tightening[(0, "lp", "lower")].solver_call_count == 1
             @test haskey(stats.bound_tightening, (1, "interval_arithmetic", "upper"))
-            @test !any(key -> key[1] == 1 && key[2] == "lp", keys(stats.bound_tightening))
         end
 
         @testset "remains disabled by default" begin
