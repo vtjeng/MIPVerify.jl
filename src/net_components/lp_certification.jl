@@ -37,30 +37,45 @@ function is_unavailable_solver_attribute_error(error)
 end
 
 """
-    solver_attribute_or_nothing(f, description)
+    solver_read_or_nothing(f, log_unexpected, description, consequence)
 
-Run `f` and return its result if it is a finite `Real`, and `nothing` otherwise.
+Run `f` and return its result, or `nothing` if the read fails.
 
 Reading an optional solver attribute (a row dual, an objective bound) can tighten a bound but
 is never required for soundness, so the caller always has a valid fallback. The three MOI
 errors that signal an unavailable attribute are expected and return `nothing` quietly. Any
-other error is logged at warn level and also returns `nothing`, so one failed read degrades a
-single bound instead of crashing the run; interrupts and resource exhaustion still propagate.
+other error is logged via `log_unexpected` and also returns `nothing`, so one failed read
+degrades a single bound instead of crashing the run; interrupts and resource exhaustion still
+propagate.
 """
-function solver_attribute_or_nothing(f, description::AbstractString)
-    value = try
-        f()
+function solver_read_or_nothing(
+    f,
+    log_unexpected,
+    description::AbstractString,
+    consequence::AbstractString,
+)
+    try
+        return f()
     catch error
         is_fatal_solver_attribute_error(error) && rethrow()
         if !is_unavailable_solver_attribute_error(error)
-            Memento.warn(
+            log_unexpected(
                 MIPVerify.LOGGER,
-                "Unexpected error reading $(description); treating it as unavailable: " *
+                "Unexpected error reading $(description); $(consequence): " *
                 sprint(showerror, error),
             )
         end
         return nothing
     end
+end
+
+"""
+    solver_attribute_or_nothing(f, description)
+
+Run `f` and return its result if it is a finite `Real`, and `nothing` otherwise.
+"""
+function solver_attribute_or_nothing(f, description::AbstractString)
+    value = solver_read_or_nothing(f, Memento.warn, description, "treating it as unavailable")
     return value isa Real && isfinite(value) ? value : nothing
 end
 
@@ -78,20 +93,18 @@ function default_constraint_duals(model::JuMP.Model, constraints)
 end
 
 function constraint_duals_or_nothing(constraints, dual_values)
-    values = try
-        dual_values(constraints)
-    catch error
-        is_fatal_solver_attribute_error(error) && rethrow()
-        if !is_unavailable_solver_attribute_error(error)
-            Memento.debug(
-                MIPVerify.LOGGER,
-                "Batch constraint-dual read failed; retrying individually: " *
-                sprint(showerror, error),
-            )
-        end
-        return nothing
-    end
+    values = solver_read_or_nothing(
+        () -> dual_values(constraints),
+        Memento.debug,
+        "a batch of constraint duals",
+        "retrying individually",
+    )
+    values === nothing && return nothing
     if !(values isa AbstractVector) || length(values) != length(constraints)
+        Memento.debug(
+            MIPVerify.LOGGER,
+            "Batch constraint-dual read returned an incompatible value; retrying individually.",
+        )
         return nothing
     end
     return values
@@ -121,9 +134,9 @@ end
 function constraint_certificate_term!(coefficients, constraint, row_dual::Real)
     constraint_object = JuMP.constraint_object(constraint)
     projected = projected_dual_and_reference(constraint_object.set, row_dual)
-    projected === nothing && return ZERO_INTERVAL
+    projected === nothing && return nothing
     multiplier, reference = projected
-    (iszero(multiplier) || !isfinite(reference)) && return ZERO_INTERVAL
+    (iszero(multiplier) || !isfinite(reference)) && return nothing
     multiplier_interval = IntervalArithmetic.interval(multiplier)
     function_value = constraint_object.func
     for (variable, coefficient) in function_value.terms
@@ -142,7 +155,9 @@ end
 function add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
     for (constraint, row_dual) in zip(constraints, row_duals)
         is_usable_constraint_dual(row_dual) || continue
-        certificate += constraint_certificate_term!(coefficients, constraint, row_dual)
+        term = constraint_certificate_term!(coefficients, constraint, row_dual)
+        term === nothing && continue
+        certificate += term
     end
     return certificate
 end
@@ -153,8 +168,8 @@ end
         bound_type,
         objective,
         interval_bound;
-        dual_value = JuMP.dual,
-        dual_values = constraints -> default_constraint_duals(model, constraints),
+        dual_value = nothing,
+        dual_values = nothing,
     )
 
 Return an LP bound certified from row duals and the declared variable bounds.
@@ -163,14 +178,19 @@ The row duals are treated as candidate Lagrange multipliers. Their signs are pro
 dual cones, and any stationarity residual is minimized over the variables' interval bounds. All
 certificate arithmetic is outward-rounded. Unsupported constraints and unavailable duals use a
 zero multiplier. If the certificate is unbounded or unavailable, return `interval_bound`.
+
+Row duals are read per homogeneous constraint group in one batch (`dual_values`, defaulting to
+a vectorized `MathOptInterface` read); a group whose batch read fails or returns an unusable
+value falls back to per-constraint reads (`dual_value`, defaulting to `JuMP.dual`). Passing a
+custom `dual_value` disables batch reads so every dual comes from that callback.
 """
 function certified_lp_bound(
     model::JuMP.Model,
     bound_type::BoundType,
     objective::JuMPLinearType,
     interval_bound::Real;
-    dual_value = JuMP.dual,
-    dual_values = constraints -> default_constraint_duals(model, constraints),
+    dual_value = nothing,
+    dual_values = nothing,
 )::Real
     coefficients = Dict{JuMP.VariableRef,typeof(ZERO_INTERVAL)}()
     objective_affine = convert(JuMP.AffExpr, objective)
@@ -187,27 +207,26 @@ function certified_lp_bound(
         )
     end
 
+    scalar_dual_value = dual_value === nothing ? JuMP.dual : dual_value
+    batched_dual_values = if dual_value !== nothing
+        nothing
+    elseif dual_values !== nothing
+        dual_values
+    else
+        constraints -> default_constraint_duals(model, constraints)
+    end
+
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
         constraints = JuMP.all_constraints(model, function_type, set_type)
         row_duals =
-            dual_value === JuMP.dual ? constraint_duals_or_nothing(constraints, dual_values) :
-            nothing
-        if row_duals !== nothing
-            certificate = add_constraint_duals_to_certificate!(
-                coefficients,
-                certificate,
-                constraints,
-                row_duals,
-            )
-            continue
+            batched_dual_values === nothing ? nothing :
+            constraint_duals_or_nothing(constraints, batched_dual_values)
+        if row_duals === nothing
+            row_duals = [constraint_dual_or_nothing(c, scalar_dual_value) for c in constraints]
         end
-        for constraint in constraints
-            row_dual = constraint_dual_or_nothing(constraint, dual_value)
-            row_dual === nothing && continue
-            iszero(row_dual) && continue
-            certificate += constraint_certificate_term!(coefficients, constraint, row_dual)
-        end
+        certificate =
+            add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
     end
 
     for (variable, coefficient) in coefficients

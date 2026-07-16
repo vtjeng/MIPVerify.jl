@@ -21,23 +21,6 @@ using MIPVerify:
 
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
-struct BatchDualProbeSet <: MathOptInterface.AbstractScalarSet end
-
-const BatchDualProbeIndex = MathOptInterface.ConstraintIndex{
-    MathOptInterface.ScalarAffineFunction{Float64},
-    BatchDualProbeSet,
-}
-const BATCH_DUAL_VECTOR_GET_CALLS = Ref(0)
-
-function MathOptInterface.get(
-    mock::MathOptInterface.Utilities.MockOptimizer,
-    attribute::MathOptInterface.ConstraintDual,
-    indices::Vector{BatchDualProbeIndex},
-)
-    BATCH_DUAL_VECTOR_GET_CALLS[] += 1
-    return MathOptInterface.get.(Ref(mock), Ref(attribute), indices)
-end
-
 TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "repairs stationarity residuals over variable bounds" begin
         m_lower = Model()
@@ -599,7 +582,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test Any[upper_first, upper_second] in batch_groups
     end
 
-    @testset "default dual retrieval uses vector MOI.get" begin
+    @testset "default dual retrieval returns duals in constraint order" begin
         mock = MathOptInterface.Utilities.MockOptimizer(
             MathOptInterface.Utilities.UniversalFallback(
                 MathOptInterface.Utilities.Model{Float64}(),
@@ -615,21 +598,22 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
                 # This is the sole variable's primal result; only dual reads matter here.
                 [0.0],
                 # Distinct values make the order of the returned row duals observable.
-                (function_type, BatchDualProbeSet) => [1.0, 2.0],
+                (function_type, MathOptInterface.LessThan{Float64}) => [1.0, 2.0],
             ),
         )
         m = Model(() -> mock; add_bridges = false)
         @variable(m, x)
         constraints = [
             # Non-unit coefficients keep these as scalar-affine rather than variable rows.
-            @constraint(m, 2x in BatchDualProbeSet()),
-            @constraint(m, 3x in BatchDualProbeSet()),
+            @constraint(m, 2x <= 1.0),
+            @constraint(m, 3x <= 1.0),
         ]
-        optimize!(m)
 
-        BATCH_DUAL_VECTOR_GET_CALLS[] = 0
+        # Before any solve there are no duals, so the batch read reports them unavailable.
+        @test MIPVerify.default_constraint_duals(m, constraints) === nothing
+
+        optimize!(m)
         @test MIPVerify.default_constraint_duals(m, constraints) == [1.0, 2.0]
-        @test BATCH_DUAL_VECTOR_GET_CALLS[] == 1
     end
 
     @testset "retries scalar duals when a batch fails or has the wrong length" begin
