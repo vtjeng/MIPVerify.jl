@@ -30,21 +30,21 @@ the merge). Raw per-sample data and dependency snapshots are in `baseline/` and 
 | Main solve time | 492 | 0.32 | 0.91 | 0.96 | 1.01 | 1.06 | 1.14 | 2.40 | 40% | 48% |
 | Total end-to-end time | 492 | 0.52 | 1.28 | 1.37 | 1.46 | 1.56 | 1.66 | 2.60 | 1% | 99% |
 
-- `Ratio` = candidate ÷ baseline; < 1 = candidate faster.
-- `Build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.
-- `Total` = `build` + `tightening` + `main solve`.
+- `ratio` = candidate ÷ baseline; < 1 = candidate faster. `improved`/`regressed` use a ±1% band.
+- `build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.
+- `total` = `build` + `tightening` + `main solve`.
 
 ### Aggregate saving and concentration
 
-| series | baseline | candidate | net saved | pooled | top-10 concentration |
+| series | baseline | candidate | net saved | pooled ratio | top-10 concentration |
 |---|--:|--:|--:|--:|--:|
 | Build + bound tightening | 2334 s | 3383 s | −1049 s | 1.45 | 4% |
 | Main solve time | 1438 s | 1513 s | −74 s | 1.05 | 89% |
 | Total end-to-end time | 3772 s | 4895 s | −1123 s | 1.30 | 25% |
 
-- `Net saved` = baseline − candidate; positive = candidate cheaper.
-- `Pooled` = candidate total ÷ baseline total.
-- `Top-10 concentration` = share of total absolute per-sample change from the 10 biggest movers.
+- `net saved` = baseline − candidate; positive = candidate cheaper.
+- `pooled ratio` = candidate total ÷ baseline total (the aggregate counterpart to the per-sample `median`).
+- `top-10 concentration` = the 10 samples with the largest absolute change account for this share of the total absolute per-sample change (0–100%; higher = a few samples dominate).
 
 ### Solve status and verdict flips
 
@@ -55,17 +55,21 @@ the merge). Raw per-sample data and dependency snapshots are in `baseline/` and 
 | SKIPPED_PREDICTED_IN_TARGETED | 8 | 8 |
 | TIME_LIMIT | 6 | 7 |
 
-7 samples changed solve status (before → after); only sample 246 also changed its semantic outcome.
+7 samples changed solve status; only sample 246 also changed its semantic outcome.
 
-| sample | solve status | semantic outcome |
-|--:|---|---|
-| 150 | `TIME_LIMIT` → `OPTIMAL` | — |
-| 242 | `OPTIMAL` → `TIME_LIMIT` | — |
-| 246 | `TIME_LIMIT` → `INFEASIBLE` | `time_limit_unresolved` → `certified_no_adversarial_example` |
-| 445 | `OPTIMAL` → `TIME_LIMIT` | — |
-| 446 | `OPTIMAL` → `TIME_LIMIT` | — |
-| 449 | `TIME_LIMIT` → `OPTIMAL` | — |
-| 496 | `OPTIMAL` → `TIME_LIMIT` | — |
+Solve status:
+
+| transition | n | samples |
+|---|--:|---|
+| `OPTIMAL` → `TIME_LIMIT` | 4 | 242, 445, 446, 496 |
+| `TIME_LIMIT` → `OPTIMAL` | 2 | 150, 449 |
+| `TIME_LIMIT` → `INFEASIBLE` | 1 | 246 |
+
+Semantic outcome:
+
+| transition | n | samples |
+|---|--:|---|
+| `time_limit_unresolved` → `certified_no_adversarial_example` | 1 | 246 |
 
 ### Plots
 
