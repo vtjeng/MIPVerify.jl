@@ -44,9 +44,16 @@ jobs:
           - ubuntu-latest
           - macos-latest
           - windows-latest
-        arch:
-          - x64
         include:
+          # Per-OS architecture: macos-latest runners are Apple Silicon, so those
+          # legs run native aarch64 Julia (previously x64 under Rosetta 2); Linux
+          # and Windows runners are x64.
+          - os: ubuntu-latest
+            arch: x64
+          - os: windows-latest
+            arch: x64
+          - os: macos-latest
+            arch: aarch64
           # Designate one leg to carry once-per-run work: validating the large
           # CIFAR10 asset, and collecting and uploading coverage. Doing both on the
           # same leg keeps the coverage report inclusive of the CIFAR10 code path.
@@ -62,22 +69,20 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-          # macos-latest runners are Apple Silicon; requesting x64 there runs Julia
-          # under Rosetta 2, which setup-julia v3 rejects unless forced. Forcing
-          # preserves the long-standing tested binaries and check names; moving the
-          # macOS legs to native aarch64 would be a separate, deliberate change.
-          force-arch: ${{ matrix.os == 'macos-latest' }}
           show-versioninfo: true
       - uses: actions/cache@v6
         env:
           cache-name: cache-artifacts
         with:
           path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          # runner.arch is part of the key because artifacts are arch-specific and
+          # macOS runs a different architecture from the other legs. Without it,
+          # the aarch64 legs would exact-hit the x64 key and never save their own.
+          key: ${{ runner.os }}-${{ runner.arch }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
           restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
+            ${{ runner.os }}-${{ runner.arch }}-test-${{ env.cache-name }}-
+            ${{ runner.os }}-${{ runner.arch }}-test-
+            ${{ runner.os }}-${{ runner.arch }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
