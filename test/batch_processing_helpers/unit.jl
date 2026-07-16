@@ -14,7 +14,8 @@ using JuMP
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 TestHelpers.@timed_testset "unit.jl" begin
-    mnist = read_datasets("MNIST")
+    # Three one-pixel samples exercise index validation without loading the full MNIST set.
+    dataset = MIPVerify.LabelledImageDataset(zeros(3, 1, 1, 1), zeros(Int, 3))
 
     @testset "BatchRunParameters" begin
         brp = BatchRunParameters(Sequential([], "name"), UnrestrictedPerturbationFamily(), 1)
@@ -44,8 +45,9 @@ TestHelpers.@timed_testset "unit.jl" begin
     end
 
     @testset "verify_target_indices" begin
-        @test_throws AssertionError verify_target_indices([0], mnist.test)
-        @test_throws AssertionError verify_target_indices([10001], mnist.test)
+        # Zero is below the one-based range; four is one past this three-sample fixture.
+        @test_throws AssertionError verify_target_indices([0], dataset)
+        @test_throws AssertionError verify_target_indices([4], dataset)
     end
 
     @testset "run_on_sample_for_untargeted_attack" begin

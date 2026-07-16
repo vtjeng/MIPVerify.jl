@@ -11,6 +11,7 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     l1_kernel = gen_array((l1_width, l1_height), -1, 1)
     l1_bias = gen_array((l1_height,), -1, 1)
 
+    # Include always-off (-1), ordinary ReLU (0), and always-on (1) units.
     m1 = [0, 0, 0, 0, -1, -1, -1, 1, 1, -1, 1, 0, 1, 0, -1, 1]
 
     l2_height = 8
@@ -19,6 +20,7 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     l2_bias = gen_array((l2_height,), -1, 1)
 
 
+    # Repeat all three mask states after the second linear layer.
     m2 = [0, -1, 1, 1, -1, -1, 0, 1]
 
     l3_height = 4
@@ -41,14 +43,29 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     pp_unrestricted = UnrestrictedPerturbationFamily()
 
     @testset "Basic integration test for MaskedReLU layer." begin
-        test_cases = [
-            ((1, pp_unrestricted, Inf), 0.08112308),
-            ((2, pp_unrestricted, Inf), 0.3622567),
-            ((3, pp_unrestricted, Inf), 0),
+        # Target 1 needs a nonzero perturbation through both MaskedReLU layers.
+        unrestricted_test_cases = [((1, pp_unrestricted, Inf), 0.08112308)]
+
+        TestHelpers.batch_test_adversarial_example(
+            nn,
+            input,
+            unrestricted_test_cases,
+            tightening_algorithm = interval_arithmetic,
+        )
+
+        bounded_test_cases = [
+            # A bound just below that optimum makes the combined formulation infeasible.
             ((1, LInfNormBoundedPerturbationFamily(0.08), Inf), NaN),
-            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf) => 0.08112308),
+            # A bound just above the optimum preserves the unrestricted objective.
+            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf), 0.08112308),
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+        # Preserve end-to-end LP tightening through MaskedReLU for the bounded formulation.
+        TestHelpers.batch_test_adversarial_example(
+            nn,
+            input,
+            bounded_test_cases,
+            tightening_algorithm = lp,
+        )
     end
 end

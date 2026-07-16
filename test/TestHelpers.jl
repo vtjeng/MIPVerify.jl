@@ -63,6 +63,7 @@ function test_find_adversarial_example(
     norm_order::Real,
     expected_objective_value::Real;
     invert_target_selection::Bool = false,
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
 ) where {N}
     d = find_adversarial_example(
         nn,
@@ -73,7 +74,7 @@ function test_find_adversarial_example(
         pp = pp,
         norm_order = norm_order,
         tightening_options = get_tightening_options(),
-        tightening_algorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
+        tightening_algorithm = tightening_algorithm,
         invert_target_selection = invert_target_selection,
     )
     if isnan(expected_objective_value)
@@ -109,7 +110,8 @@ indicated in `expected objective values`.
 function batch_test_adversarial_example(
     nn::NeuralNet,
     input::Array{<:Real,N},
-    test_cases::Array,
+    test_cases::Array;
+    tightening_algorithm::MIPVerify.TighteningAlgorithm = TEST_DEFAULT_TIGHTENING_ALGORITHM,
 ) where {N}
     for (test_params, expected_objective_value) in test_cases
         (target_selection, pp, norm_order) = test_params
@@ -121,6 +123,7 @@ function batch_test_adversarial_example(
                 pp,
                 norm_order,
                 expected_objective_value,
+                tightening_algorithm = tightening_algorithm,
             )
         end
     end
