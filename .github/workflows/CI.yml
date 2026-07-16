@@ -113,10 +113,12 @@ jobs:
         run: |
           version_prefix="${RUNNER_OS}-${RUNNER_ARCH}-docs-julia-${JULIA_VERSION}-"
           project_prefix="${version_prefix}projects-${PROJECT_HASH}-manifest-"
-          echo "unresolved=${project_prefix}unresolved" >> "$GITHUB_OUTPUT"
-          echo "project_prefix=${project_prefix}" >> "$GITHUB_OUTPUT"
-          echo "version_prefix=${version_prefix}" >> "$GITHUB_OUTPUT"
-          echo "legacy_version_prefix=${RUNNER_OS}-docs-julia-${JULIA_VERSION}-" >> "$GITHUB_OUTPUT"
+          {
+            echo "unresolved=${project_prefix}unresolved"
+            echo "project_prefix=${project_prefix}"
+            echo "version_prefix=${version_prefix}"
+            echo "legacy_version_prefix=${RUNNER_OS}-docs-julia-${JULIA_VERSION}-"
+          } >> "$GITHUB_OUTPUT"
       - name: Restore documentation Julia package state
         id: docs-restore
         uses: actions/cache/restore@v6
@@ -226,10 +228,12 @@ jobs:
         run: |
           version_prefix="${RUNNER_OS}-${RUNNER_ARCH}-benchmarks-julia-${JULIA_VERSION}-"
           project_prefix="${version_prefix}projects-${PROJECT_HASH}-manifest-"
-          echo "unresolved=${project_prefix}unresolved" >> "$GITHUB_OUTPUT"
-          echo "project_prefix=${project_prefix}" >> "$GITHUB_OUTPUT"
-          echo "version_prefix=${version_prefix}" >> "$GITHUB_OUTPUT"
-          echo "legacy_version_prefix=${RUNNER_OS}-benchmarks-julia-${JULIA_VERSION}-" >> "$GITHUB_OUTPUT"
+          {
+            echo "unresolved=${project_prefix}unresolved"
+            echo "project_prefix=${project_prefix}"
+            echo "version_prefix=${version_prefix}"
+            echo "legacy_version_prefix=${RUNNER_OS}-benchmarks-julia-${JULIA_VERSION}-"
+          } >> "$GITHUB_OUTPUT"
       - name: Restore benchmark Julia package state
         id: benchmark-restore
         uses: actions/cache/restore@v6
