@@ -196,7 +196,7 @@ function resolve_row_duals(constraints, dual_values)
 end
 
 """
-    certified_lp_bound(model, bound_type, objective, interval_bound; dual_values)
+    certified_lp_bound(model, bound_type, objective, interval_bound)
 
 Return an LP bound certified from row duals and the declared variable bounds.
 
@@ -205,19 +205,19 @@ dual cones, and any stationarity residual is minimized over the variables' inter
 certificate arithmetic is outward-rounded. Unsupported constraints and unavailable duals use a
 zero multiplier. If the certificate is unbounded or unavailable, return `interval_bound`.
 
-Every dual comes from `dual_values`, which maps a vector of constraints to their duals and
-defaults to a vectorized `MathOptInterface` read. Each homogeneous constraint group is read in
-one batch; when a group read fails or returns a value of the wrong shape, each constraint is
-retried through the same callback as a single-element batch. Individual elements of a
-well-shaped batch that are not finite nonzero reals are skipped without a retry.
+Every dual is read from the model's backend through the vectorized `MathOptInterface`
+interface: each homogeneous constraint group in one batch and, when a group read fails or
+returns a value of the wrong shape, each constraint retried as a single-element batch.
+Individual elements of a well-shaped batch that are not finite nonzero reals are skipped
+without a retry.
 """
 function certified_lp_bound(
     model::JuMP.Model,
     bound_type::BoundType,
     objective::JuMPLinearType,
-    interval_bound::Real;
-    dual_values = constraints -> default_constraint_duals(model, constraints),
+    interval_bound::Real,
 )::Real
+    dual_values = constraints -> default_constraint_duals(model, constraints)
     coefficients = Dict{JuMP.VariableRef,typeof(ZERO_INTERVAL)}()
     objective_affine = convert(JuMP.AffExpr, objective)
     objective_multiplier = bound_type == lower_bound_type ? 1.0 : -1.0
