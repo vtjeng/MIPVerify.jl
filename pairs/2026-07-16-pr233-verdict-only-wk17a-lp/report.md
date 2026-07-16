@@ -6,7 +6,10 @@ the candidate asks only whether a feasible adversarial example exists. Raw per-s
 tightening rows, ReLU rows, metrics, and dependency snapshots are in `baseline/` and `candidate/`.
 
 - Baseline: master `8a455e2756a0d45e224bb1da95f2de8dc2ba3df4`, exact-distortion mode.
-- Candidate: PR #233 `009e76a88fc673917c4e7e1311034ad36a0a5494`, verdict-only mode.
+- Measured candidate: PR #233 `009e76a88fc673917c4e7e1311034ad36a0a5494`, verdict-only mode.
+- Current PR head: `4c3ead89f1769a5df36e386b499553ad0156be4e`; the follow-up commit only makes
+  contradictory failed-witness batch rows eligible for rerun and does not change the benchmark
+  path.
 - Arguments: `--samples 1:500 --tightening lp --main-time-limit 120 --norm-order Inf`.
 - Julia 1.12.6, HiGHS, one Julia thread, identical dependency snapshot
   `1cfef4c977ff08219a888aa479cb94eea0b3dbc16f654d1fc0a09167c8f1c74a`.
