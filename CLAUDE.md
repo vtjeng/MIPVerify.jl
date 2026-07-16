@@ -13,7 +13,9 @@ For failures unrelated to the PR's changes:
 2. If an issue matches, append a row to its "Occurrences" table (date, branch or PR with short SHA,
    linked job name) and add a comment with the specifics: job link, observed vs expected values or
    crash site, dependency versions from the log. Update the issue title if the new occurrence
-   invalidates a qualifier in it (for example, a Julia version or OS that no longer holds).
+   invalidates a qualifier in it (for example, a Julia version or OS that no longer holds). Read the
+   resolved versions from the job log rather than from the check name — the "1" and "1.12" matrix
+   selectors can resolve to the same Julia version.
 3. If nothing matches, open a new issue titled "Flaky CI: <signature>" with the failure details,
    versions, a job link, and an "Occurrences" table ending with "Append new occurrences to this
    table."
