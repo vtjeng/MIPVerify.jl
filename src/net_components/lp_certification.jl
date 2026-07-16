@@ -77,13 +77,29 @@ function solver_attribute_or_nothing(f, description::AbstractString)
     return is_finite_real(value) ? value : nothing
 end
 
-function constraint_dual_or_nothing(constraint, dual_value)
-    return solver_read_or_nothing(
-        () -> dual_value(constraint),
+"""
+    single_constraint_dual_or_nothing(dual_values, constraint)
+
+Read one constraint's dual through the batched `dual_values` source as a single-element batch,
+returning `nothing` when the read fails or the result is not a one-element vector.
+"""
+function single_constraint_dual_or_nothing(dual_values, constraint)
+    values = solver_read_or_nothing(
+        () -> dual_values([constraint]),
         Memento.warn,
         "a constraint dual",
         "treating it as unavailable",
     )
+    values === nothing && return nothing
+    if !(values isa AbstractVector) || length(values) != 1
+        Memento.warn(
+            MIPVerify.LOGGER,
+            "Single constraint-dual retry returned an incompatible value; " *
+            "treating it as unavailable.",
+        )
+        return nothing
+    end
+    return first(values)
 end
 
 function default_constraint_duals(model::JuMP.Model, constraints)
@@ -173,23 +189,14 @@ function add_constraint_duals_to_certificate!(coefficients, certificate, constra
     return certificate
 end
 
-function resolve_row_duals(constraints, batched_dual_values, scalar_dual_value)
-    if batched_dual_values !== nothing
-        row_duals = constraint_duals_or_nothing(constraints, batched_dual_values)
-        row_duals !== nothing && return row_duals
-    end
-    return [constraint_dual_or_nothing(c, scalar_dual_value) for c in constraints]
+function resolve_row_duals(constraints, dual_values)
+    row_duals = constraint_duals_or_nothing(constraints, dual_values)
+    row_duals !== nothing && return row_duals
+    return [single_constraint_dual_or_nothing(dual_values, c) for c in constraints]
 end
 
 """
-    certified_lp_bound(
-        model,
-        bound_type,
-        objective,
-        interval_bound;
-        dual_value = nothing,
-        dual_values = nothing,
-    )
+    certified_lp_bound(model, bound_type, objective, interval_bound; dual_values)
 
 Return an LP bound certified from row duals and the declared variable bounds.
 
@@ -198,18 +205,18 @@ dual cones, and any stationarity residual is minimized over the variables' inter
 certificate arithmetic is outward-rounded. Unsupported constraints and unavailable duals use a
 zero multiplier. If the certificate is unbounded or unavailable, return `interval_bound`.
 
-Row duals are read per homogeneous constraint group in one batch (`dual_values`, defaulting to
-a vectorized `MathOptInterface` read); a group whose batch read fails or returns an unusable
-value falls back to per-constraint reads (`dual_value`, defaulting to `JuMP.dual`). Passing a
-custom `dual_value` disables batch reads so every dual comes from that callback.
+Every dual comes from `dual_values`, which maps a vector of constraints to their duals and
+defaults to a vectorized `MathOptInterface` read. Each homogeneous constraint group is read in
+one batch; when a group read fails or returns a value of the wrong shape, each constraint is
+retried through the same callback as a single-element batch. Individual elements of a
+well-shaped batch that are not finite nonzero reals are skipped without a retry.
 """
 function certified_lp_bound(
     model::JuMP.Model,
     bound_type::BoundType,
     objective::JuMPLinearType,
     interval_bound::Real;
-    dual_value = nothing,
-    dual_values = nothing,
+    dual_values = constraints -> default_constraint_duals(model, constraints),
 )::Real
     coefficients = Dict{JuMP.VariableRef,typeof(ZERO_INTERVAL)}()
     objective_affine = convert(JuMP.AffExpr, objective)
@@ -226,19 +233,10 @@ function certified_lp_bound(
         )
     end
 
-    scalar_dual_value = dual_value === nothing ? JuMP.dual : dual_value
-    batched_dual_values = if dual_value !== nothing
-        nothing
-    elseif dual_values !== nothing
-        dual_values
-    else
-        constraints -> default_constraint_duals(model, constraints)
-    end
-
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
         constraints = JuMP.all_constraints(model, function_type, set_type)
-        row_duals = resolve_row_duals(constraints, batched_dual_values, scalar_dual_value)
+        row_duals = resolve_row_duals(constraints, dual_values)
         certificate =
             add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
     end
