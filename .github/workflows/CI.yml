@@ -161,11 +161,6 @@ jobs:
           PROJECT_PREFIX: ${{ steps.docs-restore-keys.outputs.project_prefix }}
           MANIFEST_HASH: ${{ hashFiles('docs/Manifest.toml') }}
         run: echo "key=${PROJECT_PREFIX}${MANIFEST_HASH}" >> "$GITHUB_OUTPUT"
-      - run: |
-          julia --project=docs -e '
-            using Documenter: doctest
-            using MIPVerify
-            doctest(MIPVerify)'
       - run: julia --project=docs docs/make.jl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -194,7 +189,7 @@ jobs:
         with:
           version: "1"
       - name: "Run `format.sh` script (runs `JuliaFormatter.format` on all files)"
-        run: ./scripts/format.sh
+        run: ./scripts/format.sh --julia-only
       - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
           # The backticks below are Julia Cmd-literal syntax, not shell substitution
