@@ -272,6 +272,8 @@ function main()
         result_verdict_only == verdict_only ||
             error("Requested verdict_only=$verdict_only, result recorded $(d[:VerdictOnly])")
         witness_available = Bool(d[:WitnessAvailable])
+        witness_target_verified = Bool(d[:WitnessTargetVerified])
+        witness_perturbation_verified = Bool(d[:WitnessPerturbationVerified])
         witness_verified = Bool(d[:WitnessVerified])
         witness_margin = witness_available ? Float64(d[:WitnessMargin]) : missing
         witness_output = witness_available ? format_numeric_array(d[:WitnessOutput]) : missing
@@ -389,6 +391,8 @@ function main()
                     mode = mode,
                     verdict_only = result_verdict_only,
                     witness_available = witness_available,
+                    witness_target_verified = witness_target_verified,
+                    witness_perturbation_verified = witness_perturbation_verified,
                     witness_verified = witness_verified,
                     witness_margin = witness_margin,
                     witness_output = witness_output,
@@ -419,6 +423,8 @@ function main()
     semantic_outcomes = per_sample.semantic_outcome
     objective_values = per_sample.objective_value
     witness_available_values = per_sample.witness_available
+    witness_target_verified_values = per_sample.witness_target_verified
+    witness_perturbation_verified_values = per_sample.witness_perturbation_verified
     witness_verified_values = per_sample.witness_verified
 
     status_counts = Dict{String,Int}()
@@ -467,6 +473,14 @@ function main()
         num_no_primal_solution_other = [get(semantic_counts, "no_primal_solution_other", 0)],
         num_witness_verification_failed = [get(semantic_counts, "witness_verification_failed", 0)],
         num_witness_available = [count(identity, witness_available_values)],
+        num_witness_target_verified = [count(identity, witness_target_verified_values)],
+        num_witness_perturbation_verified = [count(identity, witness_perturbation_verified_values)],
+        num_witness_target_verification_failed = [
+            count(witness_available_values .& .!witness_target_verified_values),
+        ],
+        num_witness_perturbation_verification_failed = [
+            count(witness_available_values .& .!witness_perturbation_verified_values),
+        ],
         num_witness_verified = [count(identity, witness_verified_values)],
         num_missing_objective_value = [sum(ismissing.(objective_values))],
         mode = [mode],
@@ -497,6 +511,12 @@ function main()
     println("  time_limit_unresolved=$(metrics[1, :num_time_limit_unresolved])")
     println("  no_primal_solution_other=$(metrics[1, :num_no_primal_solution_other])")
     println("  witness_verification_failed=$(metrics[1, :num_witness_verification_failed])")
+    println(
+        "  witness_target_verification_failed=$(metrics[1, :num_witness_target_verification_failed])",
+    )
+    println(
+        "  witness_perturbation_verification_failed=$(metrics[1, :num_witness_perturbation_verification_failed])",
+    )
     println("  skipped_already_misclassified=$(metrics[1, :num_skipped_predicted_in_targeted])")
     println("Wrote metrics to $metrics_path")
 end

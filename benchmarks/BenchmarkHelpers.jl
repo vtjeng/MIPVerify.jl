@@ -29,6 +29,7 @@ export parse_args,
     BENCHMARK_SCHEMA_VERSION,
     SEMANTIC_OUTCOME_SCHEMA_VERSION,
     SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION,
+    WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION,
     SEMANTIC_PARTITION_COLUMNS
 
 const VERDICT_ONLY_MODE = "verdict-only"
@@ -139,9 +140,10 @@ const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
 const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
-const BENCHMARK_SCHEMA_VERSION = 4
-const SEMANTIC_OUTCOME_SCHEMA_VERSION = 3
+const BENCHMARK_SCHEMA_VERSION = 5
+const SEMANTIC_OUTCOME_SCHEMA_VERSION = 4
 const SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION = 2
+const WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION = 3
 const LEGACY_SCHEMA_VERSION = 1
 const PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS = [
     :num_certified_no_adversarial_example,
@@ -169,6 +171,8 @@ const TRACKING_COLUMNS = [
     :num_samples,
     :num_skipped_predicted_in_targeted,
     SEMANTIC_PARTITION_COLUMNS...,
+    :num_witness_target_verification_failed,
+    :num_witness_perturbation_verification_failed,
 ]
 
 function schema_version(metrics::DataFrame, column::Symbol)::Int
@@ -221,7 +225,7 @@ function semantic_partition_columns_present(metrics::DataFrame)::Bool
 end
 
 function semantic_partition_columns(metrics::DataFrame)::Vector{Symbol}
-    if semantic_outcome_schema_version(metrics) >= SEMANTIC_OUTCOME_SCHEMA_VERSION
+    if semantic_outcome_schema_version(metrics) >= WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION
         return SEMANTIC_PARTITION_COLUMNS
     end
     return PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS

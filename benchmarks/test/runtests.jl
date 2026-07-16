@@ -53,6 +53,8 @@ function write_metrics_csv(
         num_time_limit_unresolved = [0],
         num_no_primal_solution_other = [0],
         num_witness_verification_failed = [0],
+        num_witness_target_verification_failed = [0],
+        num_witness_perturbation_verification_failed = [0],
         julia_version = [julia_version],
         dependency_snapshot_sha256 = [dependency_snapshot_sha256],
     )
@@ -181,6 +183,15 @@ end
         schema_two.semantic_outcome_schema_version =
             [SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION]
         @test semantic_partition_is_complete(schema_two)
+
+        # Semantic schema 3 introduced the witness-failure outcome. It must retain that partition
+        # after the current semantic version advances.
+        schema_three = copy(current)
+        schema_three.semantic_outcome_schema_version = [WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION]
+        @test semantic_partition_is_complete(schema_three)
+        @test !semantic_partition_columns_present(
+            select(schema_three, Not(:num_witness_verification_failed)),
+        )
 
         incomplete = copy(current)
         incomplete.num_adversarial_example_found_or_best_known = [0]
@@ -439,6 +450,10 @@ end
                 @test tracking[2, :num_skipped_predicted_in_targeted] == 1
                 @test ismissing(tracking[1, :num_witness_verification_failed])
                 @test tracking[2, :num_witness_verification_failed] == 0
+                @test ismissing(tracking[1, :num_witness_target_verification_failed])
+                @test tracking[2, :num_witness_target_verification_failed] == 0
+                @test ismissing(tracking[1, :num_witness_perturbation_verification_failed])
+                @test tracking[2, :num_witness_perturbation_verification_failed] == 0
             end
         end
 

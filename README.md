@@ -73,10 +73,11 @@ result = find_adversarial_example(
 Verdict-only mode solves a feasibility problem. It can stop as soon as it finds an adversarial
 example, while robust inputs still require an infeasibility proof. It does not compute a minimum
 distortion. It does not set solution- or objective-limit attributes, whose support varies by
-optimizer. In both modes, MIPVerify extracts each solver incumbent, runs the perturbed input through
-the numeric network, and sets `result[:WitnessVerified]` only when that output satisfies the
-requested target and margin. Treat results without either an infeasibility proof or a verified
-witness as unresolved.
+optimizer. In both modes, MIPVerify checks each proposed witness against the selected perturbation
+family's input constraints and runs it through the numeric network. It sets
+`result[:WitnessVerified]` only when both checks pass. Custom perturbation families must implement
+`MIPVerify.verify_perturbation_witness`; otherwise their points fail closed as unverified. Treat
+results without either an infeasibility proof or a verified witness as unresolved.
 
 ## Features
 

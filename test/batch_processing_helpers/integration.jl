@@ -82,6 +82,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test summary.IsInfeasible[[attackable_row, misclassified_row]] == [false, false]
             @test summary.VerdictOnly == [false, false, false]
             @test summary.WitnessAvailable == [false, true, true]
+            @test summary.WitnessTargetVerified == [false, true, true]
+            @test summary.WitnessPerturbationVerified == [false, true, true]
             @test summary.WitnessVerified == [false, true, true]
             @test isnan(summary.WitnessMargin[robust_row])
             @test all(
@@ -103,6 +105,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             robust_result =
                 MIPVerify.matread(joinpath(main_path, summary.ResultRelativePath[robust_row]))
             @test haskey(robust_result, "WitnessAvailable")
+            @test haskey(robust_result, "WitnessTargetVerified")
+            @test haskey(robust_result, "WitnessPerturbationVerified")
             @test haskey(robust_result, "WitnessVerified")
             @test !haskey(robust_result, "WitnessOutput")
 
@@ -114,6 +118,8 @@ TestHelpers.@timed_testset "integration.jl" begin
                 [
                     "VerdictOnly",
                     "WitnessAvailable",
+                    "WitnessTargetVerified",
+                    "WitnessPerturbationVerified",
                     "WitnessVerified",
                     "WitnessMargin",
                     "WitnessDistance",
@@ -144,6 +150,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             main_path, summary, result_files = read_batch_output(dir)
             @test summary.VerdictOnly == [true]
             @test summary.WitnessAvailable == [true]
+            @test summary.WitnessTargetVerified == [true]
+            @test summary.WitnessPerturbationVerified == [true]
             @test summary.WitnessVerified == [true]
             # The zero-margin target constraint permits a boundary tie, with solver-scale noise.
             @test summary.WitnessMargin[1] >= -objective_tolerance
@@ -167,6 +175,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             refined_main_path, refined_summary, refined_result_files = read_batch_output(dir)
             @test refined_main_path == main_path
             @test refined_summary.VerdictOnly == [true, false]
+            @test refined_summary.WitnessTargetVerified == [true, true]
+            @test refined_summary.WitnessPerturbationVerified == [true, true]
             @test refined_summary.WitnessVerified == [true, true]
             @test refined_summary.ObjectiveValue[2] ≈ class_boundary - attackable_input atol =
                 objective_tolerance
@@ -203,6 +213,8 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test summary.SolveStatus == ["OPTIMAL", "OPTIMAL"]
             @test summary.VerdictOnly == [false, false]
             @test summary.WitnessAvailable == [true, true]
+            @test summary.WitnessTargetVerified == [true, true]
+            @test summary.WitnessPerturbationVerified == [true, true]
             @test summary.WitnessVerified == [true, true]
             @test summary.TighteningApproach[attackable_row] == string(interval_arithmetic)
             @test summary.ObjectiveValue[attackable_row] ≈ class_boundary - attackable_input atol =

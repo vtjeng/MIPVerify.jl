@@ -27,12 +27,17 @@ function extract_results_for_save(d::Dict)::Dict
     r[:SolveTime] = d[:SolveTime]
     r[:VerdictOnly] = d[:VerdictOnly]
     r[:WitnessAvailable] = d[:WitnessAvailable]
+    r[:WitnessTargetVerified] = d[:WitnessTargetVerified]
+    r[:WitnessPerturbationVerified] = d[:WitnessPerturbationVerified]
     r[:WitnessVerified] = d[:WitnessVerified]
     if d[:WitnessAvailable]
         r[:WitnessMargin] = d[:WitnessMargin]
         r[:WitnessOutput] = d[:WitnessOutput]
         r[:PerturbedInputValue] = d[:PerturbedInputValue]
         r[:WitnessDistance] = d[:WitnessDistance]
+        if haskey(d, :WitnessBlurKernel)
+            r[:WitnessBlurKernel] = d[:WitnessBlurKernel]
+        end
     end
     if !is_infeasible(status) && d[:WitnessAvailable]
         r[:ObjectiveBound] = try
@@ -79,6 +84,8 @@ const SUMMARY_HEADER = [
     "TotalTime",
     "VerdictOnly",
     "WitnessAvailable",
+    "WitnessTargetVerified",
+    "WitnessPerturbationVerified",
     "WitnessVerified",
     "WitnessMargin",
 ]
@@ -114,6 +121,8 @@ function generate_csv_summary_line(
         r[:TotalTime],
         r[:VerdictOnly],
         r[:WitnessAvailable],
+        r[:WitnessTargetVerified],
+        r[:WitnessPerturbationVerified],
         r[:WitnessVerified],
         summary_witness_margin(r),
     ] .|> string
@@ -135,6 +144,8 @@ function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
         d[:TotalTime],
         d[:VerdictOnly],
         d[:WitnessAvailable],
+        d[:WitnessTargetVerified],
+        d[:WitnessPerturbationVerified],
         d[:WitnessVerified],
         summary_witness_margin(d),
     ] .|> string
@@ -162,11 +173,25 @@ function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
         dt[!, :VerdictOnly] = falses(nrow(dt))
         schema_changed = true
     end
-    for column in (:WitnessAvailable, :WitnessVerified, :WitnessMargin)
+    for column in (
+        :WitnessAvailable,
+        :WitnessTargetVerified,
+        :WitnessPerturbationVerified,
+        :WitnessVerified,
+        :WitnessMargin,
+    )
         if column ∉ propertynames(dt)
             dt[!, column] = fill(missing, nrow(dt))
             schema_changed = true
         end
+    end
+    canonical_columns = Symbol.(SUMMARY_HEADER)
+    present_canonical_columns = filter(column -> column in propertynames(dt), canonical_columns)
+    extra_columns = filter(column -> column ∉ canonical_columns, propertynames(dt))
+    ordered_columns = vcat(present_canonical_columns, extra_columns)
+    if propertynames(dt) != ordered_columns
+        select!(dt, ordered_columns)
+        schema_changed = true
     end
     schema_changed && CSV.write(summary_file_path, dt)
     return dt
@@ -237,19 +262,20 @@ function is_proven_infeasible_status(status)::Bool
 end
 
 function has_legacy_objective_value(row::DataFrames.DataFrameRow)::Bool
+    perturbation_check_is_missing =
+        :WitnessPerturbationVerified ∉ propertynames(row) ||
+        ismissing(row[:WitnessPerturbationVerified])
+    perturbation_check_is_missing || return false
     objective_value = row[:ObjectiveValue]
     return !ismissing(objective_value) && !(objective_value |> isnan)
 end
 
 function has_verified_witness(row::DataFrames.DataFrameRow)::Bool
-    if :WitnessVerified in propertynames(row) && !ismissing(row[:WitnessVerified])
-        witness_available =
-            :WitnessAvailable in propertynames(row) &&
-            !ismissing(row[:WitnessAvailable]) &&
-            row[:WitnessAvailable]
-        return witness_available && row[:WitnessVerified]
-    end
-    return has_legacy_objective_value(row)
+    required_columns =
+        (:WitnessAvailable, :WitnessTargetVerified, :WitnessPerturbationVerified, :WitnessVerified)
+    all(column -> column in propertynames(row) && !ismissing(row[column]), required_columns) ||
+        return false
+    return all(row[column] for column in required_columns)
 end
 
 function has_available_unverified_witness(row::DataFrames.DataFrameRow)::Bool
@@ -257,11 +283,7 @@ function has_available_unverified_witness(row::DataFrames.DataFrameRow)::Bool
         :WitnessAvailable in propertynames(row) &&
         !ismissing(row[:WitnessAvailable]) &&
         row[:WitnessAvailable]
-    witness_verified =
-        :WitnessVerified in propertynames(row) &&
-        !ismissing(row[:WitnessVerified]) &&
-        row[:WitnessVerified]
-    return witness_available && !witness_verified
+    return witness_available && !has_verified_witness(row)
 end
 
 function should_resolve_ambiguous(row::DataFrames.DataFrameRow)::Bool
@@ -275,7 +297,8 @@ end
 
 function should_refine_insecure(row::DataFrames.DataFrameRow)::Bool
     needs_exact_refinement = is_verdict_only(row) || string(row[:SolveStatus]) != "OPTIMAL"
-    return needs_exact_refinement && has_verified_witness(row)
+    attack_evidence = has_verified_witness(row) || has_legacy_objective_value(row)
+    return needs_exact_refinement && attack_evidence
 end
 
 function validate_batch_refinement_mode(
@@ -300,8 +323,9 @@ looking up information on the most recent completed solve recorded in `summary_d
 matching `sample_number`.
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
-`:ObjectiveValue`, `:WitnessAvailable`, and `:WitnessVerified`. Summaries created before witness
-verification use the presence of an objective value as a compatibility fallback.
+`:ObjectiveValue`, `:WitnessAvailable`, `:WitnessTargetVerified`,
+`:WitnessPerturbationVerified`, and `:WitnessVerified`. A witness from an older summary that lacks
+either independent check is unresolved.
 
 Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
@@ -310,9 +334,10 @@ Behavior for different choices of `solve_rerun_option`:
     most recent completed solve has neither a verified counterexample nor a proof of infeasibility,
     or if an available witness failed verification despite a contradictory infeasible status.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
-    recent complete solve a) did find a verified counterexample but b) did not reach a
-    provably optimal exact objective. A verdict-only result therefore still needs refinement even
-    when its feasibility objective terminated with `OPTIMAL`.
+    recent complete solve a) did find a verified counterexample, or recorded legacy objective
+    evidence, but b) did not reach a provably optimal exact objective. A verdict-only result
+    therefore still needs refinement even when its feasibility objective terminated with
+    `OPTIMAL`.
 """
 function run_on_sample_for_untargeted_attack(
     sample_number::Integer,
@@ -434,8 +459,10 @@ looking up information on the most recent completed solve recorded in `summary_d
 matching `sample_number`.
 
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:TargetIndexes`,
-`:SolveStatus`, `:ObjectiveValue`, `:WitnessAvailable`, and `:WitnessVerified`. Summaries created
-before witness verification use the presence of an objective value as a compatibility fallback.
+`:SolveStatus`, `:ObjectiveValue`, `:WitnessAvailable`, `:WitnessTargetVerified`,
+`:WitnessPerturbationVerified`, and `:WitnessVerified`. A witness from an older summary that lacks
+either independent check is unresolved. Legacy objective evidence can still select a non-optimal
+result for exact refinement.
 """
 function run_on_sample_for_targeted_attack(
     sample_number::Integer,

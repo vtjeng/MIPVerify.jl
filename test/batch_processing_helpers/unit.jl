@@ -12,6 +12,7 @@ using MIPVerify:
 using MIPVerify: run_on_sample_for_untargeted_attack, run_on_sample_for_targeted_attack
 using CSV
 using DataFrames
+using DelimitedFiles
 using MathOptInterface
 using JuMP
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
@@ -47,7 +48,14 @@ TestHelpers.@timed_testset "unit.jl" begin
             summary = DataFrame(CSV.File(file_path))
             @test all(
                 column -> column in propertynames(summary),
-                [:VerdictOnly, :WitnessAvailable, :WitnessVerified, :WitnessMargin],
+                [
+                    :VerdictOnly,
+                    :WitnessAvailable,
+                    :WitnessTargetVerified,
+                    :WitnessPerturbationVerified,
+                    :WitnessVerified,
+                    :WitnessMargin,
+                ],
             )
         end
     end
@@ -70,12 +78,76 @@ TestHelpers.@timed_testset "unit.jl" begin
             @test summary.IsInfeasible == [false, false]
             @test summary.VerdictOnly == [false, false]
             @test ismissing(summary.WitnessAvailable[1])
+            @test ismissing(summary.WitnessTargetVerified[1])
+            @test ismissing(summary.WitnessPerturbationVerified[1])
             @test ismissing(summary.WitnessVerified[1])
             @test ismissing(summary.WitnessMargin[1])
 
             persisted = DataFrame(CSV.File(file_path))
             @test :WitnessVerified in propertynames(persisted)
             @test persisted.IsInfeasible == [false, false]
+        end
+    end
+
+    @testset "resuming a migrated summary preserves witness columns" begin
+        mktempdir() do dir
+            file_path = joinpath(dir, "summary.csv")
+            # This row uses the complete target-only witness schema that preceded the two
+            # component columns. Distinct Boolean values expose any positional column shift.
+            legacy_summary = DataFrame(
+                SampleNumber = [1],
+                ResultRelativePath = ["run_results/legacy.mat"],
+                PredictedIndex = [1],
+                TargetIndexes = ["[2]"],
+                SolveTime = [0.5],
+                SolveStatus = ["OPTIMAL"],
+                IsInfeasible = [false],
+                ObjectiveValue = [0.25],
+                ObjectiveBound = [0.2],
+                TighteningApproach = ["lp"],
+                TotalTime = [1.0],
+                VerdictOnly = [true],
+                WitnessAvailable = [true],
+                WitnessVerified = [true],
+                WitnessMargin = [0.1],
+            )
+            CSV.write(file_path, legacy_summary)
+
+            migrated = read_summary_file(file_path)
+            @test propertynames(migrated) == Symbol.(MIPVerify.SUMMARY_HEADER)
+            @test ismissing(migrated.WitnessTargetVerified[1])
+            @test ismissing(migrated.WitnessPerturbationVerified[1])
+
+            # The second row's 0.3 margin and false target check are sentinels for the new
+            # positional layout when a resumed batch appends to the migrated file.
+            resumed_result = Dict(
+                :PredictedIndex => 2,
+                :TargetIndexes => [1],
+                :SolveTime => 0.75,
+                :SolveStatus => MathOptInterface.OPTIMAL,
+                :ObjectiveValue => 0.4,
+                :ObjectiveBound => 0.35,
+                :TighteningApproach => "mip",
+                :TotalTime => 1.25,
+                :VerdictOnly => false,
+                :WitnessAvailable => true,
+                :WitnessTargetVerified => false,
+                :WitnessPerturbationVerified => true,
+                :WitnessVerified => false,
+                :WitnessMargin => 0.3,
+            )
+            summary_line =
+                MIPVerify.generate_csv_summary_line(2, "run_results/resumed.mat", resumed_result)
+            open(file_path, "a") do file
+                writedlm(file, [summary_line], ',')
+            end
+
+            resumed = DataFrame(CSV.File(file_path))
+            @test resumed.WitnessAvailable[2]
+            @test !resumed.WitnessTargetVerified[2]
+            @test resumed.WitnessPerturbationVerified[2]
+            @test !resumed.WitnessVerified[2]
+            @test resumed.WitnessMargin[2] == 0.3
         end
     end
 
@@ -138,7 +210,7 @@ TestHelpers.@timed_testset "unit.jl" begin
         expected_results = Dict(
             MIPVerify.never => [false, false, false, true],
             MIPVerify.always => [true, true, true, true],
-            MIPVerify.resolve_ambiguous_cases => [false, false, true, true],
+            MIPVerify.resolve_ambiguous_cases => [false, true, true, true],
             MIPVerify.refine_insecure_cases => [false, true, false, true],
         )
         for solve_rerun_option in keys(expected_results)
@@ -158,7 +230,7 @@ TestHelpers.@timed_testset "unit.jl" begin
         # witness at a solution limit, rejected witness at an objective limit, unresolved time
         # limit, optimal exact witness, optimal verdict-only witness, and a rejected witness paired
         # with a contradictory infeasible status. Objective 0.9 on the objective-limit row checks
-        # that explicit witness verification overrides the legacy fallback.
+        # that an explicit perturbation-check failure overrides legacy objective evidence.
         sample_numbers = [201, 202, 203, 204, 205, 206, 207]
         dt = DataFrame(
             SampleNumber = sample_numbers,
@@ -173,6 +245,8 @@ TestHelpers.@timed_testset "unit.jl" begin
             ],
             ObjectiveValue = [NaN, 0.8, 0.9, NaN, 0.7, 0.0, NaN],
             WitnessAvailable = [false, true, true, false, true, true, true],
+            WitnessTargetVerified = [false, true, true, false, true, true, false],
+            WitnessPerturbationVerified = [false, true, false, false, true, true, true],
             WitnessVerified = [false, true, false, false, true, true, false],
             VerdictOnly = [false, false, false, false, false, true, false],
         )
@@ -217,7 +291,7 @@ TestHelpers.@timed_testset "unit.jl" begin
         expected_results = Dict(
             MIPVerify.never => [false, false, false, true, false],
             MIPVerify.always => [true, true, true, true, true],
-            MIPVerify.resolve_ambiguous_cases => [false, false, true, true, false],
+            MIPVerify.resolve_ambiguous_cases => [false, true, true, true, true],
             MIPVerify.refine_insecure_cases => [false, true, false, true, false],
             MIPVerify.retarget_infeasible_cases => [true, false, false, true, false],
         )
@@ -243,6 +317,8 @@ TestHelpers.@timed_testset "unit.jl" begin
             :SolveStatus => MathOptInterface.TIME_LIMIT,
             :VerdictOnly => true,
             :WitnessAvailable => false,
+            :WitnessTargetVerified => false,
+            :WitnessPerturbationVerified => false,
             :WitnessVerified => false,
             :Perturbation => [x],
             :PerturbedInput => [x],
@@ -258,6 +334,8 @@ TestHelpers.@timed_testset "unit.jl" begin
         @test !haskey(result, :PerturbedInputValue)
         @test result[:VerdictOnly]
         @test !result[:WitnessAvailable]
+        @test !result[:WitnessTargetVerified]
+        @test !result[:WitnessPerturbationVerified]
         @test !result[:WitnessVerified]
         @test !haskey(result, :WitnessMargin)
         @test !haskey(result, :WitnessOutput)
@@ -277,10 +355,14 @@ TestHelpers.@timed_testset "unit.jl" begin
             :SolveStatus => JuMP.termination_status(m),
             :VerdictOnly => false,
             :WitnessAvailable => true,
+            :WitnessTargetVerified => true,
+            :WitnessPerturbationVerified => true,
             :WitnessVerified => true,
             :WitnessMargin => 0.25,
             :WitnessOutput => [0.75, 0.5],
             :WitnessDistance => 0.125,
+            # A one-channel 1x1 identity kernel is a compact sentinel for blur auxiliary data.
+            :WitnessBlurKernel => reshape([1.0], 1, 1, 1, 1),
             :PerturbedInputValue => [0.0],
             :Perturbation => [x],
             :PerturbedInput => [x],
@@ -295,7 +377,10 @@ TestHelpers.@timed_testset "unit.jl" begin
         @test result[:WitnessOutput] == [0.75, 0.5]
         @test result[:WitnessMargin] == 0.25
         @test result[:WitnessDistance] == 0.125
+        @test result[:WitnessBlurKernel] == reshape([1.0], 1, 1, 1, 1)
         @test result[:WitnessAvailable]
+        @test result[:WitnessTargetVerified]
+        @test result[:WitnessPerturbationVerified]
         @test result[:WitnessVerified]
     end
 end

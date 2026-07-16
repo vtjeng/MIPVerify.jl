@@ -61,6 +61,8 @@ using JuMP
                 )
                 @test d[:SolveStatus] == MOI.OPTIMAL
                 @test d[:WitnessAvailable]
+                @test d[:WitnessTargetVerified]
+                @test d[:WitnessPerturbationVerified]
                 @test d[:WitnessVerified]
                 perturbed_input = JuMP.value.(d[:PerturbedInput])
                 perturbed_output = perturbed_input |> nn
@@ -111,10 +113,14 @@ using JuMP
                 if is_feasible
                     @test d[:SolveStatus] == MOI.OPTIMAL
                     @test d[:WitnessAvailable]
+                    @test d[:WitnessTargetVerified]
+                    @test d[:WitnessPerturbationVerified]
                     @test d[:WitnessVerified]
                 else
                     @test d[:SolveStatus] == MOI.INFEASIBLE
                     @test !d[:WitnessAvailable]
+                    @test !d[:WitnessTargetVerified]
+                    @test !d[:WitnessPerturbationVerified]
                     @test !d[:WitnessVerified]
                 end
                 if is_feasible
@@ -157,6 +163,32 @@ using JuMP
         @test !nonfinite_verified
     end
 
+    @testset "witness component diagnostics" begin
+        identity_nn = Sequential([], "witness-component-diagnostics")
+        pp = UnrestrictedPerturbationFamily()
+
+        # Candidate [1.1, 0.0] gives target 1 a positive margin but violates the [0, 1] domain.
+        perturbation_failure = Dict{Symbol,Any}(:TargetIndexes => [1])
+        MIPVerify.record_witness!(
+            perturbation_failure,
+            identity_nn,
+            [0.4, 0.6],
+            [1.1, 0.0],
+            pp,
+            0.0,
+        )
+        @test perturbation_failure[:WitnessTargetVerified]
+        @test !perturbation_failure[:WitnessPerturbationVerified]
+        @test !perturbation_failure[:WitnessVerified]
+
+        # Candidate [0.3, 0.7] stays in-domain but leaves target 1 behind target 2 by 0.4.
+        target_failure = Dict{Symbol,Any}(:TargetIndexes => [1])
+        MIPVerify.record_witness!(target_failure, identity_nn, [0.4, 0.6], [0.3, 0.7], pp, 0.0)
+        @test !target_failure[:WitnessTargetVerified]
+        @test target_failure[:WitnessPerturbationVerified]
+        @test !target_failure[:WitnessVerified]
+    end
+
     @testset "margin-aware skipped solve" begin
         # The original input has class-1 margin 1.0. A requested 1.5 margin therefore
         # forces a solve even though class 1 is already the predicted target.
@@ -189,9 +221,27 @@ using JuMP
             solve_if_predicted_in_targeted = false,
         )
         @test !haskey(skipped, :Model)
+        @test skipped[:WitnessTargetVerified]
+        @test skipped[:WitnessPerturbationVerified]
         @test skipped[:WitnessVerified]
         @test skipped[:WitnessDistance] == 0.0
         @test skipped[:PerturbedInputValue] == input
+
+        # Class 1 is still predicted at x1 = 1.1, but that value is outside the perturbation
+        # family's [0, 1] input domain. The fast path must reject it and build a model.
+        outside_domain = find_adversarial_example(
+            nn,
+            [1.1, 0.5],
+            1,
+            TestHelpers.get_optimizer(),
+            main_solve_options,
+            norm_order = 1,
+            pp = UnrestrictedPerturbationFamily(),
+            solve_if_predicted_in_targeted = false,
+        )
+        @test haskey(outside_domain, :Model)
+        @test outside_domain[:WitnessVerified]
+        @test outside_domain[:PerturbedInputValue] != [1.1, 0.5]
     end
 
     @testset "verdict-only mode" begin
@@ -211,6 +261,8 @@ using JuMP
         @test d[:VerdictOnly]
         @test d[:PrimalStatus] == MOI.FEASIBLE_POINT
         @test d[:WitnessAvailable]
+        @test d[:WitnessTargetVerified]
+        @test d[:WitnessPerturbationVerified]
         @test d[:WitnessVerified]
     end
 
@@ -245,6 +297,8 @@ using JuMP
         @test JuMP.num_constraints(d[:Model], JuMP.VariableRef, MOI.ZeroOne) == 1
         @test JuMP.objective_sense(d[:Model]) == MOI.FEASIBILITY_SENSE
         @test d[:WitnessAvailable]
+        @test d[:WitnessTargetVerified]
+        @test d[:WitnessPerturbationVerified]
         @test d[:WitnessVerified]
     end
 

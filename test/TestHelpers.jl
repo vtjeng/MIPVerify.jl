@@ -81,12 +81,16 @@ function test_find_adversarial_example(
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||
               d[:SolveStatus] == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
         @test !d[:WitnessAvailable]
+        @test !d[:WitnessTargetVerified]
+        @test !d[:WitnessPerturbationVerified]
         @test !d[:WitnessVerified]
     else
         # Distinguishes solver wrong answers (OPTIMAL at a bad objective) from early
         # termination with a feasible incumbent; see issue #219.
         @test d[:SolveStatus] == MathOptInterface.OPTIMAL
         @test d[:WitnessAvailable]
+        @test d[:WitnessTargetVerified]
+        @test d[:WitnessPerturbationVerified]
         @test d[:WitnessVerified]
         actual_objective_value = JuMP.objective_value(d[:Model])
         if expected_objective_value == 0

@@ -39,9 +39,10 @@ verdicts. MIPVerify's public API still defaults to exact minimum distortion. Pas
 
 ### Output
 
-- `benchmark_per_sample.csv` — per-sample solve outcome, mode, verified-witness diagnostics, timing,
-  formulation structure, aggregate bound-tightening work, ReLU stability, and main-solver work;
-  `witness_output` and `perturbed_input_value` are semicolon-separated numeric arrays
+- `benchmark_per_sample.csv` — per-sample solve outcome, mode, target and perturbation witness
+  checks, timing, formulation structure, aggregate bound-tightening work, ReLU stability, and
+  main-solver work; `witness_output` and `perturbed_input_value` are semicolon-separated numeric
+  arrays
 - `benchmark_relu_layers.csv` — one row per sample and ReLU layer, with layer shape, applied
   tightening algorithm (`interval_arithmetic` when the layer has no nonconstant inputs, since
   constants need no bound solves), bounds and constraint-imposition timing (`bounds_time_seconds`,
@@ -93,14 +94,16 @@ In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted 
 `name=count` pairs. Dedicated columns cover optimal and time-limit statuses and each progressive
 skip reason.
 
-`benchmark_schema_version` identifies the timing and output schema. Schema 4 adds solve mode,
-verified-witness fields, and solution- and objective-limit status counts. Schema 3 records LP and
-MIP stages separately when progressive MIP tightening is requested.
-`semantic_outcome_schema_version` identifies the outcome-counting rules. Semantic schema 3 requires
-a verified witness before counting an adversarial example and records failed verification
-separately. Semantic schema 2 added already-misclassified skipped inputs to the adversarial count.
-Comparison tooling rejects runs with different schema versions or solve modes. Metrics without a
-mode predate verdict-only benchmarking and are treated as `exact-distortion`.
+`benchmark_schema_version` identifies the timing and output schema. Schema 5 splits witness
+verification into target and perturbation checks. Schema 4 added solve mode, verified-witness
+fields, and solution- and objective-limit status counts. Schema 3 recorded LP and MIP stages
+separately when progressive MIP tightening is requested. `semantic_outcome_schema_version`
+identifies the outcome-counting rules. Semantic schema 4 requires both the numeric target check and
+perturbation-family membership check before counting an adversarial example. Semantic schema 3 first
+required a verified target witness and recorded failed verification separately. Semantic schema 2
+added already-misclassified skipped inputs to the adversarial count. Comparison tooling rejects runs
+with different schema versions or solve modes. Metrics without a mode predate verdict-only
+benchmarking and are treated as `exact-distortion`.
 
 ## Nightly Benchmark Workflow
 
@@ -124,29 +127,31 @@ Results are committed to the
 
 ### `tracking.csv` columns
 
-| Column                                        | Description                                                                                                                |
-| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `date`                                        | Run date (YYYY-MM-DD)                                                                                                      |
-| `run_id`                                      | Immutable per-run identifier (`UTC timestamp` + SHA)                                                                       |
-| `commit_sha`                                  | Git commit SHA benchmarked                                                                                                 |
-| `benchmark_schema_version`                    | Version of the benchmark timing and output schema                                                                          |
-| `semantic_outcome_schema_version`             | Version of the semantic outcome-counting rules                                                                             |
-| `mode`                                        | `verdict-only` or `exact-distortion`; missing historical values mean exact distortion                                      |
-| `julia_version`                               | Julia version used for the benchmark                                                                                       |
-| `dependency_snapshot_sha256`                  | SHA-256 hash of the normalized dependency snapshot                                                                         |
-| `dependency_change_summary`                   | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
-| `wall_clock_seconds`                          | Total wall-clock time for the benchmark run                                                                                |
-| `sum_total_time_seconds`                      | Sum of per-sample total times                                                                                              |
-| `sum_solve_time_seconds`                      | Sum of per-sample solve times                                                                                              |
-| `median_solve_time_seconds`                   | Median per-sample solve time                                                                                               |
-| `p90_solve_time_seconds`                      | 90th percentile per-sample solve time                                                                                      |
-| `num_samples`                                 | Number of samples evaluated                                                                                                |
-| `num_skipped_predicted_in_targeted`           | Already-misclassified inputs skipped before model construction; subset of adversarial outcomes                             |
-| `num_certified_no_adversarial_example`        | Samples proven robust (infeasible)                                                                                         |
-| `num_adversarial_example_found_or_best_known` | Samples with adversarial examples found                                                                                    |
-| `num_time_limit_unresolved`                   | Samples that hit the time limit                                                                                            |
-| `num_no_primal_solution_other`                | Samples with other non-primal outcomes                                                                                     |
-| `num_witness_verification_failed`             | Samples with a solver witness that failed the numerical forward-pass check                                                 |
+| Column                                         | Description                                                                                                                |
+| ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `date`                                         | Run date (YYYY-MM-DD)                                                                                                      |
+| `run_id`                                       | Immutable per-run identifier (`UTC timestamp` + SHA)                                                                       |
+| `commit_sha`                                   | Git commit SHA benchmarked                                                                                                 |
+| `benchmark_schema_version`                     | Version of the benchmark timing and output schema                                                                          |
+| `semantic_outcome_schema_version`              | Version of the semantic outcome-counting rules                                                                             |
+| `mode`                                         | `verdict-only` or `exact-distortion`; missing historical values mean exact distortion                                      |
+| `julia_version`                                | Julia version used for the benchmark                                                                                       |
+| `dependency_snapshot_sha256`                   | SHA-256 hash of the normalized dependency snapshot                                                                         |
+| `dependency_change_summary`                    | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
+| `wall_clock_seconds`                           | Total wall-clock time for the benchmark run                                                                                |
+| `sum_total_time_seconds`                       | Sum of per-sample total times                                                                                              |
+| `sum_solve_time_seconds`                       | Sum of per-sample solve times                                                                                              |
+| `median_solve_time_seconds`                    | Median per-sample solve time                                                                                               |
+| `p90_solve_time_seconds`                       | 90th percentile per-sample solve time                                                                                      |
+| `num_samples`                                  | Number of samples evaluated                                                                                                |
+| `num_skipped_predicted_in_targeted`            | Already-misclassified inputs skipped before model construction; subset of adversarial outcomes                             |
+| `num_certified_no_adversarial_example`         | Samples proven robust (infeasible)                                                                                         |
+| `num_adversarial_example_found_or_best_known`  | Samples with adversarial examples found                                                                                    |
+| `num_time_limit_unresolved`                    | Samples that hit the time limit                                                                                            |
+| `num_no_primal_solution_other`                 | Samples with other non-primal outcomes                                                                                     |
+| `num_witness_verification_failed`              | Samples with an available witness that failed either independent check                                                     |
+| `num_witness_target_verification_failed`       | Available witnesses that failed the numeric network target or margin check; can overlap the perturbation failure count     |
+| `num_witness_perturbation_verification_failed` | Available witnesses that failed perturbation-family membership; can overlap the target failure count                       |
 
 ## `append_to_tracking.jl`
 

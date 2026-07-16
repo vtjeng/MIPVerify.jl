@@ -32,6 +32,166 @@ end
 Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) =
     print(io, "linf-norm-bounded-$(pp.norm_bound)")
 
+function witness_value_in_closed_interval(
+    value::Real,
+    lower::Real,
+    upper::Real;
+    atol::Real = WITNESS_VERIFICATION_ATOL,
+    rtol::Real = WITNESS_VERIFICATION_RTOL,
+)::Bool
+    isfinite(value) || return false
+    satisfies_lower_bound = value >= lower || isapprox(value, lower; atol = atol, rtol = rtol)
+    satisfies_upper_bound = value <= upper || isapprox(value, upper; atol = atol, rtol = rtol)
+    return satisfies_lower_bound && satisfies_upper_bound
+end
+
+function witness_inputs_satisfy_common_constraints(
+    input::Array{<:Real},
+    perturbed_input::Array{<:Real},
+)::Bool
+    size(input) == size(perturbed_input) || return false
+    all(isfinite, input) || return false
+    return all(value -> witness_value_in_closed_interval(value, 0, 1), perturbed_input)
+end
+
+function witness_arrays_are_approximately_equal(
+    lhs::AbstractArray{<:Real},
+    rhs::AbstractArray{<:Real},
+)::Bool
+    size(lhs) == size(rhs) || return false
+    return all(
+        i -> isapprox(
+            lhs[i],
+            rhs[i];
+            atol = WITNESS_VERIFICATION_ATOL,
+            rtol = WITNESS_VERIFICATION_RTOL,
+        ),
+        eachindex(lhs, rhs),
+    )
+end
+
+function blur_kernel_size_is_valid(pp::BlurringPerturbationFamily)::Bool
+    filter_height, filter_width = pp.blur_kernel_size
+    return filter_height isa Integer &&
+           filter_width isa Integer &&
+           filter_height > 0 &&
+           filter_width > 0
+end
+
+"""
+    verify_perturbation_witness(pp, input, perturbed_input, result)
+
+Independently check that `perturbed_input` belongs to `pp` around `input`. Return a Boolean and a
+dictionary of numeric auxiliary witness values to retain in `result`.
+
+The fallback fails closed. A custom [`PerturbationFamily`](@ref) must implement this method before
+its solver points can be reported as verified witnesses. Implementations must check the semantic
+perturbation constraints numerically rather than relying on the solver's feasibility status.
+"""
+function verify_perturbation_witness(
+    pp::PerturbationFamily,
+    input::Array{<:Real},
+    perturbed_input::Array{<:Real},
+    result::Dict,
+)::Tuple{Bool,Dict{Symbol,Any}}
+    return false, Dict{Symbol,Any}()
+end
+
+function verify_perturbation_witness(
+    pp::UnrestrictedPerturbationFamily,
+    input::Array{<:Real},
+    perturbed_input::Array{<:Real},
+    result::Dict,
+)::Tuple{Bool,Dict{Symbol,Any}}
+    return witness_inputs_satisfy_common_constraints(input, perturbed_input), Dict{Symbol,Any}()
+end
+
+function verify_perturbation_witness(
+    pp::LInfNormBoundedPerturbationFamily,
+    input::Array{<:Real},
+    perturbed_input::Array{<:Real},
+    result::Dict,
+)::Tuple{Bool,Dict{Symbol,Any}}
+    witness_inputs_satisfy_common_constraints(input, perturbed_input) ||
+        return false, Dict{Symbol,Any}()
+
+    # Do not use the fixed absolute witness tolerance here: it could be much larger than a small
+    # perturbation budget. The relative comparison admits only a scale-dependent rounding error.
+    satisfies_norm_bound = all(eachindex(input, perturbed_input)) do i
+        difference = abs(perturbed_input[i] - input[i])
+        difference <= pp.norm_bound ||
+            isapprox(difference, pp.norm_bound; atol = 0, rtol = WITNESS_VERIFICATION_RTOL)
+    end
+    return satisfies_norm_bound, Dict{Symbol,Any}()
+end
+
+function identity_blur_kernel(
+    pp::BlurringPerturbationFamily,
+    input::Array{<:Real},
+)::Union{Nothing,Array{Float64,4}}
+    ndims(input) == 4 || return nothing
+    blur_kernel_size_is_valid(pp) || return nothing
+    filter_height, filter_width = pp.blur_kernel_size
+    num_channels = size(input, 4)
+    num_channels > 0 || return nothing
+
+    kernel = zeros(Float64, filter_height, filter_width, num_channels, num_channels)
+    # Conv2d uses TensorFlow SAME padding. These indices select the input pixel at the output
+    # location for odd and even kernel dimensions.
+    identity_height_index = fld(filter_height - 1, 2) + 1
+    identity_width_index = fld(filter_width - 1, 2) + 1
+    for channel in 1:num_channels
+        kernel[identity_height_index, identity_width_index, channel, channel] = 1.0
+    end
+    return kernel
+end
+
+function numeric_blur_kernel(pp::BlurringPerturbationFamily, input::Array{<:Real}, result::Dict)
+    if haskey(result, :WitnessBlurKernel)
+        return result[:WitnessBlurKernel]
+    elseif haskey(result, :BlurKernel)
+        return try
+            JuMP.value.(result[:BlurKernel])
+        catch
+            nothing
+        end
+    end
+    return identity_blur_kernel(pp, input)
+end
+
+function verify_perturbation_witness(
+    pp::BlurringPerturbationFamily,
+    input::Array{<:Real},
+    perturbed_input::Array{<:Real},
+    result::Dict,
+)::Tuple{Bool,Dict{Symbol,Any}}
+    witness_inputs_satisfy_common_constraints(input, perturbed_input) ||
+        return false, Dict{Symbol,Any}()
+    ndims(input) == 4 || return false, Dict{Symbol,Any}()
+    blur_kernel_size_is_valid(pp) || return false, Dict{Symbol,Any}()
+
+    kernel = numeric_blur_kernel(pp, input, result)
+    kernel isa AbstractArray{<:Real,4} || return false, Dict{Symbol,Any}()
+    numeric_kernel = Array(kernel)
+    values = Dict{Symbol,Any}(:WitnessBlurKernel => numeric_kernel)
+    num_channels = size(input, 4)
+    expected_kernel_size = (pp.blur_kernel_size..., num_channels, num_channels)
+    size(numeric_kernel) == expected_kernel_size || return false, values
+    all(value -> witness_value_in_closed_interval(value, 0, 1), numeric_kernel) ||
+        return false, values
+    # The required sum grows with the channel count, but the permitted residual should not.
+    isapprox(sum(numeric_kernel), num_channels; atol = WITNESS_VERIFICATION_ATOL, rtol = 0) ||
+        return false, values
+
+    reconstructed_input = try
+        input |> Conv2d(numeric_kernel)
+    catch
+        return false, values
+    end
+    verified = witness_arrays_are_approximately_equal(reconstructed_input, perturbed_input)
+    return verified, values
+end
+
 function get_model(
     nn::NeuralNet,
     input::Array{<:Real},

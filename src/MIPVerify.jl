@@ -85,7 +85,13 @@ function witness_satisfies_target(
 end
 
 function record_no_witness!(d::Dict)::Nothing
+    for key in
+        (:PerturbedInputValue, :WitnessOutput, :WitnessMargin, :WitnessDistance, :WitnessBlurKernel)
+        pop!(d, key, nothing)
+    end
     d[:WitnessAvailable] = false
+    d[:WitnessTargetVerified] = false
+    d[:WitnessPerturbationVerified] = false
     d[:WitnessVerified] = false
     d[:WitnessMargin] = missing
     return nothing
@@ -94,15 +100,25 @@ end
 function record_witness!(
     d::Dict,
     nn::NeuralNet,
+    input::Array{<:Real},
     perturbed_input::Array{<:Real},
-    margin::Real;
-    primal_feasible::Bool = true,
+    pp::PerturbationFamily,
+    margin::Real,
 )::Nothing
     witness_output = perturbed_input |> nn
     witness_margin, satisfies_target =
         witness_satisfies_target(witness_output, d[:TargetIndexes], margin)
+    satisfies_perturbation, perturbation_values =
+        verify_perturbation_witness(pp, input, perturbed_input, d)
+    merge!(d, perturbation_values)
+    finite_input =
+        size(input) == size(perturbed_input) &&
+        all(isfinite, input) &&
+        all(isfinite, perturbed_input)
     d[:WitnessAvailable] = true
-    d[:WitnessVerified] = primal_feasible && all(isfinite, perturbed_input) && satisfies_target
+    d[:WitnessTargetVerified] = satisfies_target
+    d[:WitnessPerturbationVerified] = finite_input && satisfies_perturbation
+    d[:WitnessVerified] = d[:WitnessTargetVerified] && d[:WitnessPerturbationVerified]
     d[:PerturbedInputValue] = perturbed_input
     d[:WitnessOutput] = witness_output
     d[:WitnessMargin] = witness_margin
@@ -135,20 +151,27 @@ IMPORTANT:
 
 `optimizer` is used to build and solve the MIP problem.
 
-The output dictionary records whether a numeric incumbent was available in `:WitnessAvailable` and
-whether an independent network forward pass satisfied the target condition in `:WitnessVerified`.
-Verified witnesses also have numeric `:PerturbedInputValue`, `:WitnessOutput`, `:WitnessMargin`, and
-`:WitnessDistance` entries. The comparison allows an absolute and relative tolerance of `1e-8` at
-the requested margin. Solver-backed results also have keys `:Model, :PerturbationFamily,
-:TargetIndexes, :SolveStatus, :PrimalStatus, :Perturbation, :PerturbedInput, :Output`. See the
+The output dictionary records whether a numeric incumbent was available in `:WitnessAvailable`.
+`:WitnessTargetVerified` records whether an independent network forward pass satisfied the target
+condition. `:WitnessPerturbationVerified` records whether the numeric input satisfied the selected
+perturbation family's input constraints. `:WitnessVerified` is true only when both checks pass for a
+numeric candidate. Available witnesses also have numeric `:PerturbedInputValue`,
+`:WitnessOutput`, `:WitnessMargin`, and `:WitnessDistance` entries. Numeric comparisons allow an
+absolute or relative tolerance of `1e-8`. An L-infinity budget uses only the relative tolerance so
+a small budget is not expanded by a larger fixed tolerance; a blur-kernel sum uses only the
+absolute tolerance so it does not grow with the channel count. Solver-backed results also have keys
+`:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :PrimalStatus, :Perturbation,
+:PerturbedInput, :Output`. See the
 [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
 on what individual dictionary entries correspond to.
 
 *Formal Definition*: If there are a total of `n` categories, the numeric output vector
 `y=d[:WitnessOutput]=d[:PerturbedInputValue] |> nn` has length `n`. If `:WitnessVerified` is true,
-then `y[j] - y[i] ≥ margin` within the documented comparison tolerance for some
-`j ∈ target_selection` and for all `i ∉ target_selection`. A solver termination status alone does
-not establish this claim.
+then `d[:PerturbedInputValue]` belongs to `pp` around `input`, and
+`y[j] - y[i] ≥ margin` within the documented comparison tolerance for some
+`j ∈ target_selection` and for all `i ∉ target_selection`. These claims are checked numerically;
+a solver termination status alone does not establish them. Custom perturbation families fail this
+check unless they implement [`verify_perturbation_witness`](@ref).
 
 # Keyword Arguments:
 - `invert_target_selection`: Defaults to `false`. If `true`, sets `target_selection` to be its
@@ -177,11 +200,13 @@ not establish this claim.
     unperturbed `input` can be determined efficiently. If the predicted index is one of the indexes
     in `target_selection`, we can skip the relatively costly process of building the model for the
     MIP problem since we already have an "adversarial example" --- namely, the input itself. We
-    continue build the model and solve the (trivial) MIP problem if and only if
-    `solve_if_predicted_in_targeted` is `true`.
+    skip only when that input also passes the perturbation-family check. We continue building the
+    model and solve the (trivial) MIP problem if `solve_if_predicted_in_targeted` is `true`, the
+    requested margin is not met, or perturbation-family membership cannot be verified.
 - `verdict_only`: Defaults to `false`, which computes the exact objective optimum. If `true`, stops
     once the solver finds a feasible adversarial example. In either mode, a returned incumbent is
-    independently checked with a numeric network forward pass before `:WitnessVerified` is true.
+    independently checked against the perturbation constraints and with a numeric network forward
+    pass before `:WitnessVerified` is true.
 - `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
     (by at least `margin`) than any non-target category. 
 - `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
@@ -234,12 +259,17 @@ function find_adversarial_example(
 
         # Skip the optimizer only when the unperturbed input satisfies the complete target
         # condition, including a requested positive margin.
-        skip_solve =
+        skip_candidate =
             d[:PredictedIndex] in d[:TargetIndexes] &&
             !solve_if_predicted_in_targeted &&
             original_input_is_witness
+        skip_solve = false
+        if skip_candidate
+            record_witness!(d, nn, input, copy(input), pp, margin)
+            skip_solve = d[:WitnessVerified]
+            skip_solve || record_no_witness!(d)
+        end
         if skip_solve
-            record_witness!(d, nn, copy(input), margin)
             d[:WitnessDistance] = zero(float(norm_order))
         else
             formulation_start = time_ns()
@@ -313,14 +343,16 @@ function find_adversarial_example(
             d[:SolveTime] = JuMP.solve_time(m)
             if d[:PrimalStatus] == MathOptInterface.FEASIBLE_POINT
                 perturbed_input = JuMP.value.(d[:PerturbedInput])
-                record_witness!(d, nn, perturbed_input, margin; primal_feasible = true)
+                record_witness!(d, nn, input, perturbed_input, pp, margin)
                 d[:WitnessDistance] = get_norm(norm_order, perturbed_input - input)
                 if !d[:WitnessVerified]
                     Memento.warn(
                         MIPVerify.LOGGER,
                         "Solver returned a primal point, but the numeric witness did not verify. " *
                         "primal_status=$(d[:PrimalStatus]), witness_margin=$(d[:WitnessMargin]), " *
-                        "required_margin=$margin",
+                        "required_margin=$margin, " *
+                        "target_verified=$(d[:WitnessTargetVerified]), " *
+                        "perturbation_verified=$(d[:WitnessPerturbationVerified])",
                     )
                 end
             else
