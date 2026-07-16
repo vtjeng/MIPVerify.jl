@@ -58,10 +58,15 @@ jobs:
             primary: true
     steps:
       - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v3
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+          # macos-latest runners are Apple Silicon; requesting x64 there runs Julia
+          # under Rosetta 2, which setup-julia v3 rejects unless forced. Forcing
+          # preserves the long-standing tested binaries and check names; moving the
+          # macOS legs to native aarch64 would be a separate, deliberate change.
+          force-arch: ${{ matrix.os == 'macos-latest' }}
           show-versioninfo: true
       - uses: actions/cache@v6
         env:
@@ -99,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - run: |
@@ -126,7 +131,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@latest
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - name: "Run `format.sh` script (runs `JuliaFormatter.format` on all files)"
@@ -165,7 +170,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - name: Instantiate benchmarks environment
@@ -188,7 +193,7 @@ jobs:
           - "04_managing_log_output.ipynb"
     steps:
       - uses: actions/checkout@v7
-      - uses: julia-actions/setup-julia@v1
+      - uses: julia-actions/setup-julia@v3
         with:
           version: "1"
       - uses: actions/cache@v6
