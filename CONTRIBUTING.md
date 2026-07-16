@@ -78,7 +78,13 @@ MIPVerify     |  518       1    519  3m18.6s
 
 ### Running a subset of tests locally
 
-For faster iteration, run a test file directly from the test project. For example:
+After cloning the repository or changing test dependencies, instantiate the test project:
+
+```sh
+julia --project=test -e 'using Pkg; Pkg.instantiate()'
+```
+
+Then run a test file directly for faster iteration. For example:
 
 ```sh
 julia --project=test test/models.jl
