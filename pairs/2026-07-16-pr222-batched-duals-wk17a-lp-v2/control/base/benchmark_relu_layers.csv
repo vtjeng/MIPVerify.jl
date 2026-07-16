@@ -1,0 +1,10 @@
+sample_index,relu_layer_index,input_shape,tightening_algorithm,bounds_time_seconds,constraint_time_seconds,relu_total_count,relu_stable_count,relu_unstable_count,relu_zero_output_count,relu_linear_in_input_count,relu_constant_output_count
+9,1,1x14x14x16,interval_arithmetic,0.49665148,0.635586046,3136,3088,48,2200,888,0
+9,2,1x7x7x32,lp,4.310483129,0.015128097,1568,1478,90,801,677,0
+9,3,100,lp,0.319579828,0.155800064,100,100,0,91,9,0
+291,1,1x14x14x16,interval_arithmetic,0.016510998,0.0004295,3136,3092,44,2199,893,0
+291,2,1x7x7x32,lp,0.681897211,0.014512798,1568,1497,71,802,695,0
+291,3,100,lp,0.068894091,2.35e-5,100,100,0,91,9,0
+496,1,1x14x14x16,interval_arithmetic,0.016562999,0.000393,3136,3097,39,2162,935,0
+496,2,1x7x7x32,lp,0.621412654,0.0085982,1568,1509,59,822,687,0
+496,3,100,lp,0.040089097,1.24e-5,100,100,0,91,9,0
