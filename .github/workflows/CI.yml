@@ -105,13 +105,52 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
+        id: setup-julia
         with:
           version: "1"
+      - name: Compute documentation Julia package state restore keys
+        id: docs-restore-keys
+        env:
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+          JULIA_VERSION: ${{ steps.setup-julia.outputs.julia-version }}
+          PROJECT_HASH: ${{ hashFiles('Project.toml', 'docs/Project.toml') }}
+        run: |
+          version_prefix="${RUNNER_OS}-${RUNNER_ARCH}-docs-julia-${JULIA_VERSION}-"
+          project_prefix="${version_prefix}projects-${PROJECT_HASH}-manifest-"
+          {
+            echo "unresolved=${project_prefix}unresolved"
+            echo "project_prefix=${project_prefix}"
+            echo "version_prefix=${version_prefix}"
+            echo "legacy_version_prefix=${RUNNER_OS}-docs-julia-${JULIA_VERSION}-"
+          } >> "$GITHUB_OUTPUT"
+      - name: Restore documentation Julia package state
+        id: docs-restore
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          # The manifest is generated during instantiation. Use a sentinel lookup,
+          # then seed from the newest cache for this project or Julia version.
+          key: ${{ steps.docs-restore-keys.outputs.unresolved }}
+          restore-keys: |
+            ${{ steps.docs-restore-keys.outputs.project_prefix }}
+            ${{ steps.docs-restore-keys.outputs.version_prefix }}
+            ${{ steps.docs-restore-keys.outputs.legacy_version_prefix }}
       - run: |
           julia --project=docs -e '
             using Pkg
             Pkg.develop(PackageSpec(path=pwd()))
             Pkg.instantiate()'
+      - name: Compute final documentation Julia package state key
+        id: docs-final-key
+        env:
+          PROJECT_PREFIX: ${{ steps.docs-restore-keys.outputs.project_prefix }}
+          MANIFEST_HASH: ${{ hashFiles('docs/Manifest.toml') }}
+        run: echo "key=${PROJECT_PREFIX}${MANIFEST_HASH}" >> "$GITHUB_OUTPUT"
       - run: |
           julia --project=docs -e '
             using Documenter: doctest
@@ -123,6 +162,16 @@ jobs:
           # I created a `DOCUMENTER_KEY` secret, via
           # https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
+      - name: Save documentation Julia package state
+        if: ${{ success() && steps.docs-final-key.outputs.key != steps.docs-restore.outputs.cache-matched-key }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          key: ${{ steps.docs-final-key.outputs.key }}
 
   # JuliaFormatter check, based off of
   # https://github.com/julia-actions/julia-format/blob/096371fb8d24867760569a7a89359a677595503b/workflows/format_check.yml
@@ -138,6 +187,9 @@ jobs:
         run: ./scripts/format.sh
       - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
+          # The backticks below are Julia Cmd-literal syntax, not shell substitution
+          # accidentally left in single quotes.
+          # shellcheck disable=SC2016
           julia -e '
           out = Cmd(`git diff --name-only`) |> read |> String
           if out == ""
@@ -171,26 +223,66 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
+        id: setup-julia
         with:
           version: "1"
+      - name: Compute benchmark Julia package state restore keys
+        id: benchmark-restore-keys
+        env:
+          RUNNER_OS: ${{ runner.os }}
+          RUNNER_ARCH: ${{ runner.arch }}
+          JULIA_VERSION: ${{ steps.setup-julia.outputs.julia-version }}
+          PROJECT_HASH: ${{ hashFiles('Project.toml', 'benchmarks/Project.toml', 'examples/Project.toml', 'test/Project.toml') }}
+        run: |
+          version_prefix="${RUNNER_OS}-${RUNNER_ARCH}-benchmarks-julia-${JULIA_VERSION}-"
+          project_prefix="${version_prefix}projects-${PROJECT_HASH}-manifest-"
+          {
+            echo "unresolved=${project_prefix}unresolved"
+            echo "project_prefix=${project_prefix}"
+            echo "version_prefix=${version_prefix}"
+            echo "legacy_version_prefix=${RUNNER_OS}-benchmarks-julia-${JULIA_VERSION}-"
+          } >> "$GITHUB_OUTPUT"
+      - name: Restore benchmark Julia package state
+        id: benchmark-restore
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          # The workspace manifest is generated during instantiation. Use a sentinel lookup,
+          # then seed from the newest cache for this project or Julia version.
+          key: ${{ steps.benchmark-restore-keys.outputs.unresolved }}
+          restore-keys: |
+            ${{ steps.benchmark-restore-keys.outputs.project_prefix }}
+            ${{ steps.benchmark-restore-keys.outputs.version_prefix }}
+            ${{ steps.benchmark-restore-keys.outputs.legacy_version_prefix }}
       - name: Instantiate benchmarks environment
         run: julia --project=benchmarks -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
+      - name: Compute final benchmark Julia package state key
+        id: benchmark-final-key
+        env:
+          PROJECT_PREFIX: ${{ steps.benchmark-restore-keys.outputs.project_prefix }}
+          MANIFEST_HASH: ${{ hashFiles('Manifest.toml') }}
+        run: echo "key=${PROJECT_PREFIX}${MANIFEST_HASH}" >> "$GITHUB_OUTPUT"
       - name: Run benchmark helper tests
         run: julia --project=benchmarks benchmarks/test/runtests.jl
+      - name: Save benchmark Julia package state
+        if: ${{ success() && steps.benchmark-final-key.outputs.key != steps.benchmark-restore.outputs.cache-matched-key }}
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ~/.julia/artifacts
+            ~/.julia/compiled
+            ~/.julia/packages
+            ~/.julia/registries
+          key: ${{ steps.benchmark-final-key.outputs.key }}
 
   notebook-tests:
-    name: "Notebook: ${{ matrix.notebook }}"
+    name: Notebook Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        notebook:
-          - "00_quickstart.ipynb"
-          - "01_importing_your_own_neural_net.ipynb"
-          # 02 excluded — too slow for PR CI (~3 hours without time limits)
-          - "03_interpreting_the_output_of_find_adversarial_example.ipynb"
-          - "04_managing_log_output.ipynb"
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
@@ -208,9 +300,10 @@ jobs:
             ${{ runner.os }}-
       - name: Instantiate examples environment
         run: julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
-      - name: Execute notebook
+      - name: Execute notebooks
         env:
-          NOTEBOOK: ${{ matrix.notebook }}
+          # 02 excluded — too slow for PR CI (~3 hours without time limits)
+          NOTEBOOKS: "00_quickstart.ipynb,01_importing_your_own_neural_net.ipynb,03_interpreting_the_output_of_find_adversarial_example.ipynb,04_managing_log_output.ipynb"
         run: julia --project=examples examples/test/runtests.jl
 
   format-check-prettier:
@@ -227,3 +320,15 @@ jobs:
           # break CI on unchanged files.
           prettier_version: "3.9.5"
           prettier_options: --check **/*.{md,yaml}
+
+  lint-workflows:
+    name: "Lint GitHub Actions Workflows"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Verify that actionlint finds no issues in .github/workflows."
+        # Pinned so new lint rules cannot break CI on unchanged files. The image
+        # bundles shellcheck and pyflakes, so `run:` blocks are checked too.
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color

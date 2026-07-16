@@ -2,7 +2,7 @@
 # This catches API breakage and runtime errors but does not verify output values —
 # correctness assertions live in test/runtests.jl.
 #
-# Set NOTEBOOK env var to run a single notebook (used by CI matrix strategy).
+# Set NOTEBOOK to run one notebook, or NOTEBOOKS to run a comma-separated list.
 
 using Test
 using NBInclude
@@ -11,6 +11,8 @@ const EXAMPLES_DIR = joinpath(@__DIR__, "..")
 
 notebooks_to_run = if haskey(ENV, "NOTEBOOK")
     [ENV["NOTEBOOK"]]
+elseif haskey(ENV, "NOTEBOOKS")
+    strip.(split(ENV["NOTEBOOKS"], ","))
 else
     filter(f -> endswith(f, ".ipynb"), readdir(EXAMPLES_DIR))
 end
