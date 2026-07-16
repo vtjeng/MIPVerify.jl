@@ -1,64 +1,129 @@
 using Test
+using DataFrames
 using MIPVerify
 using MIPVerify: LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
 TestHelpers.@timed_testset "integration.jl" begin
-    mnist = read_datasets("MNIST")
-    nn_wk17a = get_example_network_params("MNIST.WK17a_linf0.1_authors")
+    # The weights make class 1's logit `1 - x` and class 2's logit `x`, so the
+    # prediction changes at x = 0.5. The -1 and 1 slopes move the logits in
+    # opposite directions, while biases 1 and 0 put their crossing at 0.5.
+    weights = [-1.0 1.0]
+    biases = [1.0, 0.0]
+    nn = Sequential(
+        [
+            Flatten(4), # `get_image` returns one sample with four NHWC dimensions.
+            Linear(weights, biases),
+        ],
+        "batch_processing_helpers.integration.two_class",
+    )
+
+    class_boundary = 0.5 # Equal logits are the nearest feasible class-2 prediction.
+    perturbation_radius = 0.1 # Large enough to move 0.45, but not 0.1, to the boundary.
+    robust_input = 0.1 # Its largest allowed value is 0.2, below the 0.5 boundary.
+    attackable_input = 0.45 # It needs a 0.05 perturbation, within the 0.1 bound.
+    misclassified_input = 0.75 # The network predicts class 2 although its label is class 1.
+    images = reshape(
+        [robust_input, attackable_input, misclassified_input],
+        3, # One image for each of the robust, attackable, and misclassified cases.
+        1, # A one-pixel image has height one.
+        1, # A one-pixel image has width one.
+        1, # A scalar image has one channel.
+    )
+    labels = zeros(Int, 3) # Zero is class 1; all three labels exercise attacks toward class 2.
+    dataset = MIPVerify.LabelledImageDataset(images, labels)
+
+    robust_sample = 1 # This row must produce an infeasible solve.
+    attackable_sample = 2 # This row must produce an optimal nonzero attack.
+    misclassified_sample = 3 # This row must skip solving because class 2 is already predicted.
+    true_class = 1 # Every zero-based label 0 maps to one-indexed class 1.
+    target_class = 2 # Class 2 is the only non-true class in this two-class network.
+    objective_tolerance = 1e-5 # Allow small solver-dependent error at the class boundary.
+    pp = LInfNormBoundedPerturbationFamily(perturbation_radius)
+
+    function read_batch_output(dir)
+        main_path = only(filter(isdir, readdir(dir; join = true)))
+        summary = DataFrame(MIPVerify.CSV.File(joinpath(main_path, "summary.csv")))
+        result_files = readdir(joinpath(main_path, "run_results"))
+        return summary, result_files
+    end
+
+    row_for_sample(summary, sample) = only(findall(==(sample), summary.SampleNumber))
+
     @testset "batch_find_untargeted_attack" begin
         mktempdir() do dir
             MIPVerify.batch_find_untargeted_attack(
-                nn_wk17a,
-                mnist.test,
-                [1], # robust sample
+                nn,
+                dataset,
+                [robust_sample, attackable_sample, misclassified_sample],
                 TestHelpers.get_optimizer(),
                 TestHelpers.get_main_solve_options(),
                 solve_rerun_option = MIPVerify.never,
-                pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-                norm_order = Inf,
-                tightening_algorithm = lp,
-                tightening_options = TestHelpers.get_tightening_options(),
-                solve_if_predicted_in_targeted = false,
-                save_path = dir,
-            )
-        end
-
-        mktempdir() do dir
-            MIPVerify.batch_find_untargeted_attack(
-                nn_wk17a,
-                mnist.test,
-                [9, 248], # non-robust and misclassified sample
-                TestHelpers.get_optimizer(),
-                TestHelpers.get_main_solve_options(),
-                solve_rerun_option = MIPVerify.never,
-                pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+                pp = pp,
                 norm_order = Inf,
                 tightening_algorithm = interval_arithmetic,
                 tightening_options = TestHelpers.get_tightening_options(),
                 solve_if_predicted_in_targeted = false,
                 save_path = dir,
             )
+
+            summary, result_files = read_batch_output(dir)
+            @test summary.SampleNumber == [robust_sample, attackable_sample, misclassified_sample]
+            robust_row = row_for_sample(summary, robust_sample)
+            attackable_row = row_for_sample(summary, attackable_sample)
+            misclassified_row = row_for_sample(summary, misclassified_sample)
+            # Solvers may distinguish proven infeasibility from infeasible-or-unbounded.
+            @test summary.SolveStatus[robust_row] in ["INFEASIBLE", "INFEASIBLE_OR_UNBOUNDED"]
+            @test summary.SolveStatus[[attackable_row, misclassified_row]] == ["OPTIMAL", "OPTIMAL"]
+            @test summary.IsInfeasible == [true, false, false]
+            # Saved metadata verifies that the batch API forwarded the requested algorithm.
+            @test summary.TighteningApproach[[robust_row, attackable_row]] ==
+                  [string(interval_arithmetic), string(interval_arithmetic)]
+            @test isnan(summary.ObjectiveValue[robust_row])
+            @test summary.ObjectiveValue[attackable_row] ≈ class_boundary - attackable_input atol =
+                objective_tolerance
+            @test summary.ObjectiveValue[misclassified_row] == 0
+            @test !ismissing(summary.ResultRelativePath[robust_row])
+            @test !ismissing(summary.ResultRelativePath[attackable_row])
+            @test ismissing(summary.ResultRelativePath[misclassified_row])
+            @test length(result_files) == 2 # Only the two rows that ran a solve write MAT files.
         end
     end
 
     @testset "batch_find_targeted_attack" begin
         mktempdir() do dir
             MIPVerify.batch_find_targeted_attack(
-                nn_wk17a,
-                mnist.test,
-                [1],
+                nn,
+                dataset,
+                [attackable_sample, misclassified_sample],
                 TestHelpers.get_optimizer(),
                 TestHelpers.get_main_solve_options(),
                 solve_rerun_option = MIPVerify.never,
-                pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+                pp = pp,
                 norm_order = Inf,
                 tightening_algorithm = interval_arithmetic,
                 tightening_options = TestHelpers.get_tightening_options(),
                 solve_if_predicted_in_targeted = false,
-                target_labels = [1, 8],
+                # Class 1 exercises the true-label early skip; class 2 exercises a solve
+                # for sample 2 and an already-predicted-target skip for sample 3.
+                target_labels = [true_class, target_class],
                 save_path = dir,
             )
+
+            summary, result_files = read_batch_output(dir)
+            @test summary.SampleNumber == [attackable_sample, misclassified_sample]
+            @test summary.TargetIndexes == ["[$target_class]", "[$target_class]"]
+            attackable_row = row_for_sample(summary, attackable_sample)
+            misclassified_row = row_for_sample(summary, misclassified_sample)
+            # The attackable row solves; the already-target row takes the zero-objective skip.
+            @test summary.SolveStatus == ["OPTIMAL", "OPTIMAL"]
+            @test summary.TighteningApproach[attackable_row] == string(interval_arithmetic)
+            @test summary.ObjectiveValue[attackable_row] ≈ class_boundary - attackable_input atol =
+                objective_tolerance
+            @test summary.ObjectiveValue[misclassified_row] == 0
+            @test !ismissing(summary.ResultRelativePath[attackable_row])
+            @test ismissing(summary.ResultRelativePath[misclassified_row])
+            @test length(result_files) == 1 # Only the targeted solve writes a MAT result.
         end
     end
 end

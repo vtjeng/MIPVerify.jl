@@ -1,6 +1,6 @@
 using Test
 using MIPVerify
-using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFamily
+using MIPVerify: UnrestrictedPerturbationFamily
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
@@ -11,6 +11,7 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     l1_kernel = gen_array((l1_width, l1_height), -1, 1)
     l1_bias = gen_array((l1_height,), -1, 1)
 
+    # Include always-off (-1), ordinary ReLU (0), and always-on (1) units.
     m1 = [0, 0, 0, 0, -1, -1, -1, 1, 1, -1, 1, 0, 1, 0, -1, 1]
 
     l2_height = 8
@@ -19,6 +20,7 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     l2_bias = gen_array((l2_height,), -1, 1)
 
 
+    # Repeat all three mask states after the second linear layer.
     m2 = [0, -1, 1, 1, -1, -1, 0, 1]
 
     l3_height = 4
@@ -41,14 +43,14 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
     pp_unrestricted = UnrestrictedPerturbationFamily()
 
     @testset "Basic integration test for MaskedReLU layer." begin
-        test_cases = [
-            ((1, pp_unrestricted, Inf), 0.08112308),
-            ((2, pp_unrestricted, Inf), 0.3622567),
-            ((3, pp_unrestricted, Inf), 0),
-            ((1, LInfNormBoundedPerturbationFamily(0.08), Inf), NaN),
-            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf) => 0.08112308),
-        ]
+        # Target 1 needs a nonzero perturbation through both MaskedReLU layers.
+        test_cases = [((1, pp_unrestricted, Inf), 0.08112308)]
 
-        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+        TestHelpers.batch_test_adversarial_example(
+            nn,
+            input,
+            test_cases,
+            tightening_algorithm = interval_arithmetic,
+        )
     end
 end

@@ -3,7 +3,7 @@ using MIPVerify
 using MIPVerify: UnrestrictedPerturbationFamily
 using JuMP
 
-include("../../TestHelpers.jl")
+@isdefined(TestHelpers) || include("../../TestHelpers.jl")
 
 @testset "margin" begin
     # Simple neural network for testing

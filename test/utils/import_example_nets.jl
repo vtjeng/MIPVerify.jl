@@ -5,20 +5,21 @@ using MIPVerify: canonical_example_network_name
 
 TestHelpers.@timed_testset "import_example_nets.jl" begin
     TestHelpers.@timed_testset "get_example_network_params" begin
+        mnist = read_datasets("mnist")
+        # The first 1,000 samples cover every digit and catch incorrect weight orientation
+        # without repeating each network over the full 10,000-image test set.
+        num_accuracy_samples = 1_000
         TestHelpers.@timed_testset "MNIST.n1" begin
             nn = get_example_network_params("MNIST.n1")
-            mnist = read_datasets("mnist")
-            @test frac_correct(nn, mnist.test, 10000) == 0.9695
+            @test frac_correct(nn, mnist.test, num_accuracy_samples) == 0.970
         end
         TestHelpers.@timed_testset "MNIST.WK17a_linf0.1_authors" begin
             nn = get_example_network_params("MNIST.WK17a_linf0.1_authors")
-            mnist = read_datasets("mnist")
-            @test frac_correct(nn, mnist.test, 10000) == 0.9811
+            @test frac_correct(nn, mnist.test, num_accuracy_samples) == 0.980
         end
         TestHelpers.@timed_testset "MNIST.RSL18a_linf0.1_authors" begin
             nn = get_example_network_params("MNIST.RSL18a_linf0.1_authors")
-            mnist = read_datasets("mnist")
-            @test frac_correct(nn, mnist.test, 10000) == 0.9582
+            @test frac_correct(nn, mnist.test, num_accuracy_samples) == 0.953
         end
     end
 

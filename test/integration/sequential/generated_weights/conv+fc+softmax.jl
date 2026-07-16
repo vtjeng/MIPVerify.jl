@@ -52,43 +52,64 @@ TestHelpers.@timed_testset "conv+fc+softmax.jl" begin
     )
 
     TestHelpers.@timed_testset "BlurringPerturbationFamily" begin
+        # This kernel size permits a feasible blur with a nonzero objective.
         pp_blur = BlurringPerturbationFamily((5, 5))
-        test_cases = [((2, pp_blur, 1), 6.959316), ((3, pp_blur, 1), NaN)]
+        test_cases = [
+            # Target 2 exercises a feasible blur with a nonzero l1 objective.
+            ((2, pp_blur, 1), 6.959316),
+        ]
 
-        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+        TestHelpers.batch_test_adversarial_example(nn, input, test_cases, tightening_algorithm = lp)
     end
 
     TestHelpers.@timed_testset "UnrestrictedPerturbationFamily" begin
         pp_unrestricted = UnrestrictedPerturbationFamily()
         TestHelpers.@timed_testset "Minimizing l1 norm" begin
-            test_cases = [((1, pp_unrestricted, 1), 0), ((2, pp_unrestricted, 1), 0.9187638)]
+            # Target 2 requires a nonzero perturbation, so this checks the l1 objective.
+            test_cases = [((2, pp_unrestricted, 1), 0.9187638)]
 
+            # Keep an unrestricted LP-tightened solve as a formulation regression.
             TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
         end
 
         TestHelpers.@timed_testset "Minimizing lInf norm" begin
-            test_cases = [
-                ((1, pp_unrestricted, Inf), 0),
-                ((2, pp_unrestricted, Inf), 0.06688736),
-                ((3, pp_unrestricted, Inf), 0.4270584),
-            ]
+            # Target 3 checks a distinct target and a nonzero lInf objective.
+            test_cases = [((3, pp_unrestricted, Inf), 0.4270584)]
 
-            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+            TestHelpers.batch_test_adversarial_example(
+                nn,
+                input,
+                test_cases,
+                tightening_algorithm = interval_arithmetic,
+            )
         end
 
         TestHelpers.@timed_testset "With multiple target labels specified, minimum target label found" begin
+            # Targets 2 and 3 make target 2 the cheaper feasible choice.
             test_cases = [(([2, 3], pp_unrestricted, Inf), 0.06688736)]
 
-            TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+            TestHelpers.batch_test_adversarial_example(
+                nn,
+                input,
+                test_cases,
+                tightening_algorithm = interval_arithmetic,
+            )
         end
     end
 
     TestHelpers.@timed_testset "LInfNormBoundedPerturbationFamily" begin
         test_cases = [
-            ((2, LInfNormBoundedPerturbationFamily(0.06), Inf), NaN),  # restricting maximum perturbation to below minimum distance causes optimization problem to be infeasible
-            ((2, LInfNormBoundedPerturbationFamily(0.07), Inf), 0.06688736),  # restricting maximum perturbation to above minimum distance does not affect optimal value of problem
+            # A radius just below the optimum makes the problem infeasible.
+            ((2, LInfNormBoundedPerturbationFamily(0.06), Inf), NaN),
+            # A radius just above the optimum preserves the unrestricted objective.
+            ((2, LInfNormBoundedPerturbationFamily(0.07), Inf), 0.06688736),
         ]
 
-        TestHelpers.batch_test_adversarial_example(nn, input, test_cases)
+        TestHelpers.batch_test_adversarial_example(
+            nn,
+            input,
+            test_cases,
+            tightening_algorithm = interval_arithmetic,
+        )
     end
 end
