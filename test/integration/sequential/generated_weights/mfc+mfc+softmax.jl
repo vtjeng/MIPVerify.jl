@@ -1,6 +1,6 @@
 using Test
 using MIPVerify
-using MIPVerify: UnrestrictedPerturbationFamily
+using MIPVerify: UnrestrictedPerturbationFamily, LInfNormBoundedPerturbationFamily
 @isdefined(TestHelpers) || include("../../../TestHelpers.jl")
 
 TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
@@ -44,13 +44,28 @@ TestHelpers.@timed_testset "mfc+mfc+softmax.jl" begin
 
     @testset "Basic integration test for MaskedReLU layer." begin
         # Target 1 needs a nonzero perturbation through both MaskedReLU layers.
-        test_cases = [((1, pp_unrestricted, Inf), 0.08112308)]
+        unrestricted_test_cases = [((1, pp_unrestricted, Inf), 0.08112308)]
 
         TestHelpers.batch_test_adversarial_example(
             nn,
             input,
-            test_cases,
+            unrestricted_test_cases,
             tightening_algorithm = interval_arithmetic,
+        )
+
+        bounded_test_cases = [
+            # A bound just below that optimum makes the combined formulation infeasible.
+            ((1, LInfNormBoundedPerturbationFamily(0.08), Inf), NaN),
+            # A bound just above the optimum preserves the unrestricted objective.
+            ((1, LInfNormBoundedPerturbationFamily(0.085), Inf), 0.08112308),
+        ]
+
+        # Preserve end-to-end LP tightening through MaskedReLU for the bounded formulation.
+        TestHelpers.batch_test_adversarial_example(
+            nn,
+            input,
+            bounded_test_cases,
+            tightening_algorithm = lp,
         )
     end
 end

@@ -55,23 +55,23 @@ Sample output from a warm Julia 1.12.6 run is shown below. Runtime and allocatio
 but the table identifies the expensive test groups.
 
 ```sh
- Tot / % measured:                         182s / 99.3%        9.11GiB / 99.1%
+ Tot / % measured:                         199s / 99.3%        9.10GiB / 99.3%
 
  Section                              ncalls     time    %tot     alloc    %tot
- integration/                              1     119s   65.7%   3.89GiB   43.1%
-   generated_weights/                      1     115s   63.7%   3.65GiB   40.4%
-     conv+fc+softmax.jl                    1    61.4s   33.9%   1.12GiB   12.5%
-       BlurringPerturbationFamily          1    44.5s   24.6%    920MiB   10.0%
-     mfc+mfc+softmax.jl                    1    53.7s   29.7%   2.53GiB   28.0%
- net_components/                           1    31.0s   17.1%   2.00GiB   22.1%
- utils/                                    1    17.4s    9.6%   2.11GiB   23.3%
-   import_datasets.jl                      1    11.3s    6.2%   1.40GiB   15.5%
-   import_example_nets.jl                  1    5.62s    3.1%    702MiB    7.6%
- batch_processing_helpers/                 1    13.7s    7.6%   1.04GiB   11.5%
-   integration.jl                          1    10.6s    5.9%    848MiB    9.2%
+ integration/                              1     121s   61.3%   3.96GiB   43.8%
+   generated_weights/                      1     113s   57.2%   3.72GiB   41.2%
+     conv+fc+softmax.jl                    1    82.6s   41.9%    887MiB    9.6%
+       BlurringPerturbationFamily          1    65.7s   33.3%    780MiB    8.4%
+     mfc+mfc+softmax.jl                    1    30.0s   15.2%   2.85GiB   31.6%
+ net_components/                           1    37.5s   19.0%   1.93GiB   21.4%
+ utils/                                    1    23.0s   11.7%   2.11GiB   23.3%
+   import_datasets.jl                      1    13.7s    6.9%   1.40GiB   15.5%
+   import_example_nets.jl                  1    8.65s    4.4%    702MiB    7.6%
+ batch_processing_helpers/                 1    15.8s    8.0%   1.04GiB   11.5%
+   integration.jl                          1    12.1s    6.1%    848MiB    9.2%
 
 Test Summary: | Pass  Broken  Total     Time
-MIPVerify     |  513       1    514  3m02.4s
+MIPVerify     |  518       1    519  3m18.6s
      Testing MIPVerify tests passed
 ```
 
