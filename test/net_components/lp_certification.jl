@@ -21,6 +21,23 @@ using MIPVerify:
 
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
+struct BatchDualProbeSet <: MathOptInterface.AbstractScalarSet end
+
+const BatchDualProbeIndex = MathOptInterface.ConstraintIndex{
+    MathOptInterface.ScalarAffineFunction{Float64},
+    BatchDualProbeSet,
+}
+const BATCH_DUAL_VECTOR_GET_CALLS = Ref(0)
+
+function MathOptInterface.get(
+    mock::MathOptInterface.Utilities.MockOptimizer,
+    attribute::MathOptInterface.ConstraintDual,
+    indices::Vector{BatchDualProbeIndex},
+)
+    BATCH_DUAL_VECTOR_GET_CALLS[] += 1
+    return MathOptInterface.get.(Ref(mock), Ref(attribute), indices)
+end
+
 TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "repairs stationarity residuals over variable bounds" begin
         m_lower = Model()
@@ -542,10 +559,192 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         )
         m = Model(() -> mock)
         m.ext[:MIPVerify] = MIPVerifyExt(mip)
+        # The LP dual certifies the row bound 1.5; that certificate must survive the following
+        # MIP solve's time limit instead of falling back to the variable upper bound 2.
         @variable(m, 0 <= x <= 2)
         @constraint(m, x <= 1.5)
 
         @test tight_upperbound(x; nta = mip) == 1.5
         @test call_count[] == 2
+    end
+
+    @testset "batches ordered duals by homogeneous constraint type" begin
+        m = Model()
+        # These ranges make the interval lower bound of x - y equal to -4 while leaving room for
+        # the selected x >= 2 and y <= 2 rows to certify the exact lower bound 0.
+        @variable(m, 0 <= x <= 3)
+        @variable(m, 0 <= y <= 4)
+        lower_first = @constraint(m, x >= 1)
+        lower_second = @constraint(m, x >= 2)
+        upper_first = @constraint(m, y <= 3)
+        upper_second = @constraint(m, y <= 2)
+
+        # A zero dual ignores the first row in each group; the signed unit dual selects the second.
+        # This makes swapped or otherwise misordered batch values produce a different certificate.
+        duals =
+            Dict(lower_first => 0.0, lower_second => 1.0, upper_first => 0.0, upper_second => -1.0)
+        batch_groups = Vector{Vector{Any}}()
+        dual_values = constraints -> begin
+            push!(batch_groups, Any[constraints...])
+            return [duals[constraint] for constraint in constraints]
+        end
+
+        bound = certified_lp_bound(m, lower_bound_type, x - y, -4.0; dual_values = dual_values)
+
+        # The selected rows prove x - y >= 2 - 2 = 0.
+        @test bound == 0.0
+        # GreaterThan and LessThan rows must be fetched as two separate homogeneous batches.
+        @test length(batch_groups) == 2
+        @test Any[lower_first, lower_second] in batch_groups
+        @test Any[upper_first, upper_second] in batch_groups
+    end
+
+    @testset "default dual retrieval uses vector MOI.get" begin
+        mock = MathOptInterface.Utilities.MockOptimizer(
+            MathOptInterface.Utilities.UniversalFallback(
+                MathOptInterface.Utilities.Model{Float64}(),
+            );
+            eval_variable_constraint_dual = false,
+        )
+        function_type = MathOptInterface.ScalarAffineFunction{Float64}
+        MathOptInterface.Utilities.set_mock_optimize!(
+            mock,
+            optimizer -> MathOptInterface.Utilities.mock_optimize!(
+                optimizer,
+                MathOptInterface.OPTIMAL,
+                # This is the sole variable's primal result; only dual reads matter here.
+                [0.0],
+                # Distinct values make the order of the returned row duals observable.
+                (function_type, BatchDualProbeSet) => [1.0, 2.0],
+            ),
+        )
+        m = Model(() -> mock; add_bridges = false)
+        @variable(m, x)
+        constraints = [
+            # Non-unit coefficients keep these as scalar-affine rather than variable rows.
+            @constraint(m, 2x in BatchDualProbeSet()),
+            @constraint(m, 3x in BatchDualProbeSet()),
+        ]
+        optimize!(m)
+
+        BATCH_DUAL_VECTOR_GET_CALLS[] = 0
+        @test MIPVerify.default_constraint_duals(m, constraints) == [1.0, 2.0]
+        @test BATCH_DUAL_VECTOR_GET_CALLS[] == 1
+    end
+
+    @testset "retries scalar duals when a batch fails or has the wrong length" begin
+        m = Model(HiGHS.Optimizer)
+        set_silent(m)
+        # Finite [0, 4] bounds let the certificate absorb residuals, while the two independent
+        # rows x >= 1 and y >= 2 require both recovered scalar duals to prove the lower bound 3.
+        @variable(m, 0 <= x <= 4)
+        @variable(m, 0 <= y <= 4)
+        @constraint(m, x >= 1)
+        @constraint(m, y >= 2)
+        @objective(m, Min, x + y)
+        optimize!(m)
+
+        failed_batch_calls = Ref(0)
+        failed_batch_bound = certified_lp_bound(
+            m,
+            lower_bound_type,
+            x + y,
+            0.0;
+            dual_values = _ -> begin
+                failed_batch_calls[] += 1
+                error("batch retrieval failed")
+            end,
+        )
+        # Both scalar retries recover the solver duals and certify 1 + 2 = 3.
+        @test failed_batch_bound == 3.0
+        # Both affine rows share one GreaterThan batch.
+        @test failed_batch_calls[] == 1
+
+        wrong_length_batch_calls = Ref(0)
+        wrong_length_bound = certified_lp_bound(
+            m,
+            lower_bound_type,
+            x + y,
+            0.0;
+            dual_values = _ -> begin
+                wrong_length_batch_calls[] += 1
+                # One value cannot represent the two affine rows, so retrieval must retry scalars.
+                return [0.0]
+            end,
+        )
+        # The wrong-length vector is discarded; both scalar duals again certify 1 + 2 = 3.
+        @test wrong_length_bound == 3.0
+        # The homogeneous GreaterThan group is attempted once before scalar fallback.
+        @test wrong_length_batch_calls[] == 1
+    end
+
+    @testset "treats invalid batch elements as independently unavailable" begin
+        m = Model()
+        # The four distinct right-hand sides identify which batch element remains usable, and the
+        # [0, 5] variable range keeps the interval fallback finite.
+        @variable(m, 0 <= x <= 5)
+        @constraint(m, x >= 1)
+        @constraint(m, x >= 2)
+        @constraint(m, x >= 3)
+        @constraint(m, x >= 4)
+
+        bound = certified_lp_bound(
+            m,
+            lower_bound_type,
+            x,
+            0.0;
+            dual_values = _ -> begin
+                # NaN, infinity, and a non-Real value are ignored independently; the final unit
+                # dual must remain available to select x >= 4.
+                return Any[NaN, Inf, "unavailable", 1.0]
+            end,
+        )
+
+        # The one valid element certifies x >= 4 despite the three invalid neighbors.
+        @test bound == 4.0
+    end
+
+    @testset "propagates fatal batch errors" begin
+        m = Model()
+        # This single finite row is enough to enter the batch path without unrelated fallbacks.
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x >= 1)
+
+        for fatal_error in (InterruptException(), OutOfMemoryError(), StackOverflowError())
+            @test_throws typeof(fatal_error) certified_lp_bound(
+                m,
+                lower_bound_type,
+                x,
+                0.0;
+                dual_values = _ -> throw(fatal_error),
+            )
+        end
+    end
+
+    @testset "keeps the custom scalar dual callback path" begin
+        m = Model()
+        # The second row is stricter, so assigning it the unit dual proves x >= 2 and makes the
+        # callback order and returned values observable in the certificate.
+        @variable(m, 0 <= x <= 3)
+        first_constraint = @constraint(m, x >= 1)
+        second_constraint = @constraint(m, x >= 2)
+        scalar_calls = Any[]
+        scalar_duals = Dict(first_constraint => 0.0, second_constraint => 1.0)
+
+        bound = certified_lp_bound(
+            m,
+            lower_bound_type,
+            x,
+            0.0;
+            dual_value = constraint -> begin
+                push!(scalar_calls, constraint)
+                return scalar_duals[constraint]
+            end,
+            dual_values = _ -> error("custom scalar duals must bypass batch retrieval"),
+        )
+
+        # The custom scalar values select x >= 2, and each row is queried once in model order.
+        @test bound == 2.0
+        @test scalar_calls == Any[first_constraint, second_constraint]
     end
 end
