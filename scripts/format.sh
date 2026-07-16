@@ -3,6 +3,16 @@
 # Determining root directory of the repo: https://stackoverflow.com/a/957978
 repo_root=$(git rev-parse --show-toplevel)
 
+julia_only=false
+if [[ $# -gt 0 ]]; then
+  if [[ $# -eq 1 && $1 == "--julia-only" ]]; then
+    julia_only=true
+  else
+    echo "Usage: $0 [--julia-only]" >&2
+    exit 2
+  fi
+fi
+
 (
   cd "${repo_root}" &&
   julia -e '
@@ -13,6 +23,11 @@ repo_root=$(git rev-parse --show-toplevel)
     format(".", verbose=true)
   '
 )
+
+julia_formatter_status=$?
+if [[ "${julia_only}" == true ]]; then
+  exit "${julia_formatter_status}"
+fi
 
 # Format benchmark analysis Python with the same pinned Ruff version that CI uses
 # (see format-check-python in .github/workflows/CI.yml).
