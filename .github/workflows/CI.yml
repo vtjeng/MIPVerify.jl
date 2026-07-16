@@ -132,18 +132,9 @@ jobs:
         run: julia --project=benchmarks benchmarks/test/runtests.jl
 
   notebook-tests:
-    name: "Notebook shard ${{ matrix.shard }}"
+    name: Notebook Tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - shard: "00-01"
-            notebooks: "00_quickstart.ipynb,01_importing_your_own_neural_net.ipynb"
-          # 02 excluded — too slow for PR CI (~3 hours without time limits)
-          - shard: "03-04"
-            notebooks: "03_interpreting_the_output_of_find_adversarial_example.ipynb,04_managing_log_output.ipynb"
     steps:
       - uses: actions/checkout@v3
       - uses: julia-actions/setup-julia@v1
@@ -161,9 +152,10 @@ jobs:
             ${{ runner.os }}-
       - name: Instantiate examples environment
         run: julia --project=examples -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
-      - name: Execute notebook shard
+      - name: Execute notebooks
         env:
-          NOTEBOOKS: ${{ matrix.notebooks }}
+          # 02 excluded — too slow for PR CI (~3 hours without time limits)
+          NOTEBOOKS: "00_quickstart.ipynb,01_importing_your_own_neural_net.ipynb,03_interpreting_the_output_of_find_adversarial_example.ipynb,04_managing_log_output.ipynb"
         run: julia --project=examples examples/test/runtests.jl
 
   format-check-prettier:
