@@ -7,9 +7,11 @@ to each other.
 
 ## Verification (solve) performance
 
-Changes to solve and tightening work. These scale with the number of samples verified. Total is
-end-to-end wall clock pooled over the paired 500-sample WK17a LP benchmark (comparable samples
-only); median ratio is per-sample candidate ÷ baseline, below 1 is faster.
+Changes to the time it takes to verify a sample: building the MIP model, tightening ReLU bounds
+(interval arithmetic, LP, and MIP solves), and the main solve that proves robustness or finds an
+adversarial example. This work scales with the number of samples verified. Total is end-to-end wall
+clock pooled over the paired 500-sample WK17a LP benchmark (comparable samples only); median ratio
+is per-sample candidate ÷ baseline, below 1 is faster.
 
 | Date       | PR   | Change                                                         | Total (base → cand) | Median ratio | Notes                                                                                                                                                                                                                | Evidence                                                                                                                                                                                      |
 | ---------- | ---- | -------------------------------------------------------------- | ------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
