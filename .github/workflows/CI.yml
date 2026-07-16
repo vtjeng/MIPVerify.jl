@@ -133,6 +133,9 @@ jobs:
         run: ./scripts/format.sh
       - name: "Verify that running `JuliaFormatter.format` is a no-op."
         run: |
+          # The backticks below are Julia Cmd-literal syntax, not shell substitution
+          # accidentally left in single quotes.
+          # shellcheck disable=SC2016
           julia -e '
           out = Cmd(`git diff --name-only`) |> read |> String
           if out == ""
@@ -222,3 +225,15 @@ jobs:
           # break CI on unchanged files.
           prettier_version: "3.9.5"
           prettier_options: --check **/*.{md,yaml}
+
+  lint-workflows:
+    name: "Lint GitHub Actions Workflows"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: "Verify that actionlint finds no issues in .github/workflows."
+        # Pinned so new lint rules cannot break CI on unchanged files. The image
+        # bundles shellcheck and pyflakes, so `run:` blocks are checked too.
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
