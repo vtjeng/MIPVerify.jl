@@ -118,6 +118,21 @@ jobs:
               exit(1)
           end'
 
+  format-check-python:
+    name: "Check Formatting and Linting (.py)"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Verify that Ruff does not find any code style issues."
+        uses: astral-sh/ruff-action@v4.1.0
+        with:
+          # Keep this version in sync with scripts/format.sh.
+          version: "0.15.21"
+          args: "format --check --diff"
+          src: "benchmarks/analysis/"
+      - name: "Verify that Ruff does not find any lint issues."
+        run: ruff check benchmarks/analysis/
+
   benchmark-tests:
     name: Benchmark Helper Tests
     runs-on: ubuntu-latest
