@@ -743,6 +743,26 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test count_binary_variables(m) == 0
         end
 
+        @testset "attributes bounds outside ReLU layers to layer index 0" begin
+            m = TestHelpers.get_new_model()
+            stats = MIPVerify.VerificationStats()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp, stats)
+            # These bounds straddle zero, so the ReLU exercises both bound paths
+            # instead of fixing the unit active or inactive.
+            x = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            tight_upperbound(1.0 * x; nta = lp)
+            relu([1.0 * x]; nta = interval_arithmetic)
+            tight_lowerbound(1.0 * x; nta = lp)
+
+            # The lower bound solved after the ReLU layer must return to index 0,
+            # proving that finishing a layer resets the attribution index.
+            @test stats.current_relu_layer_index == 0
+            @test stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
+            @test stats.bound_tightening[(0, "lp", "lower")].solver_call_count == 1
+            @test haskey(stats.bound_tightening, (1, "interval_arithmetic", "upper"))
+        end
+
         @testset "remains disabled by default" begin
             m = TestHelpers.get_new_model()
             m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic)
