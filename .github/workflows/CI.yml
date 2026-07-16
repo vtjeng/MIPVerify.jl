@@ -74,7 +74,14 @@ jobs:
       - uses: codecov/codecov-action@v7
         with:
           files: lcov.info
+          # Upload exactly the file julia-processcoverage produced instead of also
+          # searching the workspace for anything coverage-shaped.
+          disable_search: true
           use_oidc: true
+          # Fail the job when the upload breaks: the action's lenient default let
+          # rate-limited uploads drop silently and would equally hide a broken OIDC
+          # setup. Fork PRs cannot obtain an OIDC token, so stay lenient there.
+          fail_ci_if_error: ${{ !github.event.pull_request.head.repo.fork }}
 
   docs:
     name: Documentation
