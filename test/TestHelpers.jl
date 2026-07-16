@@ -78,8 +78,7 @@ function test_find_adversarial_example(
         invert_target_selection = invert_target_selection,
     )
     if isnan(expected_objective_value)
-        @test d[:SolveStatus] == MathOptInterface.INFEASIBLE ||
-              d[:SolveStatus] == MathOptInterface.INFEASIBLE_OR_UNBOUNDED
+        @test d[:SolveStatus] == MathOptInterface.INFEASIBLE
         @test !d[:WitnessAvailable]
         @test !d[:WitnessTargetVerified]
         @test !d[:WitnessPerturbationVerified]
