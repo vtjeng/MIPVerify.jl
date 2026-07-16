@@ -175,3 +175,48 @@ julia --project=benchmarks benchmarks/compare_wk17a_benchmark.jl \
 Prints a CSV-formatted comparison of wall-clock and total time plus outcome counts. The gate
 requires matching schemas, matching semantic partition counts, complete schema-2 partitions, and
 timing regressions within the configured limit. It exits with code 0 on `PASS` and 1 on `FAIL`.
+
+## Paired before/after mini-reports
+
+For a **performance-affecting change**, produce a paired before/after report that shows the
+_distribution of per-sample improvements_ (not just aggregate totals) and attach it to the PR. The
+workflow is three steps: run, analyze, publish.
+
+### 1. Run both commits — `run_pair.sh`
+
+Runs the WK17a benchmark on two commits, each in its own throwaway git worktree (so each uses that
+commit's own `src` + `benchmarks`), then analyzes the pair. The current branch and working tree are
+untouched.
+
+```sh
+benchmarks/run_pair.sh \
+  --base <base-commit> --candidate <candidate-commit> \
+  --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120
+```
+
+Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-<slug>/analysis`
+(plots + tables).
+
+### 2. Analyze — `analysis/`
+
+`run_pair.sh` calls it for you; run it directly to re-analyze existing run dirs. It reports the
+per-sample ratio distribution, aggregate saving + concentration, solve-status counts, and grouped
+verdict flips, plus ECDF / scatter plots. See [`analysis/README.md`](analysis/README.md).
+
+### 3. Publish — `publish_report.sh`
+
+Publishes an analysis dir (with `report.md` and `plots/`) to the **`benchmark-reports`** branch,
+under a unique `pairs/<slug>/`. Append-only and never force: it aborts rather than overwrite an
+existing slug, and retries a rejected push with fetch+rebase, so nothing already on the branch can
+be clobbered.
+
+```sh
+benchmarks/publish_report.sh /tmp/pair-<slug>/analysis <YYYY-MM-DD-slug>
+```
+
+Then post a PR comment: a bulleted **Summary**, the **Detailed statistics** tables, and the plots
+embedded via `raw.githubusercontent.com/<owner>/<repo>/<sha>/pairs/<slug>/plots/*.png` (pin to the
+publish commit's SHA so the images can't be served stale).
+
+`benchmark-reports` is a manual, human-published branch, separate from the CI-managed
+`benchmark-results` branch — the two never share a path.
