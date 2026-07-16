@@ -9,9 +9,14 @@ to each other.
 
 Changes to the time it takes to verify a sample: building the MIP model, tightening ReLU bounds
 (interval arithmetic, LP, and MIP solves), and the main solve that proves robustness or finds an
-adversarial example. This work scales with the number of samples verified. Total is end-to-end wall
-clock pooled over the paired 500-sample WK17a LP benchmark (comparable samples only); median ratio
-is per-sample candidate ÷ baseline, below 1 is faster.
+adversarial example. This work scales with the number of samples verified. Columns, measured on the
+paired 500-sample WK17a LP benchmark:
+
+- **Total (base → cand)**: end-to-end wall clock summed over samples where both runs reached the
+  same outcome. Samples whose verdict or solve status differed (for example, hitting the 120 s time
+  limit on one side only) are excluded, because their time ratio would measure the outcome change,
+  not the speed change.
+- **Median ratio**: per-sample candidate ÷ baseline; below 1 is faster.
 
 | Date       | PR   | Change                                                         | Total (base → cand) | Median ratio | Notes                                                                                                                                                                                                                | Evidence                                                                                                                                                                                      |
 | ---------- | ---- | -------------------------------------------------------------- | ------------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -20,10 +25,11 @@ is per-sample candidate ÷ baseline, below 1 is faster.
 
 ## CI-only improvements
 
-Fixed per-run cost of the test and benchmark workflows. These do not scale with samples. Total is
-runner time summed over the jobs the row changes; long pole is the longest single job of a full CI
-run, "—" where the row does not move it. Same-day rows overlap in their before/after runs, so
-attribution between them is approximate.
+Fixed per-run cost of the test and benchmark workflows. These do not scale with samples. Same-day
+rows overlap in their before/after runs, so attribution between them is approximate.
+
+- **Total (before → after)**: runner time summed over the jobs the row changes.
+- **Long pole**: the longest single job of a full CI run; "—" where the row does not move it.
 
 | Date       | PR   | Change                                            | Total (before → after) | Long pole     | Notes                                                                                                                                | Evidence                                                                                                                                                  |
 | ---------- | ---- | ------------------------------------------------- | ---------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
