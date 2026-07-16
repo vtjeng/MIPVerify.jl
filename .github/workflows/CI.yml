@@ -24,6 +24,14 @@ jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      # Lets the Codecov upload authenticate via GitHub OIDC. The repository has no
+      # CODECOV_TOKEN secret, and codecov-action v4+ rejects unauthenticated uploads
+      # from this repository's own branches ("Token required because branch is
+      # protected"). Fork PRs are not granted this permission; their uploads fail
+      # without failing CI, matching previous behavior.
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -66,6 +74,7 @@ jobs:
       - uses: codecov/codecov-action@v7
         with:
           files: lcov.info
+          use_oidc: true
 
   docs:
     name: Documentation
