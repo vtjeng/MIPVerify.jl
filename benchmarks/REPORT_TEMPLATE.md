@@ -47,7 +47,7 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 > 3. Baseline/candidate bullet (see convention C5 below).
 > 4. Reproduction bullet: the exact command
 >    `benchmarks/benchmark_wk17a_first100.jl --samples <1:N> --tightening <lp> --main-time-limit <120> --norm-order <Inf>`,
->    Julia `<1.12.6>` single-threaded, HiGHS named and glossed as "an open-source LP/MIP solver",
+>    Julia `<version>` (read from the run log) single-threaded, HiGHS named and glossed as "an open-source LP/MIP solver",
 >    sequential runs on a local WSL2 workstation, the dependency provenance (either the
 >    dependency-snapshot hash or the phrase "identical dependency snapshots"), any machine-contention
 >    caveat that held during the run (optional — e.g. unrelated background jobs holding ~N cores
@@ -59,7 +59,7 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 >    from the inline commit-identity qualifiers in C5, which live on the baseline/candidate bullet.
 
 - **Baseline** `<branch-or-label>` `<sha>`<optional provenance, e.g. "(post-#209 master, this PR's base)">; **candidate** `<branch-or-label — optional>` `<sha>`<optional provenance, e.g. "(benchmarked commit; `src/` byte-identical to head `<sha>`)">.
-- Command: `benchmarks/benchmark_wk17a_first100.jl --samples <1:N> --tightening <lp> --main-time-limit <120> --norm-order <Inf>`. Julia `<1.12.6>`, single-threaded; HiGHS (an open-source LP/MIP solver) for all solves; sequential runs on a local WSL2 workstation<optional: , with unrelated background jobs holding ~<3> cores throughout both sides>, <dependency-snapshot hash `<sha256>` | identical dependency snapshots>. Absolute times are not comparable to the CI-hosted `benchmark-results` series.
+- Command: `benchmarks/benchmark_wk17a_first100.jl --samples <1:N> --tightening <lp> --main-time-limit <120> --norm-order <Inf>`. Julia `<version>`, single-threaded; HiGHS (an open-source LP/MIP solver) for all solves; sequential runs on a local WSL2 workstation<optional: , with unrelated background jobs holding ~<3> cores throughout both sides>, <dependency-snapshot hash `<sha256>` | identical dependency snapshots>. Absolute times are not comparable to the CI-hosted `benchmark-results` series.
 
 <optional italic report-scope note, e.g. *The paired-analysis tooling post-dates the merge, which is why this report is retroactive.*>
 
