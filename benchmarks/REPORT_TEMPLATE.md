@@ -36,13 +36,14 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 > Everything from here to the `---` is the preamble (no sub-heading). Include, in order:
 >
 > 1. One sentence stating what the PR changes and its expected effect on runtime.
-> 2. One methodology paragraph: samples `<1:N>` of the MNIST test set verified against
->    `MNIST.<network>_linf0.1_authors` on both commits; each candidate run compared with its own
->    baseline run; the matched-pairs rationale (pairing each sample with itself removes the
->    between-sample runtime spread, whatever the size of the change's per-sample effect); that the ratio
->    distributions, scatters, and flip tables are all built from these pairs; and a link to the
->    published `pairs/<slug>/` folder — either on the `benchmark-reports` branch or pinned to the
->    report commit SHA (the pinned form is stale-proof, matching C7's image URLs).
+> 2. One methodology paragraph: samples `<1:N>` of the MNIST test set are verified against
+>    `MNIST.<network>_linf0.1_authors` on the master and feature commits under identical settings;
+>    the ratio distributions, scatter plots, and outcome-flip tables compare each sample's
+>    candidate run with its own baseline run, while the absolute-runtime distributions summarize
+>    each side separately; and a link to the published `pairs/<slug>/` folder, listing what it
+>    holds (raw per-sample CSVs, dependency snapshots, stats, plots, and any extras such as a
+>    same-commit control) — either on the `benchmark-reports` branch or pinned to the report
+>    commit SHA (the pinned form is stale-proof, matching C7's image URLs).
 > 3. Baseline/candidate bullet (see convention C5 below).
 > 4. Reproduction bullet: the exact command
 >    `benchmarks/benchmark_wk17a_first100.jl --samples <1:N> --tightening <lp> --main-time-limit <120> --norm-order <Inf>`,
