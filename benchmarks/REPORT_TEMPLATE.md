@@ -70,7 +70,9 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 > `baseline → candidate` values, the absolute saving/cost, and a caveat. Standard beats to cover:
 >
 > - Aggregate total vs. median contrast (e.g. total `+29.8%` aggregate but `+45.8%` median), with
->   the reason the two differ (a few large main-solve-bound samples move the aggregate).
+>   the reason the two differ for this change — which samples dominate the aggregate, and in which
+>   direction relative to the median (e.g., large main-solve-bound samples that a bound-tightening
+>   change barely touches dilute the aggregate below the median).
 > - Which phase the change lands in (Build + bound tightening vs. Main solve), with `% improved` /
 >   `% regressed`.
 > - Name each phase's role — the affected phase(s) the change targets and any unaffected phase(s),
@@ -149,7 +151,7 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 | Bound solver calls | <n> | … | … | … | … | … | … | … | <x>% | <x>% |
 
 - `ratio` = candidate ÷ baseline, < 1 = candidate faster; `improved` counts ratio below 0.99, `regressed` counts ratio above 1.01, samples within the ±1% band count as unchanged.<optional, when whole-percent rounding hides a visible outlier — a `max` above 1.01 next to `regressed` 0% (or below 0.99 next to `improved` 0%): " and shares round to whole percent (<series>'s lone regression, sample <id>, the `max` entry, rounds to 0%)">
-- `build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.
+- `build` = constructing the MIP model; `tightening` = the `<tightening>` bound-tightening pass; `main solve` = the final verification MIP.
 - `total` = `build` + `tightening` + `main solve`.
 - `bound solver calls` = count of HiGHS bound-tightening solves<optional parenthetical when the count moves: ", the count this PR changes" — match it to the observed direction, increase or decrease; drop it when the count is flat, as in #222>.  <!-- keep only with the calls series -->
 - <n> = <N> samples minus the <k> `SKIPPED_PREDICTED_IN_TARGETED` samples, which carry no timing and are excluded from every series (see the status table below); this covers both the distribution and aggregate tables.
