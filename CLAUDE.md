@@ -28,6 +28,5 @@ PERFORMANCE.md in the same PR, with the measured impact and an evidence link.
 
 ## Paired benchmark report comments
 
-When posting a paired benchmark report as a PR comment, use the section order from the "Publish"
-step of benchmarks/README.md. In particular, `### Plots` is always the first subsection of
-`## Detailed statistics`, ahead of all tables.
+Before writing or editing a paired benchmark report PR comment, read benchmarks/REPORT_TEMPLATE.md
+and follow it exactly, including its section order.
