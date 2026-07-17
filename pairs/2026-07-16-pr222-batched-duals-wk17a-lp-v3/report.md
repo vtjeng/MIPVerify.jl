@@ -43,6 +43,18 @@ below.
   confirms substantial fresh-process HiGHS path variation, so these outcome changes are not used
   to attribute the formulation speedup.
 
+## Plots
+
+![Paired ratio distributions](plots/ratio_ecdf.png)
+
+![Absolute runtime distributions](plots/absolute_runtime_ecdf.png)
+
+![Paired runtime scatter](plots/magnitude_scatter.png)
+
+![Absolute bound-call distributions](plots/absolute_calls_ecdf.png)
+
+![Paired bound-call scatter](plots/calls_scatter.png)
+
 ## Per-sample ratio distribution
 
 The analyzer excludes the eight already-misclassified inputs from ratios, leaving 492 modeled
@@ -135,18 +147,6 @@ matching the candidate, and the maximum control objective difference was `5.55e-
 three final solves also differed by 11.2 s in aggregate with identical code. These observations are
 consistent with fresh-process solver variation and are not consistent with a semantic regression
 from batched reads.
-
-## Plots
-
-![Paired ratio distributions](plots/ratio_ecdf.png)
-
-![Absolute runtime distributions](plots/absolute_runtime_ecdf.png)
-
-![Paired runtime scatter](plots/magnitude_scatter.png)
-
-![Absolute bound-call distributions](plots/absolute_calls_ecdf.png)
-
-![Paired bound-call scatter](plots/calls_scatter.png)
 
 ## Reproduce
 

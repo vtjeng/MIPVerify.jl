@@ -37,6 +37,34 @@ Raw per-sample data and dependency snapshots are in `baseline/` and `candidate/`
 
 ## Detailed statistics
 
+### Plots
+
+The build + bound tightening speedup is systematic across the sample set; the amount of time
+for the main solve remains the same. The interval-first pass eliminates roughly three quarters
+of bound solver calls on every sample.
+
+![ratio ECDF](plots/ratio_ecdf.png)
+
+The entire build + bound tightening distribution shifts ~4× left while the main solve time
+curves overlap. So the decrease in the total time matches the decrease in the build + bound
+tightening time.
+
+![absolute runtime ECDF](plots/absolute_runtime_ecdf.png)
+
+Build + bound tightening and total end-to-end points sit well below the diagonal across the
+full runtime range. Sample 68 is the only build + bound tightening point above it (the
+transient stall noted in the summary). The total end-to-end panel has five points above the
+diagonal (slower · 5): sample 68 and four samples whose main solve slowed by more than the
+build + bound tightening saving.
+
+![magnitude scatter](plots/magnitude_scatter.png)
+
+Bound solver calls drop by a near-constant factor across the whole distribution.
+
+![calls ECDF](plots/absolute_calls_ecdf.png)
+
+![calls scatter](plots/calls_scatter.png)
+
 ### Per-sample ratio distribution
 
 | series | n | min | p10 | p25 | median | p75 | p90 | max | improved | regressed |
@@ -97,34 +125,6 @@ Semantic outcome:
 |---|--:|---|
 | `time_limit_unresolved` → `adversarial_example_found_or_best_known` | 2 | 212, 446 |
 | `adversarial_example_found_or_best_known` → `time_limit_unresolved` | 1 | 321 |
-
-### Plots
-
-The build + bound tightening speedup is systematic across the sample set; the amount of time
-for the main solve remains the same. The interval-first pass eliminates roughly three quarters
-of bound solver calls on every sample.
-
-![ratio ECDF](plots/ratio_ecdf.png)
-
-The entire build + bound tightening distribution shifts ~4× left while the main solve time
-curves overlap. So the decrease in the total time matches the decrease in the build + bound
-tightening time.
-
-![absolute runtime ECDF](plots/absolute_runtime_ecdf.png)
-
-Build + bound tightening and total end-to-end points sit well below the diagonal across the
-full runtime range. Sample 68 is the only build + bound tightening point above it (the
-transient stall noted in the summary). The total end-to-end panel has five points above the
-diagonal (slower · 5): sample 68 and four samples whose main solve slowed by more than the
-build + bound tightening saving.
-
-![magnitude scatter](plots/magnitude_scatter.png)
-
-Bound solver calls drop by a near-constant factor across the whole distribution.
-
-![calls ECDF](plots/absolute_calls_ecdf.png)
-
-![calls scatter](plots/calls_scatter.png)
 
 ## Reproduce
 

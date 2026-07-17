@@ -32,6 +32,20 @@ are all built from these matched pairs. Raw per-sample data and dependency snaps
 
 ## Detailed statistics
 
+### Plots
+
+The build + bound tightening regression is systematic across the sample set; the amount of time for the main solve remains the same.
+
+![ratio ECDF](plots/ratio_ecdf.png)
+
+The extra total end-to-end time comes from build + bound tightening; main solve contributes no offsetting speedup. So the increase in the total time matches the increase in the build + bound tightening time.
+
+![absolute runtime ECDF](plots/absolute_runtime_ecdf.png)
+
+Build + bound tightening carries a near-constant multiplicative penalty; main solve shows little per-sample dispersion apart from a few high-magnitude outliers.
+
+![magnitude scatter](plots/magnitude_scatter.png)
+
 ### Per-sample ratio distribution
 
 | series | n | min | p10 | p25 | median | p75 | p90 | max | improved | regressed |
@@ -81,20 +95,6 @@ Semantic outcome:
 | transition | n | samples |
 |---|--:|---|
 | `time_limit_unresolved` → `certified_no_adversarial_example` | 1 | 246 |
-
-### Plots
-
-The build + bound tightening regression is systematic across the sample set; the amount of time for the main solve remains the same.
-
-![ratio ECDF](plots/ratio_ecdf.png)
-
-The extra total end-to-end time comes from build + bound tightening; main solve contributes no offsetting speedup. So the increase in the total time matches the increase in the build + bound tightening time.
-
-![absolute runtime ECDF](plots/absolute_runtime_ecdf.png)
-
-Build + bound tightening carries a near-constant multiplicative penalty; main solve shows little per-sample dispersion apart from a few high-magnitude outliers.
-
-![magnitude scatter](plots/magnitude_scatter.png)
 
 ## Reproduce
 
