@@ -24,17 +24,24 @@ end
 
 projected_dual_and_reference(::MathOptInterface.AbstractScalarSet, ::Real) = nothing
 
+# The MOI errors that signal an optional attribute is unavailable, as opposed to a read
+# failing unexpectedly.
+const UNAVAILABLE_ATTRIBUTE_ERRORS = Union{
+    MathOptInterface.ResultIndexBoundsError,
+    MathOptInterface.UnsupportedAttribute,
+    MathOptInterface.GetAttributeNotAllowed,
+}
+
 """
     solver_read_or_nothing(f, log_unexpected, description, consequence)
 
 Run `f` and return its result, or `nothing` if the read fails.
 
 Reading an optional solver attribute (a row dual, an objective bound) can tighten a bound but
-is never required for soundness, so the caller always has a valid fallback. The three MOI
-errors that signal an unavailable attribute are expected and return `nothing` quietly. Any
-other error is logged via `log_unexpected` and also returns `nothing`, so one failed read
-degrades a single bound instead of crashing the run; interrupts and resource exhaustion still
-propagate.
+is never required for soundness, so the caller always has a valid fallback.
+`UNAVAILABLE_ATTRIBUTE_ERRORS` are expected and return `nothing` quietly. Any other error is
+logged via `log_unexpected` and also returns `nothing`, so one failed read degrades a single
+bound instead of crashing the run; interrupts and resource exhaustion still propagate.
 """
 function solver_read_or_nothing(
     f,
@@ -50,11 +57,7 @@ function solver_read_or_nothing(
            error isa StackOverflowError
             rethrow()
         end
-        if !(
-            error isa MathOptInterface.ResultIndexBoundsError ||
-            error isa MathOptInterface.UnsupportedAttribute ||
-            error isa MathOptInterface.GetAttributeNotAllowed
-        )
+        if !(error isa UNAVAILABLE_ATTRIBUTE_ERRORS)
             log_unexpected(
                 MIPVerify.LOGGER,
                 "Unexpected error reading $(description); $(consequence): " *

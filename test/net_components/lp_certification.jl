@@ -33,7 +33,9 @@ const AFFINE_INTERVAL =
 
 # Mock-backed models exercise the production dual-read path end to end: duals are attached to
 # the mock solve per homogeneous constraint group and read back through the vectorized
-# MathOptInterface interface.
+# MathOptInterface interface. `eval_variable_constraint_dual = false` keeps the mock from
+# deriving variable-bound duals out of the attached affine duals: the certificate never reads
+# them, so such a read should fail rather than answer with synthesized values.
 function certification_mock()
     return MathOptInterface.Utilities.MockOptimizer(
         MathOptInterface.Utilities.Model{Float64}();
@@ -301,7 +303,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         mock = certification_mock()
         m = Model(() -> mock)
         @variable(m, 0 <= x <= 2)
-        @constraint(m, x >= 1)
+        constraint = @constraint(m, x >= 1)
         MathOptInterface.Utilities.set_mock_optimize!(
             mock,
             optimizer -> begin
@@ -314,6 +316,18 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             end,
         )
         optimize!(m)
+
+        # Guard the premise: the warn assertion below requires the mock's failed read to
+        # throw outside `UNAVAILABLE_ATTRIBUTE_ERRORS`, which the certificate treats as an
+        # expected miss and skips quietly.
+        read_error = try
+            dual(constraint)
+            nothing
+        catch error
+            error
+        end
+        @test read_error isa Exception
+        @test !(read_error isa MIPVerify.UNAVAILABLE_ATTRIBUTE_ERRORS)
 
         MIPVerify.Memento.TestUtils.@test_log(
             MIPVerify.LOGGER,
