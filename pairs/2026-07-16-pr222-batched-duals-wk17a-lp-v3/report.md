@@ -1,8 +1,13 @@
-# PR #222 — batched LP certificate dual reads: WK17a LP paired benchmark
+# Performance report: WK17a, LP tightening, 500 samples
 
-PR #222 reads row duals once per homogeneous constraint group when building an LP certificate.
+PR #222 reads row duals once per affine constraint group when building an LP certificate.
 The baseline reads each constraint through `JuMP.dual`. This report measures the change after PR
 #209's progressive ReLU tightening, where the remaining certificate overhead matters most.
+
+The benchmark verifies samples 1:500 against the WK17a network on both commits. Each sample's
+candidate run is compared with its own baseline run, so the two runs are paired per sample.
+This pairing removes the large between-sample runtime spread that the per-sample distribution
+shows, so the change under test is visible.
 
 - Baseline: post-#209 master `8a455e2756a0d45e224bb1da95f2de8dc2ba3df4`
 - Candidate: PR #222 `5b407044078c1ea6108b893f8fd81d8d7f5538c3`
@@ -10,6 +15,8 @@ The baseline reads each constraint through `JuMP.dual`. This report measures the
   benchmark TODO.
 - Arguments: `--samples 1:500 --tightening lp --main-time-limit 120 --norm-order Inf`
 - Julia 1.12.6, one thread, sequential runs on a local WSL2 workstation
+- All solves (the bound-tightening LPs and the final verification MIP) use HiGHS, an
+  open-source LP/MIP solver.
 - Identical dependency snapshot:
   `1cfef4c977ff08219a888aa479cb94eea0b3dbc16f654d1fc0a09167c8f1c74a`
 
@@ -19,21 +26,41 @@ below.
 
 ## Summary
 
-- Formulation time fell **18.9%**, from 866.2 s to 702.6 s, saving 163.6 s. A 10,000-resample
+- Formulation time fell 18.9%, from 866.2 s to 702.6 s, saving 163.6 s. A 10,000-resample
   paired input bootstrap gives a 17.6–20.0% interval. This interval measures sensitivity to the
-  fixed input mix, not machine-to-machine or run-to-run timing variation.
-- Non-solver bound overhead fell **38.6%**, from 299.0 s to 183.5 s, saving 115.5 s. This is bound
+  fixed input mix; it does not capture machine-to-machine or run-to-run timing variation.
+- Non-solver bound overhead (the Non-solver work within bound tightening row) fell 38.6%, from
+  299.0 s to 183.5 s, saving 115.5 s. This is bound
   tightening time minus time inside HiGHS. HiGHS bound-solver wall time changed by 0.4 s, and both
   sides made 99,067 bound-solver calls.
-- Summed end-to-end sample time fell **6.6%**, from 2,431.7 s to 2,270.7 s, saving 161.0 s across
+- Summed end-to-end sample time fell 6.6%, from 2,431.7 s to 2,270.7 s, saving 161.0 s across
   500 inputs. Whole-run elapsed time changed by the same 161.0 s. The final verification solves
   were flat in aggregate, so the measured saving came before the final solve.
-- The pre-solve improvement was broad: the analyzer's build-and-tightening proxy had a median
+- The pre-solve improvement was broad: the Build + bound tightening series had a median
   candidate/baseline ratio of 0.81, with 93% of modeled samples improving by more than 1%.
 - Final-solve timing and outcomes varied near the 120 s limit. The candidate resolved two inputs
   that were unresolved in the baseline, while no semantic outcome regressed. A same-commit control
   confirms substantial fresh-process HiGHS path variation, so these outcome changes are not used
   to attribute the formulation speedup.
+
+## Per-sample ratio distribution
+
+The analyzer excludes the eight already-misclassified inputs from ratios, leaving 492 modeled
+pairs. Ratios are candidate divided by baseline; values below 1 are faster.
+
+| series                   | median |   p10–p90 | improved by >1% | regressed by >1% | pooled ratio |
+| ------------------------ | -----: | --------: | --------------: | ---------------: | -----------: |
+| Build + bound tightening |   0.81 | 0.72–0.94 |             93% |               6% |         0.81 |
+| Main solve time          |   1.01 | 0.79–1.28 |             42% |              49% |         1.00 |
+| Total end-to-end time    |   0.82 | 0.72–0.99 |             90% |               8% |         0.93 |
+| Bound solver calls       |   1.00 | 1.00–1.00 |              0% |               0% |         1.00 |
+
+The 10 largest end-to-end changes account for 65% of the sum of absolute per-input timing changes.
+Almost all of those 10 changes came from the final solve: 365.5 s of absolute final-solve changes
+versus 4.9 s of formulation changes. Their gains and losses mostly cancel in aggregate. For build
+and tightening, the 10 largest changes account for only 6%, so that saving is spread across inputs.
+A paired input bootstrap for the end-to-end saving spans −5.2% to 19.3%; it is not a
+system-performance confidence interval.
 
 ## Component timings
 
@@ -41,7 +68,7 @@ Rows sharing a parent add to that subtotal before rounding.
 
 | component                                     | parent subtotal    |  baseline | candidate |   saved | change |
 | --------------------------------------------- | ------------------ | --------: | --------: | ------: | -----: |
-| **Summed end-to-end sample time**             | —                  | 2,431.7 s | 2,270.7 s | 161.0 s |   6.6% |
+| **Summed end-to-end sample time**             | (top level)        | 2,431.7 s | 2,270.7 s | 161.0 s |   6.6% |
 | ↳ **Formulation subtotal**                    | Summed sample time |   866.2 s |   702.6 s | 163.6 s |  18.9% |
 | ↳ ↳ **Bound-tightening subtotal**             | Formulation        |   469.6 s |   353.8 s | 115.8 s |  24.7% |
 | ↳ ↳ ↳ HiGHS bound-solver wall time            | Bound tightening   |   170.6 s |   170.2 s |   0.4 s |   0.2% |
@@ -61,7 +88,8 @@ Each modeled input solves 18 full-network LP bounds for its nine nontarget outpu
 `optimize!` call. For these output-logit bounds, the benchmark assigns only HiGHS wall time to bound
 tightening; certificate work lands in other formulation work. Their HiGHS time was flat at 54.6 s,
 while other formulation work fell by 47.7 s. This is consistent with batched dual reads reducing
-both rows. The benchmark does not time certificate construction separately, so it cannot attribute
+certificate overhead in both the Non-solver work within bound tightening and Other formulation
+work rows. The benchmark does not time certificate construction separately, so it cannot attribute
 every second of the residual change directly.
 
 ### Related timing views
@@ -71,30 +99,11 @@ These rows use separate or overlapping timing views; do not add them to the tabl
 | measurement                             | relationship                                   |  baseline | candidate |   saved | change |
 | --------------------------------------- | ---------------------------------------------- | --------: | --------: | ------: | -----: |
 | Whole-run elapsed                       | Summed sample time + benchmark-loop overhead   | 2,434.8 s | 2,273.7 s | 161.0 s |   6.6% |
-| Formulation excluding bound-solver time | Non-solver bound work + other formulation work |   695.6 s |   532.4 s | 163.2 s |  23.5% |
+| Formulation excluding bound-solver time | Non-solver work within bound tightening + Other formulation work |   695.6 s |   532.4 s | 163.2 s |  23.5% |
 
-The non-solver bound result directly tests issue #211's question. After progressive tightening,
+The non-solver bound result addresses issue #211. After progressive tightening,
 certificate and bound-loop overhead still exceeded time inside HiGHS, and batched reads removed
 115.5 s without changing the number of solves.
-
-## Per-sample distribution
-
-The analyzer excludes the eight already-misclassified inputs from ratios, leaving 492 modeled
-pairs. Ratios are candidate divided by baseline; values below 1 are faster.
-
-| series                   | median |   p10–p90 | improved by >1% | regressed by >1% | pooled ratio |
-| ------------------------ | -----: | --------: | --------------: | ---------------: | -----------: |
-| Build + bound tightening |   0.81 | 0.72–0.94 |             93% |               6% |         0.81 |
-| Main solve               |   1.01 | 0.79–1.28 |             42% |              49% |         1.00 |
-| Total end to end         |   0.82 | 0.72–0.99 |             90% |               8% |         0.93 |
-| Bound-solver calls       |   1.00 | 1.00–1.00 |              0% |               0% |         1.00 |
-
-The 10 largest end-to-end changes account for 65% of the sum of absolute per-input timing changes.
-Almost all of those 10 changes came from the final solve: 365.5 s of absolute final-solve changes
-versus 4.9 s of formulation changes. Their gains and losses mostly cancel in aggregate. For build
-and tightening, the 10 largest changes account for only 6%, so that saving is spread across inputs.
-A paired input bootstrap for the end-to-end saving spans −5.2% to 19.3%; it is not a
-system-performance confidence interval.
 
 ## Model and outcome audit
 
@@ -120,11 +129,12 @@ from a resolved result to an unresolved result.
 
 Of 486 inputs with objective values on both sides, 478 agreed within `1e-6`. The largest differences
 were timeout-limited incumbents. Sample 291 was the one large optimal/optimal difference: the full
-baseline reported 0.0461418 and the candidate reported 0.0409316. A same-master control reran
+baseline reported 0.0461418 and the candidate reported 0.0409316. A same-commit control reran
 samples 9, 291, and 496 in two fresh processes. Both control runs reported 0.0409316 for sample 291,
 matching the candidate, and the maximum control objective difference was `5.55e-6`. The control's
 three final solves also differed by 11.2 s in aggregate with identical code. These observations are
-consistent with fresh-process solver variation, not a semantic regression from batched reads.
+consistent with fresh-process solver variation and are not consistent with a semantic regression
+from batched reads.
 
 ## Plots
 
