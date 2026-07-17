@@ -16,7 +16,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 MIPVerify = {path = ".."}
 
 [compat]
-HiGHS = "1.4"
+HiGHS = "~1.23.0"
 # HiGHS 1.15.x introduced a parallel MIP solver that segfaults and returns
 # nondeterministic results, even with threads=1 (issue #219); unpin once
 # upstream stabilizes.

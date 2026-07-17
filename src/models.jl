@@ -32,6 +32,12 @@ end
 Base.show(io::IO, pp::LInfNormBoundedPerturbationFamily) =
     print(io, "linf-norm-bounded-$(pp.norm_bound)")
 
+"""
+    witness_value_in_closed_interval(value, lower, upper; atol, rtol)
+
+Return whether finite `value` lies in the closed interval `[lower, upper]`, allowing the supplied
+absolute and relative tolerances at either boundary. Non-finite values always fail.
+"""
 function witness_value_in_closed_interval(
     value::Real,
     lower::Real,
@@ -61,6 +67,12 @@ function witness_inputs_satisfy_common_constraints(
     return all(value -> witness_value_in_closed_interval(value, 0, 1), perturbed_input)
 end
 
+"""
+    witness_arrays_are_approximately_equal(lhs, rhs)
+
+Return whether `lhs` and `rhs` have the same shape and each pair of values is approximately equal
+under the witness-verification tolerances.
+"""
 function witness_arrays_are_approximately_equal(
     lhs::AbstractArray{<:Real},
     rhs::AbstractArray{<:Real},
@@ -77,6 +89,11 @@ function witness_arrays_are_approximately_equal(
     )
 end
 
+"""
+    blur_kernel_size_is_valid(pp)
+
+Return whether both dimensions of `pp.blur_kernel_size` are positive integers.
+"""
 function blur_kernel_size_is_valid(pp::BlurringPerturbationFamily)::Bool
     filter_height, filter_width = pp.blur_kernel_size
     return filter_height isa Integer &&

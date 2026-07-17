@@ -94,7 +94,6 @@ end
     @testset "parse_benchmark_objective" begin
         @test parse_benchmark_objective("feasibility") == "feasibility"
         @test parse_benchmark_objective(" CLOSEST ") == "closest"
-        @test_throws ErrorException parse_benchmark_objective("verdict-only")
         @test_throws ErrorException parse_benchmark_objective("fast")
     end
 
@@ -175,9 +174,8 @@ end
         @test benchmark_schema_version(current) == BENCHMARK_SCHEMA_VERSION
         @test semantic_outcome_schema_version(current) == SEMANTIC_OUTCOME_SCHEMA_VERSION
         @test benchmark_objective(current) == "feasibility"
-        unsupported_mode = select(current, Not(:adversarial_example_objective))
-        unsupported_mode.mode = ["verdict-only"]
-        @test_throws ErrorException benchmark_objective(unsupported_mode)
+        missing_current_objective = select(current, Not(:adversarial_example_objective))
+        @test_throws ErrorException benchmark_objective(missing_current_objective)
         @test semantic_partition_is_complete(current)
         @test semantic_partition_matches(current, copy(current))
         @test !semantic_partition_matches(current, changed)

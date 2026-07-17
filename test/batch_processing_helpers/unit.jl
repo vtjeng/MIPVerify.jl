@@ -121,6 +121,23 @@ TestHelpers.@timed_testset "unit.jl" begin
         end
     end
 
+    @testset "read_summary_file preserves unrelated extra columns" begin
+        mktempdir() do dir
+            file_path = joinpath(dir, "summary.csv")
+            CSV.write(
+                file_path,
+                DataFrame(
+                    SampleNumber = [1],
+                    SolveStatus = ["OPTIMAL"],
+                    IsInfeasible = [false],
+                    UserNote = ["keep me"],
+                ),
+            )
+            summary = read_summary_file(file_path)
+            @test summary.UserNote == ["keep me"]
+        end
+    end
+
     @testset "resuming a migrated summary preserves witness columns" begin
         mktempdir() do dir
             file_path = joinpath(dir, "summary.csv")

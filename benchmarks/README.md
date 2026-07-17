@@ -37,6 +37,10 @@ The benchmark defaults to `feasibility` because its primary series tracks fixed-
 MIPVerify's public API still defaults to the exact minimum-distance `closest` objective. Pass
 `--objective closest` to benchmark that objective.
 
+The benchmark environment constrains HiGHS.jl to 1.23.x and HiGHS_jll to 1.14.x. Keep these
+constraints aligned with the test environment so local, nightly, and paired measurements use the
+same solver generation.
+
 ### Output
 
 - `benchmark_per_sample.csv` — per-sample solve outcome, objective, target and perturbation witness
@@ -209,7 +213,9 @@ workflow is three steps: run, analyze, publish.
 
 Runs the WK17a benchmark on two commits, each in its own throwaway git worktree (so each uses that
 commit's own `src` + `benchmarks`), then analyzes the pair. The current branch and working tree are
-untouched.
+untouched. The runner develops each worktree's MIPVerify checkout into its benchmark environment and
+applies the same HiGHS.jl 1.23.x / HiGHS_jll 1.14.x constraints to both sides, including older
+commits whose benchmark project did not yet contain the pin.
 
 ```sh
 benchmarks/run_pair.sh \

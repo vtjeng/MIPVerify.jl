@@ -34,6 +34,7 @@ SKIPPED_STATUS = "SKIPPED_PREDICTED_IN_TARGETED"
 CLOSEST_OBJECTIVE = "closest"
 FEASIBILITY_OBJECTIVE = "feasibility"
 BENCHMARK_OBJECTIVES = {CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE}
+LAST_PRE_OBJECTIVE_SCHEMA_VERSION = 3
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
 
@@ -114,20 +115,43 @@ def load_per_sample(run_dir: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def benchmark_objective(frame: pd.DataFrame, side: str) -> str:
+def benchmark_schema_version(run_dir: Path, side: str) -> int:
+    """Return a run's aggregate benchmark schema, defaulting pre-schema output to version 1."""
+    path = run_dir / "benchmark_metrics.csv"
+    if not path.exists():
+        return 1
+    metrics = pd.read_csv(path)
+    if metrics.empty:
+        raise ValueError(f"{side} benchmark metrics are empty")
+    if "benchmark_schema_version" not in metrics.columns:
+        return 1
+    raw = metrics.loc[0, "benchmark_schema_version"]
+    if pd.isna(raw):
+        return 1
+    return int(raw)
+
+
+def benchmark_objective(frame: pd.DataFrame, side: str, schema_version: int) -> str:
     """Return one run's canonical objective, including historical benchmark schemas."""
     if frame.empty:
         return CLOSEST_OBJECTIVE
     if "adversarial_example_objective" not in frame.columns:
-        if "mode" in frame.columns:
-            raise ValueError(f"{side} per-sample CSV uses unsupported mode metadata")
+        if schema_version > LAST_PRE_OBJECTIVE_SCHEMA_VERSION:
+            raise ValueError(
+                f"{side} benchmark schema {schema_version} lacks adversarial_example_objective"
+            )
         return CLOSEST_OBJECTIVE
 
     objectives = set()
     for raw in frame["adversarial_example_objective"]:
-        objective = (
-            CLOSEST_OBJECTIVE if pd.isna(raw) or not str(raw).strip() else str(raw).strip().lower()
-        )
+        if pd.isna(raw) or not str(raw).strip():
+            if schema_version > LAST_PRE_OBJECTIVE_SCHEMA_VERSION:
+                raise ValueError(
+                    f"{side} benchmark schema {schema_version} has a missing objective"
+                )
+            objective = CLOSEST_OBJECTIVE
+        else:
+            objective = str(raw).strip().lower()
         if objective not in BENCHMARK_OBJECTIVES:
             raise ValueError(f"{side} per-sample CSV has unsupported objective {raw!r}")
         objectives.add(objective)
@@ -538,8 +562,10 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
-    baseline_objective = benchmark_objective(baseline_df, "baseline")
-    candidate_objective = benchmark_objective(candidate_df, "candidate")
+    baseline_schema = benchmark_schema_version(args.baseline, "baseline")
+    candidate_schema = benchmark_schema_version(args.candidate, "candidate")
+    baseline_objective = benchmark_objective(baseline_df, "baseline", baseline_schema)
+    candidate_objective = benchmark_objective(candidate_df, "candidate", candidate_schema)
     baseline_label = f"{args.baseline_label} [{baseline_objective}]"
     candidate_label = f"{args.candidate_label} [{candidate_objective}]"
     merged = joined_frame(baseline_df, candidate_df)

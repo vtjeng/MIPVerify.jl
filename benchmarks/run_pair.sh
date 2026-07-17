@@ -57,6 +57,7 @@ BASE_LABEL="${BASE_LABEL:-base $BASE}"
 CAND_LABEL="${CAND_LABEL:-candidate $CAND}"
 
 mkdir -p "$OUT"
+OUT="$(cd "$OUT" && pwd -P)"
 WORKTREES=()
 cleanup() {
     for w in "${WORKTREES[@]:-}"; do
@@ -72,9 +73,17 @@ run_side() {
         objective_args=(--objective "$objective")
     fi
     local wt; wt="$(mktemp -d)"; WORKTREES+=("$wt")
-    echo "[$name @ $sha] add worktree + instantiate benchmarks env"
+    echo "[$name @ $sha] add worktree + instantiate pinned benchmarks env"
     git -C "$REPO" worktree add -q --detach "$wt" "$sha"
-    ( cd "$wt" && julia --project=benchmarks -e 'using Pkg; Pkg.instantiate()' )
+    ( cd "$wt" && julia --project=benchmarks -e '
+        using Pkg
+        Pkg.develop(path=".")
+        Pkg.add([
+            PackageSpec(name="HiGHS", version=v"1.23.0"),
+            PackageSpec(name="HiGHS_jll", version=v"1.14.0+0"),
+        ])
+        Pkg.instantiate()
+    ' )
     echo "[$name @ $sha] run WK17a benchmark (samples $SAMPLES, tightening $TIGHTENING, objective ${objective:-commit-default})"
     ( cd "$wt" && julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
         --out "$OUT/$name" --samples "$SAMPLES" --tightening "$TIGHTENING" \

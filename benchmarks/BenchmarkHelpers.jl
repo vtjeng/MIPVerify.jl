@@ -95,6 +95,12 @@ function is_infeasible_status(status::String)::Bool
     return status == "INFEASIBLE"
 end
 
+"""
+    classify_semantic_outcome(status, witness_available, witness_verified)
+
+Classify one benchmark result from its solver status and independently checked witness fields.
+Reject the inconsistent case where a witness is verified but not available.
+"""
 function classify_semantic_outcome(
     status::String,
     witness_available::Bool,
@@ -150,6 +156,7 @@ const SEMANTIC_OUTCOME_SCHEMA_VERSION = 4
 const SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION = 2
 const WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION = 3
 const LEGACY_SCHEMA_VERSION = 1
+const LAST_PRE_OBJECTIVE_SCHEMA_VERSION = 3
 const PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS = [
     :num_certified_no_adversarial_example,
     :num_adversarial_example_found_or_best_known,
@@ -187,17 +194,17 @@ end
 """
     benchmark_objective(metrics) -> String
 
-Return the canonical objective from the first row of `metrics`. Metrics from the unreleased
-mode-based schema are rejected. Metrics without objective metadata predate feasibility benchmarking
-and used `closest`.
+Return the canonical objective from the first row of `metrics`. Metrics through schema 3 predate
+objective metadata and used `closest`; newer schemas must record the objective explicitly.
 """
 function benchmark_objective(metrics::DataFrame)::String
     if :adversarial_example_objective in propertynames(metrics) &&
        !ismissing(metrics[1, :adversarial_example_objective])
         return parse_benchmark_objective(string(metrics[1, :adversarial_example_objective]))
     end
-    :mode in propertynames(metrics) &&
-        error("Legacy benchmark mode metadata is unsupported; rerun with an objective.")
+    recorded_schema = benchmark_schema_version(metrics)
+    recorded_schema <= LAST_PRE_OBJECTIVE_SCHEMA_VERSION ||
+        error("Benchmark schema $recorded_schema is missing adversarial_example_objective.")
     return CLOSEST_OBJECTIVE
 end
 
@@ -233,6 +240,11 @@ function semantic_partition_columns_present(metrics::DataFrame)::Bool
     return all(column -> column in propertynames(metrics), semantic_partition_columns(metrics))
 end
 
+"""
+    semantic_partition_columns(metrics)
+
+Return the outcome-count columns required by the semantic schema recorded in `metrics`.
+"""
 function semantic_partition_columns(metrics::DataFrame)::Vector{Symbol}
     if semantic_outcome_schema_version(metrics) >= WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION
         return SEMANTIC_PARTITION_COLUMNS

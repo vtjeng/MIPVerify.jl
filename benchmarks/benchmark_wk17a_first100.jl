@@ -34,6 +34,12 @@ function format_counts(counts::Dict{String,Int})::String
     return join(("$(name)=$(count)" for (name, count) in entries), ";")
 end
 
+"""
+    format_numeric_array(values)
+
+Flatten numeric `values`, convert each element to `Float64`, and join them with semicolons for CSV
+storage.
+"""
 function format_numeric_array(values)::String
     return join((string(Float64(value)) for value in vec(values)), ";")
 end
@@ -175,6 +181,20 @@ end
 
 function main()
     args = parse_args(ARGS)
+    allowed_arguments = Set([
+        "out",
+        "samples",
+        "tightening",
+        "main-time-limit",
+        "norm-order",
+        "objective",
+        "log-level",
+    ])
+    unknown_arguments = sort!(collect(setdiff(keys(args), allowed_arguments)))
+    isempty(unknown_arguments) || error(
+        "Unknown benchmark argument(s): " *
+        join(("--$argument" for argument in unknown_arguments), ", "),
+    )
     if !haskey(args, "out")
         error("Missing required argument --out <dir>")
     end
@@ -199,7 +219,6 @@ function main()
     tightening_algorithm = parse_tightening_algorithm(get(args, "tightening", "mip"))
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
-    haskey(args, "mode") && error("--mode is unsupported; use --objective.")
     objective_name = parse_benchmark_objective(get(args, "objective", "feasibility"))
     adversarial_example_objective =
         objective_name == "feasibility" ? MIPVerify.feasibility : MIPVerify.closest

@@ -31,10 +31,15 @@ MIPVerify.AdversarialExampleObjective
 ## Internal witness verification
 
 ```@docs
+MIPVerify.PerturbationFamily
+MIPVerify.get_target_margin
 MIPVerify.witness_satisfies_target
 MIPVerify.record_no_witness!
 MIPVerify.record_witness!
+MIPVerify.witness_value_in_closed_interval
 MIPVerify.witness_inputs_satisfy_common_constraints
+MIPVerify.witness_arrays_are_approximately_equal
+MIPVerify.blur_kernel_size_is_valid
 MIPVerify.verify_perturbation_witness
 MIPVerify.identity_blur_kernel
 MIPVerify.numeric_blur_kernel

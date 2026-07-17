@@ -97,6 +97,12 @@ const SUMMARY_HEADER = [
     "WitnessMargin",
 ]
 
+"""
+    summary_witness_margin(result)
+
+Return the recorded numeric witness margin when a candidate is available, otherwise `NaN` for the
+CSV summary.
+"""
 function summary_witness_margin(d::Dict)
     return d[:WitnessAvailable] ? d[:WitnessMargin] : NaN
 end
@@ -172,7 +178,8 @@ end
 Read a batch summary and upgrade its schema in place when necessary. The migration treats only
 plain `INFEASIBLE` as proven infeasible and leaves unavailable legacy objective and witness fields
 as `missing`. Non-missing objective names must match a current `AdversarialExampleObjective`.
-Summaries from the unreleased boolean-objective schema are rejected instead of migrated.
+Summaries from the unreleased boolean-objective schema are rejected instead of migrated. Unrelated
+extra columns are retained.
 """
 function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
     dt = DataFrame(CSV.File(summary_file_path))
@@ -290,6 +297,12 @@ function save_to_disk(
     end
 end
 
+"""
+    is_proven_infeasible_status(status)
+
+Return whether `status` is exactly `INFEASIBLE`. Combined or ambiguous statuses do not certify
+infeasibility.
+"""
 function is_proven_infeasible_status(status)::Bool
     return string(status) == "INFEASIBLE"
 end
@@ -323,6 +336,12 @@ function has_verified_witness(row::DataFrames.DataFrameRow)::Bool
     return all(row[column] for column in required_columns)
 end
 
+"""
+    has_available_unverified_witness(row)
+
+Return whether `row` records an available candidate that does not pass every independent witness
+check. Missing or inconsistent verification fields fail closed through [`has_verified_witness`](@ref).
+"""
 function has_available_unverified_witness(row::DataFrames.DataFrameRow)::Bool
     witness_available =
         :WitnessAvailable in propertynames(row) &&
