@@ -48,8 +48,12 @@ git -C "$WT" commit -q -m "$MSG"
 
 for attempt in 1 2 3; do
     if git -C "$WT" push "$REMOTE" "$BRANCH"; then
-        echo "published ${SLUG} -> ${BRANCH}"
-        echo "raw base: https://raw.githubusercontent.com/OWNER/REPO/${BRANCH}/${DEST}"
+        SHA="$(git -C "$WT" rev-parse HEAD)"
+        OWNER_REPO="$(git -C "$WT" remote get-url "$REMOTE" \
+            | sed -E 's#^(git@github\.com:|https://github\.com/)##; s#\.git$##')"
+        echo "published ${SLUG} -> ${BRANCH} at ${SHA}"
+        echo "pinned raw base for the PR comment's image URLs:"
+        echo "  https://raw.githubusercontent.com/${OWNER_REPO}/${SHA}/${DEST}"
         exit 0
     fi
     echo "push rejected (attempt ${attempt}); fetch + rebase + retry (append-only, no force)"
