@@ -4,10 +4,11 @@ PR #222 reads row duals once per affine constraint group when building an LP cer
 The baseline reads each constraint through `JuMP.dual`. This report measures the change after PR
 #209's progressive ReLU tightening, where the remaining certificate overhead matters most.
 
-The benchmark verifies samples 1:500 against the WK17a network on both commits. Each sample's
-candidate run is compared with its own baseline run, so the two runs are paired per sample.
-This pairing removes the large between-sample runtime spread that the per-sample distribution
-shows, so the change under test is visible.
+This benchmark measures the performance of the verification code. Samples 1–500 of the MNIST test
+set are verified against the `MNIST.WK17a_linf0.1_authors` network on the master and feature
+commits under identical settings. The ratio distributions, scatter plots, and outcome flips
+below compare each sample's candidate run with its own baseline run; the absolute-runtime
+distributions summarize each side separately.
 
 - Baseline: post-#209 master `8a455e2756a0d45e224bb1da95f2de8dc2ba3df4`
 - Candidate: PR #222 `5b407044078c1ea6108b893f8fd81d8d7f5538c3`

@@ -2,13 +2,11 @@
 
 PR #208 certifies LP tightening bounds from row duals, a correctness fix that regresses runtime.
 
-This benchmark measures the performance of the verification code on the master and feature commits
-under identical settings. Samples 1–500 of the MNIST test set are verified against the
-`MNIST.WK17a_linf0.1_authors` network on both commits, and each sample's candidate run is compared
-with its own baseline run. The matching matters because runtimes differ far more from sample to
-sample than the change under test shifts any one sample; comparing each sample with itself removes
-that between-sample spread. The ratio distributions, scatter plot, and outcome-flip tables below
-are all built from these matched pairs. Raw per-sample data and dependency snapshots are in
+This benchmark measures the performance of the verification code. Samples 1–500 of the MNIST test
+set are verified against the `MNIST.WK17a_linf0.1_authors` network on the master and feature
+commits under identical settings. The ratio distributions, scatter plot, and outcome-flip tables
+below compare each sample's candidate run with its own baseline run; the absolute-runtime
+distributions summarize each side separately. Raw per-sample data and dependency snapshots are in
 `baseline/` and `candidate/`.
 
 - **Baseline** `master` `1bb2f9d82a762ac5f90beca10c7493d2e13d42ea`

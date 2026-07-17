@@ -4,13 +4,11 @@ PR #209 screens ReLU bounds progressively: interval arithmetic first, then LP, e
 when the cheaper bound cannot fix the unit's phase, instead of solving every bound with the full
 tightening algorithm.
 
-This benchmark measures verification runtime for the WK17a LP workload on the two commits under
-identical settings, verifying samples 1–500 of the MNIST test set against the
-`MNIST.WK17a_linf0.1_authors` network on each and comparing every sample's candidate run
-against its own baseline run. Per-sample matching is used because runtime varies widely across
-samples: pairing each sample with itself isolates the effect of the change from that
-between-sample spread. The ratio distributions and scatter plots below are built from these
-matched pairs.
+This benchmark measures the performance of the verification code. Samples 1–500 of the MNIST test
+set are verified against the `MNIST.WK17a_linf0.1_authors` network on the master and feature
+commits under identical settings. The ratio distributions, scatter plots, and outcome-flip tables
+below compare each sample's candidate run with its own baseline run; the absolute-runtime
+distributions summarize each side separately.
 
 Raw per-sample data and dependency snapshots are in `baseline/` and `candidate/`.
 
