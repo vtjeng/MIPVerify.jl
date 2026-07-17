@@ -7,7 +7,6 @@ using MIPVerify:
     MIPVerify,
     MIPVerifyExt,
     certified_lp_bound,
-    constraint_dual_or_nothing,
     lower_bound,
     lower_bound_type,
     lp,
@@ -21,6 +20,10 @@ using MIPVerify:
 
 @isdefined(TestHelpers) || include("../TestHelpers.jl")
 
+# Adapts a per-constraint dual lookup to the batched `dual_values` seam: whole-group reads and
+# single-constraint retries both answer from the same scalar source.
+scalar_duals(f) = constraints -> map(f, constraints)
+
 TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "repairs stationarity residuals over variable bounds" begin
         m_lower = Model()
@@ -32,7 +35,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             2x + 3,
             -1.0;
-            dual_value = constraint -> lower_dual[constraint],
+            dual_values = scalar_duals(constraint -> lower_dual[constraint]),
         )
         @test lower <= 4.7
         @test lower ≈ 4.7
@@ -46,7 +49,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             2x + 3,
             13.0;
-            dual_value = constraint -> upper_dual[constraint],
+            dual_values = scalar_duals(constraint -> upper_dual[constraint]),
         )
         @test upper >= 5.4
         @test upper ≈ 5.4
@@ -61,7 +64,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             2x + 3,
             -1.0;
-            dual_value = constraint -> constraint == lower_constraint ? 2.1 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == lower_constraint ? 2.1 : 0.0),
         )
         @test lower <= 4.6
         @test lower ≈ 4.6
@@ -74,7 +77,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             2x + 3,
             13.0;
-            dual_value = constraint -> constraint == upper_constraint ? -2.1 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == upper_constraint ? -2.1 : 0.0),
         )
         @test upper >= 5.3
         @test upper ≈ 5.3
@@ -92,7 +95,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             x,
             3.0;
-            dual_value = constraint -> duals[constraint],
+            dual_values = scalar_duals(constraint -> duals[constraint]),
         )
 
         @test bound == 1.0
@@ -107,14 +110,14 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             x,
             0.0;
-            dual_value = constraint -> constraint == equality ? 1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == equality ? 1.0 : 0.0),
         ) == 0.5
         @test certified_lp_bound(
             m_equal,
             upper_bound_type,
             x,
             1.0;
-            dual_value = constraint -> constraint == equality ? -1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == equality ? -1.0 : 0.0),
         ) == 0.5
 
         m_interval = Model()
@@ -125,14 +128,16 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             y,
             0.0;
-            dual_value = constraint -> constraint == interval_constraint ? 1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == interval_constraint ? 1.0 : 0.0),
         ) == 0.25
         @test certified_lp_bound(
             m_interval,
             upper_bound_type,
             y,
             1.0;
-            dual_value = constraint -> constraint == interval_constraint ? -1.0 : 0.0,
+            dual_values = scalar_duals(
+                constraint -> constraint == interval_constraint ? -1.0 : 0.0,
+            ),
         ) == 0.75
     end
 
@@ -145,7 +150,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             x,
             1.0;
-            dual_value = constraint -> constraint == upper_constraint ? -1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == upper_constraint ? -1.0 : 0.0),
         ) == 1.0
 
         m_lower = Model()
@@ -156,7 +161,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             x,
             0.0;
-            dual_value = constraint -> constraint == lower_constraint ? 1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == lower_constraint ? 1.0 : 0.0),
         ) == 0.0
     end
 
@@ -170,14 +175,14 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             x,
             -1.0;
-            dual_value = constraint -> constraint == equality ? 0.9 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == equality ? 0.9 : 0.0),
         ) <= 0.5
         @test certified_lp_bound(
             m_fixed,
             lower_bound_type,
             x,
             -1.0;
-            dual_value = constraint -> constraint == equality ? 0.9 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == equality ? 0.9 : 0.0),
         ) ≈ 0.5
 
         m_unbounded = Model()
@@ -188,14 +193,14 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             x,
             5.0;
-            dual_value = constraint -> constraint == upper_constraint ? -2.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == upper_constraint ? -2.0 : 0.0),
         ) == 5.0
         @test certified_lp_bound(
             m_unbounded,
             upper_bound_type,
             x,
             5.0;
-            dual_value = constraint -> constraint == upper_constraint ? -1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == upper_constraint ? -1.0 : 0.0),
         ) == 1.0
 
         m_lower_unbounded = Model()
@@ -206,14 +211,14 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             x,
             -5.0;
-            dual_value = constraint -> constraint == lower_constraint ? 2.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == lower_constraint ? 2.0 : 0.0),
         ) == -5.0
         @test certified_lp_bound(
             m_lower_unbounded,
             lower_bound_type,
             x,
             -5.0;
-            dual_value = constraint -> constraint == lower_constraint ? 1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == lower_constraint ? 1.0 : 0.0),
         ) == -1.0
     end
 
@@ -227,7 +232,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             upper_bound_type,
             upper_objective,
             upper_bound(upper_objective);
-            dual_value = constraint -> constraint == upper_constraint ? -1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == upper_constraint ? -1.0 : 0.0),
         )
         @test BigFloat(upper) >= BigFloat(1.0e16) + 1
 
@@ -240,7 +245,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             lower_bound_type,
             lower_objective,
             lower_bound(lower_objective);
-            dual_value = constraint -> constraint == lower_constraint ? 1.0 : 0.0,
+            dual_values = scalar_duals(constraint -> constraint == lower_constraint ? 1.0 : 0.0),
         )
         @test BigFloat(lower) <= BigFloat(-1.0e16) - 1
     end
@@ -466,21 +471,25 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test projected_dual_and_reference(MathOptInterface.ZeroOne(), 1.0) === nothing
     end
 
-    @testset "constraint_dual_or_nothing classifies retrieval errors" begin
+    @testset "single_constraint_dual_or_nothing classifies retrieval errors" begin
         # expected MOI attribute-unavailable errors fall back quietly
         unsupported = MathOptInterface.UnsupportedAttribute(MathOptInterface.ConstraintDual())
-        @test constraint_dual_or_nothing(:constraint, _ -> throw(unsupported)) === nothing
+        @test MIPVerify.single_constraint_dual_or_nothing(_ -> throw(unsupported), :constraint) ===
+              nothing
         # unexpected errors are logged at warn level and treated as unavailable
         MIPVerify.Memento.TestUtils.@test_log(
             MIPVerify.LOGGER,
             "warn",
             "Unexpected error reading a constraint dual",
-            @test(constraint_dual_or_nothing(:constraint, _ -> error("boom")) === nothing)
+            @test(
+                MIPVerify.single_constraint_dual_or_nothing(_ -> error("boom"), :constraint) ===
+                nothing
+            )
         )
         # interrupts still propagate
-        @test_throws InterruptException constraint_dual_or_nothing(
-            :constraint,
+        @test_throws InterruptException MIPVerify.single_constraint_dual_or_nothing(
             _ -> throw(InterruptException()),
+            :constraint,
         )
     end
 
@@ -503,15 +512,25 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         y = @variable(m_invalid)
         set_lower_bound(y, 1.0)
         set_upper_bound(y, 0.0)
-        invalid_result =
-            certified_lp_bound(m_invalid, lower_bound_type, x + y, -2.5; dual_value = _ -> 0.0)
+        invalid_result = certified_lp_bound(
+            m_invalid,
+            lower_bound_type,
+            x + y,
+            -2.5;
+            dual_values = scalar_duals(_ -> 0.0),
+        )
         @test invalid_result == -2.5
 
         m_unbounded = Model()
         @variable(m_unbounded, 0 <= z <= 1)
         free = @variable(m_unbounded)
-        unbounded_result =
-            certified_lp_bound(m_unbounded, lower_bound_type, z + free, -2.5; dual_value = _ -> 0.0)
+        unbounded_result = certified_lp_bound(
+            m_unbounded,
+            lower_bound_type,
+            z + free,
+            -2.5;
+            dual_values = scalar_duals(_ -> 0.0),
+        )
         @test unbounded_result == -2.5
     end
 
@@ -542,10 +561,185 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         )
         m = Model(() -> mock)
         m.ext[:MIPVerify] = MIPVerifyExt(mip)
+        # The LP dual certifies the row bound 1.5; that certificate must survive the following
+        # MIP solve's time limit instead of falling back to the variable upper bound 2.
         @variable(m, 0 <= x <= 2)
         @constraint(m, x <= 1.5)
 
         @test tight_upperbound(x; nta = mip) == 1.5
         @test call_count[] == 2
+    end
+
+    @testset "batches ordered duals by homogeneous constraint type" begin
+        m = Model()
+        # These ranges make the interval lower bound of x - y equal to -4 while leaving room for
+        # the selected x >= 2 and y <= 2 rows to certify the exact lower bound 0.
+        @variable(m, 0 <= x <= 3)
+        @variable(m, 0 <= y <= 4)
+        lower_first = @constraint(m, x >= 1)
+        lower_second = @constraint(m, x >= 2)
+        upper_first = @constraint(m, y <= 3)
+        upper_second = @constraint(m, y <= 2)
+
+        # A zero dual ignores the first row in each group; the signed unit dual selects the second.
+        # This makes swapped or otherwise misordered batch values produce a different certificate.
+        duals =
+            Dict(lower_first => 0.0, lower_second => 1.0, upper_first => 0.0, upper_second => -1.0)
+        batch_groups = Vector{Vector{Any}}()
+        dual_values = constraints -> begin
+            push!(batch_groups, Any[constraints...])
+            return [duals[constraint] for constraint in constraints]
+        end
+
+        bound = certified_lp_bound(m, lower_bound_type, x - y, -4.0; dual_values = dual_values)
+
+        # The selected rows prove x - y >= 2 - 2 = 0.
+        @test bound == 0.0
+        # GreaterThan and LessThan rows must be fetched as two separate homogeneous batches.
+        @test length(batch_groups) == 2
+        @test Any[lower_first, lower_second] in batch_groups
+        @test Any[upper_first, upper_second] in batch_groups
+    end
+
+    @testset "default dual retrieval returns duals in constraint order" begin
+        m = Model(HiGHS.Optimizer)
+        set_silent(m)
+        @variable(m, x)
+        @variable(m, y)
+        constraints = [@constraint(m, x >= 1), @constraint(m, y >= 2)]
+        # Both rows are active at the optimum, so each row's dual equals its variable's objective
+        # coefficient; the distinct coefficients 2 and 3 make the returned order observable.
+        @objective(m, Min, 2x + 3y)
+
+        # Before any solve there are no duals, so the batch read reports them unavailable.
+        @test MIPVerify.default_constraint_duals(m, constraints) === nothing
+
+        optimize!(m)
+        @test MIPVerify.default_constraint_duals(m, constraints) == [2.0, 3.0]
+    end
+
+    @testset "retries constraints individually when a group read fails" begin
+        m = Model()
+        # Unit duals on the two independent rows x >= 1 and y >= 2 cancel the objective
+        # coefficients exactly, so certifying 1*1 + 1*2 = 3 requires both single-constraint
+        # retries to recover their duals; the [0, 4] bounds are never consulted.
+        @variable(m, 0 <= x <= 4)
+        @variable(m, 0 <= y <= 4)
+        first_constraint = @constraint(m, x >= 1)
+        second_constraint = @constraint(m, y >= 2)
+        duals = Dict(first_constraint => 1.0, second_constraint => 1.0)
+
+        for make_bad_group_read in (
+            # An erroring group read exercises the exception fallback.
+            _ -> error("batch retrieval failed"),
+            # One value cannot represent the two affine rows, so retrieval must retry.
+            _ -> [0.0],
+        )
+            calls = Vector{Vector{Any}}()
+            bound = certified_lp_bound(
+                m,
+                lower_bound_type,
+                x + y,
+                0.0;
+                dual_values = constraints -> begin
+                    push!(calls, Any[constraints...])
+                    if length(constraints) == 1
+                        [duals[only(constraints)]]
+                    else
+                        make_bad_group_read(constraints)
+                    end
+                end,
+            )
+            # The failed group read is discarded; each row is retried through the same source
+            # as a single-element batch, in model order, and the recovered duals certify
+            # 1 + 2 = 3.
+            @test bound == 3.0
+            @test calls == [
+                Any[first_constraint, second_constraint],
+                Any[first_constraint],
+                Any[second_constraint],
+            ]
+        end
+    end
+
+    @testset "treats an unusable individual retry as unavailable" begin
+        m = Model()
+        # A source that answers every read with a non-vector value makes the row dual
+        # unavailable at both granularities, so the x >= 1 row keeps a zero multiplier and the
+        # certificate proves only x's declared lower bound 0, not the row's 1. The certificate
+        # still beats the passed interval bound -1, showing the failed reads were skipped
+        # rather than aborting certification.
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x >= 1)
+
+        MIPVerify.Memento.TestUtils.@test_log(
+            MIPVerify.LOGGER,
+            "warn",
+            "Single constraint-dual retry returned an incompatible value",
+            @test(
+                certified_lp_bound(
+                    m,
+                    lower_bound_type,
+                    x,
+                    -1.0;
+                    dual_values = _ -> "unavailable",
+                ) == 0.0
+            )
+        )
+    end
+
+    @testset "treats invalid batch elements as independently unavailable" begin
+        m = Model()
+        # The four distinct right-hand sides identify which batch element remains usable. The
+        # single valid unit dual cancels x's objective coefficient exactly, so the [0, 5] bounds
+        # never enter the certificate.
+        @variable(m, 0 <= x <= 5)
+        @constraint(m, x >= 1)
+        @constraint(m, x >= 2)
+        @constraint(m, x >= 3)
+        @constraint(m, x >= 4)
+
+        bound = certified_lp_bound(
+            m,
+            lower_bound_type,
+            x,
+            0.0;
+            dual_values = _ -> begin
+                # NaN, infinity, and a non-Real value are ignored independently; the final unit
+                # dual must remain available to select x >= 4.
+                return Any[NaN, Inf, "unavailable", 1.0]
+            end,
+        )
+
+        # The one valid element certifies x >= 4 despite the three invalid neighbors.
+        @test bound == 4.0
+    end
+
+    @testset "propagates fatal dual-read errors" begin
+        m = Model()
+        # Two rows in one GreaterThan group let the second case fail the group read with a
+        # wrong-length value and throw only from the single-constraint retries.
+        @variable(m, 0 <= x <= 2)
+        @constraint(m, x >= 1)
+        @constraint(m, x >= 2)
+
+        for fatal_error in (InterruptException(), OutOfMemoryError(), StackOverflowError())
+            # ...thrown by the whole-group read.
+            @test_throws typeof(fatal_error) certified_lp_bound(
+                m,
+                lower_bound_type,
+                x,
+                0.0;
+                dual_values = _ -> throw(fatal_error),
+            )
+            # ...thrown by a single-constraint retry after the group read is discarded.
+            @test_throws typeof(fatal_error) certified_lp_bound(
+                m,
+                lower_bound_type,
+                x,
+                0.0;
+                dual_values = constraints -> length(constraints) == 1 ? throw(fatal_error) : [0.0],
+            )
+        end
     end
 end
