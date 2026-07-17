@@ -215,10 +215,18 @@ be clobbered.
 benchmarks/publish_report.sh /tmp/pair-<slug>/analysis <YYYY-MM-DD-slug>
 ```
 
-Then post a PR comment: a bulleted **Summary**, then **Detailed statistics** opening with the plots
-— embedded via `raw.githubusercontent.com/<owner>/<repo>/<sha>/pairs/<slug>/plots/*.png`, pinned to
-the publish commit's SHA so the images can't be served stale — followed by the tables. Readers get
-the shape of the distribution before the numbers.
+Then post a PR comment with this section order:
+
+1. Title and context — what the PR changes, the benchmark setup, and a link to the published
+   `pairs/<slug>/` folder.
+2. `## Summary` — bulleted.
+3. `## Detailed statistics` — `### Plots` is always the first subsection, before any table.
+   Embed images via `raw.githubusercontent.com/<owner>/<repo>/<sha>/pairs/<slug>/plots/*.png`,
+   pinned to the publish commit's SHA so they can't be served stale. The table subsections
+   follow: `### Per-sample ratio distribution`, `### Aggregate saving and concentration`,
+   `### Solve status and verdict flips`, and any report-specific extras after those.
+
+Plots come before every table so readers get the shape of the distribution before the numbers.
 
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
