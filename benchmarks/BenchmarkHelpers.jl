@@ -1,6 +1,7 @@
 module BenchmarkHelpers
 using CSV
 using DataFrames
+using MIPVerify: MIPVerify
 using Pkg
 using SHA
 
@@ -91,8 +92,9 @@ function safe_sum(xs)::Float64
     return sum(filter(isfinite, xs))
 end
 
+# Delegate so the INFEASIBLE-only rule has a single definition in MIPVerify.is_infeasible.
 function is_infeasible_status(status::String)::Bool
-    return status == "INFEASIBLE"
+    return MIPVerify.is_infeasible(status)
 end
 
 """

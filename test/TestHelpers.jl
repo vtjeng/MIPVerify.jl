@@ -78,6 +78,9 @@ function test_find_adversarial_example(
         invert_target_selection = invert_target_selection,
     )
     if isnan(expected_objective_value)
+        # Strict INFEASIBLE is deliberate (#220): these fixtures are small enough that solvers
+        # prove infeasibility outright. The batch integration test documents the tolerant contrast
+        # for INFEASIBLE_OR_UNBOUNDED.
         @test d[:SolveStatus] == MathOptInterface.INFEASIBLE
         @test !d[:WitnessAvailable]
         @test !d[:WitnessTargetVerified]

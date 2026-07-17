@@ -76,10 +76,12 @@ such example still require an infeasibility proof. A time limit or another incon
 remains unresolved. This objective does not compute a minimum distortion or set solution- or
 objective-limit attributes, whose support varies by optimizer. For every objective, MIPVerify checks
 each proposed witness against the selected perturbation family's input constraints and runs it
-through the numeric network. It sets `result[:WitnessVerified]` only when both checks pass. Custom
-perturbation families must implement `MIPVerify.verify_perturbation_witness`; otherwise their points
-fail closed as unverified. Treat results without either an infeasibility proof or a verified witness
-as unresolved.
+through the numeric network. It sets `result[:WitnessVerified]` only when both checks pass. The
+`1e-8` verification tolerances are stricter than typical solver feasibility tolerances, so an
+occasional boundary-tight incumbent can fail verification; that result is unresolved, not a solver
+error. Custom perturbation families must implement `MIPVerify.verify_perturbation_witness`;
+otherwise their points fail closed as unverified. Treat results without either an infeasibility
+proof or a verified witness as unresolved.
 
 ## Features
 

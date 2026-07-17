@@ -134,7 +134,7 @@ def benchmark_schema_version(run_dir: Path, side: str) -> int:
 def benchmark_objective(frame: pd.DataFrame, side: str, schema_version: int) -> str:
     """Return one run's canonical objective, including historical benchmark schemas."""
     if frame.empty:
-        return CLOSEST_OBJECTIVE
+        raise ValueError(f"{side} per-sample CSV is empty")
     if "adversarial_example_objective" not in frame.columns:
         if schema_version > LAST_PRE_OBJECTIVE_SCHEMA_VERSION:
             raise ValueError(

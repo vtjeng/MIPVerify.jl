@@ -98,22 +98,34 @@ function witness_satisfies_target(
     return witness_margin, verified
 end
 
+const WITNESS_VALUE_KEYS =
+    (:PerturbedInputValue, :WitnessOutput, :WitnessMargin, :WitnessDistance, :WitnessBlurKernel)
+
+"""
+    clear_witness_values!(result)
+
+Remove every witness value recorded by an earlier evaluation. The witness flags always stay
+present; witness values exist only while a candidate is available.
+"""
+function clear_witness_values!(d::Dict)::Nothing
+    for key in WITNESS_VALUE_KEYS
+        pop!(d, key, nothing)
+    end
+    return nothing
+end
+
 """
     record_no_witness!(result)
 
-Mutate `result` to record that no numeric witness is available. Remove any stale witness values,
-set all witness verification flags to `false`, and set `:WitnessMargin` to `missing`.
+Mutate `result` to record that no numeric witness is available. Remove any stale witness values
+and set all witness verification flags to `false`.
 """
 function record_no_witness!(d::Dict)::Nothing
-    for key in
-        (:PerturbedInputValue, :WitnessOutput, :WitnessMargin, :WitnessDistance, :WitnessBlurKernel)
-        pop!(d, key, nothing)
-    end
+    clear_witness_values!(d)
     d[:WitnessAvailable] = false
     d[:WitnessTargetVerified] = false
     d[:WitnessPerturbationVerified] = false
     d[:WitnessVerified] = false
-    d[:WitnessMargin] = missing
     return nothing
 end
 
@@ -123,7 +135,9 @@ end
 Independently evaluate and record a numeric witness candidate. The candidate is marked available
 even when its target or perturbation check fails; `:WitnessVerified` is true only when both pass.
 This function records the candidate, network output, observed margin, verification flags, and any
-perturbation-specific values. The caller records `:WitnessDistance` when applicable.
+perturbation-specific values. Stale values from an earlier evaluation are removed first, so
+verification never reads a previously recorded witness. The caller records `:WitnessDistance` when
+applicable.
 """
 function record_witness!(
     d::Dict,
@@ -133,6 +147,7 @@ function record_witness!(
     pp::PerturbationFamily,
     margin::Real,
 )::Nothing
+    clear_witness_values!(d)
     witness_output = perturbed_input |> nn
     witness_margin, satisfies_target =
         witness_satisfies_target(witness_output, d[:TargetIndexes], margin)
@@ -187,7 +202,11 @@ numeric candidate. Available witnesses also have numeric `:PerturbedInputValue`,
 `:WitnessOutput`, `:WitnessMargin`, and `:WitnessDistance` entries. Numeric comparisons allow an
 absolute or relative tolerance of `1e-8`. An L-infinity budget uses only the relative tolerance so
 a small budget is not expanded by a larger fixed tolerance; a blur-kernel sum uses only the
-absolute tolerance so it does not grow with the channel count. Solver-backed results also have keys
+absolute tolerance so it does not grow with the channel count. These verification tolerances are
+deliberately stricter than typical solver primal feasibility tolerances (HiGHS defaults to `1e-7`
+and Gurobi to `1e-6`), so a solver can return an incumbent that sits on a constraint boundary yet
+fails verification. Such a result is unresolved, not a solver wrong answer; tighten the solver's
+feasibility tolerance if boundary-tight witnesses must verify. Solver-backed results also have keys
 `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :PrimalStatus, :Perturbation,
 :PerturbedInput, :Output`. `:AdversarialExampleObjective` records the selected search objective.
 See the

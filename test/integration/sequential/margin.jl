@@ -191,6 +191,24 @@ using JuMP
         @test !target_failure[:WitnessVerified]
     end
 
+    @testset "record_witness! ignores stale witness values" begin
+        # A 1x1 identity blur kernel reconstructs this unchanged candidate exactly, but the
+        # planted zero kernel from an earlier evaluation would fail the channel-sum check if it
+        # leaked into the fresh verification.
+        blur_input = reshape([0.2, 0.4, 0.6, 0.8], 1, 2, 2, 1)
+        stale = Dict{Symbol,Any}(:TargetIndexes => [1], :WitnessBlurKernel => zeros(1, 1, 1, 1))
+        MIPVerify.record_witness!(
+            stale,
+            Sequential([MIPVerify.Flatten(4)], "stale-witness-check"),
+            blur_input,
+            copy(blur_input),
+            MIPVerify.BlurringPerturbationFamily((1, 1)),
+            0.0,
+        )
+        @test stale[:WitnessPerturbationVerified]
+        @test stale[:WitnessBlurKernel] == reshape([1.0], 1, 1, 1, 1)
+    end
+
     @testset "margin-aware skipped solve" begin
         # The original input has class-1 margin 1.0. A requested 1.5 margin therefore
         # forces a solve even though class 1 is already the predicted target.

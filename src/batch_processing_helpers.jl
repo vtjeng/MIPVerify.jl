@@ -107,8 +107,20 @@ function summary_witness_margin(d::Dict)
     return d[:WitnessAvailable] ? d[:WitnessMargin] : NaN
 end
 
+"""
+    is_infeasible(status)
+
+Return whether a solve status is exactly `INFEASIBLE`, given either a
+`MathOptInterface.TerminationStatusCode` or its string form. Combined or ambiguous statuses,
+including `INFEASIBLE_OR_UNBOUNDED`, do not certify infeasibility. This is the single source of
+truth for that rule; `BenchmarkHelpers.is_infeasible_status` delegates to it.
+"""
 function is_infeasible(s::MathOptInterface.TerminationStatusCode)::Bool
     return s == MathOptInterface.INFEASIBLE
+end
+
+function is_infeasible(status::AbstractString)::Bool
+    return status == string(MathOptInterface.INFEASIBLE)
 end
 
 function get_uuid()::String
@@ -175,13 +187,16 @@ end
 """
     read_summary_file(summary_file_path)
 
-Read a batch summary and upgrade its schema in place when necessary. The migration treats only
+Read a batch summary and upgrade its schema in memory when necessary, returning the migrated
+`DataFrame` and whether it differs from the file on disk. The file itself is never modified here;
+[`persist_summary_migration!`](@ref) writes the migration immediately before the first new row is
+appended, so a batch that appends nothing leaves the archive untouched. The migration treats only
 plain `INFEASIBLE` as proven infeasible and leaves unavailable legacy objective and witness fields
 as `missing`. Non-missing objective names must match a current `AdversarialExampleObjective`.
 Summaries from the unreleased boolean-objective schema are rejected instead of migrated. Unrelated
 extra columns are retained.
 """
-function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
+function read_summary_file(summary_file_path::String)::Tuple{DataFrames.DataFrame,Bool}
     dt = DataFrame(CSV.File(summary_file_path))
     schema_changed = false
     if :VerdictOnly in propertynames(dt)
@@ -192,7 +207,7 @@ function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
         )
     end
     if :IsInfeasible in propertynames(dt)
-        proven_infeasible = string.(dt[!, :SolveStatus]) .== "INFEASIBLE"
+        proven_infeasible = is_infeasible.(string.(dt[!, :SolveStatus]))
         if dt[!, :IsInfeasible] != proven_infeasible
             dt[!, :IsInfeasible] = proven_infeasible
             schema_changed = true
@@ -227,8 +242,29 @@ function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
         select!(dt, ordered_columns)
         schema_changed = true
     end
-    schema_changed && CSV.write(summary_file_path, dt)
-    return dt
+    return dt, schema_changed
+end
+
+"""
+    persist_summary_migration!(summary_file_path, dt, needs_migration)
+
+Rewrite `summary_file_path` from the in-memory migrated `dt` and clear `needs_migration`. Callers
+invoke this immediately before appending the first new summary row, so the appended row aligns
+with the migrated header and an append-free batch never modifies the archived file.
+"""
+function persist_summary_migration!(
+    summary_file_path::String,
+    dt::DataFrames.DataFrame,
+    needs_migration::Base.RefValue{Bool},
+)::Nothing
+    needs_migration[] || return nothing
+    Memento.notice(
+        MIPVerify.LOGGER,
+        "Upgrading the schema of batch summary $(summary_file_path) before appending new results.",
+    )
+    CSV.write(summary_file_path, dt)
+    needs_migration[] = false
+    return nothing
 end
 
 function verify_target_indices(
@@ -248,7 +284,7 @@ function initialize_batch_solve(
     nn::NeuralNet,
     pp::MIPVerify.PerturbationFamily,
     norm_order::Real,
-)::Tuple{String,String,String,DataFrames.DataFrame}
+)::Tuple{String,String,String,DataFrames.DataFrame,Base.RefValue{Bool}}
 
     results_dir = "run_results"
     summary_file_name = "summary.csv"
@@ -262,8 +298,8 @@ function initialize_batch_solve(
     summary_file_path = joinpath(main_path, summary_file_name)
     summary_file_path |> create_summary_file_if_not_present
 
-    dt = read_summary_file(summary_file_path)
-    return (results_dir, main_path, summary_file_path, dt)
+    (dt, schema_changed) = read_summary_file(summary_file_path)
+    return (results_dir, main_path, summary_file_path, dt, Ref(schema_changed))
 end
 
 """
@@ -298,20 +334,12 @@ function save_to_disk(
 end
 
 """
-    is_proven_infeasible_status(status)
-
-Return whether `status` is exactly `INFEASIBLE`. Combined or ambiguous statuses do not certify
-infeasibility.
-"""
-function is_proven_infeasible_status(status)::Bool
-    return string(status) == "INFEASIBLE"
-end
-
-"""
     has_legacy_objective_value(row)
 
 Return whether an older row has numeric objective evidence but predates independent perturbation
-verification. This evidence may select a row for an exact rerun; it is not a verified witness.
+verification. This evidence is not a verified witness, but it keeps a legacy row's historical
+scheduling: it may select the row for an exact rerun and counts as a completed attack for
+`resolve_ambiguous_cases`.
 """
 function has_legacy_objective_value(row::DataFrames.DataFrameRow)::Bool
     perturbation_check_is_missing =
@@ -355,10 +383,15 @@ end
 
 Return whether a batch row lacks either a strict infeasibility proof or a verified witness. An
 available but rejected witness remains ambiguous even alongside a contradictory infeasible status.
+Rerun options schedule work; they do not issue verdicts. Legacy rows that predate witness
+verification therefore keep their historical scheduling: numeric objective evidence counts as a
+completed attack even though it is not a verified witness. Rerun with `always` to replace legacy
+evidence with verified witnesses.
 """
 function should_resolve_ambiguous(row::DataFrames.DataFrameRow)::Bool
-    return has_available_unverified_witness(row) ||
-           (!is_proven_infeasible_status(row[:SolveStatus]) && !has_verified_witness(row))
+    has_available_unverified_witness(row) && return true
+    has_legacy_objective_value(row) && return false
+    return !is_infeasible(string(row[:SolveStatus])) && !has_verified_witness(row)
 end
 
 """
@@ -416,7 +449,8 @@ matching `sample_number`.
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:SolveStatus`,
 `:ObjectiveValue`, `:WitnessAvailable`, `:WitnessTargetVerified`,
 `:WitnessPerturbationVerified`, and `:WitnessVerified`. A witness from an older summary that lacks
-either independent check is unresolved.
+either independent check is unresolved as a verdict, but its numeric objective evidence keeps the
+row's historical scheduling.
 
 Behavior for different choices of `solve_rerun_option`:
 + `never`: `true` if and only if there is no previous completed solve.
@@ -424,6 +458,8 @@ Behavior for different choices of `solve_rerun_option`:
 + `resolve_ambiguous_cases`: `true` if there is no previous completed solve, or if the
     most recent completed solve has neither a verified counterexample nor a proof of infeasibility,
     or if an available witness failed verification despite a contradictory infeasible status.
+    Legacy rows without witness columns keep their historical meaning for scheduling: a recorded
+    numeric objective counts as a completed attack and is not rerun.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
     recent complete solve a) did find a verified counterexample, or recorded legacy objective
     evidence, but b) did not reach a provably optimal exact objective. A feasibility result still
@@ -510,7 +546,7 @@ function batch_find_untargeted_attack(
 
     validate_batch_refinement_objective(solve_rerun_option, adversarial_example_objective)
     verify_target_indices(target_indices, dataset)
-    (results_dir, main_path, summary_file_path, dt) =
+    (results_dir, main_path, summary_file_path, dt, summary_needs_migration) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
 
     for sample_number in target_indices
@@ -534,6 +570,7 @@ function batch_find_untargeted_attack(
                 adversarial_example_objective = adversarial_example_objective,
             )
 
+            persist_summary_migration!(summary_file_path, dt, summary_needs_migration)
             save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)
         end
     end
@@ -550,8 +587,9 @@ matching `sample_number`.
 `summary_dt` is expected to be a `DataFrame` with columns `:SampleNumber`, `:TargetIndexes`,
 `:SolveStatus`, `:ObjectiveValue`, `:WitnessAvailable`, `:WitnessTargetVerified`,
 `:WitnessPerturbationVerified`, and `:WitnessVerified`. A witness from an older summary that lacks
-either independent check is unresolved. Legacy objective evidence can still select a non-optimal
-result for exact refinement.
+either independent check is unresolved as a verdict, but its numeric objective evidence keeps the
+row's historical scheduling: it counts as a completed attack for `resolve_ambiguous_cases` and can
+still select a non-optimal result for exact refinement.
 """
 function run_on_sample_for_targeted_attack(
     sample_number::Integer,
@@ -614,7 +652,7 @@ function batch_find_targeted_attack(
 
     validate_batch_refinement_objective(solve_rerun_option, adversarial_example_objective)
     verify_target_indices(target_indices, dataset)
-    (results_dir, main_path, summary_file_path, dt) =
+    (results_dir, main_path, summary_file_path, dt, summary_needs_migration) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
 
     for sample_number in target_indices
@@ -652,6 +690,7 @@ function batch_find_targeted_attack(
                     adversarial_example_objective = adversarial_example_objective,
                 )
 
+                persist_summary_migration!(summary_file_path, dt, summary_needs_migration)
                 save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)
             end
         end

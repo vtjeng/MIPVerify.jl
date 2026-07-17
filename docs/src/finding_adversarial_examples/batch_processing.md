@@ -9,6 +9,13 @@ from [`find_adversarial_example`](@ref).
 is interrupted by intelligently determining whether to rerun [`find_adversarial_example`](@ref) on a
 sample based on the `solve_rerun_option` specified.
 
+Resuming against a summary written by an older MIPVerify version upgrades its schema in memory; the
+upgraded file is written back only when the batch appends a new result, so a batch that schedules no
+work leaves the archived summary untouched. Rows from older summaries keep their historical rerun
+scheduling: a recorded numeric objective counts as a completed attack for `resolve_ambiguous_cases`,
+even though it is not a verified witness. Rerun with `always` to replace legacy evidence with
+verified witnesses.
+
 ## Index
 
 ```@index

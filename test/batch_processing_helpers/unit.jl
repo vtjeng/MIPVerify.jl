@@ -7,6 +7,7 @@ using MIPVerify:
     create_summary_file_if_not_present,
     is_infeasible,
     read_summary_file,
+    persist_summary_migration!,
     verify_target_indices,
     extract_results_for_save
 using MIPVerify: run_on_sample_for_untargeted_attack, run_on_sample_for_targeted_attack
@@ -74,7 +75,8 @@ TestHelpers.@timed_testset "unit.jl" begin
                     ObjectiveValue = [0.25, NaN],
                 ),
             )
-            summary = read_summary_file(file_path)
+            summary, needs_migration = read_summary_file(file_path)
+            @test needs_migration
             @test summary.IsInfeasible == [false, false]
             @test all(ismissing, summary.AdversarialExampleObjective)
             @test ismissing(summary.WitnessAvailable[1])
@@ -83,9 +85,23 @@ TestHelpers.@timed_testset "unit.jl" begin
             @test ismissing(summary.WitnessVerified[1])
             @test ismissing(summary.WitnessMargin[1])
 
+            # Reading alone must leave the archived file untouched; the migration persists only
+            # when a batch is about to append a new row.
+            untouched = DataFrame(CSV.File(file_path))
+            @test :WitnessVerified ∉ propertynames(untouched)
+            @test untouched.IsInfeasible == [false, true]
+
+            needs_migration_ref = Ref(needs_migration)
+            persist_summary_migration!(file_path, summary, needs_migration_ref)
+            @test !needs_migration_ref[]
             persisted = DataFrame(CSV.File(file_path))
             @test :WitnessVerified in propertynames(persisted)
             @test persisted.IsInfeasible == [false, false]
+
+            # A cleared flag makes later calls no-ops, so each migration is written once.
+            rm(file_path)
+            persist_summary_migration!(file_path, summary, needs_migration_ref)
+            @test !isfile(file_path)
         end
     end
 
@@ -133,7 +149,7 @@ TestHelpers.@timed_testset "unit.jl" begin
                     UserNote = ["keep me"],
                 ),
             )
-            summary = read_summary_file(file_path)
+            summary, _ = read_summary_file(file_path)
             @test summary.UserNote == ["keep me"]
         end
     end
@@ -161,11 +177,14 @@ TestHelpers.@timed_testset "unit.jl" begin
             )
             CSV.write(file_path, legacy_summary)
 
-            migrated = read_summary_file(file_path)
+            migrated, needs_migration = read_summary_file(file_path)
             @test propertynames(migrated) == Symbol.(MIPVerify.SUMMARY_HEADER)
             @test ismissing(migrated.AdversarialExampleObjective[1])
             @test ismissing(migrated.WitnessTargetVerified[1])
             @test ismissing(migrated.WitnessPerturbationVerified[1])
+            # Persisting the migration first mirrors a resumed batch, so the appended row lines
+            # up with the migrated header.
+            persist_summary_migration!(file_path, migrated, Ref(needs_migration))
 
             # The second row's 0.3 margin and false target check are sentinels for the new
             # positional layout when a resumed batch appends to the migrated file.
@@ -213,6 +232,10 @@ TestHelpers.@timed_testset "unit.jl" begin
         # This combined status does not identify which side holds, so it cannot certify robustness.
         @test !is_infeasible(MathOptInterface.INFEASIBLE_OR_UNBOUNDED)
         @test !is_infeasible(MathOptInterface.OPTIMAL)
+        # The string method applies the same rule to statuses read back from summary CSVs.
+        @test is_infeasible("INFEASIBLE")
+        @test !is_infeasible("INFEASIBLE_OR_UNBOUNDED")
+        @test !is_infeasible("OPTIMAL")
     end
 
     @testset "exact refinement rejects the feasibility objective" begin
@@ -244,25 +267,28 @@ TestHelpers.@timed_testset "unit.jl" begin
     end
 
     @testset "run_on_sample_for_untargeted_attack" begin
-        # Samples 101-103 cover proven infeasibility, a legacy incumbent stopped at an
-        # objective limit, and a time limit without an incumbent; 104 has no prior row.
-        sample_numbers = [101, 102, 103, 104]
+        # Samples 101-103 and 105 cover proven infeasibility, a legacy incumbent stopped at an
+        # objective limit, a time limit without an incumbent, and a time limit with a legacy
+        # incumbent; 104 has no prior row. Legacy incumbents count as completed attacks for
+        # resolve scheduling, so only the incumbent-free time limit remains ambiguous.
+        sample_numbers = [101, 102, 103, 104, 105]
         dt = DataFrame(
-            SampleNumber = [101, 102, 102, 103, 103],
+            SampleNumber = [101, 102, 102, 103, 103, 105],
             SolveStatus = [
                 "INFEASIBLE",
                 "OPTIMAL",
                 "OBJECTIVE_LIMIT",
                 "OBJECTIVE_LIMIT",
                 "TIME_LIMIT",
+                "TIME_LIMIT",
             ],
-            ObjectiveValue = [NaN, 0.8, 0.9, 0.99, NaN],
+            ObjectiveValue = [NaN, 0.8, 0.9, 0.99, NaN, 0.25],
         )
         expected_results = Dict(
-            MIPVerify.never => [false, false, false, true],
-            MIPVerify.always => [true, true, true, true],
-            MIPVerify.resolve_ambiguous_cases => [false, true, true, true],
-            MIPVerify.refine_insecure_cases => [false, true, false, true],
+            MIPVerify.never => [false, false, false, true, false],
+            MIPVerify.always => [true, true, true, true, true],
+            MIPVerify.resolve_ambiguous_cases => [false, false, true, true, false],
+            MIPVerify.refine_insecure_cases => [false, true, false, true, true],
         )
         for solve_rerun_option in keys(expected_results)
             @testset "Solve rerun option: $solve_rerun_option" begin
@@ -347,10 +373,12 @@ TestHelpers.@timed_testset "unit.jl" begin
             ],
             ObjectiveValue = [NaN, 0.8, 0.9, 0.99, NaN, 0.1],
         )
+        # The legacy objective-limit and optimal incumbents on (102, 1) and (101, 2) keep their
+        # historical resolve scheduling; only the incumbent-free time limit is ambiguous.
         expected_results = Dict(
             MIPVerify.never => [false, false, false, true, false],
             MIPVerify.always => [true, true, true, true, true],
-            MIPVerify.resolve_ambiguous_cases => [false, true, true, true, true],
+            MIPVerify.resolve_ambiguous_cases => [false, false, true, true, false],
             MIPVerify.refine_insecure_cases => [false, true, false, true, false],
             MIPVerify.retarget_infeasible_cases => [true, false, false, true, false],
         )

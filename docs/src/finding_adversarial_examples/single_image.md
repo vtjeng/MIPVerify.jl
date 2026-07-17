@@ -34,6 +34,7 @@ MIPVerify.AdversarialExampleObjective
 MIPVerify.PerturbationFamily
 MIPVerify.get_target_margin
 MIPVerify.witness_satisfies_target
+MIPVerify.clear_witness_values!
 MIPVerify.record_no_witness!
 MIPVerify.record_witness!
 MIPVerify.witness_value_in_closed_interval
