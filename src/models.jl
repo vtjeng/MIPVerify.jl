@@ -45,6 +45,13 @@ function witness_value_in_closed_interval(
     return satisfies_lower_bound && satisfies_upper_bound
 end
 
+"""
+    witness_inputs_satisfy_common_constraints(input, perturbed_input)
+
+Return whether the original and perturbed inputs have the same shape, both contain only finite
+values, and every perturbed value lies in `[0, 1]`. Boundary comparisons use
+`WITNESS_VERIFICATION_ATOL` and `WITNESS_VERIFICATION_RTOL`.
+"""
 function witness_inputs_satisfy_common_constraints(
     input::Array{<:Real},
     perturbed_input::Array{<:Real},
@@ -81,12 +88,18 @@ end
 """
     verify_perturbation_witness(pp, input, perturbed_input, result)
 
-Independently check that `perturbed_input` belongs to `pp` around `input`. Return a Boolean and a
-dictionary of numeric auxiliary witness values to retain in `result`.
+Independently check that `perturbed_input` belongs to `pp` around `input`. Return
+`(verified, auxiliary_values)`, where `auxiliary_values` contains numeric diagnostics that the
+caller merges into the result even when `verified` is false. Implementations should treat `result`
+as read-only and must check the numeric perturbation constraints instead of trusting solver status.
 
-The fallback fails closed. A custom [`PerturbationFamily`](@ref) must implement this method before
-its solver points can be reported as verified witnesses. Implementations must check the semantic
-perturbation constraints numerically rather than relying on the solver's feasibility status.
+The generic fallback returns `(false, Dict{Symbol,Any}())`, so custom [`PerturbationFamily`](@ref)
+implementations fail closed until they define this method. Built-in methods require matching input
+shapes, finite values, and a perturbed input in `[0, 1]`. The L-infinity method also checks the
+perturbation radius with zero absolute tolerance and `WITNESS_VERIFICATION_RTOL`. The blur method
+checks the numeric kernel's shape, coefficient bounds, channel sum, and reconstructed input; the
+channel sum uses `WITNESS_VERIFICATION_ATOL` with zero relative tolerance, while other boundary and
+reconstruction checks use both witness-verification tolerances.
 """
 function verify_perturbation_witness(
     pp::PerturbationFamily,
@@ -125,6 +138,14 @@ function verify_perturbation_witness(
     return satisfies_norm_bound, Dict{Symbol,Any}()
 end
 
+"""
+    identity_blur_kernel(pp, input)
+
+Return a `Float64` identity blur kernel with shape
+`(filter_height, filter_width, input_channels, input_channels)`, aligned with [`Conv2d`](@ref)'s
+`SAME` padding for odd or even filter dimensions. Return `nothing` when `input` is not four
+dimensional, the filter dimensions are invalid, or the input has no channels.
+"""
 function identity_blur_kernel(
     pp::BlurringPerturbationFamily,
     input::Array{<:Real},
@@ -146,6 +167,15 @@ function identity_blur_kernel(
     return kernel
 end
 
+"""
+    numeric_blur_kernel(pp, input, result)
+
+Return the numeric blur kernel available in `result`. Prefer a persisted `:WitnessBlurKernel`, then
+try to extract values from the JuMP variables in `:BlurKernel`. If neither key exists, construct an
+identity kernel for the original-input fast path. Failed JuMP value extraction returns `nothing`
+instead of substituting the identity kernel. This function does not mutate `result` or validate the
+kernel; [`verify_perturbation_witness`](@ref) performs those checks.
+"""
 function numeric_blur_kernel(pp::BlurringPerturbationFamily, input::Array{<:Real}, result::Dict)
     if haskey(result, :WitnessBlurKernel)
         return result[:WitnessBlurKernel]

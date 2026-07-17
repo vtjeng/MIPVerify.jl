@@ -5,7 +5,7 @@ using Pkg
 using SHA
 
 export parse_args,
-    parse_benchmark_mode,
+    parse_benchmark_objective,
     parse_sample_spec,
     safe_sum,
     is_infeasible_status,
@@ -20,7 +20,7 @@ export parse_args,
     dependency_snapshot_hash,
     load_dependency_snapshot,
     write_dependency_snapshot,
-    benchmark_mode,
+    benchmark_objective,
     benchmark_schema_version,
     semantic_outcome_schema_version,
     semantic_partition_columns_present,
@@ -32,8 +32,8 @@ export parse_args,
     WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION,
     SEMANTIC_PARTITION_COLUMNS
 
-const VERDICT_ONLY_MODE = "verdict-only"
-const EXACT_DISTORTION_MODE = "exact-distortion"
+const FEASIBILITY_OBJECTIVE = "feasibility"
+const CLOSEST_OBJECTIVE = "closest"
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -56,12 +56,17 @@ function parse_args(args::Vector{String})::Dict{String,String}
     return parsed
 end
 
-function parse_benchmark_mode(raw::AbstractString)::String
-    mode = String(lowercase(strip(raw)))
-    mode in (VERDICT_ONLY_MODE, EXACT_DISTORTION_MODE) || error(
-        "Unsupported benchmark mode $raw. Expected $VERDICT_ONLY_MODE or $EXACT_DISTORTION_MODE.",
+"""
+    parse_benchmark_objective(raw)
+
+Return the canonical benchmark objective, `closest` or `feasibility`.
+"""
+function parse_benchmark_objective(raw::AbstractString)::String
+    objective = String(lowercase(strip(raw)))
+    objective in (CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE) || error(
+        "Unsupported benchmark objective $raw. Expected $CLOSEST_OBJECTIVE or $FEASIBILITY_OBJECTIVE.",
     )
-    return mode
+    return objective
 end
 
 function parse_sample_spec(spec::String)::Vector{Int}
@@ -140,7 +145,7 @@ const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
 const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
-const BENCHMARK_SCHEMA_VERSION = 5
+const BENCHMARK_SCHEMA_VERSION = 6
 const SEMANTIC_OUTCOME_SCHEMA_VERSION = 4
 const SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION = 2
 const WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION = 3
@@ -159,7 +164,7 @@ const TRACKING_COLUMNS = [
     :commit_sha,
     :benchmark_schema_version,
     :semantic_outcome_schema_version,
-    :mode,
+    :adversarial_example_objective,
     :julia_version,
     :dependency_snapshot_sha256,
     :dependency_change_summary,
@@ -180,16 +185,20 @@ function schema_version(metrics::DataFrame, column::Symbol)::Int
 end
 
 """
-    benchmark_mode(metrics) -> String
+    benchmark_objective(metrics) -> String
 
-Return the benchmark solve mode from the first row of `metrics`. Metrics without
-a `mode` column predate verdict-only benchmarking and are exact-distortion runs.
+Return the canonical objective from the first row of `metrics`. Metrics from the unreleased
+mode-based schema are rejected. Metrics without objective metadata predate feasibility benchmarking
+and used `closest`.
 """
-function benchmark_mode(metrics::DataFrame)::String
-    if !(:mode in propertynames(metrics)) || ismissing(metrics[1, :mode])
-        return EXACT_DISTORTION_MODE
+function benchmark_objective(metrics::DataFrame)::String
+    if :adversarial_example_objective in propertynames(metrics) &&
+       !ismissing(metrics[1, :adversarial_example_objective])
+        return parse_benchmark_objective(string(metrics[1, :adversarial_example_objective]))
     end
-    return parse_benchmark_mode(string(metrics[1, :mode]))
+    :mode in propertynames(metrics) &&
+        error("Legacy benchmark mode metadata is unsupported; rerun with an objective.")
+    return CLOSEST_OBJECTIVE
 end
 
 """
@@ -509,7 +518,7 @@ function build_tracking_row(
         :commit_sha => commit_sha,
         :benchmark_schema_version => benchmark_schema_version(metrics),
         :semantic_outcome_schema_version => semantic_outcome_schema_version(metrics),
-        :mode => benchmark_mode(metrics),
+        :adversarial_example_objective => benchmark_objective(metrics),
         :dependency_change_summary => dependency_summary,
     )
     row = Dict{Symbol,Any}()

@@ -16,7 +16,7 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
   --samples 1:100 \
   --tightening interval_arithmetic \
   --main-time-limit 120 \
-  --mode verdict-only \
+  --objective feasibility \
   --norm-order Inf \
   --log-level warn
 ```
@@ -29,17 +29,17 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 | `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated) |
 | `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, or `mip`          |
 | `--main-time-limit` | `120`          | Time limit in seconds for the main solve                             |
-| `--mode`            | `verdict-only` | Solve mode: `verdict-only` or `exact-distortion`                     |
+| `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`            |
 | `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                  |
 | `--log-level`       | `warn`         | MIPVerify log level                                                  |
 
-The benchmark defaults to `verdict-only` because its primary series tracks fixed-budget robustness
-verdicts. MIPVerify's public API still defaults to exact minimum distortion. Pass
-`--mode exact-distortion` to run that variant.
+The benchmark defaults to `feasibility` because its primary series tracks fixed-budget robustness.
+MIPVerify's public API still defaults to the exact minimum-distance `closest` objective. Pass
+`--objective closest` to benchmark that objective.
 
 ### Output
 
-- `benchmark_per_sample.csv` — per-sample solve outcome, mode, target and perturbation witness
+- `benchmark_per_sample.csv` — per-sample solve outcome, objective, target and perturbation witness
   checks, timing, formulation structure, aggregate bound-tightening work, ReLU stability, and
   main-solver work; `witness_output` and `perturbed_input_value` are semicolon-separated numeric
   arrays
@@ -50,7 +50,7 @@ verdicts. MIPVerify's public API still defaults to exact minimum distortion. Pas
 - `benchmark_tightening.csv` — one row per sample, ReLU layer, applied tightening algorithm, and
   bound direction; layer index `0` identifies bounds computed outside a ReLU layer
 - `benchmark_metrics.csv` — aggregate wall-clock time, summed solve times, status and witness
-  counts, and run metadata, including mode, Julia version, and dependency snapshot hash
+  counts, and run metadata, including objective, Julia version, and dependency snapshot hash
 - `dependency_versions.csv` — normalized resolved-package snapshot with package versions, tree
   hashes, source kind, and direct-dependency markers
 - `dependency_manifest.toml` — copy of the active benchmark `Manifest.toml` for manual debugging
@@ -94,26 +94,26 @@ In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted 
 `name=count` pairs. Dedicated columns cover optimal and time-limit statuses and each progressive
 skip reason.
 
-`benchmark_schema_version` identifies the timing and output schema. Schema 5 splits witness
-verification into target and perturbation checks. Schema 4 added solve mode, verified-witness
-fields, and solution- and objective-limit status counts. Schema 3 recorded LP and MIP stages
-separately when progressive MIP tightening is requested. `semantic_outcome_schema_version`
-identifies the outcome-counting rules. Semantic schema 4 requires both the numeric target check and
-perturbation-family membership check before counting an adversarial example. Semantic schema 3 first
-required a verified target witness and recorded failed verification separately. Semantic schema 2
-added already-misclassified skipped inputs to the adversarial count. Comparison tooling rejects runs
-with different schema versions or solve modes. Metrics without a mode predate verdict-only
-benchmarking and are treated as `exact-distortion`.
+`benchmark_schema_version` identifies the timing and output schema. Schema 6 records the
+adversarial-example objective by name. Schema 5 splits witness verification into target and
+perturbation checks. Schema 4 added verified-witness fields and solution- and objective-limit status
+counts. Schema 3 recorded LP and MIP stages separately when progressive MIP tightening is requested.
+`semantic_outcome_schema_version` identifies the outcome-counting rules. Semantic schema 4 requires
+both the numeric target check and perturbation-family membership check before counting an
+adversarial example. Semantic schema 3 first required a verified target witness and recorded failed
+verification separately. Semantic schema 2 added already-misclassified skipped inputs to the
+adversarial count. Comparison tooling rejects runs with different schema versions or objectives.
+Metrics without objective metadata predate feasibility benchmarking and use `closest`.
 
 ## Nightly Benchmark Workflow
 
-A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the verdict-only WK17a
+A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the feasibility WK17a
 benchmark nightly on 500 samples with `lp` tightening.
 
 ### Schedule
 
-Runs daily at 6 AM UTC. Manual runs default to verdict-only; select the exact variant with
-`gh workflow run nightly-benchmark.yml -f mode=exact-distortion`.
+Runs daily at 6 AM UTC. Manual runs default to `feasibility`; select the closest-objective variant
+with `gh workflow run nightly-benchmark.yml -f objective=closest`.
 
 ### Results storage
 
@@ -134,7 +134,7 @@ Results are committed to the
 | `commit_sha`                                   | Git commit SHA benchmarked                                                                                                 |
 | `benchmark_schema_version`                     | Version of the benchmark timing and output schema                                                                          |
 | `semantic_outcome_schema_version`              | Version of the semantic outcome-counting rules                                                                             |
-| `mode`                                         | `verdict-only` or `exact-distortion`; missing historical values mean exact distortion                                      |
+| `adversarial_example_objective`                | `feasibility` or `closest`; missing historical values mean `closest`                                                       |
 | `julia_version`                                | Julia version used for the benchmark                                                                                       |
 | `dependency_snapshot_sha256`                   | SHA-256 hash of the normalized dependency snapshot                                                                         |
 | `dependency_change_summary`                    | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
@@ -215,11 +215,11 @@ untouched.
 benchmarks/run_pair.sh \
   --base <base-commit> --candidate <candidate-commit> \
   --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120 \
-  --base-mode exact-distortion --candidate-mode verdict-only
+  --base-objective closest --candidate-objective feasibility
 ```
 
-The side-specific mode flags are optional, so older commits whose benchmark driver has no `--mode`
-argument still work when their mode flag is omitted.
+The side-specific objective flags are optional; without them, each commit uses its own benchmark
+default.
 
 Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-<slug>/analysis`
 (plots + tables).
@@ -227,8 +227,9 @@ Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-
 ### 2. Analyze — `analysis/`
 
 `run_pair.sh` calls it for you; run it directly to re-analyze existing run dirs. It reports the
-per-sample ratio distribution, aggregate saving + concentration, solve-status counts, and grouped
-verdict flips, plus ECDF / scatter plots. See [`analysis/README.md`](analysis/README.md).
+per-sample ratio distribution, aggregate saving and concentration, solve-status counts, and grouped
+status and semantic-outcome changes, plus ECDF and scatter plots. See
+[`analysis/README.md`](analysis/README.md).
 
 ### 3. Publish — `publish_report.sh`
 

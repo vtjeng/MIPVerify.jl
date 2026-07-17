@@ -13,7 +13,7 @@ using DataFrames
 using Statistics
 
 include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
-using .BenchmarkHelpers: benchmark_mode
+using .BenchmarkHelpers: benchmark_objective
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -54,12 +54,12 @@ function main()
     cand = CSV.read(joinpath(candidate_dir, "benchmark_per_sample.csv"), DataFrame)
     base_metrics = CSV.read(joinpath(baseline_dir, "benchmark_metrics.csv"), DataFrame)
     cand_metrics = CSV.read(joinpath(candidate_dir, "benchmark_metrics.csv"), DataFrame)
-    base_mode = benchmark_mode(base_metrics)
-    cand_mode = benchmark_mode(cand_metrics)
-    modes_match = base_mode == cand_mode
+    base_objective = benchmark_objective(base_metrics)
+    cand_objective = benchmark_objective(cand_metrics)
+    objectives_match = base_objective == cand_objective
 
-    println("benchmark_mode,baseline,candidate")
-    println("mode,$base_mode,$cand_mode")
+    println("adversarial_example_objective,baseline,candidate")
+    println("objective,$base_objective,$cand_objective")
 
     println("metric,baseline,candidate,delta")
     for column in (:wall_clock_seconds, :sum_total_time_seconds, :sum_solve_time_seconds)
@@ -110,7 +110,7 @@ function main()
         )
     end
 
-    if modes_match
+    if objectives_match
         solved_both = filter(
             r ->
                 !ismissing(r.objective_value_baseline) &&
@@ -126,7 +126,7 @@ function main()
             println("objective_value_diff_count_gt_1e-6,$(count(>(1e-6), diffs))")
         end
     else
-        println("objective_value_comparison_skipped,benchmark mode mismatch")
+        println("objective_value_comparison_skipped,benchmark objective mismatch")
     end
 
     base_hash = string(base_metrics[1, :dependency_snapshot_sha256])

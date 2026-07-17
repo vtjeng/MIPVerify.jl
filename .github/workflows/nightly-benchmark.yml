@@ -5,20 +5,20 @@ on:
     - cron: "0 6 * * *" # 6 AM UTC daily
   workflow_dispatch:
     inputs:
-      mode:
-        description: Benchmark solve mode
+      objective:
+        description: Adversarial-example objective
         required: true
-        default: verdict-only
+        default: feasibility
         type: choice
         options:
-          - verdict-only
-          - exact-distortion
+          - feasibility
+          - closest
 
 permissions:
   contents: write
 
 env:
-  BENCHMARK_MODE: ${{ inputs.mode || 'verdict-only' }}
+  BENCHMARK_OBJECTIVE: ${{ inputs.objective || 'feasibility' }}
 
 jobs:
   benchmark:
@@ -56,7 +56,7 @@ jobs:
             --samples 1:500 \
             --tightening lp \
             --main-time-limit 120 \
-            --mode "${BENCHMARK_MODE}" \
+            --objective "${BENCHMARK_OBJECTIVE}" \
             --log-level warn \
             --out /tmp/bench-wk17a
 
@@ -78,7 +78,7 @@ jobs:
         run: |
           DATE=$(date -u +%Y-%m-%d)
           COMMIT_SHA=${{ github.sha }}
-          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_MODE}"
+          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}"
           RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
 
           # Copy run artifacts
@@ -106,5 +106,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
           DATE=$(date -u +%Y-%m-%d)
-          git commit -m "${BENCHMARK_MODE} benchmark results for ${DATE} (${GITHUB_SHA::7})"
+          git commit -m "${BENCHMARK_OBJECTIVE} benchmark results for ${DATE} (${GITHUB_SHA::7})"
           git push origin benchmark-results

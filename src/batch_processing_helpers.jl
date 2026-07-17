@@ -20,12 +20,19 @@ function mkpath_if_not_present(path::String)
     !isdir(path) ? mkpath(path) : nothing
 end
 
+"""
+    extract_results_for_save(result)
+
+Build the serializable subset of a solver-backed result without mutating `result`. Numeric witness
+values are retained whenever a candidate is available, including when independent verification
+fails. Unavailable objective values and bounds are stored as `NaN`.
+"""
 function extract_results_for_save(d::Dict)::Dict
     m = d[:Model]
     status = d[:SolveStatus]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
-    r[:VerdictOnly] = d[:VerdictOnly]
+    r[:AdversarialExampleObjective] = string(d[:AdversarialExampleObjective])
     r[:WitnessAvailable] = d[:WitnessAvailable]
     r[:WitnessTargetVerified] = d[:WitnessTargetVerified]
     r[:WitnessPerturbationVerified] = d[:WitnessPerturbationVerified]
@@ -82,7 +89,7 @@ const SUMMARY_HEADER = [
     "ObjectiveBound",
     "TighteningApproach",
     "TotalTime",
-    "VerdictOnly",
+    "AdversarialExampleObjective",
     "WitnessAvailable",
     "WitnessTargetVerified",
     "WitnessPerturbationVerified",
@@ -119,7 +126,7 @@ function generate_csv_summary_line(
         r[:ObjectiveBound],
         r[:TighteningApproach],
         r[:TotalTime],
-        r[:VerdictOnly],
+        r[:AdversarialExampleObjective],
         r[:WitnessAvailable],
         r[:WitnessTargetVerified],
         r[:WitnessPerturbationVerified],
@@ -142,7 +149,7 @@ function generate_csv_summary_line_optimal(sample_number::Integer, d::Dict)
         0,
         :NA,
         d[:TotalTime],
-        d[:VerdictOnly],
+        string(d[:AdversarialExampleObjective]),
         d[:WitnessAvailable],
         d[:WitnessTargetVerified],
         d[:WitnessPerturbationVerified],
@@ -159,9 +166,24 @@ function create_summary_file_if_not_present(summary_file_path::String)
     end
 end
 
+"""
+    read_summary_file(summary_file_path)
+
+Read a batch summary and upgrade its schema in place when necessary. The migration treats only
+plain `INFEASIBLE` as proven infeasible and leaves unavailable legacy objective and witness fields
+as `missing`. Non-missing objective names must match a current `AdversarialExampleObjective`.
+Summaries from the unreleased boolean-objective schema are rejected instead of migrated.
+"""
 function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
     dt = DataFrame(CSV.File(summary_file_path))
     schema_changed = false
+    if :VerdictOnly in propertynames(dt)
+        throw(
+            ArgumentError(
+                "Batch summaries from the unreleased boolean-objective schema are unsupported; rerun the batch with adversarial_example_objective",
+            ),
+        )
+    end
     if :IsInfeasible in propertynames(dt)
         proven_infeasible = string.(dt[!, :SolveStatus]) .== "INFEASIBLE"
         if dt[!, :IsInfeasible] != proven_infeasible
@@ -169,9 +191,14 @@ function read_summary_file(summary_file_path::String)::DataFrames.DataFrame
             schema_changed = true
         end
     end
-    if :VerdictOnly ∉ propertynames(dt)
-        dt[!, :VerdictOnly] = falses(nrow(dt))
+    if :AdversarialExampleObjective ∉ propertynames(dt)
+        dt[!, :AdversarialExampleObjective] = fill(missing, nrow(dt))
         schema_changed = true
+    end
+    valid_objectives = string.((MIPVerify.closest, MIPVerify.worst, MIPVerify.feasibility))
+    for objective in skipmissing(dt[!, :AdversarialExampleObjective])
+        string(objective) in valid_objectives ||
+            throw(ArgumentError("Unknown AdversarialExampleObjective $objective in summary"))
     end
     for column in (
         :WitnessAvailable,
@@ -232,6 +259,12 @@ function initialize_batch_solve(
     return (results_dir, main_path, summary_file_path, dt)
 end
 
+"""
+    save_to_disk(sample_number, main_path, results_dir, summary_file_path, result)
+
+Persist one batch result and append its summary row. Solver-backed results write a MAT file and
+store its relative path; an original-input fast path appends only the CSV row.
+"""
 function save_to_disk(
     sample_number::Integer,
     main_path::String,
@@ -261,6 +294,12 @@ function is_proven_infeasible_status(status)::Bool
     return string(status) == "INFEASIBLE"
 end
 
+"""
+    has_legacy_objective_value(row)
+
+Return whether an older row has numeric objective evidence but predates independent perturbation
+verification. This evidence may select a row for an exact rerun; it is not a verified witness.
+"""
 function has_legacy_objective_value(row::DataFrames.DataFrameRow)::Bool
     perturbation_check_is_missing =
         :WitnessPerturbationVerified ∉ propertynames(row) ||
@@ -270,6 +309,12 @@ function has_legacy_objective_value(row::DataFrames.DataFrameRow)::Bool
     return !ismissing(objective_value) && !(objective_value |> isnan)
 end
 
+"""
+    has_verified_witness(row)
+
+Return `true` only when all four witness flags exist, are non-missing, and are true. Incomplete or
+internally inconsistent legacy rows fail closed.
+"""
 function has_verified_witness(row::DataFrames.DataFrameRow)::Bool
     required_columns =
         (:WitnessAvailable, :WitnessTargetVerified, :WitnessPerturbationVerified, :WitnessVerified)
@@ -286,29 +331,56 @@ function has_available_unverified_witness(row::DataFrames.DataFrameRow)::Bool
     return witness_available && !has_verified_witness(row)
 end
 
+"""
+    should_resolve_ambiguous(row)
+
+Return whether a batch row lacks either a strict infeasibility proof or a verified witness. An
+available but rejected witness remains ambiguous even alongside a contradictory infeasible status.
+"""
 function should_resolve_ambiguous(row::DataFrames.DataFrameRow)::Bool
     return has_available_unverified_witness(row) ||
            (!is_proven_infeasible_status(row[:SolveStatus]) && !has_verified_witness(row))
 end
 
-function is_verdict_only(row::DataFrames.DataFrameRow)::Bool
-    return :VerdictOnly in propertynames(row) && !ismissing(row[:VerdictOnly]) && row[:VerdictOnly]
+"""
+    uses_feasibility_objective(row)
+
+Return whether a row records the `feasibility` objective. Missing objective metadata is treated as
+an exact historical result rather than a feasibility result.
+"""
+function uses_feasibility_objective(row::DataFrames.DataFrameRow)::Bool
+    return :AdversarialExampleObjective in propertynames(row) &&
+           !ismissing(row[:AdversarialExampleObjective]) &&
+           string(row[:AdversarialExampleObjective]) == string(MIPVerify.feasibility)
 end
 
+"""
+    should_refine_insecure(row)
+
+Return whether attack evidence needs an exact-objective rerun. A feasibility solve still needs
+refinement when it terminated `OPTIMAL`, because that status proves only that a candidate exists.
+"""
 function should_refine_insecure(row::DataFrames.DataFrameRow)::Bool
-    needs_exact_refinement = is_verdict_only(row) || string(row[:SolveStatus]) != "OPTIMAL"
+    needs_exact_refinement =
+        uses_feasibility_objective(row) || string(row[:SolveStatus]) != "OPTIMAL"
     attack_evidence = has_verified_witness(row) || has_legacy_objective_value(row)
     return needs_exact_refinement && attack_evidence
 end
 
-function validate_batch_refinement_mode(
+"""
+    validate_batch_refinement_objective(solve_rerun_option, objective)
+
+Reject a feasibility objective for `refine_insecure_cases`, which must compute an exact objective.
+"""
+function validate_batch_refinement_objective(
     solve_rerun_option::MIPVerify.SolveRerunOption,
-    verdict_only::Bool,
+    adversarial_example_objective::MIPVerify.AdversarialExampleObjective,
 )::Nothing
-    if solve_rerun_option == MIPVerify.refine_insecure_cases && verdict_only
+    if solve_rerun_option == MIPVerify.refine_insecure_cases &&
+       adversarial_example_objective == MIPVerify.feasibility
         throw(
             ArgumentError(
-                "refine_insecure_cases requires verdict_only=false because refinement computes an exact objective",
+                "refine_insecure_cases requires an exact adversarial_example_objective, not feasibility",
             ),
         )
     end
@@ -335,9 +407,8 @@ Behavior for different choices of `solve_rerun_option`:
     or if an available witness failed verification despite a contradictory infeasible status.
 + `refine_insecure_cases`: `true` if there is no previous completed solve, or if the most
     recent complete solve a) did find a verified counterexample, or recorded legacy objective
-    evidence, but b) did not reach a provably optimal exact objective. A verdict-only result
-    therefore still needs refinement even when its feasibility objective terminated with
-    `OPTIMAL`.
+    evidence, but b) did not reach a provably optimal exact objective. A feasibility result still
+    needs refinement even when it terminated with `OPTIMAL`.
 """
 function run_on_sample_for_untargeted_attack(
     sample_number::Integer,
@@ -392,14 +463,15 @@ main solve.
 
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
-+ `pp, norm_order, tightening_algorithm, tightening_options, verdict_only,
-  solve_if_predicted_in_targeted` are passed
++ `pp, norm_order, tightening_algorithm, tightening_options,
+  adversarial_example_objective, solve_if_predicted_in_targeted` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are
   `never`, `always`, `resolve_ambiguous_cases`, and `refine_insecure_cases`.
   See [`run_on_sample_for_untargeted_attack`](@ref) for more details.
-  `refine_insecure_cases` requires `verdict_only=false` because it computes an exact objective.
+  `refine_insecure_cases` rejects the `feasibility` objective because refinement computes an exact
+  objective.
 """
 function batch_find_untargeted_attack(
     nn::NeuralNet,
@@ -415,10 +487,9 @@ function batch_find_untargeted_attack(
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
-    verdict_only::Bool = false,
 )::Nothing
 
-    validate_batch_refinement_mode(solve_rerun_option, verdict_only)
+    validate_batch_refinement_objective(solve_rerun_option, adversarial_example_objective)
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
@@ -442,7 +513,6 @@ function batch_find_untargeted_attack(
                 tightening_options = tightening_options,
                 solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 adversarial_example_objective = adversarial_example_objective,
-                verdict_only = verdict_only,
             )
 
             save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)
@@ -518,12 +588,12 @@ function batch_find_targeted_attack(
     tightening_algorithm::MIPVerify.TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
-    verdict_only::Bool = false,
+    adversarial_example_objective::AdversarialExampleObjective = closest,
 )::Nothing
     results_dir = "run_results"
     summary_file_name = "summary.csv"
 
-    validate_batch_refinement_mode(solve_rerun_option, verdict_only)
+    validate_batch_refinement_objective(solve_rerun_option, adversarial_example_objective)
     verify_target_indices(target_indices, dataset)
     (results_dir, main_path, summary_file_path, dt) =
         initialize_batch_solve(save_path, nn, pp, norm_order)
@@ -560,7 +630,7 @@ function batch_find_targeted_attack(
                     tightening_algorithm = tightening_algorithm,
                     tightening_options = tightening_options,
                     solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
-                    verdict_only = verdict_only,
+                    adversarial_example_objective = adversarial_example_objective,
                 )
 
                 save_to_disk(sample_number, main_path, results_dir, summary_file_path, d)

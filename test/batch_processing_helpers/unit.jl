@@ -49,7 +49,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             @test all(
                 column -> column in propertynames(summary),
                 [
-                    :VerdictOnly,
+                    :AdversarialExampleObjective,
                     :WitnessAvailable,
                     :WitnessTargetVerified,
                     :WitnessPerturbationVerified,
@@ -76,7 +76,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             )
             summary = read_summary_file(file_path)
             @test summary.IsInfeasible == [false, false]
-            @test summary.VerdictOnly == [false, false]
+            @test all(ismissing, summary.AdversarialExampleObjective)
             @test ismissing(summary.WitnessAvailable[1])
             @test ismissing(summary.WitnessTargetVerified[1])
             @test ismissing(summary.WitnessPerturbationVerified[1])
@@ -86,6 +86,38 @@ TestHelpers.@timed_testset "unit.jl" begin
             persisted = DataFrame(CSV.File(file_path))
             @test :WitnessVerified in propertynames(persisted)
             @test persisted.IsInfeasible == [false, false]
+        end
+    end
+
+    @testset "read_summary_file rejects unknown objectives" begin
+        mktempdir() do dir
+            file_path = joinpath(dir, "summary.csv")
+            CSV.write(
+                file_path,
+                DataFrame(
+                    SampleNumber = [1],
+                    SolveStatus = ["OPTIMAL"],
+                    IsInfeasible = [false],
+                    AdversarialExampleObjective = ["unknown"],
+                ),
+            )
+            @test_throws ArgumentError read_summary_file(file_path)
+        end
+    end
+
+    @testset "read_summary_file rejects the unreleased boolean-objective schema" begin
+        mktempdir() do dir
+            file_path = joinpath(dir, "summary.csv")
+            CSV.write(
+                file_path,
+                DataFrame(
+                    SampleNumber = [1],
+                    SolveStatus = ["OPTIMAL"],
+                    IsInfeasible = [false],
+                    VerdictOnly = [true],
+                ),
+            )
+            @test_throws ArgumentError read_summary_file(file_path)
         end
     end
 
@@ -106,7 +138,6 @@ TestHelpers.@timed_testset "unit.jl" begin
                 ObjectiveBound = [0.2],
                 TighteningApproach = ["lp"],
                 TotalTime = [1.0],
-                VerdictOnly = [true],
                 WitnessAvailable = [true],
                 WitnessVerified = [true],
                 WitnessMargin = [0.1],
@@ -115,6 +146,7 @@ TestHelpers.@timed_testset "unit.jl" begin
 
             migrated = read_summary_file(file_path)
             @test propertynames(migrated) == Symbol.(MIPVerify.SUMMARY_HEADER)
+            @test ismissing(migrated.AdversarialExampleObjective[1])
             @test ismissing(migrated.WitnessTargetVerified[1])
             @test ismissing(migrated.WitnessPerturbationVerified[1])
 
@@ -129,7 +161,7 @@ TestHelpers.@timed_testset "unit.jl" begin
                 :ObjectiveBound => 0.35,
                 :TighteningApproach => "mip",
                 :TotalTime => 1.25,
-                :VerdictOnly => false,
+                :AdversarialExampleObjective => "closest",
                 :WitnessAvailable => true,
                 :WitnessTargetVerified => false,
                 :WitnessPerturbationVerified => true,
@@ -143,6 +175,8 @@ TestHelpers.@timed_testset "unit.jl" begin
             end
 
             resumed = DataFrame(CSV.File(file_path))
+            @test ismissing(resumed.AdversarialExampleObjective[1])
+            @test resumed.AdversarialExampleObjective[2] == "closest"
             @test resumed.WitnessAvailable[2]
             @test !resumed.WitnessTargetVerified[2]
             @test resumed.WitnessPerturbationVerified[2]
@@ -164,10 +198,10 @@ TestHelpers.@timed_testset "unit.jl" begin
         @test !is_infeasible(MathOptInterface.OPTIMAL)
     end
 
-    @testset "exact refinement rejects verdict-only mode" begin
+    @testset "exact refinement rejects the feasibility objective" begin
         sample_index = firstindex(dataset.labels) # Select one valid fixture sample without solving.
-        target_label = 1 # Any valid label reaches the mode check before targeted work begins.
-        nn = Sequential([], "batch-refinement-mode-check")
+        target_label = 1 # Any valid label reaches the objective check before targeted work begins.
+        nn = Sequential([], "batch-refinement-objective-check")
         optimizer = TestHelpers.get_optimizer()
         main_solve_options = TestHelpers.get_main_solve_options()
 
@@ -178,7 +212,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             optimizer,
             main_solve_options;
             solve_rerun_option = MIPVerify.refine_insecure_cases,
-            verdict_only = true,
+            adversarial_example_objective = MIPVerify.feasibility,
         )
         @test_throws ArgumentError MIPVerify.batch_find_targeted_attack(
             nn,
@@ -188,7 +222,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             main_solve_options;
             solve_rerun_option = MIPVerify.refine_insecure_cases,
             target_labels = [target_label],
-            verdict_only = true,
+            adversarial_example_objective = MIPVerify.feasibility,
         )
     end
 
@@ -228,7 +262,7 @@ TestHelpers.@timed_testset "unit.jl" begin
     @testset "verified witness rerun semantics" begin
         # Each row isolates one semantic result: ambiguous infeasible-or-unbounded status, verified
         # witness at a solution limit, rejected witness at an objective limit, unresolved time
-        # limit, optimal exact witness, optimal verdict-only witness, and a rejected witness paired
+        # limit, optimal exact witness, optimal feasibility witness, and a rejected witness paired
         # with a contradictory infeasible status. Objective 0.9 on the objective-limit row checks
         # that an explicit perturbation-check failure overrides legacy objective evidence.
         sample_numbers = [201, 202, 203, 204, 205, 206, 207]
@@ -248,7 +282,15 @@ TestHelpers.@timed_testset "unit.jl" begin
             WitnessTargetVerified = [false, true, true, false, true, true, false],
             WitnessPerturbationVerified = [false, true, false, false, true, true, true],
             WitnessVerified = [false, true, false, false, true, true, false],
-            VerdictOnly = [false, false, false, false, false, true, false],
+            AdversarialExampleObjective = Union{Missing,String}[
+                missing,
+                missing,
+                missing,
+                missing,
+                "closest",
+                "feasibility",
+                missing,
+            ],
         )
 
         resolve_results = map(
@@ -315,7 +357,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             :Model => m,
             :SolveTime => 0.0,
             :SolveStatus => MathOptInterface.TIME_LIMIT,
-            :VerdictOnly => true,
+            :AdversarialExampleObjective => MIPVerify.feasibility,
             :WitnessAvailable => false,
             :WitnessTargetVerified => false,
             :WitnessPerturbationVerified => false,
@@ -332,7 +374,7 @@ TestHelpers.@timed_testset "unit.jl" begin
         @test haskey(result, :ObjectiveBound)
         @test !haskey(result, :PerturbationValue)
         @test !haskey(result, :PerturbedInputValue)
-        @test result[:VerdictOnly]
+        @test result[:AdversarialExampleObjective] == "feasibility"
         @test !result[:WitnessAvailable]
         @test !result[:WitnessTargetVerified]
         @test !result[:WitnessPerturbationVerified]
@@ -353,7 +395,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             :Model => m,
             :SolveTime => 0.0,
             :SolveStatus => JuMP.termination_status(m),
-            :VerdictOnly => false,
+            :AdversarialExampleObjective => MIPVerify.closest,
             :WitnessAvailable => true,
             :WitnessTargetVerified => true,
             :WitnessPerturbationVerified => true,
@@ -372,6 +414,7 @@ TestHelpers.@timed_testset "unit.jl" begin
             :TotalTime => 0.0,
         )
         result = extract_results_for_save(d)
+        @test result[:AdversarialExampleObjective] == "closest"
         @test result[:PerturbedInputValue] == [0.0]
         @test result[:PerturbationValue] == [0.0]
         @test result[:WitnessOutput] == [0.75, 0.5]

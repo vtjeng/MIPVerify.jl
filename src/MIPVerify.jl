@@ -26,7 +26,14 @@ const dependencies_path = resolve_dependencies_path()
 export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
 
 @enum TighteningAlgorithm interval_arithmetic = 1 lp = 2 mip = 3
-@enum AdversarialExampleObjective closest = 1 worst = 2
+
+"""
+Objective used when searching for an adversarial example.
+
+`closest` minimizes perturbation distance, `worst` maximizes the target margin, and `feasibility`
+asks only whether any input satisfies the target and perturbation constraints.
+"""
+@enum AdversarialExampleObjective closest = 1 worst = 2 feasibility = 3
 const DEFAULT_TIGHTENING_ALGORITHM = mip
 const WITNESS_VERIFICATION_ATOL = 1e-8
 const WITNESS_VERIFICATION_RTOL = 1e-8
@@ -50,6 +57,7 @@ end
 
 Return the largest target logit minus the largest non-target logit. If every
 index is targeted, return `Inf` because the target condition is vacuous.
+Throw `ArgumentError` when `target_indexes` is empty or contains an index outside `output`.
 """
 function get_target_margin(
     output::AbstractVector{<:Real},
@@ -65,6 +73,12 @@ function get_target_margin(
     return maximum_target - maximum(output[.!is_target])
 end
 
+"""
+    witness_satisfies_target(output, target_indexes, required_margin)
+
+Return the observed target margin and whether it meets `required_margin`. The check fails for any
+non-finite output. Values within the witness verification tolerances of `required_margin` pass.
+"""
 function witness_satisfies_target(
     output::AbstractVector{<:Real},
     target_indexes::AbstractVector{<:Integer},
@@ -84,6 +98,12 @@ function witness_satisfies_target(
     return witness_margin, verified
 end
 
+"""
+    record_no_witness!(result)
+
+Mutate `result` to record that no numeric witness is available. Remove any stale witness values,
+set all witness verification flags to `false`, and set `:WitnessMargin` to `missing`.
+"""
 function record_no_witness!(d::Dict)::Nothing
     for key in
         (:PerturbedInputValue, :WitnessOutput, :WitnessMargin, :WitnessDistance, :WitnessBlurKernel)
@@ -97,6 +117,14 @@ function record_no_witness!(d::Dict)::Nothing
     return nothing
 end
 
+"""
+    record_witness!(result, nn, input, perturbed_input, pp, required_margin)
+
+Independently evaluate and record a numeric witness candidate. The candidate is marked available
+even when its target or perturbation check fails; `:WitnessVerified` is true only when both pass.
+This function records the candidate, network output, observed margin, verification flags, and any
+perturbation-specific values. The caller records `:WitnessDistance` when applicable.
+"""
 function record_witness!(
     d::Dict,
     nn::NeuralNet,
@@ -161,7 +189,8 @@ absolute or relative tolerance of `1e-8`. An L-infinity budget uses only the rel
 a small budget is not expanded by a larger fixed tolerance; a blur-kernel sum uses only the
 absolute tolerance so it does not grow with the channel count. Solver-backed results also have keys
 `:Model, :PerturbationFamily, :TargetIndexes, :SolveStatus, :PrimalStatus, :Perturbation,
-:PerturbedInput, :Output`. See the
+:PerturbedInput, :Output`. `:AdversarialExampleObjective` records the selected search objective.
+See the
 [tutorial](https://nbviewer.jupyter.org/github/vtjeng/MIPVerify.jl/blob/master/examples/03_interpreting_the_output_of_find_adversarial_example.ipynb)
 on what individual dictionary entries correspond to.
 
@@ -181,10 +210,13 @@ check unless they implement `verify_perturbation_witness`.
 - `norm_order`: Defaults to `1`. Determines the distance norm used to determine the distance from
     the perturbed image to the original. Allowed options are `1` and `Inf`, and `2` if the
     `optimizer` can solve MIQPs.
-- `adversarial_example_objective`: Defaults to `closest`. Allowed options are `closest` or `worst`.
+- `adversarial_example_objective`: Defaults to `closest`. Allowed options are `closest`, `worst`,
+  or `feasibility`.
   - `closest` finds the closest adversarial example, as measured by the `norm_order` norm.
   - `worst` finds the adversarial example with the _largest_ gap between `max(y[j)` for `j ∈
     target_selection` and `max(y[i])` for all `i ∉ target_selection`.
+  - `feasibility` asks whether any adversarial example satisfies the constraints. A returned
+    `WitnessDistance` describes that candidate but is not necessarily minimal.
 - `tightening_algorithm`: Defaults to `mip`. Determines how we determine the upper and lower bounds
     on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
   - `interval_arithmetic` looks at the bounds on the output to the previous layer.
@@ -203,10 +235,6 @@ check unless they implement `verify_perturbation_witness`.
     skip only when that input also passes the perturbation-family check. We continue building the
     model and solve the (trivial) MIP problem if `solve_if_predicted_in_targeted` is `true`, the
     requested margin is not met, or perturbation-family membership cannot be verified.
-- `verdict_only`: Defaults to `false`, which computes the exact objective optimum. If `true`, stops
-    once the solver finds a feasible adversarial example. In either mode, a returned incumbent is
-    independently checked against the perturbation constraints and with a numeric network forward
-    pass before `:WitnessVerified` is true.
 - `margin`: Defaults to `0.0`. If specified, the target category must have logits strictly larger
     (by at least `margin`) than any non-target category. 
 - `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
@@ -227,13 +255,12 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
-    verdict_only::Bool = false,
     margin::Real = 0.0,
     collect_stats::Bool = false,
 )::Dict
 
     total_time = @elapsed begin
-        d = Dict{Symbol,Any}(:VerdictOnly => verdict_only)
+        d = Dict{Symbol,Any}(:AdversarialExampleObjective => adversarial_example_objective)
         record_no_witness!(d)
 
         # Calculate predicted index
@@ -287,7 +314,7 @@ function find_adversarial_example(
             )
             m = d[:Model]
 
-            if verdict_only
+            if adversarial_example_objective == feasibility
                 # A feasibility objective is solver-independent. Once a feasible point is found,
                 # there is no remaining optimality gap to close.
                 set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)

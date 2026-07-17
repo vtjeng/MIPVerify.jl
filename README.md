@@ -52,12 +52,13 @@ perturbation of that input causes a misclassification) corresponds to solving an
 problem. For piecewise-linear neural networks, the optimization problem can be expressed as a
 mixed-integer linear programming (MILP) problem.
 
-## Choose an exact distortion or a verdict
+## Choose an adversarial-example objective
 
-`find_adversarial_example` computes the exact objective optimum by default. Use this mode when you
-need the minimum adversarial distortion or the worst target margin.
+`find_adversarial_example` uses `MIPVerify.closest` by default to compute the minimum adversarial
+distortion. It also supports `MIPVerify.worst`, which maximizes the target margin.
 
-For certification at a fixed perturbation budget, set `verdict_only=true`:
+For a fixed perturbation budget, use the `feasibility` objective to ask whether any adversarial
+input satisfies the constraints:
 
 ```julia
 result = find_adversarial_example(
@@ -66,18 +67,19 @@ result = find_adversarial_example(
     target_selection,
     optimizer,
     main_solve_options;
-    verdict_only = true,
+    adversarial_example_objective = MIPVerify.feasibility,
 )
 ```
 
-Verdict-only mode solves a feasibility problem. It can stop as soon as it finds an adversarial
-example, while robust inputs still require an infeasibility proof. It does not compute a minimum
-distortion. It does not set solution- or objective-limit attributes, whose support varies by
-optimizer. In both modes, MIPVerify checks each proposed witness against the selected perturbation
-family's input constraints and runs it through the numeric network. It sets
-`result[:WitnessVerified]` only when both checks pass. Custom perturbation families must implement
-`MIPVerify.verify_perturbation_witness`; otherwise their points fail closed as unverified. Treat
-results without either an infeasibility proof or a verified witness as unresolved.
+The feasibility objective can stop as soon as it finds an adversarial example, while inputs with no
+such example still require an infeasibility proof. A time limit or another inconclusive status
+remains unresolved. This objective does not compute a minimum distortion or set solution- or
+objective-limit attributes, whose support varies by optimizer. For every objective, MIPVerify checks
+each proposed witness against the selected perturbation family's input constraints and runs it
+through the numeric network. It sets `result[:WitnessVerified]` only when both checks pass. Custom
+perturbation families must implement `MIPVerify.verify_perturbation_witness`; otherwise their points
+fail closed as unverified. Treat results without either an infeasibility proof or a verified witness
+as unresolved.
 
 ## Features
 

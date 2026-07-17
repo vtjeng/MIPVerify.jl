@@ -59,6 +59,7 @@ using JuMP
                     pp = UnrestrictedPerturbationFamily(),
                     solve_if_predicted_in_targeted = true,
                 )
+                @test d[:AdversarialExampleObjective] == MIPVerify.closest
                 @test d[:SolveStatus] == MOI.OPTIMAL
                 @test d[:WitnessAvailable]
                 @test d[:WitnessTargetVerified]
@@ -110,6 +111,7 @@ using JuMP
                     pp = UnrestrictedPerturbationFamily(),
                     solve_if_predicted_in_targeted = true,
                 )
+                @test d[:AdversarialExampleObjective] == MIPVerify.worst
                 if is_feasible
                     @test d[:SolveStatus] == MOI.OPTIMAL
                     @test d[:WitnessAvailable]
@@ -221,6 +223,7 @@ using JuMP
             solve_if_predicted_in_targeted = false,
         )
         @test !haskey(skipped, :Model)
+        @test skipped[:AdversarialExampleObjective] == MIPVerify.closest
         @test skipped[:WitnessTargetVerified]
         @test skipped[:WitnessPerturbationVerified]
         @test skipped[:WitnessVerified]
@@ -244,9 +247,9 @@ using JuMP
         @test outside_domain[:PerturbedInputValue] != [1.1, 0.5]
     end
 
-    @testset "verdict-only mode" begin
+    @testset "feasibility objective" begin
         # Target class 2 starts one logit below class 1, so a feasible witness must
-        # change the input and exercise the solver-backed verdict-only path.
+        # change the input and exercise the solver-backed feasibility path.
         d = find_adversarial_example(
             nn,
             input,
@@ -254,11 +257,12 @@ using JuMP
             TestHelpers.get_optimizer(),
             main_solve_options,
             norm_order = 1,
-            verdict_only = true,
+            adversarial_example_objective = MIPVerify.feasibility,
             pp = UnrestrictedPerturbationFamily(),
             solve_if_predicted_in_targeted = false,
         )
-        @test d[:VerdictOnly]
+        @test d[:AdversarialExampleObjective] == MIPVerify.feasibility
+        @test JuMP.objective_sense(d[:Model]) == MOI.FEASIBILITY_SENSE
         @test d[:PrimalStatus] == MOI.FEASIBLE_POINT
         @test d[:WitnessAvailable]
         @test d[:WitnessTargetVerified]
@@ -266,7 +270,7 @@ using JuMP
         @test d[:WitnessVerified]
     end
 
-    @testset "verdict-only mixed-integer solve" begin
+    @testset "feasibility objective with a mixed-integer solve" begin
         # Over the input domain [0, 1], the affine value x - 0.5 crosses zero. Its ReLU therefore
         # requires one binary variable instead of reducing to a fixed phase.
         unstable_relu_nn = Sequential(
@@ -277,7 +281,7 @@ using JuMP
                 # 2 forces the ReLU output to at least 0.1, so a feasible witness must activate it.
                 Linear([0.0 1.0], [0.1, 0.0]),
             ],
-            "verdict-only-unstable-relu",
+            "feasibility-unstable-relu",
         )
         # At x = 0.25 the ReLU output is zero and class 1 wins, so targeting class 2 exercises a
         # solver-produced witness rather than the already-targeted fast path.
@@ -288,7 +292,7 @@ using JuMP
             HiGHS.Optimizer,
             Dict("output_flag" => false),
             norm_order = 1,
-            verdict_only = true,
+            adversarial_example_objective = MIPVerify.feasibility,
             pp = UnrestrictedPerturbationFamily(),
             tightening_algorithm = interval_arithmetic,
             solve_if_predicted_in_targeted = false,

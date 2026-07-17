@@ -199,8 +199,10 @@ function main()
     tightening_algorithm = parse_tightening_algorithm(get(args, "tightening", "mip"))
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
-    mode = parse_benchmark_mode(get(args, "mode", "verdict-only"))
-    verdict_only = mode == "verdict-only"
+    haskey(args, "mode") && error("--mode is unsupported; use --objective.")
+    objective_name = parse_benchmark_objective(get(args, "objective", "feasibility"))
+    adversarial_example_objective =
+        objective_name == "feasibility" ? MIPVerify.feasibility : MIPVerify.closest
 
     (optimizer, main_solve_options, tightening_options) =
         get_optimizer_main_and_tightening_options(main_time_limit)
@@ -265,12 +267,14 @@ function main()
             tightening_options = tightening_options,
             solve_if_predicted_in_targeted = false,
             collect_stats = true,
-            verdict_only = verdict_only,
+            adversarial_example_objective = adversarial_example_objective,
         )
 
-        result_verdict_only = Bool(d[:VerdictOnly])
-        result_verdict_only == verdict_only ||
-            error("Requested verdict_only=$verdict_only, result recorded $(d[:VerdictOnly])")
+        result_objective = d[:AdversarialExampleObjective]
+        result_objective == adversarial_example_objective || error(
+            "Requested adversarial_example_objective=$adversarial_example_objective, " *
+            "result recorded $result_objective",
+        )
         witness_available = Bool(d[:WitnessAvailable])
         witness_target_verified = Bool(d[:WitnessTargetVerified])
         witness_perturbation_verified = Bool(d[:WitnessPerturbationVerified])
@@ -388,8 +392,7 @@ function main()
                     sample_index = sample_index,
                     solve_status = status,
                     semantic_outcome = semantic_outcome,
-                    mode = mode,
-                    verdict_only = result_verdict_only,
+                    adversarial_example_objective = string(result_objective),
                     witness_available = witness_available,
                     witness_target_verified = witness_target_verified,
                     witness_perturbation_verified = witness_perturbation_verified,
@@ -483,7 +486,7 @@ function main()
         ],
         num_witness_verified = [count(identity, witness_verified_values)],
         num_missing_objective_value = [sum(ismissing.(objective_values))],
-        mode = [mode],
+        adversarial_example_objective = [objective_name],
         tightening_algorithm = [string(tightening_algorithm)],
         norm_order = [string(norm_order)],
         main_time_limit_seconds = [main_time_limit],

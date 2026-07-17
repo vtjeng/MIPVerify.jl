@@ -33,14 +33,14 @@ function write_metrics_csv(
     path::String;
     dependency_snapshot_sha256::String,
     julia_version::String,
-    mode::String = "verdict-only",
+    adversarial_example_objective::String = "feasibility",
 )
     # Two samples exercise a complete semantic partition with one certified and one
     # verified-adversarial outcome; the remaining outcome counts must stay zero.
     metrics = DataFrame(
         benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION],
         semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION],
-        mode = [mode],
+        adversarial_example_objective = [adversarial_example_objective],
         wall_clock_seconds = [10.0],
         sum_total_time_seconds = [9.0],
         sum_solve_time_seconds = [4.0],
@@ -91,10 +91,11 @@ end
         @test parse_args(["positional", "--key", "val"]) == Dict("key" => "val")
     end
 
-    @testset "parse_benchmark_mode" begin
-        @test parse_benchmark_mode("verdict-only") == "verdict-only"
-        @test parse_benchmark_mode(" EXACT-DISTORTION ") == "exact-distortion"
-        @test_throws ErrorException parse_benchmark_mode("fast")
+    @testset "parse_benchmark_objective" begin
+        @test parse_benchmark_objective("feasibility") == "feasibility"
+        @test parse_benchmark_objective(" CLOSEST ") == "closest"
+        @test_throws ErrorException parse_benchmark_objective("verdict-only")
+        @test_throws ErrorException parse_benchmark_objective("fast")
     end
 
     @testset "parse_sample_spec" begin
@@ -160,20 +161,23 @@ end
         current.num_witness_verification_failed = [0]
         current.benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION]
         current.semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION]
-        current.mode = ["verdict-only"]
+        current.adversarial_example_objective = ["feasibility"]
         changed = copy(current)
         changed.num_certified_no_adversarial_example = [0]
         changed.num_time_limit_unresolved = [1]
 
         @test benchmark_schema_version(legacy) == 1
         @test semantic_outcome_schema_version(legacy) == 1
-        @test benchmark_mode(legacy) == "exact-distortion"
+        @test benchmark_objective(legacy) == "closest"
         @test semantic_partition_columns_present(legacy)
         @test !semantic_partition_columns_present(DataFrame(num_samples = [2]))
         @test !semantic_partition_matches(DataFrame(num_samples = [2]), current)
         @test benchmark_schema_version(current) == BENCHMARK_SCHEMA_VERSION
         @test semantic_outcome_schema_version(current) == SEMANTIC_OUTCOME_SCHEMA_VERSION
-        @test benchmark_mode(current) == "verdict-only"
+        @test benchmark_objective(current) == "feasibility"
+        unsupported_mode = select(current, Not(:adversarial_example_objective))
+        unsupported_mode.mode = ["verdict-only"]
+        @test_throws ErrorException benchmark_objective(unsupported_mode)
         @test semantic_partition_is_complete(current)
         @test semantic_partition_matches(current, copy(current))
         @test !semantic_partition_matches(current, changed)
@@ -441,8 +445,8 @@ end
                 @test tracking[2, :benchmark_schema_version] == BENCHMARK_SCHEMA_VERSION
                 @test tracking[2, :semantic_outcome_schema_version] ==
                       SEMANTIC_OUTCOME_SCHEMA_VERSION
-                @test ismissing(tracking[1, :mode])
-                @test tracking[2, :mode] == "verdict-only"
+                @test ismissing(tracking[1, :adversarial_example_objective])
+                @test tracking[2, :adversarial_example_objective] == "feasibility"
                 @test tracking[2, :julia_version] == "1.11.5"
                 @test tracking[2, :dependency_snapshot_sha256] == current_hash
                 @test ismissing(tracking[2, :dependency_change_summary])

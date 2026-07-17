@@ -31,9 +31,9 @@ import numpy as np
 import pandas as pd
 
 SKIPPED_STATUS = "SKIPPED_PREDICTED_IN_TARGETED"
-EXACT_DISTORTION_MODE = "exact-distortion"
-VERDICT_ONLY_MODE = "verdict-only"
-BENCHMARK_MODES = {EXACT_DISTORTION_MODE, VERDICT_ONLY_MODE}
+CLOSEST_OBJECTIVE = "closest"
+FEASIBILITY_OBJECTIVE = "feasibility"
+BENCHMARK_OBJECTIVES = {CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE}
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
 
@@ -114,24 +114,26 @@ def load_per_sample(run_dir: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def benchmark_mode(frame: pd.DataFrame, side: str) -> str:
-    """Return one run's solve mode, treating pre-mode benchmark output as exact distortion."""
-    if "mode" not in frame.columns or frame.empty:
-        return EXACT_DISTORTION_MODE
+def benchmark_objective(frame: pd.DataFrame, side: str) -> str:
+    """Return one run's canonical objective, including historical benchmark schemas."""
+    if frame.empty:
+        return CLOSEST_OBJECTIVE
+    if "adversarial_example_objective" not in frame.columns:
+        if "mode" in frame.columns:
+            raise ValueError(f"{side} per-sample CSV uses unsupported mode metadata")
+        return CLOSEST_OBJECTIVE
 
-    modes = set()
-    for raw in frame["mode"]:
-        mode = (
-            EXACT_DISTORTION_MODE
-            if pd.isna(raw) or not str(raw).strip()
-            else str(raw).strip().lower()
+    objectives = set()
+    for raw in frame["adversarial_example_objective"]:
+        objective = (
+            CLOSEST_OBJECTIVE if pd.isna(raw) or not str(raw).strip() else str(raw).strip().lower()
         )
-        if mode not in BENCHMARK_MODES:
-            raise ValueError(f"{side} per-sample CSV has unsupported benchmark mode {raw!r}")
-        modes.add(mode)
-    if len(modes) != 1:
-        raise ValueError(f"{side} per-sample CSV has inconsistent benchmark modes: {sorted(modes)}")
-    return modes.pop()
+        if objective not in BENCHMARK_OBJECTIVES:
+            raise ValueError(f"{side} per-sample CSV has unsupported objective {raw!r}")
+        objectives.add(objective)
+    if len(objectives) != 1:
+        raise ValueError(f"{side} per-sample CSV has inconsistent objectives: {sorted(objectives)}")
+    return objectives.pop()
 
 
 def joined_frame(baseline: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
@@ -208,22 +210,22 @@ def stats_markdown(
     rows: list[dict],
     baseline_label: str,
     candidate_label: str,
-    baseline_mode: str,
-    candidate_mode: str,
+    baseline_objective: str,
+    candidate_objective: str,
 ) -> str:
     out = [
         "# Paired benchmark report",
         "",
-        "| run | benchmark mode |",
+        "| run | adversarial-example objective |",
         "|---|---|",
-        f"| {baseline_label} | `{baseline_mode}` |",
-        f"| {candidate_label} | `{candidate_mode}` |",
+        f"| {baseline_label} | `{baseline_objective}` |",
+        f"| {candidate_label} | `{candidate_objective}` |",
         "",
     ]
-    if baseline_mode != candidate_mode:
+    if baseline_objective != candidate_objective:
         out += [
-            "> **Cross-mode comparison.** These runs use different solve goals. Interpret the "
-            "timings as the performance tradeoff between exact distortion and a verdict-only "
+            "> **Cross-objective comparison.** These runs use different solve goals. Interpret "
+            "the timings as the performance tradeoff between exact distortion and a feasibility "
             "solve.",
             "",
         ]
@@ -516,12 +518,10 @@ def status_markdown(baseline_df, candidate_df, baseline_label, candidate_label, 
             lines.append(f"| `{before}` → `{after}` | {len(ids)} | {shown} |")
         return lines
 
-    out += grouped_flips(
-        "solve_status_base", "solve_status_cand", "### Verdict flips — solve status"
-    )
+    out += grouped_flips("solve_status_base", "solve_status_cand", "### Solve-status changes")
     if has_outcome:
         out += grouped_flips(
-            "semantic_outcome_base", "semantic_outcome_cand", "### Verdict flips — semantic outcome"
+            "semantic_outcome_base", "semantic_outcome_cand", "### Semantic-outcome changes"
         )
     return "\n".join(out) + "\n"
 
@@ -538,10 +538,10 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
-    baseline_mode = benchmark_mode(baseline_df, "baseline")
-    candidate_mode = benchmark_mode(candidate_df, "candidate")
-    baseline_label = f"{args.baseline_label} [{baseline_mode}]"
-    candidate_label = f"{args.candidate_label} [{candidate_mode}]"
+    baseline_objective = benchmark_objective(baseline_df, "baseline")
+    candidate_objective = benchmark_objective(candidate_df, "candidate")
+    baseline_label = f"{args.baseline_label} [{baseline_objective}]"
+    candidate_label = f"{args.candidate_label} [{candidate_objective}]"
     merged = joined_frame(baseline_df, candidate_df)
 
     frames, rows, skipped = {}, [], []
@@ -552,16 +552,24 @@ def main() -> None:
             continue
         frames[series.key] = frame
         row = dict(
-            baseline_mode=baseline_mode,
-            candidate_mode=candidate_mode,
-            comparison_mode="same-mode" if baseline_mode == candidate_mode else "cross-mode",
+            baseline_objective=baseline_objective,
+            candidate_objective=candidate_objective,
+            comparison_kind=(
+                "same-objective" if baseline_objective == candidate_objective else "cross-objective"
+            ),
             **series_stats(series, frame),
         )
         rows.append(row)
     if not frames:
         raise SystemExit("no analysable series found in the given run directories")
 
-    md = stats_markdown(rows, baseline_label, candidate_label, baseline_mode, candidate_mode)
+    md = stats_markdown(
+        rows,
+        baseline_label,
+        candidate_label,
+        baseline_objective,
+        candidate_objective,
+    )
     status_md = status_markdown(baseline_df, candidate_df, baseline_label, candidate_label)
     full_md = md + "\n" + status_md
     (args.out / "improvement_stats.md").write_text(full_md)

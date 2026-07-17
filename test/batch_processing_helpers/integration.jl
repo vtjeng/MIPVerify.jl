@@ -80,7 +80,7 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test summary.IsInfeasible[robust_row] ==
                   (summary.SolveStatus[robust_row] == "INFEASIBLE")
             @test summary.IsInfeasible[[attackable_row, misclassified_row]] == [false, false]
-            @test summary.VerdictOnly == [false, false, false]
+            @test summary.AdversarialExampleObjective == ["closest", "closest", "closest"]
             @test summary.WitnessAvailable == [false, true, true]
             @test summary.WitnessTargetVerified == [false, true, true]
             @test summary.WitnessPerturbationVerified == [false, true, true]
@@ -112,11 +112,12 @@ TestHelpers.@timed_testset "integration.jl" begin
 
             attackable_result =
                 MIPVerify.matread(joinpath(main_path, summary.ResultRelativePath[attackable_row]))
+            @test attackable_result["AdversarialExampleObjective"] == "closest"
             # Array-valued witnesses stay in the MAT artifact instead of expanding the CSV row.
             @test all(
                 key -> haskey(attackable_result, key),
                 [
-                    "VerdictOnly",
+                    "AdversarialExampleObjective",
                     "WitnessAvailable",
                     "WitnessTargetVerified",
                     "WitnessPerturbationVerified",
@@ -143,12 +144,12 @@ TestHelpers.@timed_testset "integration.jl" begin
                 norm_order = Inf,
                 tightening_algorithm = interval_arithmetic,
                 tightening_options = TestHelpers.get_tightening_options(),
-                verdict_only = true,
+                adversarial_example_objective = MIPVerify.feasibility,
                 save_path = dir,
             )
 
             main_path, summary, result_files = read_batch_output(dir)
-            @test summary.VerdictOnly == [true]
+            @test summary.AdversarialExampleObjective == ["feasibility"]
             @test summary.WitnessAvailable == [true]
             @test summary.WitnessTargetVerified == [true]
             @test summary.WitnessPerturbationVerified == [true]
@@ -168,13 +169,12 @@ TestHelpers.@timed_testset "integration.jl" begin
                 norm_order = Inf,
                 tightening_algorithm = interval_arithmetic,
                 tightening_options = TestHelpers.get_tightening_options(),
-                verdict_only = false,
                 save_path = dir,
             )
 
             refined_main_path, refined_summary, refined_result_files = read_batch_output(dir)
             @test refined_main_path == main_path
-            @test refined_summary.VerdictOnly == [true, false]
+            @test refined_summary.AdversarialExampleObjective == ["feasibility", "closest"]
             @test refined_summary.WitnessTargetVerified == [true, true]
             @test refined_summary.WitnessPerturbationVerified == [true, true]
             @test refined_summary.WitnessVerified == [true, true]
@@ -211,7 +211,7 @@ TestHelpers.@timed_testset "integration.jl" begin
             misclassified_row = row_for_sample(summary, misclassified_sample)
             # The attackable row solves; the already-target row takes the zero-objective skip.
             @test summary.SolveStatus == ["OPTIMAL", "OPTIMAL"]
-            @test summary.VerdictOnly == [false, false]
+            @test summary.AdversarialExampleObjective == ["closest", "closest"]
             @test summary.WitnessAvailable == [true, true]
             @test summary.WitnessTargetVerified == [true, true]
             @test summary.WitnessPerturbationVerified == [true, true]
@@ -223,6 +223,31 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test !ismissing(summary.ResultRelativePath[attackable_row])
             @test ismissing(summary.ResultRelativePath[misclassified_row])
             @test length(result_files) == 1 # Only the targeted solve writes a MAT result.
+        end
+    end
+
+    @testset "batch_find_targeted_attack forwards the feasibility objective" begin
+        mktempdir() do dir
+            MIPVerify.batch_find_targeted_attack(
+                nn,
+                dataset,
+                [attackable_sample],
+                TestHelpers.get_optimizer(),
+                TestHelpers.get_main_solve_options(),
+                pp = pp,
+                norm_order = Inf,
+                tightening_algorithm = interval_arithmetic,
+                tightening_options = TestHelpers.get_tightening_options(),
+                solve_if_predicted_in_targeted = false,
+                target_labels = [target_class],
+                adversarial_example_objective = MIPVerify.feasibility,
+                save_path = dir,
+            )
+
+            _, summary, result_files = read_batch_output(dir)
+            @test summary.AdversarialExampleObjective == ["feasibility"]
+            @test summary.WitnessVerified == [true]
+            @test length(result_files) == 1
         end
     end
 end
