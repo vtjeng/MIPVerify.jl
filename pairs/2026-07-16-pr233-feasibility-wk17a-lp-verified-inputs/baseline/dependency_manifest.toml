@@ -2,7 +2,7 @@
 
 julia_version = "1.12.6"
 manifest_format = "2.0"
-project_hash = "9917c865e83cac917ba5648f4823678fa4323115"
+project_hash = "8946fd2decc29735104cdd7446953e9f3cfd201e"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -512,15 +512,15 @@ version = "0.2.0"
 
 [[deps.HiGHS]]
 deps = ["HiGHS_jll", "LinearAlgebra", "MathOptIIS", "MathOptInterface", "OpenBLAS32_jll", "PrecompileTools", "SparseArrays"]
-git-tree-sha1 = "01a5241985559c08a5baadbcebd6d87daaf84a84"
+git-tree-sha1 = "bf5e946f72ebd1b4620249a6be7ff34832ba9ca0"
 uuid = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
-version = "1.24.1"
+version = "1.23.0"
 
 [[deps.HiGHS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "JLLWrappers", "Libdl", "Zlib_jll", "libblastrampoline_jll"]
-git-tree-sha1 = "5814a4409f49e8430c184cbe4bc19fa2957bbf0a"
+git-tree-sha1 = "50ed12dc8c37ebb8d2b759f21755259d8512f2bd"
 uuid = "8fd58aa0-07eb-5a78-9b36-339c94fd15ea"
-version = "1.15.1+0"
+version = "1.14.0+0"
 
 [[deps.HistogramThresholding]]
 deps = ["ImageBase", "LinearAlgebra", "MappedArrays"]
@@ -1023,9 +1023,9 @@ version = "0.2.0"
 
 [[deps.MathOptInterface]]
 deps = ["CodecBzip2", "CodecZlib", "ForwardDiff", "JSON", "LinearAlgebra", "MutableArithmetics", "NaNMath", "OrderedCollections", "PrecompileTools", "Printf", "SparseArrays", "SpecialFunctions", "Test"]
-git-tree-sha1 = "9f23c8c1667bd0b0e611110aaf80aa91c1bdf274"
+git-tree-sha1 = "7b57dbe5d2c988a0c7a0ea977045e844e3d0b263"
 uuid = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-version = "1.51.1"
+version = "1.51.2"
 
     [deps.MathOptInterface.extensions]
     MathOptInterfaceBenchmarkToolsExt = "BenchmarkTools"
@@ -1340,10 +1340,10 @@ uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "1.2.2"
 
 [[deps.RegionTrees]]
-deps = ["IterTools", "LinearAlgebra", "StaticArrays"]
-git-tree-sha1 = "05f41085f3ec1438cbd85f95f194961bddb41fc1"
+deps = ["LinearAlgebra", "StaticArrays"]
+git-tree-sha1 = "dc16a55411988d414054933b3fc02d60ec198e44"
 uuid = "dee08c22-ab7f-5625-9660-a9af2021b33f"
-version = "0.3.3"
+version = "0.3.4"
 
 [[deps.Requires]]
 deps = ["UUIDs"]

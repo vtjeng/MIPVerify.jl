@@ -1,12 +1,21 @@
-Paired per-sample analysis: **verdict only PR #233** vs **exact distortion 8a455e2**
+# Paired benchmark report
+
+| run | adversarial-example objective |
+|---|---|
+| closest master ee5fcfa [closest] | `closest` |
+| feasibility PR #233 edfcbdf [feasibility] | `feasibility` |
+
+> **Cross-objective comparison.** These runs use different solve goals. Interpret the timings as the performance tradeoff between exact distortion and a feasibility solve.
+
+Paired per-sample analysis: **feasibility PR #233 edfcbdf [feasibility]** vs **closest master ee5fcfa [closest]**
 
 ### Per-sample ratio distribution
 
 | series | n | min | p10 | p25 | median | p75 | p90 | max | improved | regressed |
 |---|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|
-| Build + bound tightening | 492 | 0.58 | 0.81 | 0.88 | 0.95 | 1.05 | 1.19 | 7.47 | 61% | 34% |
-| Main solve time | 492 | 0.01 | 0.68 | 0.79 | 0.90 | 1.01 | 1.14 | 8.81 | 73% | 25% |
-| Total end-to-end time | 492 | 0.02 | 0.77 | 0.87 | 0.94 | 1.04 | 1.17 | 7.74 | 62% | 32% |
+| Build + bound tightening | 492 | 0.25 | 0.80 | 0.94 | 1.04 | 1.11 | 1.20 | 1.73 | 34% | 62% |
+| Main solve time | 492 | 0.01 | 0.65 | 0.85 | 0.95 | 1.07 | 1.23 | 11.37 | 59% | 37% |
+| Total end-to-end time | 492 | 0.03 | 0.72 | 0.91 | 1.03 | 1.10 | 1.21 | 9.96 | 38% | 58% |
 | Bound solver calls | 492 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 0% | 0% |
 
 - `ratio` = candidate ÷ baseline; < 1 = candidate faster. `improved`/`regressed` use a ±1% band.
@@ -21,32 +30,30 @@ Paired per-sample analysis: **verdict only PR #233** vs **exact distortion 8a455
 
 | series | baseline | candidate | net saved | pooled ratio | top-10 concentration |
 |---|--:|--:|--:|--:|--:|
-| Build + bound tightening | 883 s | 909 s | -26 s | 1.03 | 33% |
-| Main solve time | 1549 s | 466 s | +1083 s | 0.30 | 79% |
-| Total end-to-end time | 2432 s | 1375 s | +1057 s | 0.57 | 71% |
+| Build + bound tightening | 689 s | 675 s | +13 s | 0.98 | 22% |
+| Main solve time | 1451 s | 622 s | +829 s | 0.43 | 80% |
+| Total end-to-end time | 2140 s | 1297 s | +842 s | 0.61 | 74% |
 | Bound solver calls | 99067 calls | 99067 calls | +0 calls | 1.00 | nan% |
 
 ### Solve status (all samples)
 
-| status | exact distortion 8a455e2 | verdict only PR #233 |
+| status | closest master ee5fcfa [closest] | feasibility PR #233 edfcbdf [feasibility] |
 |---|--:|--:|
-| INFEASIBLE | 475 | 475 |
-| OPTIMAL | 10 | 15 |
+| INFEASIBLE | 476 | 474 |
+| OPTIMAL | 10 | 14 |
 | SKIPPED_PREDICTED_IN_TARGETED | 8 | 8 |
-| TIME_LIMIT | 7 | 2 |
+| TIME_LIMIT | 6 | 4 |
 
-### Verdict flips — solve status
-
-| transition | n | samples |
-|---|--:|---|
-| `TIME_LIMIT` → `OPTIMAL` | 5 | 212, 242, 321, 446, 480 |
-| `INFEASIBLE` → `TIME_LIMIT` | 1 | 19 |
-| `TIME_LIMIT` → `INFEASIBLE` | 1 | 407 |
-
-### Verdict flips — semantic outcome
+### Solve-status changes
 
 | transition | n | samples |
 |---|--:|---|
-| `certified_no_adversarial_example` → `time_limit_unresolved` | 1 | 19 |
-| `time_limit_unresolved` → `adversarial_example_found_or_best_known` | 1 | 212 |
-| `time_limit_unresolved` → `certified_no_adversarial_example` | 1 | 407 |
+| `TIME_LIMIT` → `OPTIMAL` | 4 | 150, 242, 446, 480 |
+| `INFEASIBLE` → `TIME_LIMIT` | 2 | 19, 46 |
+
+### Semantic-outcome changes
+
+| transition | n | samples |
+|---|--:|---|
+| `certified_no_adversarial_example` → `time_limit_unresolved` | 2 | 19, 46 |
+| `adversarial_example_found_or_best_known` → `time_limit_unresolved` | 1 | 212 |
