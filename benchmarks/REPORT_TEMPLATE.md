@@ -22,8 +22,8 @@ condition does not hold.
 > 1. One sentence stating what the PR changes and its expected effect on runtime.
 > 2. One methodology paragraph: samples `<1:N>` of the MNIST test set verified against
 >    `MNIST.<network>_linf0.1_authors` on both commits; each candidate run compared with its own
->    baseline run; the matched-pairs rationale (runtimes vary more sample-to-sample than the change
->    shifts any one sample, so self-comparison removes the between-sample spread); that the ratio
+>    baseline run; the matched-pairs rationale (pairing each sample with itself removes the
+>    between-sample runtime spread, whatever the size of the change's per-sample effect); that the ratio
 >    distributions, scatters, and flip tables are all built from these pairs; and a link to the
 >    published `pairs/<slug>/` folder — either on the `benchmark-reports` branch or pinned to the
 >    report commit SHA (the pinned form is stale-proof, matching C7's image URLs).
@@ -57,8 +57,11 @@ condition does not hold.
 >   the reason the two differ (a few large main-solve-bound samples move the aggregate).
 > - Which phase the change lands in (Build + bound tightening vs. Main solve), with `% improved` /
 >   `% regressed`.
-> - Any phase left unaffected (usually Main solve): state its near-1.00 median and attribute the
->   small aggregate wobble to the top-10 movers near the `<120>` s limit (noise).
+> - Name each phase's role — the affected phase(s) the change targets and any unaffected phase(s),
+>   whichever they are. For an unaffected phase, state its near-1.00 median and attribute the small
+>   aggregate wobble to the top-10 movers near the `<120>` s limit (noise). Apply that only to a
+>   phase the change does not target; e.g., when the change tunes the final solve itself, Main solve
+>   is the affected phase and its aggregate change is the signal, not noise.
 > - Instrumentation-count change when present (e.g. bound solver calls `427,076 → 99,067`, 4.3×).
 > - Outcome/status flips near the time limit: net semantic change (favorable/regressed/none), how
 >   many samples flipped solve status, and whether flips changed any verdict.
@@ -132,7 +135,7 @@ condition does not hold.
 - `ratio` = candidate ÷ baseline, < 1 = candidate faster; `improved` counts ratio below 0.99, `regressed` counts ratio above 1.01, samples within the ±1% band count as unchanged.<optional, when whole-percent rounding hides a visible outlier — a `max` above 1.01 next to `regressed` 0% (or below 0.99 next to `improved` 0%): " and shares round to whole percent (<series>'s lone regression, sample <id>, the `max` entry, rounds to 0%)">
 - `build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.
 - `total` = `build` + `tightening` + `main solve`.
-- `bound solver calls` = count of HiGHS bound-tightening solves (the count this PR reduces).  <!-- keep only with the calls series -->
+- `bound solver calls` = count of HiGHS bound-tightening solves<optional parenthetical when the count moves: ", the count this PR changes" — match it to the observed direction, increase or decrease; drop it when the count is flat, as in #222>.  <!-- keep only with the calls series -->
 - <n> = <N> samples minus the <k> `SKIPPED_PREDICTED_IN_TARGETED` samples, which carry no timing and are excluded from every series (see the status table below); this covers both the distribution and aggregate tables.
 
 ### Aggregate saving and concentration
