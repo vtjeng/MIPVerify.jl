@@ -1,6 +1,6 @@
-# Paired benchmark performance report — PR comment template
+# Paired benchmark performance report template
 
-Fill-in template for the PR comment that accompanies a paired before/after benchmark
+Fill-in template for the report of a paired before/after benchmark
 (`benchmarks/run_pair.sh` → `analysis/analyze_pair.py` → `publish_report.sh`). Copy the skeleton,
 replace every `<placeholder>`, delete the `> guidance` blockquotes, and keep the verbatim footnote
 lines as-is. The section order is fixed; do not reorder.
@@ -9,6 +9,22 @@ Most of the tables and footnotes are emitted verbatim by `analyze_pair.py` into
 `improvement_stats.md` — paste those, then write the prose (title, Summary, plot captions) by hand.
 Optional sections and optional clauses carry a one-line include condition; drop them when the
 condition does not hold.
+
+## Two renderings
+
+The same body is published twice: as `pairs/<slug>/report.md` next to the plots on the
+`benchmark-reports` branch, and as the PR comment. Write `report.md` first and publish it — the
+comment's pinned image URLs need the publish commit's SHA, which exists only once
+`publish_report.sh` has run — then derive the comment. The two differ only in delivery:
+
+|  | `report.md` (branch) | PR comment |
+|---|---|---|
+| Title | H1 | H2 (as in this skeleton) |
+| Plot images | relative `plots/<name>.png` | absolute pinned-SHA URLs (C7) |
+| Raw-data pointers | relative `baseline/` / `candidate/` | link to the published `pairs/<slug>/` folder |
+| Reproduction | trailing `## Reproduce` section with the analyze command | folded into the preamble command bullet |
+
+Everything else — section order, tables, footnotes, captions, conventions — is identical in both.
 
 ---
 
