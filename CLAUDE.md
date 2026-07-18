@@ -25,3 +25,8 @@ For failures unrelated to the PR's changes:
 
 When a PR changes verification (solve) or CI performance, append a row to the matching section of
 PERFORMANCE.md in the same PR, with the measured impact and an evidence link.
+
+## Paired benchmark report comments
+
+Before writing or editing a paired benchmark report PR comment, read benchmarks/REPORT_TEMPLATE.md
+and follow it exactly, including its section order.

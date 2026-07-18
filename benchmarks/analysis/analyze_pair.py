@@ -37,6 +37,11 @@ BENCHMARK_OBJECTIVES = {CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE}
 LAST_PRE_OBJECTIVE_SCHEMA_VERSION = 3
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
+TIGHTENING_LABELS = {
+    "interval_arithmetic": "interval-arithmetic",
+    "lp": "LP",
+    "mip": "MIP",
+}
 
 # Color encodes the phase/series consistently across every plot (blue = build + bound tightening,
 # orange = main solve, green = total, purple = solver calls). The baseline is a neutral grey, and
@@ -198,9 +203,11 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
     order = np.argsort(abs_saved)[::-1]
     cum = np.cumsum(abs_saved[order])
     total_abs = cum[-1] if len(cum) else 0.0
-    top10_share = float(cum[min(10, n) - 1] / total_abs) if total_abs > 0 else float("nan")
+    # With no per-sample movement, no samples contribute to concentration. Report 0 rather than
+    # an undefined NaN so the Markdown table remains numeric and matches the report convention.
+    top10_share = 0.0 if total_abs == 0.0 else float(cum[min(10, n) - 1] / total_abs)
     k5 = max(1, math.ceil(0.05 * n))
-    top5pct_share = float(cum[k5 - 1] / total_abs) if total_abs > 0 else float("nan")
+    top5pct_share = 0.0 if total_abs == 0.0 else float(cum[k5 - 1] / total_abs)
 
     def q(x):
         return float(np.quantile(ratios, x))
@@ -236,6 +243,7 @@ def stats_markdown(
     candidate_label: str,
     baseline_objective: str,
     candidate_objective: str,
+    tightening_algorithm: str,
 ) -> str:
     out = [
         "# Paired benchmark report",
@@ -281,7 +289,9 @@ def stats_markdown(
     out += [
         "",
         f"- `ratio` = candidate ÷ baseline; < 1 = candidate faster. `improved`/`regressed` use a ±{TOLERANCE * 100:.0f}% band.",
-        "- `build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.",
+        "- `build` = constructing the MIP model; `tightening` = the "
+        f"{TIGHTENING_LABELS[tightening_algorithm]} bound-tightening pass; `main solve` = the final "
+        "verification MIP.",
         "- `total` = `build` + `tightening` + `main solve`.",
         "",
         "### Aggregate saving and concentration",
@@ -308,6 +318,43 @@ def stats_markdown(
             )
         )
     return "\n".join(out) + "\n"
+
+
+def load_tightening_algorithm(run_dir: Path) -> str:
+    metrics_path = run_dir / "benchmark_metrics.csv"
+    if not metrics_path.is_file():
+        raise ValueError(f"missing benchmark metadata: {metrics_path}")
+
+    metrics = pd.read_csv(metrics_path)
+    if "tightening_algorithm" not in metrics.columns:
+        raise ValueError(f"missing tightening_algorithm column in {metrics_path}")
+
+    algorithms = {
+        str(value).strip()
+        for value in metrics["tightening_algorithm"]
+        if pd.notna(value) and str(value).strip()
+    }
+    if len(algorithms) != 1:
+        raise ValueError(f"expected one tightening_algorithm value in {metrics_path}")
+
+    algorithm = algorithms.pop()
+    if algorithm not in TIGHTENING_LABELS:
+        choices = ", ".join(TIGHTENING_LABELS)
+        raise ValueError(
+            f"unsupported tightening_algorithm {algorithm!r} in {metrics_path}; use {choices}"
+        )
+    return algorithm
+
+
+def paired_tightening_algorithm(baseline_dir: Path, candidate_dir: Path) -> str:
+    baseline_algorithm = load_tightening_algorithm(baseline_dir)
+    candidate_algorithm = load_tightening_algorithm(candidate_dir)
+    if baseline_algorithm != candidate_algorithm:
+        raise ValueError(
+            "paired runs use different tightening algorithms: "
+            f"baseline={baseline_algorithm}, candidate={candidate_algorithm}"
+        )
+    return baseline_algorithm
 
 
 def apply_style() -> None:
@@ -559,6 +606,11 @@ def main() -> None:
     ap.add_argument("--candidate-label", default="candidate")
     args = ap.parse_args()
 
+    try:
+        tightening_algorithm = paired_tightening_algorithm(args.baseline, args.candidate)
+    except ValueError as error:
+        ap.error(str(error))
+
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
@@ -595,6 +647,7 @@ def main() -> None:
         candidate_label,
         baseline_objective,
         candidate_objective,
+        tightening_algorithm,
     )
     status_md = status_markdown(baseline_df, candidate_df, baseline_label, candidate_label)
     full_md = md + "\n" + status_md

@@ -228,7 +228,7 @@ The side-specific objective flags are optional; without them, each commit uses i
 default.
 
 Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-<slug>/analysis`
-(plots + tables).
+(plots + tables). Write the filled report template to `analysis/report.md` before publishing.
 
 ### 2. Analyze — `analysis/`
 
@@ -239,19 +239,23 @@ status and semantic-outcome changes, plus ECDF and scatter plots. See
 
 ### 3. Publish — `publish_report.sh`
 
-Publishes an analysis dir (with `report.md` and `plots/`) to the **`benchmark-reports`** branch,
-under a unique `pairs/<slug>/`. Append-only and never force: it aborts rather than overwrite an
-existing slug, and retries a rejected push with fetch+rebase, so nothing already on the branch can
-be clobbered.
+Publishes an analysis dir to the **`benchmark-reports`** branch under a unique `pairs/<slug>/`. It
+stages the analyzer's flat PNG files under `plots/`, keeps `report.md` and the statistics at the
+archive root, and copies the sibling `base/` and `candidate/` runs as `baseline/` and `candidate/`.
+The publisher is append-only and never forces: it aborts rather than overwrite an existing slug, and
+retries a rejected push with fetch+rebase, so nothing already on the branch can be clobbered.
 
 ```sh
 benchmarks/publish_report.sh /tmp/pair-<slug>/analysis <YYYY-MM-DD-slug>
 ```
 
-Then post a PR comment: a bulleted **Summary**, then **Detailed statistics** opening with the plots
-— embedded via `raw.githubusercontent.com/<owner>/<repo>/<sha>/pairs/<slug>/plots/*.png`, pinned to
-the publish commit's SHA so the images can't be served stale — followed by the tables. Readers get
-the shape of the distribution before the numbers.
+After a successful push, the publisher prints the pinned raw URL base used by the report template's
+`{{pinned-raw-base}}` plot links.
+
+Then post a PR comment following [`REPORT_TEMPLATE.md`](REPORT_TEMPLATE.md): preamble (what the PR
+changes, benchmark setup, link to the published `pairs/<slug>/` folder), `## Summary`, then
+`## Detailed statistics` with `### Plots` as its first subsection — plots come before every table so
+readers get the shape of the distribution before the numbers.
 
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
