@@ -16,8 +16,9 @@ Managed with [uv](https://docs.astral.sh/uv/); dependencies are pinned in `uv.lo
       --baseline <baseline-run-dir> --candidate <candidate-run-dir> --out <out-dir> \
       --baseline-label "base <sha>" --candidate-label "candidate <sha>"
 
-Each run dir must contain a `benchmark_per_sample.csv` (as written by
-`benchmark_wk17a_first100.jl`).
+Each run dir must contain `benchmark_per_sample.csv` and `benchmark_metrics.csv` (as written by
+`benchmark_wk17a_first100.jl`). The analyzer reads the recorded tightening algorithm from the
+metrics file so the report footnote names the mode actually benchmarked.
 
 ## Outputs (into `<out-dir>`)
 

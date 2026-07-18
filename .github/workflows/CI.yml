@@ -242,6 +242,8 @@ jobs:
         run: >-
           uv run --project benchmarks/analysis --frozen python -m unittest discover -s
           benchmarks/analysis -p 'test_*.py' -v
+      - name: Run benchmark report publishing tests
+        run: bash benchmarks/test/test_publish_report.sh
 
   benchmark-tests:
     name: Benchmark Helper Tests

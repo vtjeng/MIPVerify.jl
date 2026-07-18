@@ -1,8 +1,19 @@
+import subprocess
+import sys
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pandas as pd
 
-from analyze_pair import Series, build_series_frame, series_stats
+from analyze_pair import (
+    Series,
+    build_series_frame,
+    load_tightening_algorithm,
+    paired_tightening_algorithm,
+    series_stats,
+    stats_markdown,
+)
 
 
 def _series(key: str, label: str, base_column: str, candidate_column: str) -> Series:
@@ -59,6 +70,118 @@ class SeriesStatsTests(unittest.TestCase):
 
         self.assertEqual(full_stats["n"], 3)
         self.assertEqual(sparse_stats["n"], 1)
+
+
+class TighteningMetadataTests(unittest.TestCase):
+    def test_stats_footnote_names_each_tightening_mode(self):
+        expected_labels = {
+            "interval_arithmetic": "interval-arithmetic",
+            "lp": "LP",
+            "mip": "MIP",
+        }
+        for algorithm, label in expected_labels.items():
+            with self.subTest(algorithm=algorithm):
+                markdown = stats_markdown([], "baseline", "candidate", algorithm)
+                self.assertIn(f"`tightening` = the {label} bound-tightening pass", markdown)
+                if algorithm != "lp":
+                    self.assertNotIn("the LP bound-tightening pass", markdown)
+
+    def test_loads_supported_tightening_modes_from_run_metadata(self):
+        for algorithm in ("interval_arithmetic", "lp", "mip"):
+            with self.subTest(algorithm=algorithm), TemporaryDirectory() as run_dir:
+                metrics_path = Path(run_dir) / "benchmark_metrics.csv"
+                pd.DataFrame({"tightening_algorithm": [algorithm]}).to_csv(
+                    metrics_path, index=False
+                )
+
+                self.assertEqual(load_tightening_algorithm(Path(run_dir)), algorithm)
+
+    def test_rejects_missing_or_unsupported_tightening_metadata(self):
+        with TemporaryDirectory() as run_dir:
+            with self.assertRaisesRegex(ValueError, "missing benchmark metadata"):
+                load_tightening_algorithm(Path(run_dir))
+
+            metrics_path = Path(run_dir) / "benchmark_metrics.csv"
+            pd.DataFrame({"other_column": ["lp"]}).to_csv(metrics_path, index=False)
+            with self.assertRaisesRegex(ValueError, "missing tightening_algorithm column"):
+                load_tightening_algorithm(Path(run_dir))
+
+            pd.DataFrame({"tightening_algorithm": ["unknown"]}).to_csv(metrics_path, index=False)
+            with self.assertRaisesRegex(ValueError, "unsupported tightening_algorithm"):
+                load_tightening_algorithm(Path(run_dir))
+
+    def test_rejects_mismatched_paired_tightening_modes(self):
+        with TemporaryDirectory() as root_dir:
+            baseline_dir = Path(root_dir) / "base"
+            candidate_dir = Path(root_dir) / "candidate"
+            baseline_dir.mkdir()
+            candidate_dir.mkdir()
+            pd.DataFrame({"tightening_algorithm": ["lp"]}).to_csv(
+                baseline_dir / "benchmark_metrics.csv", index=False
+            )
+            pd.DataFrame({"tightening_algorithm": ["mip"]}).to_csv(
+                candidate_dir / "benchmark_metrics.csv", index=False
+            )
+
+            with self.assertRaisesRegex(ValueError, "different tightening algorithms"):
+                paired_tightening_algorithm(baseline_dir, candidate_dir)
+
+    def test_cli_writes_mode_aware_footnote(self):
+        with TemporaryDirectory() as root_dir:
+            root = Path(root_dir)
+            baseline_dir = root / "base"
+            candidate_dir = root / "candidate"
+            output_dir = root / "analysis"
+            baseline_dir.mkdir()
+            candidate_dir.mkdir()
+
+            # One solved sample with positive build, solve, and total times exercises every required
+            # runtime series while keeping the CLI fixture small.
+            baseline_sample = pd.DataFrame(
+                {
+                    "sample_index": [1],
+                    "solve_status": ["OPTIMAL"],
+                    "total_time_seconds": [2.0],
+                    "solve_time_seconds": [1.0],
+                }
+            )
+            candidate_sample = pd.DataFrame(
+                {
+                    "sample_index": [1],
+                    "solve_status": ["OPTIMAL"],
+                    "total_time_seconds": [1.5],
+                    "solve_time_seconds": [0.75],
+                }
+            )
+            for run_dir, sample in (
+                (baseline_dir, baseline_sample),
+                (candidate_dir, candidate_sample),
+            ):
+                sample.to_csv(run_dir / "benchmark_per_sample.csv", index=False)
+                pd.DataFrame({"tightening_algorithm": ["mip"]}).to_csv(
+                    run_dir / "benchmark_metrics.csv", index=False
+                )
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(Path(__file__).with_name("analyze_pair.py")),
+                    "--baseline",
+                    str(baseline_dir),
+                    "--candidate",
+                    str(candidate_dir),
+                    "--out",
+                    str(output_dir),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            report = (output_dir / "improvement_stats.md").read_text()
+            self.assertIn("`tightening` = the MIP bound-tightening pass", report)
+            self.assertNotIn("the LP bound-tightening pass", report)
 
 
 if __name__ == "__main__":

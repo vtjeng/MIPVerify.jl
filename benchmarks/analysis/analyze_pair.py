@@ -33,6 +33,11 @@ import pandas as pd
 SKIPPED_STATUS = "SKIPPED_PREDICTED_IN_TARGETED"
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
+TIGHTENING_LABELS = {
+    "interval_arithmetic": "interval-arithmetic",
+    "lp": "LP",
+    "mip": "MIP",
+}
 
 # Color encodes the phase/series consistently across every plot (blue = build + bound tightening,
 # orange = main solve, green = total, purple = solver calls). The baseline is a neutral grey, and
@@ -183,7 +188,9 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
     }
 
 
-def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) -> str:
+def stats_markdown(
+    rows: list[dict], baseline_label: str, candidate_label: str, tightening_algorithm: str
+) -> str:
     out = [
         f"Paired per-sample analysis: **{candidate_label}** vs **{baseline_label}**",
         "",
@@ -212,7 +219,9 @@ def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) 
     out += [
         "",
         f"- `ratio` = candidate ÷ baseline; < 1 = candidate faster. `improved`/`regressed` use a ±{TOLERANCE * 100:.0f}% band.",
-        "- `build` = constructing the MIP model; `tightening` = the LP bound-tightening pass; `main solve` = the final verification MIP.",
+        "- `build` = constructing the MIP model; `tightening` = the "
+        f"{TIGHTENING_LABELS[tightening_algorithm]} bound-tightening pass; `main solve` = the final "
+        "verification MIP.",
         "- `total` = `build` + `tightening` + `main solve`.",
         "",
         "### Aggregate saving and concentration",
@@ -239,6 +248,43 @@ def stats_markdown(rows: list[dict], baseline_label: str, candidate_label: str) 
             )
         )
     return "\n".join(out) + "\n"
+
+
+def load_tightening_algorithm(run_dir: Path) -> str:
+    metrics_path = run_dir / "benchmark_metrics.csv"
+    if not metrics_path.is_file():
+        raise ValueError(f"missing benchmark metadata: {metrics_path}")
+
+    metrics = pd.read_csv(metrics_path)
+    if "tightening_algorithm" not in metrics.columns:
+        raise ValueError(f"missing tightening_algorithm column in {metrics_path}")
+
+    algorithms = {
+        str(value).strip()
+        for value in metrics["tightening_algorithm"]
+        if pd.notna(value) and str(value).strip()
+    }
+    if len(algorithms) != 1:
+        raise ValueError(f"expected one tightening_algorithm value in {metrics_path}")
+
+    algorithm = algorithms.pop()
+    if algorithm not in TIGHTENING_LABELS:
+        choices = ", ".join(TIGHTENING_LABELS)
+        raise ValueError(
+            f"unsupported tightening_algorithm {algorithm!r} in {metrics_path}; use {choices}"
+        )
+    return algorithm
+
+
+def paired_tightening_algorithm(baseline_dir: Path, candidate_dir: Path) -> str:
+    baseline_algorithm = load_tightening_algorithm(baseline_dir)
+    candidate_algorithm = load_tightening_algorithm(candidate_dir)
+    if baseline_algorithm != candidate_algorithm:
+        raise ValueError(
+            "paired runs use different tightening algorithms: "
+            f"baseline={baseline_algorithm}, candidate={candidate_algorithm}"
+        )
+    return baseline_algorithm
 
 
 def apply_style() -> None:
@@ -484,6 +530,11 @@ def main() -> None:
     ap.add_argument("--candidate-label", default="candidate")
     args = ap.parse_args()
 
+    try:
+        tightening_algorithm = paired_tightening_algorithm(args.baseline, args.candidate)
+    except ValueError as error:
+        ap.error(str(error))
+
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
@@ -500,7 +551,7 @@ def main() -> None:
     if not frames:
         raise SystemExit("no analysable series found in the given run directories")
 
-    md = stats_markdown(rows, args.baseline_label, args.candidate_label)
+    md = stats_markdown(rows, args.baseline_label, args.candidate_label, tightening_algorithm)
     status_md = status_markdown(
         baseline_df, candidate_df, args.baseline_label, args.candidate_label
     )

@@ -196,7 +196,7 @@ benchmarks/run_pair.sh \
 ```
 
 Produces `/tmp/pair-<slug>/{base,candidate}` (benchmark outputs) and `/tmp/pair-<slug>/analysis`
-(plots + tables).
+(plots + tables). Write the filled report template to `analysis/report.md` before publishing.
 
 ### 2. Analyze — `analysis/`
 
@@ -206,14 +206,18 @@ verdict flips, plus ECDF / scatter plots. See [`analysis/README.md`](analysis/RE
 
 ### 3. Publish — `publish_report.sh`
 
-Publishes an analysis dir (with `report.md` and `plots/`) to the **`benchmark-reports`** branch,
-under a unique `pairs/<slug>/`. Append-only and never force: it aborts rather than overwrite an
-existing slug, and retries a rejected push with fetch+rebase, so nothing already on the branch can
-be clobbered.
+Publishes an analysis dir to the **`benchmark-reports`** branch under a unique `pairs/<slug>/`. It
+stages the analyzer's flat PNG files under `plots/`, keeps `report.md` and the statistics at the
+archive root, and copies the sibling `base/` and `candidate/` runs as `baseline/` and `candidate/`.
+The publisher is append-only and never forces: it aborts rather than overwrite an existing slug, and
+retries a rejected push with fetch+rebase, so nothing already on the branch can be clobbered.
 
 ```sh
 benchmarks/publish_report.sh /tmp/pair-<slug>/analysis <YYYY-MM-DD-slug>
 ```
+
+After a successful push, the publisher prints the pinned raw URL base used by the report template's
+`{{pinned-raw-base}}` plot links.
 
 Then post a PR comment following [`REPORT_TEMPLATE.md`](REPORT_TEMPLATE.md): preamble (what the PR
 changes, benchmark setup, link to the published `pairs/<slug>/` folder), `## Summary`, then

@@ -26,6 +26,9 @@ comment's pinned image URLs need the publish commit's SHA, which exists only onc
 | Raw-data pointers | relative `baseline/` / `candidate/`                      | link to the published `pairs/{{slug}}/` folder |
 | Reproduction      | trailing `## Reproduce` section with the analyze command | folded into the preamble command bullet        |
 
+`publish_report.sh` creates this archive layout from the flat files in the analysis directory and
+its sibling `base/` and `candidate/` run directories.
+
 Everything else — section order, tables, footnotes, captions, conventions — is identical in both.
 
 ---
@@ -57,7 +60,7 @@ Everything else — section order, tables, footnotes, captions, conventions — 
 >    sequential runs on a local WSL2 workstation, the dependency provenance (either the
 >    dependency-snapshot hash or the phrase "identical dependency snapshots"), any
 >    machine-contention caveat that held during the run (optional — e.g. unrelated background jobs
->    holding ~{{core-count}} cores across both sides), and the caveat that absolute times are
+>    holding ~{{core-count}} cores across both sides), and the caveat that absolute times are not
 >    comparable to the CI-hosted `benchmark-results` series (C4).
 > 6. Report-scope note (optional): one standalone italic sentence when the report needs a scope
 >    caveat the preceding elements don't carry — e.g. that the paired-analysis tooling post-dates
@@ -131,11 +134,11 @@ is why this report is retroactive._]
 > single lead caption covering all plots is acceptable when they tell one story (as in the #222
 > report); when two plots share a caption, place it above the first and let the second follow.
 >
-> Embed each PNG pinned to the publish commit's SHA so it can't be served stale:
-> `https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/{{name}}.png`
-> Alt text names the plot. Two styles are in use — pick one and keep it consistent within a report:
-> the descriptive name (`Paired ratio distributions`) or the file stem (`ratio ECDF`). Canonical
-> files, with both alt-text forms, in order:
+> Embed each PNG pinned to the publish commit's SHA so it can't be served stale. Replace
+> `{{pinned-raw-base}}` with the exact raw base printed by `publish_report.sh`, then use
+> `{{pinned-raw-base}}/plots/{{name}}.png`. Alt text names the plot. Two styles are in use — pick
+> one and keep it consistent within a report: the descriptive name (`Paired ratio distributions`) or
+> the file stem (`ratio ECDF`). Canonical files, with both alt-text forms, in order:
 >
 > - `ratio_ecdf.png` — `Paired ratio distributions` / `ratio ECDF`
 > - `absolute_runtime_ecdf.png` — `Absolute runtime distributions` / `absolute runtime ECDF`
@@ -149,23 +152,23 @@ is why this report is retroactive._]
 
 {{one-sentence caption reading the plot below}}
 
-![Paired ratio distributions](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/ratio_ecdf.png)
+![Paired ratio distributions]({{pinned-raw-base}}/plots/ratio_ecdf.png)
 
 {{caption}}
 
-![Absolute runtime distributions](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/absolute_runtime_ecdf.png)
+![Absolute runtime distributions]({{pinned-raw-base}}/plots/absolute_runtime_ecdf.png)
 
 {{caption}}
 
-![Paired runtime scatter](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/magnitude_scatter.png)
+![Paired runtime scatter]({{pinned-raw-base}}/plots/magnitude_scatter.png)
 
 <!-- optional, only when the solver-call series exists -->
 
 {{caption}}
 
-![Absolute bound-call distributions](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/absolute_calls_ecdf.png)
+![Absolute bound-call distributions]({{pinned-raw-base}}/plots/absolute_calls_ecdf.png)
 
-![Paired bound-call scatter](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/calls_scatter.png)
+![Paired bound-call scatter]({{pinned-raw-base}}/plots/calls_scatter.png)
 
 ### Per-sample ratio distribution
 
@@ -347,10 +350,10 @@ Semantic outcome:
   re-benchmarked).
 - **C6 — Series names verbatim.** `Build + bound tightening`, `Main solve time`,
   `Total end-to-end time`, `Bound solver calls` — reused unchanged across every table and the prose.
-- **C7 — Pinned image URLs.**
-  `raw.githubusercontent.com/vtjeng/MIPVerify.jl/{{publish-sha}}/pairs/{{slug}}/plots/{{name}}.png`,
-  pinned to the publish commit's SHA; alt text names the plot — the descriptive name or the file
-  stem, one style per report. Prefer the same publish-SHA pinning for the methodology folder link.
+- **C7 — Pinned image URLs.** Use the `{{pinned-raw-base}}` printed by `publish_report.sh`, followed
+  by `/plots/{{name}}.png`. The base includes the actual GitHub owner, repository, publish commit
+  SHA, and `pairs/{{slug}}`; alt text names the plot — the descriptive name or the file stem, one
+  style per report. Prefer the same publish-SHA pinning for the methodology folder link.
 - **C8 — Captions before plots.** A prose sentence reads each plot immediately above it (never
   after).
 - **C9 — Backticked identifiers.** Column/metric names, solve statuses, and semantic-outcome labels
