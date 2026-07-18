@@ -23,7 +23,7 @@ macOS, and 64-bit Linux, but example code in this README is for Linux.
 
 #### Installing Julia
 
-The latest release of this package requires version 1.6 or above of Julia. See
+The latest release of this package requires version 1.12 or above of Julia. See
 [installation instructions](https://julialang.org/downloads/). To complete your installation, ensure
 that you are able to call `julia` REPL from the command line.
 
