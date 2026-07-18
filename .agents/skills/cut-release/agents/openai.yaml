@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cut MIPVerify Release"
+  short_description: "Prepare, register, and verify MIPVerify releases"
+  default_prompt: "Use $cut-release to prepare, register, and verify the next MIPVerify release."
