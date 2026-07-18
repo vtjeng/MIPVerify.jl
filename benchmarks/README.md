@@ -217,8 +217,8 @@ benchmarks/publish_report.sh /tmp/pair-<slug>/analysis <YYYY-MM-DD-slug>
 
 Then post a PR comment following [`REPORT_TEMPLATE.md`](REPORT_TEMPLATE.md): preamble (what the PR
 changes, benchmark setup, link to the published `pairs/<slug>/` folder), `## Summary`, then
-`## Detailed statistics` with `### Plots` as its first subsection — plots come before every table
-so readers get the shape of the distribution before the numbers.
+`## Detailed statistics` with `### Plots` as its first subsection — plots come before every table so
+readers get the shape of the distribution before the numbers.
 
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
