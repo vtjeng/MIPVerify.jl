@@ -1,6 +1,7 @@
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 HiGHS = "87dc4568-4c63-4d18-b0c0-bb2238e4078b"
 HiGHS_jll = "8fd58aa0-07eb-5a78-9b36-339c94fd15ea"
 IntervalArithmetic = "d1acc4aa-44c8-5952-acd4-ba5d80a2a253"
@@ -15,7 +16,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 MIPVerify = {path = ".."}
 
 [compat]
-HiGHS = "1.4"
+HiGHS = "~1.23.0"
 # HiGHS 1.15.x introduced a parallel MIP solver that segfaults and returns
 # nondeterministic results, even with threads=1 (issue #219); unpin once
 # upstream stabilizes.
