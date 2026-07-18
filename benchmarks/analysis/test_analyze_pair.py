@@ -81,7 +81,9 @@ class TighteningMetadataTests(unittest.TestCase):
         }
         for algorithm, label in expected_labels.items():
             with self.subTest(algorithm=algorithm):
-                markdown = stats_markdown([], "baseline", "candidate", algorithm)
+                markdown = stats_markdown(
+                    [], "baseline [closest]", "candidate [closest]", "closest", "closest", algorithm
+                )
                 self.assertIn(f"`tightening` = the {label} bound-tightening pass", markdown)
                 if algorithm != "lp":
                     self.assertNotIn("the LP bound-tightening pass", markdown)

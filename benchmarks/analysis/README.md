@@ -5,8 +5,8 @@
 `sample_index` and emits a stats table plus plots.
 
 The point: an aggregate like "−30% wall clock" hides the spread. The per-sample view shows whether
-the change helps every sample or a few, whether the expensive samples benefit, and whether verdicts
-moved.
+the change helps every sample or a few, whether the expensive samples benefit, and whether solve
+statuses or semantic outcomes changed.
 
 ## Run
 
@@ -22,9 +22,10 @@ metrics file so the report footnote names the mode actually benchmarked.
 
 ## Outputs (into `<out-dir>`)
 
-- `improvement_stats.md` / `.csv` — per-sample ratio distribution (min…max sweep,
-  improved/regressed), aggregate saving + concentration, per-side solve-status counts, and verdict
-  flips grouped by transition.
+- `improvement_stats.md` / `.csv` — each run's objective, per-sample ratio distribution (min…max
+  sweep, improved/regressed), aggregate saving + concentration, per-side solve-status counts, and
+  status and semantic-outcome changes grouped by transition. Historical output without objective
+  metadata used `closest`; cross-objective reports carry a prominent warning.
 - `ratio_ecdf.png` — paired relative view: ECDF of per-sample `candidate/baseline` ratios, all
   series overlaid (dimensionless, so they share one axis).
 - `absolute_runtime_ecdf.png`, `absolute_calls_ecdf.png` — per-side distributions (baseline vs

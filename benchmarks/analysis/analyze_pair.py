@@ -31,6 +31,10 @@ import numpy as np
 import pandas as pd
 
 SKIPPED_STATUS = "SKIPPED_PREDICTED_IN_TARGETED"
+CLOSEST_OBJECTIVE = "closest"
+FEASIBILITY_OBJECTIVE = "feasibility"
+BENCHMARK_OBJECTIVES = {CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE}
+LAST_PRE_OBJECTIVE_SCHEMA_VERSION = 3
 # A sample counts as improved/regressed only past this relative band; inside it is "unchanged".
 TOLERANCE = 0.01
 TIGHTENING_LABELS = {
@@ -116,6 +120,51 @@ def load_per_sample(run_dir: Path) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
+def benchmark_schema_version(run_dir: Path, side: str) -> int:
+    """Return a run's aggregate benchmark schema, defaulting pre-schema output to version 1."""
+    path = run_dir / "benchmark_metrics.csv"
+    if not path.exists():
+        return 1
+    metrics = pd.read_csv(path)
+    if metrics.empty:
+        raise ValueError(f"{side} benchmark metrics are empty")
+    if "benchmark_schema_version" not in metrics.columns:
+        return 1
+    raw = metrics.loc[0, "benchmark_schema_version"]
+    if pd.isna(raw):
+        return 1
+    return int(raw)
+
+
+def benchmark_objective(frame: pd.DataFrame, side: str, schema_version: int) -> str:
+    """Return one run's canonical objective, including historical benchmark schemas."""
+    if frame.empty:
+        raise ValueError(f"{side} per-sample CSV is empty")
+    if "adversarial_example_objective" not in frame.columns:
+        if schema_version > LAST_PRE_OBJECTIVE_SCHEMA_VERSION:
+            raise ValueError(
+                f"{side} benchmark schema {schema_version} lacks adversarial_example_objective"
+            )
+        return CLOSEST_OBJECTIVE
+
+    objectives = set()
+    for raw in frame["adversarial_example_objective"]:
+        if pd.isna(raw) or not str(raw).strip():
+            if schema_version > LAST_PRE_OBJECTIVE_SCHEMA_VERSION:
+                raise ValueError(
+                    f"{side} benchmark schema {schema_version} has a missing objective"
+                )
+            objective = CLOSEST_OBJECTIVE
+        else:
+            objective = str(raw).strip().lower()
+        if objective not in BENCHMARK_OBJECTIVES:
+            raise ValueError(f"{side} per-sample CSV has unsupported objective {raw!r}")
+        objectives.add(objective)
+    if len(objectives) != 1:
+        raise ValueError(f"{side} per-sample CSV has inconsistent objectives: {sorted(objectives)}")
+    return objectives.pop()
+
+
 def joined_frame(baseline: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFrame:
     """Inner-join on sample_index, dropping inputs skipped on either side."""
     for frame, side in ((baseline, "baseline"), (candidate, "candidate")):
@@ -189,9 +238,30 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
 
 
 def stats_markdown(
-    rows: list[dict], baseline_label: str, candidate_label: str, tightening_algorithm: str
+    rows: list[dict],
+    baseline_label: str,
+    candidate_label: str,
+    baseline_objective: str,
+    candidate_objective: str,
+    tightening_algorithm: str,
 ) -> str:
     out = [
+        "# Paired benchmark report",
+        "",
+        "| run | adversarial-example objective |",
+        "|---|---|",
+        f"| {baseline_label} | `{baseline_objective}` |",
+        f"| {candidate_label} | `{candidate_objective}` |",
+        "",
+    ]
+    if baseline_objective != candidate_objective:
+        out += [
+            "> **Cross-objective comparison.** These runs use different solve goals. Interpret "
+            "the timings as the performance tradeoff between exact distortion and a feasibility "
+            "solve.",
+            "",
+        ]
+    out += [
         f"Paired per-sample analysis: **{candidate_label}** vs **{baseline_label}**",
         "",
         "### Per-sample ratio distribution",
@@ -362,7 +432,11 @@ def plot_ratio_ecdf(frames, out_path, baseline_label, candidate_label):
     ax.set_ylabel("cumulative fraction of samples")
     ax.set_ylim(0, 1)
     ax.legend(frameon=False, loc="best")
-    fig.suptitle("Relative cost — paired ECDF (all series)", fontsize=13.5, fontweight="bold")
+    fig.suptitle(
+        f"Relative cost — paired ECDF (all series)\n{candidate_label} vs {baseline_label}",
+        fontsize=13.5,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     fig.savefig(out_path)
     plt.close(fig)
@@ -403,7 +477,8 @@ def plot_absolute_ecdf(frames, out_path, baseline_label, candidate_label, unit="
         ax.set_ylim(0, 1)
         ax.legend(frameon=False, loc="best", fontsize=9)
     fig.suptitle(
-        f"{meta['metric']} — absolute distribution per side (ECDF)",
+        f"{meta['metric']} — absolute distribution per side (ECDF)\n"
+        f"{candidate_label} vs {baseline_label}",
         fontsize=13.5,
         fontweight="bold",
         y=0.98,
@@ -468,7 +543,10 @@ def plot_magnitude_scatter(frames, out_path, baseline_label, candidate_label, un
             color="#555555",
         )
     fig.suptitle(
-        f"{meta['metric']} — per-sample paired (scatter)", fontsize=13.5, fontweight="bold", y=0.98
+        f"{meta['metric']} — per-sample paired (scatter)\n{candidate_label} vs {baseline_label}",
+        fontsize=13.5,
+        fontweight="bold",
+        y=0.98,
     )
     fig.tight_layout(rect=(0, 0.03, 1, 0.93))
     fig.savefig(out_path)
@@ -511,12 +589,10 @@ def status_markdown(baseline_df, candidate_df, baseline_label, candidate_label, 
             lines.append(f"| `{before}` → `{after}` | {len(ids)} | {shown} |")
         return lines
 
-    out += grouped_flips(
-        "solve_status_base", "solve_status_cand", "### Verdict flips — solve status"
-    )
+    out += grouped_flips("solve_status_base", "solve_status_cand", "### Solve-status changes")
     if has_outcome:
         out += grouped_flips(
-            "semantic_outcome_base", "semantic_outcome_cand", "### Verdict flips — semantic outcome"
+            "semantic_outcome_base", "semantic_outcome_cand", "### Semantic-outcome changes"
         )
     return "\n".join(out) + "\n"
 
@@ -538,6 +614,12 @@ def main() -> None:
     args.out.mkdir(parents=True, exist_ok=True)
     baseline_df = load_per_sample(args.baseline)
     candidate_df = load_per_sample(args.candidate)
+    baseline_schema = benchmark_schema_version(args.baseline, "baseline")
+    candidate_schema = benchmark_schema_version(args.candidate, "candidate")
+    baseline_objective = benchmark_objective(baseline_df, "baseline", baseline_schema)
+    candidate_objective = benchmark_objective(candidate_df, "candidate", candidate_schema)
+    baseline_label = f"{args.baseline_label} [{baseline_objective}]"
+    candidate_label = f"{args.candidate_label} [{candidate_objective}]"
     merged = joined_frame(baseline_df, candidate_df)
 
     frames, rows, skipped = {}, [], []
@@ -547,14 +629,27 @@ def main() -> None:
             skipped.append(series.label)
             continue
         frames[series.key] = frame
-        rows.append(series_stats(series, frame))
+        row = dict(
+            baseline_objective=baseline_objective,
+            candidate_objective=candidate_objective,
+            comparison_kind=(
+                "same-objective" if baseline_objective == candidate_objective else "cross-objective"
+            ),
+            **series_stats(series, frame),
+        )
+        rows.append(row)
     if not frames:
         raise SystemExit("no analysable series found in the given run directories")
 
-    md = stats_markdown(rows, args.baseline_label, args.candidate_label, tightening_algorithm)
-    status_md = status_markdown(
-        baseline_df, candidate_df, args.baseline_label, args.candidate_label
+    md = stats_markdown(
+        rows,
+        baseline_label,
+        candidate_label,
+        baseline_objective,
+        candidate_objective,
+        tightening_algorithm,
     )
+    status_md = status_markdown(baseline_df, candidate_df, baseline_label, candidate_label)
     full_md = md + "\n" + status_md
     (args.out / "improvement_stats.md").write_text(full_md)
     pd.DataFrame(rows).to_csv(args.out / "improvement_stats.csv", index=False)
@@ -573,7 +668,7 @@ def main() -> None:
     written = []
     for name, fn in outputs:
         path = args.out / name
-        if fn(frames, path, args.baseline_label, args.candidate_label):
+        if fn(frames, path, baseline_label, candidate_label):
             written.append(path)
 
     print(f"joined samples (solved both sides): {len(merged)}")

@@ -5,12 +5,13 @@ include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
 using .BenchmarkHelpers:
     regression_ratio,
     percent,
+    benchmark_objective,
     benchmark_schema_version,
     semantic_outcome_schema_version,
     semantic_partition_columns_present,
     semantic_partition_matches,
     semantic_partition_is_complete,
-    SEMANTIC_OUTCOME_SCHEMA_VERSION
+    SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -45,6 +46,13 @@ function main()
     baseline = load_metrics(args["baseline"])
     candidate = load_metrics(args["candidate"])
 
+    baseline_objective = benchmark_objective(baseline)
+    candidate_objective = benchmark_objective(candidate)
+    objectives_match = baseline_objective == candidate_objective
+    if !objectives_match
+        println("Objective mismatch: baseline=$baseline_objective, candidate=$candidate_objective")
+    end
+
     baseline_benchmark_schema = benchmark_schema_version(baseline)
     candidate_benchmark_schema = benchmark_schema_version(candidate)
     baseline_semantic_schema = semantic_outcome_schema_version(baseline)
@@ -77,6 +85,15 @@ function main()
         "num_adversarial_example_found_or_best_known",
         "num_time_limit_unresolved",
         "num_no_primal_solution_other",
+        "num_witness_verification_failed",
+        "num_witness_available",
+        "num_witness_target_verified",
+        "num_witness_perturbation_verified",
+        "num_witness_target_verification_failed",
+        "num_witness_perturbation_verification_failed",
+        "num_witness_verified",
+        "num_solution_limit_status",
+        "num_objective_limit_status",
         "num_missing_objective_value",
     ]
     comparable_outcome_cols =
@@ -95,20 +112,24 @@ function main()
     threshold_text = percent(max_regression)
 
     failures = String[]
+    objectives_match || push!(failures, "benchmark objective mismatch")
     schemas_match || push!(failures, "schema mismatch")
     wall_delta <= max_regression || push!(failures, "wall-clock regression exceeds $threshold_text")
     total_delta <= max_regression ||
         push!(failures, "total-time regression exceeds $threshold_text")
-    if !schemas_match
-        # Semantic outcomes are only comparable under identical counting rules.
-        println("Semantic verdict: SKIPPED (schema mismatch)")
+    if !schemas_match || !objectives_match
+        # Semantic outcomes are only comparable under identical counting rules and solve goals.
+        reason = !schemas_match ? "schema mismatch" : "benchmark objective mismatch"
+        println("Semantic comparison: SKIPPED ($reason)")
     else
         semantic_ok = semantic_partition_matches(baseline, candidate)
-        partition_complete = if baseline_semantic_schema >= SEMANTIC_OUTCOME_SCHEMA_VERSION
-            semantic_partition_is_complete(baseline) && semantic_partition_is_complete(candidate)
-        else
-            true
-        end
+        partition_complete =
+            if baseline_semantic_schema >= SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION
+                semantic_partition_is_complete(baseline) &&
+                    semantic_partition_is_complete(candidate)
+            else
+                true
+            end
         if !semantic_partition_columns_present(baseline) ||
            !semantic_partition_columns_present(candidate)
             push!(failures, "semantic outcome columns missing from baseline or candidate")
@@ -116,13 +137,13 @@ function main()
             push!(failures, "semantic outcome counts differ")
         end
         partition_complete || push!(failures, "semantic partition counts do not sum to num_samples")
-        println("Semantic verdict: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
+        println("Semantic comparison: $(semantic_ok && partition_complete ? "PASS" : "FAIL")")
     end
     passed = isempty(failures)
     if passed
-        println("Gate verdict: PASS (max regression: $threshold_text)")
+        println("Regression gate: PASS (max regression: $threshold_text)")
     else
-        println("Gate verdict: FAIL ($(join(failures, "; ")))")
+        println("Regression gate: FAIL ($(join(failures, "; ")))")
     end
 
     exit(passed ? 0 : 1)

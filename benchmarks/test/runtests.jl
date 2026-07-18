@@ -29,10 +29,18 @@ function dependency_snapshot(rows...)
     return DataFrame(collect(rows))
 end
 
-function write_metrics_csv(path::String; dependency_snapshot_sha256::String, julia_version::String)
+function write_metrics_csv(
+    path::String;
+    dependency_snapshot_sha256::String,
+    julia_version::String,
+    adversarial_example_objective::String = "feasibility",
+)
+    # Two samples exercise a complete semantic partition with one certified and one
+    # verified-adversarial outcome; the remaining outcome counts must stay zero.
     metrics = DataFrame(
         benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION],
         semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION],
+        adversarial_example_objective = [adversarial_example_objective],
         wall_clock_seconds = [10.0],
         sum_total_time_seconds = [9.0],
         sum_solve_time_seconds = [4.0],
@@ -44,6 +52,9 @@ function write_metrics_csv(path::String; dependency_snapshot_sha256::String, jul
         num_adversarial_example_found_or_best_known = [1],
         num_time_limit_unresolved = [0],
         num_no_primal_solution_other = [0],
+        num_witness_verification_failed = [0],
+        num_witness_target_verification_failed = [0],
+        num_witness_perturbation_verification_failed = [0],
         julia_version = [julia_version],
         dependency_snapshot_sha256 = [dependency_snapshot_sha256],
     )
@@ -80,6 +91,12 @@ end
         @test parse_args(["positional", "--key", "val"]) == Dict("key" => "val")
     end
 
+    @testset "parse_benchmark_objective" begin
+        @test parse_benchmark_objective("feasibility") == "feasibility"
+        @test parse_benchmark_objective(" CLOSEST ") == "closest"
+        @test_throws ErrorException parse_benchmark_objective("fast")
+    end
+
     @testset "parse_sample_spec" begin
         @test parse_sample_spec("1:5") == [1, 2, 3, 4, 5]
         @test parse_sample_spec("1:2:10") == [1, 3, 5, 7, 9]
@@ -98,21 +115,37 @@ end
 
     @testset "is_infeasible_status" begin
         @test is_infeasible_status("INFEASIBLE") == true
-        @test is_infeasible_status("INFEASIBLE_OR_UNBOUNDED") == true
+        @test is_infeasible_status("INFEASIBLE_OR_UNBOUNDED") == false
         @test is_infeasible_status("OPTIMAL") == false
         @test is_infeasible_status("TIME_LIMIT") == false
     end
 
     @testset "classify_semantic_outcome" begin
-        @test classify_semantic_outcome("INFEASIBLE", missing) == "certified_no_adversarial_example"
-        @test classify_semantic_outcome("INFEASIBLE_OR_UNBOUNDED", missing) ==
+        @test classify_semantic_outcome("INFEASIBLE", false, false) ==
               "certified_no_adversarial_example"
-        @test classify_semantic_outcome("OPTIMAL", 0.5) == "adversarial_example_found_or_best_known"
-        @test classify_semantic_outcome("INFEASIBLE", 0.5) == "certified_no_adversarial_example"
-        @test classify_semantic_outcome("TIME_LIMIT", missing) == "time_limit_unresolved"
-        @test classify_semantic_outcome("OTHER", missing) == "no_primal_solution_other"
-        @test classify_semantic_outcome("SKIPPED_PREDICTED_IN_TARGETED", 0.0) ==
+        @test classify_semantic_outcome("INFEASIBLE", true, true) ==
               "adversarial_example_found_or_best_known"
+        @test classify_semantic_outcome("INFEASIBLE", true, false) == "witness_verification_failed"
+        @test classify_semantic_outcome("INFEASIBLE_OR_UNBOUNDED", false, false) ==
+              "no_primal_solution_other"
+        @test classify_semantic_outcome("OPTIMAL", true, true) ==
+              "adversarial_example_found_or_best_known"
+        @test classify_semantic_outcome("SOLUTION_LIMIT", true, true) ==
+              "adversarial_example_found_or_best_known"
+        @test classify_semantic_outcome("OBJECTIVE_LIMIT", true, true) ==
+              "adversarial_example_found_or_best_known"
+        @test classify_semantic_outcome("TIME_LIMIT", true, true) ==
+              "adversarial_example_found_or_best_known"
+        @test classify_semantic_outcome("OPTIMAL", true, false) == "witness_verification_failed"
+        @test classify_semantic_outcome("SOLUTION_LIMIT", false, false) ==
+              "no_primal_solution_other"
+        @test classify_semantic_outcome("OBJECTIVE_LIMIT", false, false) ==
+              "no_primal_solution_other"
+        @test classify_semantic_outcome("TIME_LIMIT", false, false) == "time_limit_unresolved"
+        @test classify_semantic_outcome("OTHER", false, false) == "no_primal_solution_other"
+        @test classify_semantic_outcome("SKIPPED_PREDICTED_IN_TARGETED", true, true) ==
+              "adversarial_example_found_or_best_known"
+        @test_throws ErrorException classify_semantic_outcome("OPTIMAL", false, true)
     end
 
     @testset "benchmark schema and semantic partition" begin
@@ -124,22 +157,43 @@ end
             num_no_primal_solution_other = [0],
         )
         current = copy(legacy)
+        current.num_witness_verification_failed = [0]
         current.benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION]
         current.semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION]
+        current.adversarial_example_objective = ["feasibility"]
         changed = copy(current)
         changed.num_certified_no_adversarial_example = [0]
         changed.num_time_limit_unresolved = [1]
 
         @test benchmark_schema_version(legacy) == 1
         @test semantic_outcome_schema_version(legacy) == 1
+        @test benchmark_objective(legacy) == "closest"
         @test semantic_partition_columns_present(legacy)
         @test !semantic_partition_columns_present(DataFrame(num_samples = [2]))
         @test !semantic_partition_matches(DataFrame(num_samples = [2]), current)
         @test benchmark_schema_version(current) == BENCHMARK_SCHEMA_VERSION
         @test semantic_outcome_schema_version(current) == SEMANTIC_OUTCOME_SCHEMA_VERSION
+        @test benchmark_objective(current) == "feasibility"
+        missing_current_objective = select(current, Not(:adversarial_example_objective))
+        @test_throws ErrorException benchmark_objective(missing_current_objective)
         @test semantic_partition_is_complete(current)
         @test semantic_partition_matches(current, copy(current))
         @test !semantic_partition_matches(current, changed)
+
+        # Schema 2 is the first schema whose outcome columns must cover every sample.
+        schema_two = copy(legacy)
+        schema_two.semantic_outcome_schema_version =
+            [SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION]
+        @test semantic_partition_is_complete(schema_two)
+
+        # Semantic schema 3 introduced the witness-failure outcome. It must retain that partition
+        # after the current semantic version advances.
+        schema_three = copy(current)
+        schema_three.semantic_outcome_schema_version = [WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION]
+        @test semantic_partition_is_complete(schema_three)
+        @test !semantic_partition_columns_present(
+            select(schema_three, Not(:num_witness_verification_failed)),
+        )
 
         incomplete = copy(current)
         incomplete.num_adversarial_example_found_or_best_known = [0]
@@ -389,11 +443,19 @@ end
                 @test tracking[2, :benchmark_schema_version] == BENCHMARK_SCHEMA_VERSION
                 @test tracking[2, :semantic_outcome_schema_version] ==
                       SEMANTIC_OUTCOME_SCHEMA_VERSION
+                @test ismissing(tracking[1, :adversarial_example_objective])
+                @test tracking[2, :adversarial_example_objective] == "feasibility"
                 @test tracking[2, :julia_version] == "1.11.5"
                 @test tracking[2, :dependency_snapshot_sha256] == current_hash
                 @test ismissing(tracking[2, :dependency_change_summary])
                 @test ismissing(tracking[1, :num_skipped_predicted_in_targeted])
                 @test tracking[2, :num_skipped_predicted_in_targeted] == 1
+                @test ismissing(tracking[1, :num_witness_verification_failed])
+                @test tracking[2, :num_witness_verification_failed] == 0
+                @test ismissing(tracking[1, :num_witness_target_verification_failed])
+                @test tracking[2, :num_witness_target_verification_failed] == 0
+                @test ismissing(tracking[1, :num_witness_perturbation_verification_failed])
+                @test tracking[2, :num_witness_perturbation_verification_failed] == 0
             end
         end
 

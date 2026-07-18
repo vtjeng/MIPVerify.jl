@@ -1,10 +1,12 @@
 module BenchmarkHelpers
 using CSV
 using DataFrames
+using MIPVerify: MIPVerify
 using Pkg
 using SHA
 
 export parse_args,
+    parse_benchmark_objective,
     parse_sample_spec,
     safe_sum,
     is_infeasible_status,
@@ -19,6 +21,7 @@ export parse_args,
     dependency_snapshot_hash,
     load_dependency_snapshot,
     write_dependency_snapshot,
+    benchmark_objective,
     benchmark_schema_version,
     semantic_outcome_schema_version,
     semantic_partition_columns_present,
@@ -26,7 +29,12 @@ export parse_args,
     semantic_partition_is_complete,
     BENCHMARK_SCHEMA_VERSION,
     SEMANTIC_OUTCOME_SCHEMA_VERSION,
+    SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION,
+    WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION,
     SEMANTIC_PARTITION_COLUMNS
+
+const FEASIBILITY_OBJECTIVE = "feasibility"
+const CLOSEST_OBJECTIVE = "closest"
 
 function parse_args(args::Vector{String})::Dict{String,String}
     parsed = Dict{String,String}()
@@ -47,6 +55,19 @@ function parse_args(args::Vector{String})::Dict{String,String}
         end
     end
     return parsed
+end
+
+"""
+    parse_benchmark_objective(raw)
+
+Return the canonical benchmark objective, `closest` or `feasibility`.
+"""
+function parse_benchmark_objective(raw::AbstractString)::String
+    objective = String(lowercase(strip(raw)))
+    objective in (CLOSEST_OBJECTIVE, FEASIBILITY_OBJECTIVE) || error(
+        "Unsupported benchmark objective $raw. Expected $CLOSEST_OBJECTIVE or $FEASIBILITY_OBJECTIVE.",
+    )
+    return objective
 end
 
 function parse_sample_spec(spec::String)::Vector{Int}
@@ -71,15 +92,31 @@ function safe_sum(xs)::Float64
     return sum(filter(isfinite, xs))
 end
 
+# Delegate so the INFEASIBLE-only rule has a single definition in MIPVerify.is_infeasible.
 function is_infeasible_status(status::String)::Bool
-    return status == "INFEASIBLE" || status == "INFEASIBLE_OR_UNBOUNDED"
+    return MIPVerify.is_infeasible(status)
 end
 
-function classify_semantic_outcome(status::String, objective_value::Union{Missing,Float64})::String
-    if is_infeasible_status(status)
-        return "certified_no_adversarial_example"
-    elseif !ismissing(objective_value)
+"""
+    classify_semantic_outcome(status, witness_available, witness_verified)
+
+Classify one benchmark result from its solver status and independently checked witness fields.
+Reject the inconsistent case where a witness is verified but not available.
+"""
+function classify_semantic_outcome(
+    status::String,
+    witness_available::Bool,
+    witness_verified::Bool,
+)::String
+    witness_verified &&
+        !witness_available &&
+        error("A verified witness must also be marked available.")
+    if witness_verified
         return "adversarial_example_found_or_best_known"
+    elseif witness_available
+        return "witness_verification_failed"
+    elseif is_infeasible_status(status)
+        return "certified_no_adversarial_example"
     elseif status == "TIME_LIMIT"
         return "time_limit_unresolved"
     else
@@ -116,21 +153,27 @@ const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
 const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
-const BENCHMARK_SCHEMA_VERSION = 3
-const SEMANTIC_OUTCOME_SCHEMA_VERSION = 2
+const BENCHMARK_SCHEMA_VERSION = 6
+const SEMANTIC_OUTCOME_SCHEMA_VERSION = 4
+const SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION = 2
+const WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION = 3
 const LEGACY_SCHEMA_VERSION = 1
-const SEMANTIC_PARTITION_COLUMNS = [
+const LAST_PRE_OBJECTIVE_SCHEMA_VERSION = 3
+const PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS = [
     :num_certified_no_adversarial_example,
     :num_adversarial_example_found_or_best_known,
     :num_time_limit_unresolved,
     :num_no_primal_solution_other,
 ]
+const SEMANTIC_PARTITION_COLUMNS =
+    [PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS..., :num_witness_verification_failed]
 const TRACKING_COLUMNS = [
     :date,
     :run_id,
     :commit_sha,
     :benchmark_schema_version,
     :semantic_outcome_schema_version,
+    :adversarial_example_objective,
     :julia_version,
     :dependency_snapshot_sha256,
     :dependency_change_summary,
@@ -142,10 +185,29 @@ const TRACKING_COLUMNS = [
     :num_samples,
     :num_skipped_predicted_in_targeted,
     SEMANTIC_PARTITION_COLUMNS...,
+    :num_witness_target_verification_failed,
+    :num_witness_perturbation_verification_failed,
 ]
 
 function schema_version(metrics::DataFrame, column::Symbol)::Int
     return column in propertynames(metrics) ? Int(metrics[1, column]) : LEGACY_SCHEMA_VERSION
+end
+
+"""
+    benchmark_objective(metrics) -> String
+
+Return the canonical objective from the first row of `metrics`. Metrics through schema 3 predate
+objective metadata and used `closest`; newer schemas must record the objective explicitly.
+"""
+function benchmark_objective(metrics::DataFrame)::String
+    if :adversarial_example_objective in propertynames(metrics) &&
+       !ismissing(metrics[1, :adversarial_example_objective])
+        return parse_benchmark_objective(string(metrics[1, :adversarial_example_objective]))
+    end
+    recorded_schema = benchmark_schema_version(metrics)
+    recorded_schema <= LAST_PRE_OBJECTIVE_SCHEMA_VERSION ||
+        error("Benchmark schema $recorded_schema is missing adversarial_example_objective.")
+    return CLOSEST_OBJECTIVE
 end
 
 """
@@ -173,41 +235,54 @@ semantic_outcome_schema_version(metrics::DataFrame)::Int =
     semantic_partition_columns_present(metrics) -> Bool
 
 Return whether `metrics` has every outcome-count column in
-`SEMANTIC_PARTITION_COLUMNS`. This checks column presence only; it does not
-validate the counts or require `num_samples`.
+the partition for its semantic schema version. This checks column presence
+only; it does not validate the counts or require `num_samples`.
 """
 function semantic_partition_columns_present(metrics::DataFrame)::Bool
-    return all(column -> column in propertynames(metrics), SEMANTIC_PARTITION_COLUMNS)
+    return all(column -> column in propertynames(metrics), semantic_partition_columns(metrics))
+end
+
+"""
+    semantic_partition_columns(metrics)
+
+Return the outcome-count columns required by the semantic schema recorded in `metrics`.
+"""
+function semantic_partition_columns(metrics::DataFrame)::Vector{Symbol}
+    if semantic_outcome_schema_version(metrics) >= WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION
+        return SEMANTIC_PARTITION_COLUMNS
+    end
+    return PRE_WITNESS_SEMANTIC_PARTITION_COLUMNS
 end
 
 """
     semantic_partition_matches(baseline, candidate) -> Bool
 
 Return whether the first row of `baseline` and `candidate` has identical counts
-in every `SEMANTIC_PARTITION_COLUMNS` category. Return `false` if either data
-frame lacks a required column. This does not check that the counts cover every
-sample; use `semantic_partition_is_complete` for that.
+in every category for their shared semantic schema version. Return `false` if
+the versions differ or either data frame lacks a required column. This does not
+check that the counts cover every sample; use
+`semantic_partition_is_complete` for that.
 """
 function semantic_partition_matches(baseline::DataFrame, candidate::DataFrame)::Bool
+    semantic_outcome_schema_version(baseline) == semantic_outcome_schema_version(candidate) ||
+        return false
     semantic_partition_columns_present(baseline) && semantic_partition_columns_present(candidate) ||
         return false
-    return all(
-        column -> Int(baseline[1, column]) == Int(candidate[1, column]),
-        SEMANTIC_PARTITION_COLUMNS,
-    )
+    columns = semantic_partition_columns(baseline)
+    return all(column -> Int(baseline[1, column]) == Int(candidate[1, column]), columns)
 end
 
 """
     semantic_partition_is_complete(metrics) -> Bool
 
-Return whether the first row's counts in `SEMANTIC_PARTITION_COLUMNS` sum to
-`num_samples`. Return `false` if `num_samples` or any semantic partition column
-is absent. Callers decide which semantic schema versions require completeness.
+Return whether the first row's semantic outcome counts sum to `num_samples`.
+Return `false` if `num_samples` or any column for that schema version is absent.
 """
 function semantic_partition_is_complete(metrics::DataFrame)::Bool
-    required_columns = vcat([:num_samples], SEMANTIC_PARTITION_COLUMNS)
+    columns = semantic_partition_columns(metrics)
+    required_columns = vcat([:num_samples], columns)
     all(column -> column in propertynames(metrics), required_columns) || return false
-    partition_total = sum(Int(metrics[1, column]) for column in SEMANTIC_PARTITION_COLUMNS)
+    partition_total = sum(Int(metrics[1, column]) for column in columns)
     return partition_total == Int(metrics[1, :num_samples])
 end
 
@@ -457,11 +532,18 @@ function build_tracking_row(
         :commit_sha => commit_sha,
         :benchmark_schema_version => benchmark_schema_version(metrics),
         :semantic_outcome_schema_version => semantic_outcome_schema_version(metrics),
+        :adversarial_example_objective => benchmark_objective(metrics),
         :dependency_change_summary => dependency_summary,
     )
     row = Dict{Symbol,Any}()
     for col in TRACKING_COLUMNS
-        row[col] = haskey(overrides, col) ? overrides[col] : metrics[1, col]
+        row[col] = if haskey(overrides, col)
+            overrides[col]
+        elseif col in propertynames(metrics)
+            metrics[1, col]
+        else
+            missing
+        end
     end
     return DataFrame(Dict(k => [v] for (k, v) in row))
 end

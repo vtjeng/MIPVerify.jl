@@ -52,6 +52,37 @@ perturbation of that input causes a misclassification) corresponds to solving an
 problem. For piecewise-linear neural networks, the optimization problem can be expressed as a
 mixed-integer linear programming (MILP) problem.
 
+## Choose an adversarial-example objective
+
+`find_adversarial_example` uses `MIPVerify.closest` by default to compute the minimum adversarial
+distortion. It also supports `MIPVerify.worst`, which maximizes the target margin.
+
+For a fixed perturbation budget, use the `feasibility` objective to ask whether any adversarial
+input satisfies the constraints:
+
+```julia
+result = find_adversarial_example(
+    nn,
+    input,
+    target_selection,
+    optimizer,
+    main_solve_options;
+    adversarial_example_objective = MIPVerify.feasibility,
+)
+```
+
+The feasibility objective can stop as soon as it finds an adversarial example, while inputs with no
+such example still require an infeasibility proof. A time limit or another inconclusive status
+remains unresolved. This objective does not compute a minimum distortion or set solution- or
+objective-limit attributes, whose support varies by optimizer. For every objective, MIPVerify checks
+each proposed witness against the selected perturbation family's input constraints and runs it
+through the numeric network. It sets `result[:WitnessVerified]` only when both checks pass. The
+`1e-8` verification tolerances are stricter than typical solver feasibility tolerances, so an
+occasional boundary-tight incumbent can fail verification; that result is unresolved, not a solver
+error. Custom perturbation families must implement `MIPVerify.verify_perturbation_witness`;
+otherwise their points fail closed as unverified. Treat results without either an infeasibility
+proof or a verified witness as unresolved.
+
 ## Features
 
 `MIPVerify.jl` translates your query on the robustness of a neural network for some input into an
