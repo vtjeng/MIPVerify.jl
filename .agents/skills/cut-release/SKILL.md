@@ -26,8 +26,8 @@ Before drafting or approving release notes, read
   or clone instead of stashing, reverting, or mixing changes.
 - Treat the release PR merge, Julia registration, General registry merge, tag, and GitHub release as
   separate gates. Verify each gate before starting the next one.
-- Post the JuliaRegistrator request on the merged release commit, not on the release PR or its
-  pre-merge head.
+- Wait for the release PR to merge, resolve its merge commit, and post the JuliaRegistrator request
+  on that commit.
 - Let General's automerge and this repository's TagBot workflow operate normally. Do not manually
   merge the registry PR or create a tag while automation is healthy.
 - Preserve every required AI trailer and visible disclosure from the repository instructions. The
@@ -37,7 +37,7 @@ Before drafting or approving release notes, read
 
 Start by locating any release work that already exists: an open or merged release PR, a version bump
 on `master`, a Registrator comment, a General PR, a tag, and a GitHub release. Compare their
-versions and commit SHAs before making changes.
+versions and commit IDs (SHAs) before making changes.
 
 Resume from the first incomplete gate and perform only the gates the user authorized. Do not infer
 the next version solely from `Project.toml`: it may already have been bumped for a release that has
@@ -49,15 +49,14 @@ registration request, or creating a competing tag or release.
 1. Fetch `origin/master` and inspect the live repository, latest tag, latest GitHub release, and
    `Project.toml` version.
 2. Build a complete inventory of changes since the latest release tag from every first-parent
-   commit. Attach PR metadata where a commit came from a PR, and retain direct commits as
-   first-class inventory entries. Resolve squash-merge subjects such as `... (#123)` back to their
-   PRs.
+   commit. Attach PR metadata where a commit came from a PR, and retain direct commits as separate
+   inventory entries. Resolve squash-merge subjects such as `... (#123)` back to their PRs.
 3. Inspect `Project.toml` compatibility and search README/docs for version requirements that may
    have become stale.
-4. Choose the next version from the current version and actual changes. While the package is
-   pre-1.0, user-visible breaking changes normally require a minor release and compatible fixes
-   normally require a patch release; apply normal semantic-versioning rules after 1.0. Ask only when
-   the change set leaves the choice genuinely ambiguous.
+4. Choose the next version from the current version and actual changes. Before 1.0, user-visible
+   breaking changes and new user-visible functionality normally require a minor release; compatible
+   bug fixes normally require a patch release. Apply normal semantic-versioning rules after 1.0. Ask
+   only when the change set leaves the choice genuinely ambiguous.
 5. Keep feature work out of the release PR. Limit it to release metadata and small, clearly
    justified release-facing corrections.
 
@@ -82,18 +81,18 @@ Require a compact result with:
 - behavior, compatibility, or schema changes;
 - correctness and failure-mode implications;
 - performance evidence when relevant, including the scope needed to interpret a publishable claim;
-- tests, CI, dependency, or maintainer-only scope;
-- proposed release-note section and source mapping;
+- tests, continuous integration (CI), dependency, or maintainer-only scope;
+- proposed release-note section and the inventory entries it represents;
 - exact claims that need an independent accuracy check.
 
-Maintain the complete change inventory even when several entries become one bullet. Mark purely
-internal housekeeping as intentionally omitted rather than losing track of it.
+Maintain the complete change inventory even when several entries become one bullet. Retain purely
+internal housekeeping in the inventory and mark it as intentionally omitted from the notes.
 
 ## 4. Draft and verify the release notes
 
 1. Read the release-note style reference linked above.
-2. Review recent successful releases for tone and level of detail, then choose the closest
-   precedent. Treat examples as evidence of style, not fixed templates.
+2. Review recent successful releases, then choose the closest precedent for tone and level of
+   detail.
 3. Group PRs only when they serve the same user-facing goal. When one bullet contains distinct
    changes, map each PR to its change in the opening sentence.
 4. Choose sentence-case sections from the purposes represented in the current release. Omit empty
@@ -105,8 +104,9 @@ internal housekeeping as intentionally omitted rather than losing track of it.
 7. End the Registrator comment with the repository's visible AI collaboration disclosure.
 
 Do not let a concise rewrite weaken a safety claim, merge separate benchmark experiments, or imply
-that unrelated work shares one goal. If a material fact remains unverified, omit the claim from the
-copy-ready notes or keep the draft explicitly blocked; do not publish provisional wording as fact.
+that unrelated work shares one goal. If removing an unverified claim leaves an accurate, useful
+bullet, omit the claim. Otherwise keep the draft explicitly blocked. Never publish provisional
+wording as fact.
 
 ## 5. Create and validate the release PR
 
@@ -122,7 +122,7 @@ julia --project -e 'using Pkg; println(Pkg.project().version)'
 git diff --check
 ```
 
-5. Run proportionate local checks, then rely on the full pull-request matrix before merge.
+5. Run proportionate local checks, then rely on the full set of pull-request checks before merge.
 6. Commit as `Cut <version>` with the required `Assisted-by` trailer, push the branch, and open a
    draft PR titled `Cut <version>` with the visible disclosure.
 7. Record the exact head SHA and CI run. Require every check expected by the current workflows and
@@ -147,8 +147,7 @@ git diff --check
 ## 7. Register the merged commit
 
 Put the approved text in a temporary file and post it as a commit comment on the verified merge SHA.
-Preserve newlines and Markdown by reading the file through `gh api` rather than embedding a large
-shell string.
+Read the file through `gh api` to preserve newlines and Markdown.
 
 ```console
 gh api --method POST repos/vtjeng/MIPVerify.jl/commits/<merge-sha>/comments \
@@ -164,7 +163,7 @@ Release notes:
 ```
 
 Verify the returned comment URL and body. Wait for JuliaRegistrator to reply with the
-`JuliaRegistries/General` PR before doing anything else. Do not repost while the bot is merely
+`JuliaRegistries/General` PR before advancing to registry monitoring. Do not repost while the bot is
 pending.
 
 ## 8. Monitor registration and publication
@@ -178,7 +177,7 @@ pending.
    the GitHub release.
 5. Verify:
    - the General PR is merged;
-   - the tag peels to the exact release merge commit;
+   - the tag resolves to the exact release merge commit;
    - the GitHub release exists at the expected tag;
    - the rendered release notes preserve the approved headings, bullets, PR references, and
      disclosure.
@@ -187,7 +186,8 @@ pending.
 
 ## Failure handling
 
-- If a source PR check fails, inspect and fix it before merging; never register a red commit.
+- If a required release PR check fails, inspect and fix the failure before merging. Register only
+  after all required release PR checks pass.
 - If JuliaRegistrator reports an error, diagnose the exact version, commit, or metadata problem
   before posting another request.
 - If a General check fails, report the failing check and evidence. Do not mutate the registry PR

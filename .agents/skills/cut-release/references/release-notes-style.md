@@ -37,10 +37,10 @@ clearer.
 
 ## Introduce terms, actors, and scope
 
-- Define unfamiliar domain terms before using their shorthand or result-field names.
+- Define unfamiliar domain terms before using their shorthand or the names of related result fields.
 - Expand acronyms on first use unless they are already established in the notes.
-- Name the affected command, test set, workflow, API, or user group. Avoid vague labels whose actor
-  or scope is unclear.
+- Name the affected command, test set, workflow, programming interface, or user group. Avoid vague
+  labels whose actor or scope is unclear.
 - Put limiting words such as `only` next to the thing they limit.
 - Prefer plain descriptions to internal metric, schema, or implementation labels when the public
   meaning is the same.
@@ -53,9 +53,8 @@ Apply the detailed checks below when the release makes correctness or solver-res
   reported by a solver or another external system.
 - Use `certified`, `proven`, and similar terms only when the implementation supports that exact
   guarantee.
-- Keep soundness and numerical strength conceptually separate. If a valid result can also become
-  narrower or stronger, explain the safeguard without making conservative and tighter sound
-  contradictory.
+- Separate soundness (whether a result is valid) from numerical strength (how narrow or tight it
+  is). A result can be both conservative and tighter, so explain each effect separately.
 - Preserve assumptions and caveats for negative results, fallbacks, timeouts, nonfinite values, and
   partial solutions.
 - Inspect every relevant execution path before turning a fallback into an absolute statement.
@@ -71,11 +70,12 @@ When the notes include measured performance claims:
   the result.
 - Say explicitly when measurements came from separate runs.
 - Map every number to the change and metric it supports.
-- Preserve comparable-sample conditions when totals exclude some cases.
+- When totals exclude cases, state which cases were included and compare totals over the same case
+  set.
 - Prefer familiar aggregate terms and short phrases over internal report labels or stacked
   modifiers.
 - Use enough precision to support the claim without carrying unnecessary digits into prose.
-- Report measurements as evidence from the measured setup, not as universal performance guarantees.
+- Limit performance claims to the measured setup and avoid universal guarantees.
 
 ## Cut detail that does not help release readers
 
@@ -83,9 +83,9 @@ When the notes include measured performance claims:
   implementation detail.
 - Summarize routine operational defenses as safety or publishing safeguards unless a specific guard
   changes how readers use the tool.
-- Omit implementation seams, internal refactors, and maintainer-only housekeeping unless they
-  materially affect supported use or contribution workflow.
-- Keep a private change inventory so every omission is deliberate.
+- Omit low-level implementation details, internal refactors, and maintainer-only housekeeping unless
+  they materially affect supported use or contribution workflow.
+- Keep a working change inventory so every omission is deliberate.
 - Remove redundant modifiers, repeated requirements, and phrases that restate a heading.
 - Prefer one clear sentence to a list of low-level safeguards or schema fields.
 
