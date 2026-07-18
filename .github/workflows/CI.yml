@@ -83,7 +83,9 @@ jobs:
           # runner.arch is part of the key because artifacts are arch-specific and
           # macOS runs a different architecture from the other legs. Without it,
           # the aarch64 legs would exact-hit the x64 key and never save their own.
-          key: ${{ runner.os }}-${{ runner.arch }}-test-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
+          key:
+            ${{ runner.os }}-${{ runner.arch }}-test-${{ env.cache-name }}-${{
+            hashFiles('**/Project.toml') }}
           restore-keys: |
             ${{ runner.os }}-${{ runner.arch }}-test-${{ env.cache-name }}-
             ${{ runner.os }}-${{ runner.arch }}-test-
@@ -168,7 +170,9 @@ jobs:
           # https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
       - name: Save documentation Julia package state
-        if: ${{ success() && steps.docs-final-key.outputs.key != steps.docs-restore.outputs.cache-matched-key }}
+        if:
+          ${{ success() && steps.docs-final-key.outputs.key !=
+          steps.docs-restore.outputs.cache-matched-key }}
         uses: actions/cache/save@v6
         with:
           path: |
@@ -222,6 +226,23 @@ jobs:
       - name: "Verify that Ruff does not find any lint issues."
         run: ruff check benchmarks/analysis/
 
+  benchmark-analysis-tests:
+    name: Benchmark Analysis Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          version: "0.11.2"
+          python-version: "3.10"
+          working-directory: benchmarks/analysis
+          enable-cache: true
+      - name: Run benchmark analysis tests
+        run: >-
+          uv run --project benchmarks/analysis --frozen python -m unittest discover -s
+          benchmarks/analysis -p 'test_*.py' -v
+
   benchmark-tests:
     name: Benchmark Helper Tests
     runs-on: ubuntu-latest
@@ -237,7 +258,9 @@ jobs:
           RUNNER_OS: ${{ runner.os }}
           RUNNER_ARCH: ${{ runner.arch }}
           JULIA_VERSION: ${{ steps.setup-julia.outputs.julia-version }}
-          PROJECT_HASH: ${{ hashFiles('Project.toml', 'benchmarks/Project.toml', 'examples/Project.toml', 'test/Project.toml') }}
+          PROJECT_HASH:
+            ${{ hashFiles('Project.toml', 'benchmarks/Project.toml', 'examples/Project.toml',
+            'test/Project.toml') }}
         run: |
           version_prefix="${RUNNER_OS}-${RUNNER_ARCH}-benchmarks-julia-${JULIA_VERSION}-"
           project_prefix="${version_prefix}projects-${PROJECT_HASH}-manifest-"
@@ -274,7 +297,9 @@ jobs:
       - name: Run benchmark helper tests
         run: julia --project=benchmarks benchmarks/test/runtests.jl
       - name: Save benchmark Julia package state
-        if: ${{ success() && steps.benchmark-final-key.outputs.key != steps.benchmark-restore.outputs.cache-matched-key }}
+        if:
+          ${{ success() && steps.benchmark-final-key.outputs.key !=
+          steps.benchmark-restore.outputs.cache-matched-key }}
         uses: actions/cache/save@v6
         with:
           path: |

@@ -149,9 +149,11 @@ def series_stats(series: Series, frame: pd.DataFrame) -> dict:
     order = np.argsort(abs_saved)[::-1]
     cum = np.cumsum(abs_saved[order])
     total_abs = cum[-1] if len(cum) else 0.0
-    top10_share = float(cum[min(10, n) - 1] / total_abs) if total_abs > 0 else float("nan")
+    # With no per-sample movement, no samples contribute to concentration. Report 0 rather than
+    # an undefined NaN so the Markdown table remains numeric and matches the report convention.
+    top10_share = 0.0 if total_abs == 0.0 else float(cum[min(10, n) - 1] / total_abs)
     k5 = max(1, math.ceil(0.05 * n))
-    top5pct_share = float(cum[k5 - 1] / total_abs) if total_abs > 0 else float("nan")
+    top5pct_share = 0.0 if total_abs == 0.0 else float(cum[k5 - 1] / total_abs)
 
     def q(x):
         return float(np.quantile(ratios, x))
