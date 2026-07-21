@@ -3,6 +3,25 @@
 Date: 2026-07-20  
 Implementation commit: `f7e2bec107f4155b84a6d69a04cfda9be950217b`
 
+## Research idea
+
+Projected gradient descent (PGD) and exact verification search the same perturbation box for the
+same worst classification margin. For an input with true class `y`, the objective is
+
+```text
+max_{x' in the L-infinity box} max_{j != y} f_j(x') - f_y(x').
+```
+
+A nonnegative margin is an adversarial example, so finding one ends the verification task. When PGD
+does not find an attack, its highest-margin candidate is still a feasible near-miss. Supplying that
+point as an initial incumbent gives the solver a strong feasible objective and a complete discrete
+assignment before branch-and-bound search begins. This could let the solver prune more of the search
+tree, and PGD is cheap enough that a moderate reduction in solver work could repay its cost.
+
+The experiment tests that hypothesis by comparing a completed PGD start with no start and with a
+completed random start. The random control helps separate candidate quality from the effect of
+supplying a complete start at all.
+
 ## Conclusion
 
 Warm-starting each verification problem with the highest-margin candidate found by projected
