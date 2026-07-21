@@ -11,8 +11,9 @@ using .BenchmarkHelpers
 include(joinpath(@__DIR__, "PGDWarmStart.jl"))
 using .PGDWarmStart
 
-const WARMSTART_BENCHMARK_SCHEMA_VERSION = 1
+const WARMSTART_BENCHMARK_SCHEMA_VERSION = 2
 const MINIMUM_AVAILABLE_MEMORY_MB = 4_096.0
+const ORIGINAL_FULL_VARIANT = WarmStartVariant(:original_full, :original, :all_variables)
 
 format_numeric_array(values) = join((string(Float64(value)) for value in vec(values)), ";")
 
@@ -58,6 +59,19 @@ function parse_tightening_algorithm(name::String)::MIPVerify.TighteningAlgorithm
     normalized == "lp" && return MIPVerify.lp
     normalized == "mip" && return MIPVerify.mip
     error("unsupported tightening algorithm: $name")
+end
+
+function treatment_variant(name::Symbol)
+    name == :original_full && return ORIGINAL_FULL_VARIANT
+    match = findfirst(variant -> variant.name == name, WARM_START_VARIANTS)
+    isnothing(match) && throw(ArgumentError("unknown treatment: $name"))
+    return WARM_START_VARIANTS[match]
+end
+
+function ordered_treatments(names::Vector{Symbol}, block_id::Int)
+    variants = treatment_variant.(names)
+    offset = mod(block_id - 1, length(variants))
+    return [variants[mod1(index + offset, length(variants))] for index in eachindex(variants)]
 end
 
 function load_cohort(args)::DataFrame
@@ -141,6 +155,15 @@ function main()
     cohort = load_cohort(args)
     block_ids = parse_sample_spec(get(args, "blocks", "1:3"))
     all(block_id -> block_id > 0, block_ids) || error("block identifiers must be positive")
+    treatment_names =
+        Symbol.(split(get(args, "treatments", "cold,original_sparse,pgd_sparse,pgd_full"), ","),)
+    available_treatment_names =
+        Set(vcat([variant.name for variant in WARM_START_VARIANTS], [:original_full]))
+    all(name -> name in available_treatment_names, treatment_names) ||
+        error("--treatments contains an unknown treatment")
+    length(unique(treatment_names)) == length(treatment_names) ||
+        error("--treatments contains a duplicate")
+    selected_treatments = Set(treatment_names)
     epsilon = parse(Float64, get(args, "epsilon", "0.1"))
     step_size = parse(Float64, get(args, "step-size", "0.01"))
     steps = parse(Int, get(args, "steps", "100"))
@@ -174,6 +197,7 @@ function main()
         warmstart_benchmark_schema_version = WARMSTART_BENCHMARK_SCHEMA_VERSION,
         cohort = cohort_descriptor,
         blocks = join(block_ids, ";"),
+        treatments = join(string.(treatment_names), ";"),
         epsilon = epsilon,
         step_size = step_size,
         steps = steps,
@@ -236,7 +260,7 @@ function main()
         candidate_row = candidate_rows[sample_index]
         pending_keys = [
             (sample_index, block_id, string(variant.name)) for block_id in block_ids for
-            variant in ordered_variants(block_id) if
+            variant in ordered_treatments(treatment_names, block_id) if
             !((sample_index, block_id, string(variant.name)) in completed_treatments)
         ]
         if isempty(pending_keys) && sample_index in completed_samples
@@ -309,18 +333,36 @@ function main()
         )
         rss_after_formulation = process_rss_mb()
 
-        full_start = nothing
-        completion_status = "not_attempted"
+        pgd_full_start = nothing
+        completion_status = :pgd_full in selected_treatments ? "not_attempted" : "not_requested"
         completion_time = missing
         completion_error = ""
-        try
-            full_start =
-                complete_full_start(base, solver_candidate; time_limit = full_start_time_limit)
-            completion_status = string(full_start.termination_status)
-            completion_time = full_start.completion_time_seconds
-        catch error_value
-            completion_status = "failed"
-            completion_error = sprint(showerror, error_value)
+        if :pgd_full in selected_treatments
+            try
+                pgd_full_start =
+                    complete_full_start(base, solver_candidate; time_limit = full_start_time_limit)
+                completion_status = string(pgd_full_start.termination_status)
+                completion_time = pgd_full_start.completion_time_seconds
+            catch error_value
+                completion_status = "failed"
+                completion_error = sprint(showerror, error_value)
+            end
+        end
+        original_full_start = nothing
+        original_completion_status =
+            :original_full in selected_treatments ? "not_attempted" : "not_requested"
+        original_completion_time = missing
+        original_completion_error = ""
+        if :original_full in selected_treatments
+            try
+                original_full_start =
+                    complete_full_start(base, input; time_limit = full_start_time_limit)
+                original_completion_status = string(original_full_start.termination_status)
+                original_completion_time = original_full_start.completion_time_seconds
+            catch error_value
+                original_completion_status = "failed"
+                original_completion_error = sprint(showerror, error_value)
+            end
         end
         GC.gc()
         rss_after_completion = process_rss_mb()
@@ -342,6 +384,9 @@ function main()
                     full_start_completion_status = completion_status,
                     full_start_completion_time_seconds = completion_time,
                     full_start_completion_error = completion_error,
+                    original_full_completion_status = original_completion_status,
+                    original_full_completion_time_seconds = original_completion_time,
+                    original_full_completion_error = original_completion_error,
                     num_variables = base.signature.num_variables,
                     num_binary_variables = base.signature.num_binary_variables,
                     num_structural_constraints = base.signature.num_structural_constraints,
@@ -362,13 +407,22 @@ function main()
         end
 
         for block_id in block_ids
-            variants = ordered_variants(block_id)
+            variants = ordered_treatments(treatment_names, block_id)
             for (treatment_order, variant) in enumerate(variants)
                 key = (sample_index, block_id, string(variant.name))
                 key in completed_treatments && continue
                 require_available_memory(MINIMUM_AVAILABLE_MEMORY_MB)
 
-                if variant.name == :pgd_full && isnothing(full_start)
+                selected_full_start = if variant.name == :pgd_full
+                    pgd_full_start
+                elseif variant.name == :original_full
+                    original_full_start
+                else
+                    nothing
+                end
+                selected_completion_error =
+                    variant.name == :original_full ? original_completion_error : completion_error
+                if variant.coverage == :all_variables && isnothing(selected_full_start)
                     append_row!(
                         treatment_rows,
                         (
@@ -381,7 +435,7 @@ function main()
                             start_source = string(variant.source),
                             start_coverage = string(variant.coverage),
                             outcome = "full_start_completion_failed",
-                            completion_error = completion_error,
+                            completion_error = selected_completion_error,
                         ),
                         treatment_path,
                     )
@@ -401,12 +455,12 @@ function main()
                     variant,
                     input,
                     solver_candidate;
-                    full_start = full_start,
+                    full_start = selected_full_start,
                 )
                 apply_time = (time_ns() - apply_started) / 1e9
                 start_margin = if variant.name == :cold
                     missing
-                elseif variant.name == :original_sparse
+                elseif variant.source == :original
                     worst_margin(vec(input |> nn), true_index)
                 else
                     solver_verification.margin
@@ -447,7 +501,13 @@ function main()
                 end
                 charged_pgd_time =
                     variant.source == :pgd ? Float64(candidate_row.pgd_elapsed_seconds) : 0.0
-                charged_completion_time = variant.name == :pgd_full ? Float64(completion_time) : 0.0
+                charged_completion_time = if variant.name == :pgd_full
+                    Float64(completion_time)
+                elseif variant.name == :original_full
+                    Float64(original_completion_time)
+                else
+                    0.0
+                end
                 end_to_end_time =
                     base.formulation_time_seconds +
                     copy_time +
@@ -554,7 +614,8 @@ function main()
                 GC.gc()
             end
         end
-        full_start = nothing
+        pgd_full_start = nothing
+        original_full_start = nothing
         base = nothing
         GC.gc()
     end

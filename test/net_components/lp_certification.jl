@@ -81,6 +81,16 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test upper ≈ 5.4
     end
 
+    @testset "orders stationarity residuals by variable index" begin
+        m = Model()
+        @variable(m, x[1:3])
+        # Insert the three residuals in reverse variable order. Certificate summation must use
+        # the stable JuMP indices 1, 2, 3 instead of this dictionary's process-dependent order.
+        coefficients = Dict(x[3] => 0.3, x[2] => 0.2, x[1] => 0.1)
+        ordered = MIPVerify.ordered_certificate_coefficients(coefficients)
+        @test first.(ordered) == collect(x)
+    end
+
     @testset "uses the correct residual endpoint" begin
         lower_mock = certification_mock()
         m_lower = Model(() -> lower_mock)

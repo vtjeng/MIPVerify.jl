@@ -105,7 +105,7 @@ end
 
 function treatment_summary(treatments::DataFrame)
     rows = NamedTuple[]
-    for treatment in ["cold", "original_sparse", "pgd_sparse", "pgd_full"]
+    for treatment in ["cold", "original_sparse", "pgd_sparse", "original_full", "pgd_full"]
         selected = filter(row -> string(row.treatment) == treatment, treatments)
         nrow(selected) == 0 && continue
         used_count = if :mip_start_used in propertynames(selected)
@@ -248,10 +248,11 @@ function write_report(
         println(io)
         println(io, "## Method")
         println(io)
+        selected_treatments = join(treatment_stats.treatment, ", ")
         println(
             io,
-            "Each sample uses one tightened base model. All four treatments are copied from that " *
-            "base and run serially in a block-rotated order. Per-sample values are medians across " *
+            "Each sample uses one tightened base model. The selected treatments ($selected_treatments) " *
+            "are copied from that base and run serially in a block-rotated order. Per-sample values are medians across " *
             "blocks; aggregate ratios are geometric means across samples. The simplex ratio uses " *
             "`(pgd_full + 1) / (cold + 1)`.",
         )

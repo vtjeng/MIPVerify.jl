@@ -192,6 +192,9 @@ function add_constraint_duals_to_certificate!(coefficients, certificate, constra
     return certificate
 end
 
+ordered_certificate_coefficients(coefficients) =
+    sort!(collect(coefficients); by = pair -> JuMP.index(first(pair)).value)
+
 function resolve_row_duals(constraints, dual_values)
     row_duals = constraint_duals_or_nothing(constraints, dual_values)
     row_duals !== nothing && return row_duals
@@ -244,7 +247,11 @@ function certified_lp_bound(
             add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
     end
 
-    for (variable, coefficient) in coefficients
+    # `Dict` iteration is randomized between Julia processes. The certificate uses
+    # outward-rounded interval addition, so changing this summation order can change the last
+    # bits of a certified bound. Sort by the stable JuMP variable index to make repeated model
+    # formulations produce identical bounds and branch-and-bound inputs.
+    for (variable, coefficient) in ordered_certificate_coefficients(coefficients)
         IntervalArithmetic.isthinzero(coefficient) && continue
         variable_interval = variable_interval_or_nothing(variable)
         if variable_interval === nothing

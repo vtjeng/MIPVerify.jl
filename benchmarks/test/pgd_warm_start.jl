@@ -111,6 +111,17 @@ end
         apply_variant_start!(pgd_full, :pgd_full, original, pgd_candidate; full_start = full_start)
         @test all(!isnothing ∘ JuMP.start_value, JuMP.all_variables(pgd_full.model))
         @test JuMP.start_value.(pgd_full.perturbed_input) ≈ pgd_candidate
+        original_full = copy_problem(base)
+        original_full_start = complete_full_start(base, original; time_limit = 5.0)
+        apply_variant_start!(
+            original_full,
+            WarmStartVariant(:original_full, :original, :all_variables),
+            original,
+            pgd_candidate;
+            full_start = original_full_start,
+        )
+        @test all(!isnothing ∘ JuMP.start_value, JuMP.all_variables(original_full.model))
+        @test JuMP.start_value.(original_full.perturbed_input) ≈ original
         @test_throws ArgumentError apply_variant_start!(
             copy_problem(base),
             :pgd_full,

@@ -461,8 +461,9 @@ function apply_variant_start!(
         apply_sparse_start!(problem, original, original)
     elseif variant.name == :pgd_sparse
         apply_sparse_start!(problem, pgd_candidate, original)
-    elseif variant.name == :pgd_full
-        isnothing(full_start) && throw(ArgumentError("pgd_full requires a completed full start"))
+    elseif variant.name in (:original_full, :pgd_full)
+        isnothing(full_start) &&
+            throw(ArgumentError("$(variant.name) requires a completed full start"))
         apply_full_start!(problem, full_start)
     else
         throw(ArgumentError("unsupported warm-start variant: $(variant.name)"))
