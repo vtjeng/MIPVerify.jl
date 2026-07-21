@@ -4,6 +4,8 @@ Scripts for benchmarking MIPVerify on the MNIST WK17a network.
 
 ## PGD worst-margin warm-start experiment
 
+The completed fixed-cohort result is in [PGD_WARMSTART_REPORT.md](PGD_WARMSTART_REPORT.md).
+
 This experiment asks whether a strong non-adversarial PGD candidate helps branch and bound even when
 PGD does not find an attack. For an input with true class `y`, PGD and the MIP optimize the same
 worst margin:
