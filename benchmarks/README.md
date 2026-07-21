@@ -2,6 +2,115 @@
 
 Scripts for benchmarking MIPVerify on the MNIST WK17a network.
 
+## PGD worst-margin warm-start experiment
+
+This experiment asks whether a strong non-adversarial PGD candidate helps branch and bound even when
+PGD does not find an attack. For an input with true class `y`, PGD and the MIP optimize the same
+worst margin:
+
+```text
+max_{x' in the L-infinity box} max_{j != y} f_j(x') - f_y(x')
+```
+
+A nonnegative, independently verified PGD margin is an attack and ends that sample before any MIP
+solve. A negative margin is still useful as a candidate incumbent: values close to zero are the hard
+near-misses this experiment is intended to test.
+
+`PGDWarmStart.jl` is the executable source of truth for the treatments. The treatment names,
+sources, coverage, and rotating block order are tested in `test/pgd_warm_start.jl`.
+
+| Treatment         | Candidate source | Variables initialized                           | Role                             |
+| ----------------- | ---------------- | ----------------------------------------------- | -------------------------------- |
+| `cold`            | none             | none                                            | primary control                  |
+| `original_sparse` | original input   | perturbed input and perturbation only           | generic partial-start diagnostic |
+| `pgd_sparse`      | PGD near-miss    | perturbed input and perturbation only           | candidate-quality diagnostic     |
+| `pgd_full`        | PGD near-miss    | every MIP variable after feasibility completion | primary treatment                |
+
+The sparse treatments are partial solver hints, not complete feasible incumbents. For `pgd_full`,
+the benchmark copies the tightened base model, fixes its input to the PGD candidate, solves the
+resulting feasibility problem, and transfers the complete assignment (including activations, ReLU
+phases, and maximum selectors) to a fresh copy of the base model.
+
+### Fixed protocol
+
+Use the following protocol for the initial go/no-go experiment:
+
+1. Generate candidates with deterministic batched PGD: epsilon `0.1`, step size `0.01`, 100 steps,
+   20 restarts, and a recorded per-sample seed. Cache the exact candidate so every block uses the
+   same point. Independently check its network output and perturbation membership. For solver
+   starts, project this point inward by `max(1e-9, epsilon * 1e-8)` to avoid a floating-point value
+   just outside a perturbation bound; keep the exact PGD point for attack verification.
+2. If PGD finds a verified attack, persist the witness and skip all MIP treatments for that sample.
+   An attack found by a MIP treatment is also persisted, but does **not** skip the remaining paired
+   treatments.
+3. Calibrate on one difficult near-miss for three blocks. Continue to the main cohort only if the
+   full start completes and HiGHS reports or exhibits an initial incumbent from it.
+4. Run a main cohort of 12 eligible samples: eight difficult cases and four controls. Select
+   difficulty using only pre-treatment information (cached PGD margin and/or historical cold
+   difficulty), and choose reserves before treatment results are inspected. Replace PGD attacks or
+   originally misclassified inputs until the eligible stratum counts are met.
+5. Run three complete paired blocks per sample. Rotate treatment order by block; do not change the
+   treatment set or time limit within a block. Use LP tightening and a 30-second main-solve limit.
+   If fewer than half of the eligible samples produce a resolved result in any treatment, rerun the
+   entire cohort at 120 seconds instead of extending selected samples.
+6. Run serially: one Julia process, one post-tightening base model, and at most one copied model at
+   a time. Release the full-start completion model before treatment solves. Configure HiGHS with one
+   thread, parallel mode off, seed zero, and identical options for all treatments. Refuse to start a
+   new model when system-available memory is below 4 GiB.
+
+The model formulation must be built and tightened once per sample, then copied for treatments. Every
+copy must match the base model's variable count, binary count, structural-constraint count, and
+variable-bound hash. This prevents treatment-specific formulation or tightening variance from being
+mistaken for a warm-start effect.
+
+### Required observations
+
+Persist enough information to reproduce and audit every pair:
+
+- sample, stratum, block, treatment order, seed, configuration, dependency snapshot, and model
+  signature;
+- exact PGD candidate, solver-start candidate, their margins, competing class, independent attack
+  checks, and PGD time;
+- full-start completion status and time, plus evidence that HiGHS accepted or used the start;
+- termination and primal statuses, verified outcome, objective value and bound, incumbent and dual
+  bound over time, nodes, simplex iterations, relative gap, and main-solve wall time;
+- end-to-end treatment time, charging PGD time to both PGD treatments and completion time only to
+  `pgd_full`; and
+- process RSS before and after model copies and solves, peak RSS, and system-available memory.
+
+Do not discard timeouts. Report their final bounds and work counters, and compare timeout rates at
+the common limit. Treat wall time as a noisy secondary measure; simplex iterations are the primary
+solver-work measure, with node count and bound trajectories as corroborating evidence.
+
+### Decision rules and definition of done
+
+For each eligible sample, first take the median across its three blocks. Across samples, summarize
+paired ratios with a geometric mean and a sample-level bootstrap confidence interval. Use
+`(pgd_full + 1) / (cold + 1)` for simplex iterations so zero-work solves remain defined.
+
+- **Solver-level support:** the geometric-mean simplex-iteration ratio is at most `0.90`, its 95%
+  bootstrap upper bound is below `1.0`, and the fixed-limit timeout or final-bound results do not
+  materially favor `cold`.
+- **Promising but inconclusive:** the point estimate is at most `0.90`, but its interval crosses
+  `1.0`, or solver work improves while noisy wall time does not.
+- **Not supported:** the point estimate exceeds `0.90`, full starts are not reliably accepted, or
+  fixed-limit progress is materially worse with `pgd_full`.
+- **End-to-end practical:** report this separately; it requires the corresponding total-time ratio,
+  including PGD and full-start completion, to be below `1.0`. Solver-level support does not imply
+  this stronger result.
+
+Before drawing a conclusion, compare fresh `cold` medians with a historical cold reference that uses
+the same network, perturbation, objective, tightening, solver generation, and time limit. Flag any
+sample outside the ratio range `[0.5, 2.0]` and investigate it. A result from a different objective
+is not a comparable reference and must be labeled as such rather than used as a gate.
+
+The experiment is complete only when the tests pass, the fixed cohort and all three paired blocks
+are present (or have explicit PGD-attack skips), no memory guard was violated, the required
+observations and dependency/configuration snapshot are archived, cold-reference discrepancies are
+explained, and the report assigns one of the three solver-level conclusions plus the separate
+end-to-end conclusion. Report limitations and the distribution of per-sample effects, not only an
+aggregate runtime.
+
 ## `benchmark_wk17a_first100.jl`
 
 Runs adversarial example search on MNIST test samples using the `MNIST.WK17a_linf0.1_authors`

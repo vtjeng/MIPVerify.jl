@@ -5,6 +5,9 @@ using Test
 include(joinpath(@__DIR__, "..", "BenchmarkHelpers.jl"))
 using .BenchmarkHelpers
 
+include(joinpath(@__DIR__, "..", "PGDWarmStart.jl"))
+using .PGDWarmStart
+
 function dependency_row(
     name::String,
     uuid::String;
@@ -621,3 +624,5 @@ end
         end
     end
 end
+
+include(joinpath(@__DIR__, "pgd_warm_start.jl"))
