@@ -111,6 +111,38 @@ explained, and the report assigns one of the three solver-level conclusions plus
 end-to-end conclusion. Report limitations and the distribution of per-sample effects, not only an
 aggregate runtime.
 
+### Running the experiment
+
+The scripts checkpoint CSV output after every candidate and treatment, so rerunning the same command
+resumes rather than repeating completed solves. Keep a candidate cache unchanged after a benchmark
+run starts; its hash is part of the run configuration.
+
+```sh
+julia --project=benchmarks benchmarks/generate_pgd_warmstart_candidates.jl \
+  --out /tmp/pgd-warmstart/candidates.csv \
+  --samples 19,46,246,479,359,407,444,233,404,432,194,122,313,460,4,32,428,280,36,468
+
+julia --project=benchmarks benchmarks/select_pgd_warmstart_cohort.jl \
+  --candidates /tmp/pgd-warmstart/candidates.csv \
+  --out /tmp/pgd-warmstart/cohort.csv
+
+julia --project=benchmarks benchmarks/benchmark_pgd_warmstart.jl \
+  --out /tmp/pgd-warmstart/run \
+  --candidates /tmp/pgd-warmstart/candidates.csv \
+  --cohort-file /tmp/pgd-warmstart/cohort.csv \
+  --blocks 1:3 --main-time-limit 30
+
+julia --project=benchmarks benchmarks/summarize_pgd_warmstart.jl \
+  --run /tmp/pgd-warmstart/run --mode cohort \
+  --expected-samples 12 --expected-blocks 3
+```
+
+`benchmark_per_treatment.csv` is the paired result table, `benchmark_samples.csv` records PGD,
+formulation, completion, and model-signature data, and `benchmark_trace.csv` contains incumbent and
+bound progress callbacks. Solver logs are retained under `logs/`; these are also used to distinguish
+accepted, rejected, and solver-completed starts. The summarizer writes its paired tables and report
+under `analysis/` by default.
+
 ## `benchmark_wk17a_first100.jl`
 
 Runs adversarial example search on MNIST test samples using the `MNIST.WK17a_linf0.1_authors`
