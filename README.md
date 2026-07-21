@@ -128,6 +128,15 @@ Historical benchmark results are tracked on the
 [`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch, updated
 nightly by CI. See [`benchmarks/README.md`](./benchmarks/README.md) for details.
 
+### Negative results
+
+We keep reports for plausible optimization ideas that did not help their benchmark, so future work
+can inspect the evidence without merging the experimental code.
+
+- [Projected gradient descent (PGD) full-start warm starts](https://github.com/vtjeng/MIPVerify.jl/blob/e2582c5178875c26ddccb1c5f2956013af16be63/benchmarks/PGD_WARMSTART_REPORT.md):
+  Starting verification from the highest-margin PGD near-miss increased simplex work by 6.8% on the
+  fixed cohort and 21.6% on the four-case hard tail.
+
 ## Contributing
 
 Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for instructions.
