@@ -4,6 +4,7 @@ using Dates
 using HiGHS
 using MIPVerify
 using Pkg
+using Random
 using SHA
 
 include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
@@ -11,9 +12,9 @@ using .BenchmarkHelpers
 include(joinpath(@__DIR__, "PGDWarmStart.jl"))
 using .PGDWarmStart
 
-const WARMSTART_BENCHMARK_SCHEMA_VERSION = 2
+const WARMSTART_BENCHMARK_SCHEMA_VERSION = 3
 const MINIMUM_AVAILABLE_MEMORY_MB = 4_096.0
-const ORIGINAL_FULL_VARIANT = WarmStartVariant(:original_full, :original, :all_variables)
+const RANDOM_CONTROL_SEED_OFFSET = 10_000_000
 
 format_numeric_array(values) = join((string(Float64(value)) for value in vec(values)), ";")
 
@@ -62,10 +63,10 @@ function parse_tightening_algorithm(name::String)::MIPVerify.TighteningAlgorithm
 end
 
 function treatment_variant(name::Symbol)
-    name == :original_full && return ORIGINAL_FULL_VARIANT
-    match = findfirst(variant -> variant.name == name, WARM_START_VARIANTS)
+    variants = (WARM_START_VARIANTS..., DIAGNOSTIC_WARM_START_VARIANTS...)
+    match = findfirst(variant -> variant.name == name, variants)
     isnothing(match) && throw(ArgumentError("unknown treatment: $name"))
-    return WARM_START_VARIANTS[match]
+    return variants[match]
 end
 
 function ordered_treatments(names::Vector{Symbol}, block_id::Int)
@@ -155,10 +156,9 @@ function main()
     cohort = load_cohort(args)
     block_ids = parse_sample_spec(get(args, "blocks", "1:3"))
     all(block_id -> block_id > 0, block_ids) || error("block identifiers must be positive")
-    treatment_names =
-        Symbol.(split(get(args, "treatments", "cold,original_sparse,pgd_sparse,pgd_full"), ","),)
+    treatment_names = Symbol.(split(get(args, "treatments", "cold,random_full,pgd_full"), ","),)
     available_treatment_names =
-        Set(vcat([variant.name for variant in WARM_START_VARIANTS], [:original_full]))
+        Set(variant.name for variant in (WARM_START_VARIANTS..., DIAGNOSTIC_WARM_START_VARIANTS...))
     all(name -> name in available_treatment_names, treatment_names) ||
         error("--treatments contains an unknown treatment")
     length(unique(treatment_names)) == length(treatment_names) ||
@@ -203,6 +203,7 @@ function main()
         steps = steps,
         restarts = restarts,
         base_seed = base_seed,
+        random_control_seed_offset = RANDOM_CONTROL_SEED_OFFSET,
         tightening = tightening_name,
         tightening_time_limit_seconds = tightening_time_limit,
         main_time_limit_seconds = main_time_limit,
@@ -253,6 +254,7 @@ function main()
         "parallel" => "off",
         "random_seed" => 0,
     )
+    random_generation_warmed_up = false
 
     for cohort_row in eachrow(cohort)
         sample_index = Int(cohort_row.sample_index)
@@ -282,8 +284,41 @@ function main()
         solver_verification =
             verify_candidate(nn, input, solver_candidate, perturbation, true_index)
 
-        if exact_verification.verified_attack ||
-           string(candidate_row.status) == "original_misclassified"
+        random_seed = Int(candidate_row.sample_seed) + RANDOM_CONTROL_SEED_OFFSET
+        random_generation_time = missing
+        exact_random_candidate = nothing
+        exact_random_verification = nothing
+        solver_random_candidate = nothing
+        solver_random_verification = nothing
+        if :random_full in selected_treatments
+            lower = max.(0.0, input .- epsilon)
+            upper = min.(1.0, input .+ epsilon)
+            if !random_generation_warmed_up
+                # Match the candidate generator's PGD warmup so per-sample generation time does
+                # not charge Julia compilation to the first random-control sample.
+                uniform_box_start(MersenneTwister(random_seed), lower, upper)
+                random_generation_warmed_up = true
+            end
+            random_started = time_ns()
+            exact_random_candidate = uniform_box_start(MersenneTwister(random_seed), lower, upper)
+            random_generation_time = (time_ns() - random_started) / 1e9
+            exact_random_verification =
+                verify_candidate(nn, input, exact_random_candidate, perturbation, true_index)
+            solver_random_candidate = inward_project_linf(exact_random_candidate, input, epsilon)
+            solver_random_verification =
+                verify_candidate(nn, input, solver_random_candidate, perturbation, true_index)
+        end
+
+        skip_status = if exact_verification.verified_attack
+            "verified_pgd_attack"
+        elseif !isnothing(exact_random_verification) && exact_random_verification.verified_attack
+            "verified_random_attack"
+        elseif string(candidate_row.status) == "original_misclassified"
+            "original_misclassified"
+        else
+            nothing
+        end
+        if !isnothing(skip_status)
             if !(sample_index in completed_samples)
                 append_row!(
                     sample_rows,
@@ -291,12 +326,25 @@ function main()
                         warmstart_benchmark_schema_version = WARMSTART_BENCHMARK_SCHEMA_VERSION,
                         sample_index = sample_index,
                         stratum = stratum,
-                        sample_status = exact_verification.verified_attack ? "verified_pgd_attack" :
-                                        "original_misclassified",
+                        sample_status = skip_status,
                         true_index = true_index,
                         pgd_margin = exact_verification.margin,
                         solver_start_margin = solver_verification.margin,
                         pgd_elapsed_seconds = Float64(candidate_row.pgd_elapsed_seconds),
+                        random_seed = random_seed,
+                        random_margin = optional_verification_field(
+                            exact_random_verification,
+                            :margin,
+                        ),
+                        random_solver_start_margin = optional_verification_field(
+                            solver_random_verification,
+                            :margin,
+                        ),
+                        random_generation_time_seconds = random_generation_time,
+                        random_input = isnothing(exact_random_candidate) ? missing :
+                                       format_numeric_array(exact_random_candidate),
+                        random_solver_input = isnothing(solver_random_candidate) ? missing :
+                                              format_numeric_array(solver_random_candidate),
                         formulation_time_seconds = missing,
                         full_start_completion_status = missing,
                         full_start_completion_time_seconds = missing,
@@ -314,7 +362,7 @@ function main()
                 )
                 push!(completed_samples, sample_index)
             end
-            println("sample=$sample_index skipped: verified candidate attack")
+            println("sample=$sample_index skipped: $skip_status")
             flush(stdout)
             continue
         end
@@ -338,6 +386,7 @@ function main()
         completion_time = missing
         completion_error = ""
         if :pgd_full in selected_treatments
+            require_available_memory(MINIMUM_AVAILABLE_MEMORY_MB)
             try
                 pgd_full_start =
                     complete_full_start(base, solver_candidate; time_limit = full_start_time_limit)
@@ -347,6 +396,28 @@ function main()
                 completion_status = "failed"
                 completion_error = sprint(showerror, error_value)
             end
+            GC.gc()
+        end
+        random_full_start = nothing
+        random_completion_status =
+            :random_full in selected_treatments ? "not_attempted" : "not_requested"
+        random_completion_time = missing
+        random_completion_error = ""
+        if :random_full in selected_treatments
+            require_available_memory(MINIMUM_AVAILABLE_MEMORY_MB)
+            try
+                random_full_start = complete_full_start(
+                    base,
+                    solver_random_candidate;
+                    time_limit = full_start_time_limit,
+                )
+                random_completion_status = string(random_full_start.termination_status)
+                random_completion_time = random_full_start.completion_time_seconds
+            catch error_value
+                random_completion_status = "failed"
+                random_completion_error = sprint(showerror, error_value)
+            end
+            GC.gc()
         end
         original_full_start = nothing
         original_completion_status =
@@ -354,6 +425,7 @@ function main()
         original_completion_time = missing
         original_completion_error = ""
         if :original_full in selected_treatments
+            require_available_memory(MINIMUM_AVAILABLE_MEMORY_MB)
             try
                 original_full_start =
                     complete_full_start(base, input; time_limit = full_start_time_limit)
@@ -380,10 +452,24 @@ function main()
                     pgd_margin = exact_verification.margin,
                     solver_start_margin = solver_verification.margin,
                     pgd_elapsed_seconds = Float64(candidate_row.pgd_elapsed_seconds),
+                    random_seed = random_seed,
+                    random_margin = optional_verification_field(exact_random_verification, :margin),
+                    random_solver_start_margin = optional_verification_field(
+                        solver_random_verification,
+                        :margin,
+                    ),
+                    random_generation_time_seconds = random_generation_time,
+                    random_input = isnothing(exact_random_candidate) ? missing :
+                                   format_numeric_array(exact_random_candidate),
+                    random_solver_input = isnothing(solver_random_candidate) ? missing :
+                                          format_numeric_array(solver_random_candidate),
                     formulation_time_seconds = base.formulation_time_seconds,
                     full_start_completion_status = completion_status,
                     full_start_completion_time_seconds = completion_time,
                     full_start_completion_error = completion_error,
+                    random_full_completion_status = random_completion_status,
+                    random_full_completion_time_seconds = random_completion_time,
+                    random_full_completion_error = random_completion_error,
                     original_full_completion_status = original_completion_status,
                     original_full_completion_time_seconds = original_completion_time,
                     original_full_completion_error = original_completion_error,
@@ -415,13 +501,20 @@ function main()
 
                 selected_full_start = if variant.name == :pgd_full
                     pgd_full_start
+                elseif variant.name == :random_full
+                    random_full_start
                 elseif variant.name == :original_full
                     original_full_start
                 else
                     nothing
                 end
-                selected_completion_error =
-                    variant.name == :original_full ? original_completion_error : completion_error
+                selected_completion_error = if variant.name == :original_full
+                    original_completion_error
+                elseif variant.name == :random_full
+                    random_completion_error
+                else
+                    completion_error
+                end
                 if variant.coverage == :all_variables && isnothing(selected_full_start)
                     append_row!(
                         treatment_rows,
@@ -462,6 +555,8 @@ function main()
                     missing
                 elseif variant.source == :original
                     worst_margin(vec(input |> nn), true_index)
+                elseif variant.source == :random
+                    solver_random_verification.margin
                 else
                     solver_verification.margin
                 end
@@ -501,8 +596,12 @@ function main()
                 end
                 charged_pgd_time =
                     variant.source == :pgd ? Float64(candidate_row.pgd_elapsed_seconds) : 0.0
+                charged_random_time =
+                    variant.source == :random ? Float64(random_generation_time) : 0.0
                 charged_completion_time = if variant.name == :pgd_full
                     Float64(completion_time)
+                elseif variant.name == :random_full
+                    Float64(random_completion_time)
                 elseif variant.name == :original_full
                     Float64(original_completion_time)
                 else
@@ -514,6 +613,7 @@ function main()
                     apply_time +
                     result.wall_time_seconds +
                     charged_pgd_time +
+                    charged_random_time +
                     charged_completion_time
 
                 append_rows!(
@@ -546,6 +646,14 @@ function main()
                         start_coverage = string(variant.coverage),
                         pgd_margin = exact_verification.margin,
                         solver_start_margin = solver_verification.margin,
+                        random_margin = optional_verification_field(
+                            exact_random_verification,
+                            :margin,
+                        ),
+                        random_solver_start_margin = optional_verification_field(
+                            solver_random_verification,
+                            :margin,
+                        ),
                         applied_start_margin = start_margin,
                         mip_start_log_present = start_log.present,
                         mip_start_log_accepted = start_log.accepted,
@@ -582,6 +690,7 @@ function main()
                         main_solve_wall_time_seconds = result.wall_time_seconds,
                         solver_time_seconds = result.solver_time_seconds,
                         charged_pgd_time_seconds = charged_pgd_time,
+                        charged_random_time_seconds = charged_random_time,
                         charged_completion_time_seconds = charged_completion_time,
                         end_to_end_time_seconds = end_to_end_time,
                         node_count = result.node_count,
@@ -615,6 +724,7 @@ function main()
             end
         end
         pgd_full_start = nothing
+        random_full_start = nothing
         original_full_start = nothing
         base = nothing
         GC.gc()

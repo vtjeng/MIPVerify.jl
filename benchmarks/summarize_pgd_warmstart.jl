@@ -19,6 +19,11 @@ end
 
 geometric_mean(values) = exp(mean(log, values))
 
+function ratio_or_missing(numerator, denominator; offset = 0.0)
+    (ismissing(numerator) || ismissing(denominator)) && return missing
+    return (numerator + offset) / (denominator + offset)
+end
+
 function bootstrap_geometric_mean_interval(values; iterations = 10_000, seed = 20260720)
     isempty(values) && return (missing, missing)
     rng = MersenneTwister(seed)
@@ -41,49 +46,86 @@ function paired_sample_rows(treatments::DataFrame)
     rows = NamedTuple[]
     for sample_index in sort(unique(Int.(treatments.sample_index)))
         cold = treatment_rows_for_sample(treatments, sample_index, "cold")
+        random_full = treatment_rows_for_sample(treatments, sample_index, "random_full")
         full = treatment_rows_for_sample(treatments, sample_index, "pgd_full")
         original_sparse = treatment_rows_for_sample(treatments, sample_index, "original_sparse")
         pgd_sparse = treatment_rows_for_sample(treatments, sample_index, "pgd_sparse")
         nrow(cold) == 0 && continue
+        nrow(random_full) == 0 && continue
         nrow(full) == 0 && continue
 
         cold_simplex = safe_median(cold, :simplex_iterations)
+        random_simplex = safe_median(random_full, :simplex_iterations)
         full_simplex = safe_median(full, :simplex_iterations)
         cold_nodes = safe_median(cold, :node_count)
+        random_nodes = safe_median(random_full, :node_count)
         full_nodes = safe_median(full, :node_count)
         cold_solve = safe_median(cold, :main_solve_wall_time_seconds)
+        random_solve = safe_median(random_full, :main_solve_wall_time_seconds)
         full_solve = safe_median(full, :main_solve_wall_time_seconds)
         cold_total = safe_median(cold, :end_to_end_time_seconds)
+        random_total = safe_median(random_full, :end_to_end_time_seconds)
         full_total = safe_median(full, :end_to_end_time_seconds)
         original_sparse_simplex = safe_median(original_sparse, :simplex_iterations)
         pgd_sparse_simplex = safe_median(pgd_sparse, :simplex_iterations)
         cold_bound = safe_median(cold, :objective_bound)
+        random_bound = safe_median(random_full, :objective_bound)
         full_bound = safe_median(full, :objective_bound)
         push!(
             rows,
             (
                 sample_index = sample_index,
                 stratum = string(first(cold.stratum)),
-                block_count = min(nrow(cold), nrow(full)),
+                block_count = min(nrow(cold), nrow(random_full), nrow(full)),
                 cold_simplex_iterations = cold_simplex,
+                random_full_simplex_iterations = random_simplex,
                 pgd_full_simplex_iterations = full_simplex,
-                simplex_ratio = (full_simplex + 1) / (cold_simplex + 1),
+                simplex_ratio = ratio_or_missing(full_simplex, cold_simplex; offset = 1.0),
+                random_cold_simplex_ratio = ratio_or_missing(
+                    random_simplex,
+                    cold_simplex;
+                    offset = 1.0,
+                ),
+                pgd_random_simplex_ratio = ratio_or_missing(
+                    full_simplex,
+                    random_simplex;
+                    offset = 1.0,
+                ),
                 cold_node_count = cold_nodes,
+                random_full_node_count = random_nodes,
                 pgd_full_node_count = full_nodes,
-                node_ratio = (full_nodes + 1) / (cold_nodes + 1),
+                node_ratio = ratio_or_missing(full_nodes, cold_nodes; offset = 1.0),
+                random_cold_node_ratio = ratio_or_missing(random_nodes, cold_nodes; offset = 1.0),
+                pgd_random_node_ratio = ratio_or_missing(full_nodes, random_nodes; offset = 1.0),
                 cold_solve_seconds = cold_solve,
+                random_full_solve_seconds = random_solve,
                 pgd_full_solve_seconds = full_solve,
-                solve_time_ratio = full_solve / cold_solve,
+                solve_time_ratio = ratio_or_missing(full_solve, cold_solve),
+                random_cold_solve_time_ratio = ratio_or_missing(random_solve, cold_solve),
+                pgd_random_solve_time_ratio = ratio_or_missing(full_solve, random_solve),
                 cold_end_to_end_seconds = cold_total,
+                random_full_end_to_end_seconds = random_total,
                 pgd_full_end_to_end_seconds = full_total,
-                end_to_end_ratio = full_total / cold_total,
+                end_to_end_ratio = ratio_or_missing(full_total, cold_total),
+                random_cold_end_to_end_ratio = ratio_or_missing(random_total, cold_total),
+                pgd_random_end_to_end_ratio = ratio_or_missing(full_total, random_total),
                 cold_objective_bound = cold_bound,
+                random_full_objective_bound = random_bound,
                 pgd_full_objective_bound = full_bound,
                 objective_bound_delta = full_bound - cold_bound,
+                random_objective_bound_delta = random_bound - cold_bound,
                 original_sparse_simplex_iterations = original_sparse_simplex,
                 pgd_sparse_simplex_iterations = pgd_sparse_simplex,
-                sparse_simplex_ratio = (pgd_sparse_simplex + 1) / (original_sparse_simplex + 1),
+                sparse_simplex_ratio = ratio_or_missing(
+                    pgd_sparse_simplex,
+                    original_sparse_simplex;
+                    offset = 1.0,
+                ),
                 cold_unresolved_blocks = count(==("time_limit_unresolved"), cold.outcome),
+                random_full_unresolved_blocks = count(
+                    ==("time_limit_unresolved"),
+                    random_full.outcome,
+                ),
                 pgd_full_unresolved_blocks = count(==("time_limit_unresolved"), full.outcome),
             ),
         )
@@ -105,7 +147,8 @@ end
 
 function treatment_summary(treatments::DataFrame)
     rows = NamedTuple[]
-    for treatment in ["cold", "original_sparse", "pgd_sparse", "original_full", "pgd_full"]
+    for treatment in
+        ["cold", "random_full", "pgd_full", "original_sparse", "pgd_sparse", "original_full"]
         selected = filter(row -> string(row.treatment) == treatment, treatments)
         nrow(selected) == 0 && continue
         used_count = if :mip_start_used in propertynames(selected)
@@ -182,7 +225,8 @@ function write_report(
     treatment_stats,
     summaries,
     conclusion,
-    acceptance_rate,
+    quality_attribution,
+    start_acceptance,
     cold_reference,
     expected_samples,
     expected_blocks,
@@ -194,9 +238,19 @@ function write_report(
         println(io)
         println(io, "- Mode: `$mode`")
         println(io, "- Conclusion: **$conclusion**")
+        println(io, "- PGD-quality attribution: **$quality_attribution**")
         println(io, "- Eligible paired samples: $(nrow(per_sample)) / $expected_samples")
         println(io, "- Required paired blocks per sample: $expected_blocks")
-        println(io, "- `pgd_full` start-use rate: $(format_value(100acceptance_rate; digits = 1))%")
+        println(
+            io,
+            "- `random_full` start-use rate: " *
+            "$(format_value(100 * start_acceptance.random; digits = 1))%",
+        )
+        println(
+            io,
+            "- `pgd_full` start-use rate: " *
+            "$(format_value(100 * start_acceptance.pgd; digits = 1))%",
+        )
         println(
             io,
             "- Peak recorded RSS: $(format_value(maximum(treatments.process_peak_rss_mb); digits = 1)) MiB",
@@ -211,7 +265,7 @@ function write_report(
         println(io)
         println(io, "## Paired findings")
         println(io)
-        println(io, "| Metric (`pgd_full / cold`) | Geometric mean | 95% bootstrap CI | Samples |")
+        println(io, "| Metric and comparison | Geometric mean | 95% bootstrap CI | Samples |")
         println(io, "| --- | ---: | ---: | ---: |")
         for (label, summary) in summaries
             println(
@@ -223,8 +277,11 @@ function write_report(
         println(io)
         println(
             io,
-            "Negative final-bound deltas favor `pgd_full`. Median delta: ",
+            "Negative final-bound deltas favor the named start over `cold`. Median `pgd_full` " *
+            "delta: ",
             format_value(median(per_sample.objective_bound_delta)),
+            "; median `random_full` delta: ",
+            format_value(median(per_sample.random_objective_bound_delta)),
             ".",
         )
         println(io)
@@ -254,7 +311,7 @@ function write_report(
             "Each sample uses one tightened base model. The selected treatments ($selected_treatments) " *
             "are copied from that base and run serially in a block-rotated order. Per-sample values are medians across " *
             "blocks; aggregate ratios are geometric means across samples. The simplex ratio uses " *
-            "`(pgd_full + 1) / (cold + 1)`.",
+            "`(candidate + 1) / (baseline + 1)`.",
         )
         println(io)
         println(io, "## Limitations")
@@ -262,9 +319,9 @@ function write_report(
         println(
             io,
             "Wall time is noisy, so simplex iterations are primary and nodes/bound trajectories " *
-            "are corroborating. Time-limited pairs are retained. PGD and full-start completion are " *
-            "charged in end-to-end time. Historical feasibility-objective runs are not comparable " *
-            "to this exact worst-margin objective.",
+            "are corroborating. Time-limited pairs are retained. Candidate generation and " *
+            "full-start completion are charged in end-to-end time. Historical feasibility-objective " *
+            "runs are not comparable to this exact worst-margin objective.",
         )
         if mode == "calibration"
             println(
@@ -280,7 +337,7 @@ function write_report(
         println(io)
         println(
             io,
-            "Sample metadata, PGD margins, formulation cost, and completion cost are in ",
+            "Sample metadata, PGD and random margins, formulation cost, and completion cost are in ",
             "`benchmark_samples.csv` ($(nrow(samples)) rows).",
         )
     end
@@ -311,55 +368,99 @@ function main()
     atomic_write_csv(joinpath(output_dir, "treatment_summary.csv"), treatment_stats)
 
     simplex = ratio_summary(per_sample, :simplex_ratio)
+    random_cold_simplex = ratio_summary(per_sample, :random_cold_simplex_ratio)
+    pgd_random_simplex = ratio_summary(per_sample, :pgd_random_simplex_ratio)
     nodes = ratio_summary(per_sample, :node_ratio)
+    random_cold_nodes = ratio_summary(per_sample, :random_cold_node_ratio)
+    pgd_random_nodes = ratio_summary(per_sample, :pgd_random_node_ratio)
     solve_time = ratio_summary(per_sample, :solve_time_ratio)
+    random_cold_solve_time = ratio_summary(per_sample, :random_cold_solve_time_ratio)
+    pgd_random_solve_time = ratio_summary(per_sample, :pgd_random_solve_time_ratio)
     end_to_end = ratio_summary(per_sample, :end_to_end_ratio)
+    random_cold_end_to_end = ratio_summary(per_sample, :random_cold_end_to_end_ratio)
+    pgd_random_end_to_end = ratio_summary(per_sample, :pgd_random_end_to_end_ratio)
     sparse_simplex = ratio_summary(per_sample, :sparse_simplex_ratio)
     summaries = [
-        "Simplex iterations" => simplex,
-        "Node count" => nodes,
-        "Main solve time" => solve_time,
-        "End-to-end time" => end_to_end,
-        "PGD sparse / original sparse simplex" => sparse_simplex,
+        "Simplex: `pgd_full / cold`" => simplex,
+        "Simplex: `random_full / cold`" => random_cold_simplex,
+        "Simplex: `pgd_full / random_full`" => pgd_random_simplex,
+        "Nodes: `pgd_full / cold`" => nodes,
+        "Nodes: `random_full / cold`" => random_cold_nodes,
+        "Nodes: `pgd_full / random_full`" => pgd_random_nodes,
+        "Main solve time: `pgd_full / cold`" => solve_time,
+        "Main solve time: `random_full / cold`" => random_cold_solve_time,
+        "Main solve time: `pgd_full / random_full`" => pgd_random_solve_time,
+        "End-to-end: `pgd_full / cold`" => end_to_end,
+        "End-to-end: `random_full / cold`" => random_cold_end_to_end,
+        "End-to-end: `pgd_full / random_full`" => pgd_random_end_to_end,
     ]
+    sparse_simplex.count > 0 && push!(summaries, "Sparse PGD / original simplex" => sparse_simplex)
 
+    random_rows = filter(row -> string(row.treatment) == "random_full", treatments)
     full_rows = filter(row -> string(row.treatment) == "pgd_full", treatments)
-    acceptance_values = collect(skipmissing(full_rows.mip_start_used))
-    acceptance_rate =
-        isempty(acceptance_values) ? 0.0 :
-        count(==(true), acceptance_values) / length(acceptance_values)
+    start_acceptance_rate(rows) = begin
+        :mip_start_used in propertynames(rows) || return 0.0
+        values = collect(skipmissing(rows.mip_start_used))
+        return isempty(values) ? 0.0 : count(==(true), values) / length(values)
+    end
+    start_acceptance =
+        (random = start_acceptance_rate(random_rows), pgd = start_acceptance_rate(full_rows))
     complete_pairs =
         nrow(per_sample) == expected_samples && all(==(expected_blocks), per_sample.block_count)
     fixed_limit_favors_cold =
         sum(per_sample.pgd_full_unresolved_blocks) > sum(per_sample.cold_unresolved_blocks) ||
         median(per_sample.objective_bound_delta) > 0
     conclusion = if mode == "calibration"
-        acceptance_rate == 1.0 && complete_pairs ? "calibration passed" : "calibration failed"
+        start_acceptance.random == 1.0 && start_acceptance.pgd == 1.0 && complete_pairs ?
+        "calibration passed" : "calibration failed"
     elseif !complete_pairs
         "incomplete cohort"
-    elseif acceptance_rate < 0.9 || simplex.estimate > 0.90 || fixed_limit_favors_cold
+    elseif start_acceptance.pgd < 0.9 || simplex.estimate > 0.90 || fixed_limit_favors_cold
         "not supported"
     elseif simplex.upper < 1.0
         "solver-level support"
     else
         "promising but inconclusive"
     end
+    quality_attribution = if !complete_pairs
+        "incomplete random-control comparison"
+    elseif conclusion == "solver-level support" && pgd_random_simplex.upper < 1.0
+        "supported by the random control"
+    elseif conclusion == "solver-level support"
+        "not isolated from the complete-start effect"
+    else
+        "not established because `pgd_full` did not show solver-level support"
+    end
     cold_reference = cold_reference_observation(reference_path, treatments)
 
     summary = DataFrame(
         mode = [mode],
         conclusion = [conclusion],
+        quality_attribution = [quality_attribution],
         paired_samples = [nrow(per_sample)],
         expected_samples = [expected_samples],
         expected_blocks = [expected_blocks],
         complete_pairs = [complete_pairs],
-        full_start_acceptance_rate = [acceptance_rate],
+        random_full_start_acceptance_rate = [start_acceptance.random],
+        full_start_acceptance_rate = [start_acceptance.pgd],
         simplex_ratio = [simplex.estimate],
         simplex_ratio_ci_lower = [simplex.lower],
         simplex_ratio_ci_upper = [simplex.upper],
+        random_cold_simplex_ratio = [random_cold_simplex.estimate],
+        random_cold_simplex_ratio_ci_lower = [random_cold_simplex.lower],
+        random_cold_simplex_ratio_ci_upper = [random_cold_simplex.upper],
+        pgd_random_simplex_ratio = [pgd_random_simplex.estimate],
+        pgd_random_simplex_ratio_ci_lower = [pgd_random_simplex.lower],
+        pgd_random_simplex_ratio_ci_upper = [pgd_random_simplex.upper],
         node_ratio = [nodes.estimate],
+        random_cold_node_ratio = [random_cold_nodes.estimate],
+        pgd_random_node_ratio = [pgd_random_nodes.estimate],
         solve_time_ratio = [solve_time.estimate],
+        random_cold_solve_time_ratio = [random_cold_solve_time.estimate],
+        pgd_random_solve_time_ratio = [pgd_random_solve_time.estimate],
         end_to_end_ratio = [end_to_end.estimate],
+        random_cold_end_to_end_ratio = [random_cold_end_to_end.estimate],
+        pgd_random_end_to_end_ratio = [pgd_random_end_to_end.estimate],
         sparse_simplex_ratio = [sparse_simplex.estimate],
         fixed_limit_favors_cold = [fixed_limit_favors_cold],
         cold_reference_status = [cold_reference.status],
@@ -375,7 +476,8 @@ function main()
         treatment_stats,
         summaries,
         conclusion,
-        acceptance_rate,
+        quality_attribution,
+        start_acceptance,
         cold_reference,
         expected_samples,
         expected_blocks,

@@ -32,6 +32,7 @@ export PGDResult,
     system_available_mb,
     require_available_memory,
     WARM_START_VARIANTS,
+    DIAGNOSTIC_WARM_START_VARIANTS,
     ordered_variants,
     apply_variant_start!
 
@@ -68,18 +69,26 @@ end
 const WARM_START_VARIANTS = (
     # No start values: this is the primary control.
     WarmStartVariant(:cold, :none, :none),
-    # Input and perturbation starts from the unperturbed image diagnose generic start effects.
-    WarmStartVariant(:original_sparse, :original, :input_and_perturbation),
-    # Input and perturbation starts from PGD isolate the effect of candidate quality.
-    WarmStartVariant(:pgd_sparse, :pgd, :input_and_perturbation),
+    # A deterministic unselected point controls for complete-start mechanics.
+    WarmStartVariant(:random_full, :random, :all_variables),
     # Every MIP variable starts from a feasible completion of the PGD input.
     WarmStartVariant(:pgd_full, :pgd, :all_variables),
 )
 
+const DIAGNOSTIC_WARM_START_VARIANTS = (
+    # Input and perturbation starts from the unperturbed image diagnose generic start effects.
+    WarmStartVariant(:original_sparse, :original, :input_and_perturbation),
+    # Input and perturbation starts from PGD diagnose partial-start completion.
+    WarmStartVariant(:pgd_sparse, :pgd, :input_and_perturbation),
+    # The unperturbed input is retained as a complete-start diagnostic.
+    WarmStartVariant(:original_full, :original, :all_variables),
+)
+
 function variant_by_name(name::Symbol)::WarmStartVariant
-    index = findfirst(variant -> variant.name == name, WARM_START_VARIANTS)
+    variants = (WARM_START_VARIANTS..., DIAGNOSTIC_WARM_START_VARIANTS...)
+    index = findfirst(variant -> variant.name == name, variants)
     isnothing(index) && throw(ArgumentError("unknown warm-start variant: $name"))
-    return WARM_START_VARIANTS[index]
+    return variants[index]
 end
 
 """Rotate treatment order between blocks without changing the set of paired treatments."""
@@ -461,7 +470,7 @@ function apply_variant_start!(
         apply_sparse_start!(problem, original, original)
     elseif variant.name == :pgd_sparse
         apply_sparse_start!(problem, pgd_candidate, original)
-    elseif variant.name in (:original_full, :pgd_full)
+    elseif variant.name in (:original_full, :random_full, :pgd_full)
         isnothing(full_start) &&
             throw(ArgumentError("$(variant.name) requires a completed full start"))
         apply_full_start!(problem, full_start)

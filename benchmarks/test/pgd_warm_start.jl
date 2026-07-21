@@ -68,18 +68,19 @@ end
 
 @testset "PGD warm-start benchmark treatments" begin
     @testset "variant definitions and rotated block order" begin
-        @test [variant.name for variant in WARM_START_VARIANTS] == [:cold, :original_sparse, :pgd_sparse, :pgd_full]
-        @test [(variant.source, variant.coverage) for variant in WARM_START_VARIANTS] == [
-            (:none, :none),
+        @test [variant.name for variant in WARM_START_VARIANTS] == [:cold, :random_full, :pgd_full]
+        @test [(variant.source, variant.coverage) for variant in WARM_START_VARIANTS] == [(:none, :none), (:random, :all_variables), (:pgd, :all_variables)]
+        @test [variant.name for variant in DIAGNOSTIC_WARM_START_VARIANTS] == [:original_sparse, :pgd_sparse, :original_full]
+        @test [(variant.source, variant.coverage) for variant in DIAGNOSTIC_WARM_START_VARIANTS] == [
             (:original, :input_and_perturbation),
             (:pgd, :input_and_perturbation),
-            (:pgd, :all_variables),
+            (:original, :all_variables),
         ]
         # Adjacent blocks rotate the first treatment so persistent machine drift is not always
-        # charged to the same variant; the fifth block intentionally repeats the first order.
-        @test [variant.name for variant in ordered_variants(1)] == [:cold, :original_sparse, :pgd_sparse, :pgd_full]
-        @test [variant.name for variant in ordered_variants(2)] == [:original_sparse, :pgd_sparse, :pgd_full, :cold]
-        @test ordered_variants(5) == ordered_variants(1)
+        # charged to the same variant; the fourth block intentionally repeats the first order.
+        @test [variant.name for variant in ordered_variants(1)] == [:cold, :random_full, :pgd_full]
+        @test [variant.name for variant in ordered_variants(2)] == [:random_full, :pgd_full, :cold]
+        @test ordered_variants(4) == ordered_variants(1)
         @test_throws ArgumentError ordered_variants(0)
     end
 
@@ -111,6 +112,20 @@ end
         apply_variant_start!(pgd_full, :pgd_full, original, pgd_candidate; full_start = full_start)
         @test all(!isnothing ∘ JuMP.start_value, JuMP.all_variables(pgd_full.model))
         @test JuMP.start_value.(pgd_full.perturbed_input) ≈ pgd_candidate
+        # This unselected in-box point differs from both named candidates, catching accidental
+        # reuse of the PGD completion for the random control.
+        random_candidate = [0.25, 0.38]
+        random_full = copy_problem(base)
+        random_full_start = complete_full_start(base, random_candidate; time_limit = 5.0)
+        apply_variant_start!(
+            random_full,
+            :random_full,
+            original,
+            pgd_candidate;
+            full_start = random_full_start,
+        )
+        @test all(!isnothing ∘ JuMP.start_value, JuMP.all_variables(random_full.model))
+        @test JuMP.start_value.(random_full.perturbed_input) ≈ random_candidate
         original_full = copy_problem(base)
         original_full_start = complete_full_start(base, original; time_limit = 5.0)
         apply_variant_start!(

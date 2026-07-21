@@ -19,17 +19,21 @@ near-misses this experiment is intended to test.
 `PGDWarmStart.jl` is the executable source of truth for the treatments. The treatment names,
 sources, coverage, and rotating block order are tested in `test/pgd_warm_start.jl`.
 
-| Treatment         | Candidate source | Variables initialized                           | Role                             |
-| ----------------- | ---------------- | ----------------------------------------------- | -------------------------------- |
-| `cold`            | none             | none                                            | primary control                  |
-| `original_sparse` | original input   | perturbed input and perturbation only           | generic partial-start diagnostic |
-| `pgd_sparse`      | PGD near-miss    | perturbed input and perturbation only           | candidate-quality diagnostic     |
-| `pgd_full`        | PGD near-miss    | every MIP variable after feasibility completion | primary treatment                |
+| Treatment     | Candidate source                         | Variables initialized                           | Role                    |
+| ------------- | ---------------------------------------- | ----------------------------------------------- | ----------------------- |
+| `cold`        | none                                     | none                                            | no-start control        |
+| `random_full` | one deterministic uniform point per box  | every MIP variable after feasibility completion | complete-start control  |
+| `pgd_full`    | PGD near-miss                            | every MIP variable after feasibility completion | candidate-quality test  |
 
-The sparse treatments are partial solver hints, not complete feasible incumbents. For `pgd_full`,
-the benchmark copies the tightened base model, fixes its input to the PGD candidate, solves the
-resulting feasibility problem, and transfers the complete assignment (including activations, ReLU
-phases, and maximum selectors) to a fresh copy of the base model.
+Both complete treatments copy the tightened base model, fix its input to the selected candidate,
+solve the resulting feasibility problem, and transfer the complete assignment (including
+activations, ReLU phases, and maximum selectors) to a fresh copy of the base model. The random point
+is not selected by margin. Its seed is the cached PGD sample seed plus `10_000_000`, which gives it
+a separate deterministic random-number stream.
+
+`original_sparse`, `pgd_sparse`, and `original_full` remain available through `--treatments` for
+reproducing diagnostic runs. The sparse treatments are partial solver hints rather than complete
+feasible incumbents and are not part of the primary comparison.
 
 ### Fixed protocol
 
@@ -40,15 +44,16 @@ Use the following protocol for the initial go/no-go experiment:
    same point. Independently check its network output and perturbation membership. For solver
    starts, project this point inward by `max(1e-9, epsilon * 1e-8)` to avoid a floating-point value
    just outside a perturbation bound; keep the exact PGD point for attack verification.
-2. If PGD finds a verified attack, persist the witness and skip all MIP treatments for that sample.
-   An attack found by a MIP treatment is also persisted, but does **not** skip the remaining paired
-   treatments.
+2. Draw one uniform random control from the same perturbation box using its recorded seed. If PGD or
+   the random control is a verified attack, persist the witness and skip all MIP treatments for that
+   sample. An attack found by a MIP treatment is also persisted, but does **not** skip the remaining
+   paired treatments.
 3. Calibrate on one difficult near-miss for three blocks. Continue to the main cohort only if the
    full start completes and HiGHS reports or exhibits an initial incumbent from it.
 4. Run a main cohort of 12 eligible samples: eight difficult cases and four controls. Select
    difficulty using only pre-treatment information (cached PGD margin and/or historical cold
-   difficulty), and choose reserves before treatment results are inspected. Replace PGD attacks or
-   originally misclassified inputs until the eligible stratum counts are met.
+   difficulty), and choose reserves before treatment results are inspected. Replace candidate
+   attacks or originally misclassified inputs until the eligible stratum counts are met.
 5. Run three complete paired blocks per sample. Rotate treatment order by block; do not change the
    treatment set or time limit within a block. Use LP tightening and a 30-second main-solve limit.
    If fewer than half of the eligible samples produce a resolved result in any treatment, rerun the
@@ -67,15 +72,15 @@ mistaken for a warm-start effect.
 
 Persist enough information to reproduce and audit every pair:
 
-- sample, stratum, block, treatment order, seed, configuration, dependency snapshot, and model
-  signature;
-- exact PGD candidate, solver-start candidate, their margins, competing class, independent attack
-  checks, and PGD time;
-- full-start completion status and time, plus evidence that HiGHS accepted or used the start;
+- sample, stratum, block, treatment order, PGD and random seeds, configuration, dependency snapshot,
+  and model signature;
+- exact PGD and random candidates, solver-start candidates, their margins, independent attack
+  checks, and candidate-generation time;
+- each full-start completion status and time, plus evidence that HiGHS accepted or used the start;
 - termination and primal statuses, verified outcome, objective value and bound, incumbent and dual
   bound over time, nodes, simplex iterations, relative gap, and main-solve wall time;
-- end-to-end treatment time, charging PGD time to both PGD treatments and completion time only to
-  `pgd_full`; and
+- end-to-end treatment time, charging candidate generation and completion to the corresponding
+  complete-start treatment; and
 - process RSS before and after model copies and solves, peak RSS, and system-available memory.
 
 Do not discard timeouts. Report their final bounds and work counters, and compare timeout rates at
@@ -86,7 +91,9 @@ solver-work measure, with node count and bound trajectories as corroborating evi
 
 For each eligible sample, first take the median across its three blocks. Across samples, summarize
 paired ratios with a geometric mean and a sample-level bootstrap confidence interval. Use
-`(pgd_full + 1) / (cold + 1)` for simplex iterations so zero-work solves remain defined.
+`(candidate + 1) / (baseline + 1)` for simplex iterations so zero-work solves remain defined. Report
+all three pairwise comparisons: `pgd_full / cold`, `random_full / cold`, and
+`pgd_full / random_full`.
 
 - **Solver-level support:** the geometric-mean simplex-iteration ratio is at most `0.90`, its 95%
   bootstrap upper bound is below `1.0`, and the fixed-limit timeout or final-bound results do not
@@ -99,17 +106,22 @@ paired ratios with a geometric mean and a sample-level bootstrap confidence inte
   including PGD and full-start completion, to be below `1.0`. Solver-level support does not imply
   this stronger result.
 
+Attribute a supported result to PGD candidate quality only when `pgd_full / random_full` also has a
+95% bootstrap upper bound below `1.0`. If `random_full` and `pgd_full` move together relative to
+`cold`, interpret the result as a complete-start effect rather than a PGD-quality effect.
+
 Before drawing a conclusion, compare fresh `cold` medians with a historical cold reference that uses
 the same network, perturbation, objective, tightening, solver generation, and time limit. Flag any
 sample outside the ratio range `[0.5, 2.0]` and investigate it. A result from a different objective
 is not a comparable reference and must be labeled as such rather than used as a gate.
 
 The experiment is complete only when the tests pass, the fixed cohort and all three paired blocks
-are present (or have explicit PGD-attack skips), no memory guard was violated, the required
+are present (or have explicit candidate-attack skips), no memory guard was violated, the required
 observations and dependency/configuration snapshot are archived, cold-reference discrepancies are
 explained, and the report assigns one of the three solver-level conclusions plus the separate
-end-to-end conclusion. Report limitations and the distribution of per-sample effects, not only an
-aggregate runtime.
+end-to-end conclusion. The report must also say whether the random control supports attributing the
+effect to candidate quality. Report limitations and the distribution of per-sample effects, not
+only an aggregate runtime.
 
 ### Running the experiment
 
