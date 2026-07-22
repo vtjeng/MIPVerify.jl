@@ -134,13 +134,13 @@ We keep reports on plausible optimization ideas that did not improve benchmark p
 work can inspect the evidence without merging the experimental code.
 
 - [Projected gradient descent (PGD) warm-start benchmark](https://github.com/vtjeng/MIPVerify.jl/blob/e2582c5178875c26ddccb1c5f2956013af16be63/benchmarks/PGD_WARMSTART_REPORT.md):
-  The experiment did not find an adversarial input. For each sample, it selected the PGD input with
-  the smallest score gap between the true class and strongest competing class, then used it to
-  derive a complete solver warm start that initialized every variable in the mixed-integer
-  programming model. Compared with no solver start, the PGD warm start increased solver work by 6.8%
-  across a fixed set of 12 MNIST WK17a samples, measured as the geometric mean of per-sample
-  simplex-iteration ratios. On the four samples in that set with the highest no-start simplex work,
-  the increase was 21.6%.
+  The benchmark selected 12 MNIST WK17a samples for which PGD did not find an allowed perturbation
+  that changed the model's predicted class. For each selected sample, it used the PGD input that
+  came closest to changing the prediction to derive a complete solver warm start that initialized
+  every variable in the mixed-integer programming model. Compared with no solver start, the PGD warm
+  start increased solver work by 6.8%, measured as the geometric mean of per-sample
+  simplex-iteration ratios. On the four samples with the highest no-start simplex work, the increase
+  was 21.6%.
 
 ## Contributing
 
