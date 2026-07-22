@@ -128,6 +128,20 @@ Historical benchmark results are tracked on the
 [`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch, updated
 nightly by CI. See [`benchmarks/README.md`](./benchmarks/README.md) for details.
 
+### Negative results
+
+We keep reports on plausible optimization ideas that did not improve benchmark performance. Future
+work can inspect the evidence without merging the experimental code.
+
+- [Projected gradient descent (PGD) warm-start benchmark](./benchmarks/reports/2026-07-20-pgd-warm-start.md):
+  The benchmark selected 12 MNIST WK17a samples for which PGD did not find an allowed perturbation
+  that changed the model's predicted class. For each selected sample, it used the PGD input that
+  came closest to changing the prediction to derive a complete solver warm start that initialized
+  every variable in the mixed-integer programming model. Compared with no solver start, the PGD warm
+  start increased solver work by 6.8%, measured as the geometric mean of per-sample
+  simplex-iteration ratios. On the four samples with the highest no-start simplex work, the increase
+  was 21.6%.
+
 ## Contributing
 
 Please see [CONTRIBUTING.md](./CONTRIBUTING.md) for instructions.
