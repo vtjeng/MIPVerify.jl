@@ -133,7 +133,7 @@ nightly by CI. See [`benchmarks/README.md`](./benchmarks/README.md) for details.
 We keep reports on plausible optimization ideas that did not improve benchmark performance. Future
 work can inspect the evidence without merging the experimental code.
 
-- [Projected gradient descent (PGD) warm-start benchmark](https://github.com/vtjeng/MIPVerify.jl/blob/e2582c5178875c26ddccb1c5f2956013af16be63/benchmarks/PGD_WARMSTART_REPORT.md):
+- [Projected gradient descent (PGD) warm-start benchmark](https://github.com/vtjeng/MIPVerify.jl/blob/0c8e6cba6c6db8160ac3d6e13efbf24208b3d9d6/benchmarks/PGD_WARMSTART_REPORT.md):
   The benchmark selected 12 MNIST WK17a samples for which PGD did not find an allowed perturbation
   that changed the model's predicted class. For each selected sample, it used the PGD input that
   came closest to changing the prediction to derive a complete solver warm start that initialized
