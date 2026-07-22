@@ -56,6 +56,8 @@ improved none. Better candidate margins therefore did not translate into less br
 
 ## Method
 
+### Configuration
+
 - The benchmark used the MNIST WK17a neural network, an L-infinity perturbation radius of `0.1`, and
   linear programming (LP) bound tightening.
 - HiGHS 1.14.x, an open-source LP and mixed-integer programming (MIP) solver, used one thread,
@@ -64,6 +66,8 @@ improved none. Better candidate margins therefore did not translate into less br
 - The software versions were Julia 1.12.6, HiGHS.jl 1.23.0, and HiGHS_jll 1.14.0+0.
 - The candidate cache SHA-256 was
   `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`.
+
+### Cohort selection
 
 The cohort indices were chosen before any warm-start treatment results were inspected. The hard pool
 comprised the slowest historical LP-feasibility cases after known attacks were excluded; the control
@@ -83,6 +87,11 @@ candidate had changed the predicted class, the benchmark would have recorded the
 verified attack and skipped the MIP solves because the verification question had already been
 answered. Neither candidate was an attack for any of the 12 selected samples.
 
+All PGD and random candidate margins in the analyzed cohort were negative; among negative margins,
+closer to zero is stronger.
+
+### Treatments and repetitions
+
 For each sample, the benchmark built and tightened one base MIP model. It then ran each treatment
 three times. Every run used a fresh copy of the same tightened model, and the copies were created
 and solved one at a time rather than in parallel. Treatment order rotated across the three
@@ -94,8 +103,7 @@ repetition blocks:
 - `pgd_full` supplied the highest-margin point across all steps of 20 PGD restarts, projected it
   slightly inward, and used the same completion to every MIP variable.
 
-All PGD and random candidate margins in the analyzed cohort were negative; among negative margins,
-closer to zero is stronger.
+### Metrics
 
 The primary metric is the median simplex-iteration count across the three repetitions for each
 sample. Each simplex-iteration or node-count ratio is `(numerator + 1) / (denominator + 1)`; adding
