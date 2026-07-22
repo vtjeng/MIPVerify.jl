@@ -35,29 +35,35 @@ quality from the effect of supplying a complete start at all.
 
 ## Conclusion
 
-Warm-starting each verification problem with the highest-margin candidate found by projected
-gradient descent (PGD) did not help this benchmark. It increased simplex work by 6.8% across the 12
-selected samples and by 21.6% on the four fixed-cohort samples with the highest median `cold`
-simplex-iteration counts. For `pgd_full / cold`, the 12-sample 95% bootstrap intervals for simplex
-work and end-to-end time both lie entirely above 1.0. The `pgd_full` end-to-end time was 70.5%
-higher than `cold`, including PGD generation and full-start completion.
+The PGD warm start did not reduce verification work in this benchmark. Across all 12 selected
+samples, `pgd_full` used 6.8% more simplex iterations than `cold`. In a separate check of the four
+samples with the highest median `cold` simplex-iteration counts, the increase was 21.6%.
 
-The `random_full / cold` result showed no clear cohort-level simplex penalty. Its interval includes
-a penalty comparable to the `pgd_full` point estimate, and sample 246 timed out in all three
-repetitions. The control therefore weighs against a simple cohort-wide penalty story but does not
-rule one out. PGD candidates had better (less negative) margins than random candidates on all 12
-samples. Compared with `cold`, `pgd_full` had higher simplex-work counts on five samples, lower
-counts on zero, and equal counts on seven. Incumbent objective quality did not order
-branch-and-bound performance.
+The 95% bootstrap intervals for the 12-sample simplex-iteration and end-to-end time ratios were both
+entirely above 1.0. Including the time required to run PGD and construct the complete solver start,
+`pgd_full` took 70.5% longer end to end than `cold`.
+
+`random_full` controls for the effect of supplying any complete solver start, independent of PGD
+candidate quality. Unlike `pgd_full`, it uses an unoptimized random input. At the cohort level,
+`random_full` showed no clear simplex-work penalty relative to `cold`. This weighs against a generic
+complete-start penalty as the main explanation for the `pgd_full` regression, but does not rule it
+out: the confidence interval includes a penalty comparable to the `pgd_full` estimate, and
+`random_full` timed out on sample 246 in all three repetitions.
+
+PGD produced a better margin than the random candidate on all 12 samples. Even so, compared with
+`cold`, `pgd_full` required more simplex work on five samples and the same amount on seven; it
+improved none. Better candidate margins therefore did not translate into less branch-and-bound work.
 
 ## Method
 
-The benchmark used the MNIST WK17a neural network, an L-infinity perturbation radius of `0.1`,
-linear programming (LP) bound tightening, and HiGHS 1.14.x, an open-source LP and mixed-integer
-programming (MIP) solver. HiGHS used one thread, parallel mode off, solver seed zero, and a
-30-second solve limit. PGD used 20 restarts, 100 steps, step size `0.01`, and base seed `20260720`.
-The software versions were Julia 1.12.6, HiGHS.jl 1.23.0, and HiGHS_jll 1.14.0+0. The candidate
-cache SHA-256 was `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`.
+- The benchmark used the MNIST WK17a neural network, an L-infinity perturbation radius of `0.1`, and
+  linear programming (LP) bound tightening.
+- HiGHS 1.14.x, an open-source LP and mixed-integer programming (MIP) solver, used one thread,
+  parallel mode off, solver seed zero, and a 30-second solve limit.
+- PGD used 20 restarts, 100 steps, step size `0.01`, and base seed `20260720`.
+- The software versions were Julia 1.12.6, HiGHS.jl 1.23.0, and HiGHS_jll 1.14.0+0.
+- The candidate cache SHA-256 was
+  `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`.
 
 The cohort indices were chosen before any warm-start treatment results were inspected. The hard pool
 comprised the slowest historical LP-feasibility cases after known attacks were excluded; the control
