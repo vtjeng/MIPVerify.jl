@@ -5,7 +5,7 @@ Scripts for benchmarking MIPVerify on the MNIST WK17a network.
 ## PGD worst-margin warm-start experiment
 
 The publication-ready result is in the
-[submitted benchmark report](https://github.com/vtjeng/MIPVerify.jl/blob/8326f00872fdfdd91286be388aa6f1aa0a6f9436/benchmarks/reports/2026-07-20-pgd-warm-start.md).
+[benchmark report on `master`](https://github.com/vtjeng/MIPVerify.jl/blob/master/benchmarks/reports/2026-07-20-pgd-warm-start.md).
 This branch retains the experimental implementation and protocol.
 
 This experiment asks whether a strong non-adversarial PGD candidate helps branch and bound even when
