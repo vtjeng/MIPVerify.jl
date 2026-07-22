@@ -12,26 +12,28 @@ same worst classification margin. For an input with true class `y`, the objectiv
 max_{x' in the L-infinity box} max_{j != y} f_j(x') - f_y(x').
 ```
 
-A nonnegative margin is an adversarial example, so finding one ends the verification task and leaves
-no warm-start experiment to run. The benchmark therefore selected only samples for which neither PGD
-nor the random control found a verified attack. For each selected sample, PGD's highest-margin
-candidate was still a feasible near-miss. Supplying that point as an initial incumbent gives the
-solver a strong feasible objective and a complete discrete assignment before branch-and-bound search
-begins. This could let the solver prune more of the search tree, and PGD is cheap enough that a
-moderate reduction in solver work could repay its cost.
+Here, `f_k(x')` is the network's logit for class `k` at `x'`.
 
-The experiment tests that hypothesis by comparing a completed PGD start with no start and with a
-completed random start. The random control helps separate candidate quality from the effect of
-supplying a complete start at all.
+A nonnegative margin is an adversarial example, so finding one ends the verification task and leaves
+no warm-start experiment to run. The analyzed cohort therefore contained only samples for which
+neither PGD nor the random control found a verified attack. For each selected sample, PGD's
+highest-margin candidate was still a feasible near-miss. Supplying that point as an initial
+incumbent gives the solver a strong feasible objective and a complete discrete assignment before
+branch-and-bound search begins. This could let the solver prune more of the search tree, and PGD is
+cheap enough that a moderate reduction in solver work could repay its cost.
+
+The experiment tests that hypothesis by comparing `pgd_full` (a completed PGD start) with `cold` (no
+start) and `random_full` (a completed random start). The random control helps separate candidate
+quality from the effect of supplying a complete start at all.
 
 ## Conclusion
 
 Warm-starting each verification problem with the highest-margin candidate found by projected
 gradient descent (PGD) did not help this benchmark. It increased simplex work by 6.8% across the 12
-selected samples and by 21.6% on the four cohort samples with the highest pre-treatment no-start
-simplex work. For `pgd_full / cold`, the 12-sample 95% bootstrap intervals for simplex work and
-end-to-end time both lie entirely above 1.0. The `pgd_full` end-to-end time was 70.5% higher than
-`cold`, including PGD generation and full-start completion.
+selected samples and by 21.6% on the four fixed-cohort samples with the highest median `cold`
+simplex-iteration counts. For `pgd_full / cold`, the 12-sample 95% bootstrap intervals for simplex
+work and end-to-end time both lie entirely above 1.0. The `pgd_full` end-to-end time was 70.5%
+higher than `cold`, including PGD generation and full-start completion.
 
 The `random_full / cold` result showed no clear cohort-level simplex penalty. Its interval includes
 a penalty comparable to the `pgd_full` point estimate, and sample 246 timed out in all three
@@ -50,27 +52,33 @@ programming (MIP) solver. HiGHS used one thread, parallel mode off, solver seed 
 The software versions were Julia 1.12.6, HiGHS.jl 1.23.0, and HiGHS_jll 1.14.0+0. The candidate
 cache SHA-256 was `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`.
 
-The 12-sample cohort was selected before any treatment results were inspected. Eligible samples had
-correctly classified original inputs, and independent network-output and perturbation checks found
-negative margins for both the PGD and random candidates. A nonnegative candidate would have been
-saved as an attack, and all MIP treatments for that sample would have been skipped. The selected
-cohort contained eight predeclared hard samples and four controls. Each sample had one tightened
-base model and three serial copies per treatment; treatment order rotated across repetition blocks:
+The cohort indices were chosen before any warm-start treatment results were inspected. The hard pool
+comprised the slowest historical LP-feasibility cases after known attacks were excluded; the control
+pool came from a class-balanced historical cohort. The selector retained correctly classified inputs
+whose PGD candidates had independently verified negative margins. It took the first eight eligible
+hard samples and four eligible controls, preferring distinct true classes among the controls. Random
+candidates were generated afterward, and all 12 had independently verified negative margins. Any PGD
+or random candidate with an independently verified nonnegative margin would have been saved as an
+attack, and all MIP treatments for that sample would have been skipped.
+
+Each sample had one tightened base model and three serial copies per treatment; treatment order
+rotated across repetition blocks:
 
 - `cold` supplied no start.
-- `random_full` supplied one reproducible uniform draw from the perturbation box whose margin did
-  not influence selection, projected it slightly inward, and completed it to every MIP variable.
+- `random_full` supplied one reproducible uniform draw from the perturbation box without
+  margin-based optimization or ranking, projected it slightly inward, and completed it to every MIP
+  variable.
 - `pgd_full` supplied the highest-margin point across all steps of 20 PGD restarts, projected it
   slightly inward, and used the same completion to every MIP variable.
 
-All candidate margins were negative by cohort construction; among negative margins, closer to zero
-is stronger.
+All PGD and random candidate margins in the analyzed cohort were negative; among negative margins,
+closer to zero is stronger.
 
 The primary metric is the median simplex-iteration count across the three repetitions for each
-sample. Each simplex ratio is `(numerator + 1) / (denominator + 1)`; adding one keeps ratios defined
-for zero-work cases. Aggregate ratios are geometric means over all 12 samples. Their 95% intervals
-come from resampling samples, and values above 1 indicate more work or time in the numerator
-treatment. End-to-end time charges candidate generation and full-start completion to the
+sample. Each simplex-iteration or node-count ratio is `(numerator + 1) / (denominator + 1)`; adding
+one keeps zero-count cases defined. Aggregate ratios are geometric means over all 12 samples. Their
+95% intervals come from resampling samples, and values above 1 indicate more work or time in the
+numerator treatment. End-to-end time charges candidate generation and full-start completion to the
 corresponding treatment. The complete protocol and decision thresholds are in
 [README.md](README.md#decision-rules-and-definition-of-done).
 
@@ -89,20 +97,20 @@ repetitions. No candidate or treatment found a verified attack. In all 36 `rando
 `pgd_full` runs, HiGHS reported the supplied start as feasible, and the trace observed it as the
 initial incumbent.
 
-| Sample | Stratum | PGD margin | Random margin | Cold simplex | Random simplex | PGD simplex | PGD/cold |
-| -----: | ------- | ---------: | ------------: | -----------: | -------------: | ----------: | -------: |
-|     19 | hard    |     -1.040 |        -3.316 |        2,648 |          2,648 |       2,648 |    1.000 |
-|     32 | control |     -4.636 |        -5.119 |          108 |            108 |         108 |    1.000 |
-|     36 | control |     -8.972 |       -10.421 |          242 |            242 |         242 |    1.000 |
-|     46 | hard    |     -0.982 |        -3.576 |       33,491 |         36,417 |      46,667 |    1.393 |
-|    233 | hard    |     -0.674 |        -2.915 |          652 |            652 |         660 |    1.012 |
-|    246 | hard    |     -1.138 |        -3.550 |       34,290 |        32,745* |      36,541 |    1.066 |
-|    313 | control |     -8.257 |        -9.834 |          285 |            285 |         285 |    1.000 |
-|    359 | hard    |     -0.390 |        -2.441 |       15,660 |         20,440 |      16,236 |    1.037 |
-|    407 | hard    |     -0.787 |        -2.104 |       28,058 |         24,123 |      39,864 |    1.421 |
-|    444 | hard    |     -0.314 |        -1.761 |          609 |            609 |         609 |    1.000 |
-|    460 | control |     -7.924 |        -9.590 |          220 |            220 |         220 |    1.000 |
-|    479 | hard    |     -0.766 |        -2.644 |        1,211 |          1,211 |       1,211 |    1.000 |
+| Sample | Stratum | PGD margin | Random margin | `cold` simplex | `random_full` simplex | `pgd_full` simplex | `pgd_full / cold` |
+| -----: | ------- | ---------: | ------------: | -------------: | --------------------: | -----------------: | ----------------: |
+|     19 | hard    |     -1.040 |        -3.316 |          2,648 |                 2,648 |              2,648 |             1.000 |
+|     32 | control |     -4.636 |        -5.119 |            108 |                   108 |                108 |             1.000 |
+|     36 | control |     -8.972 |       -10.421 |            242 |                   242 |                242 |             1.000 |
+|     46 | hard    |     -0.982 |        -3.576 |         33,491 |                36,417 |             46,667 |             1.393 |
+|    233 | hard    |     -0.674 |        -2.915 |            652 |                   652 |                660 |             1.012 |
+|    246 | hard    |     -1.138 |        -3.550 |         34,290 |               32,745* |             36,541 |             1.066 |
+|    313 | control |     -8.257 |        -9.834 |            285 |                   285 |                285 |             1.000 |
+|    359 | hard    |     -0.390 |        -2.441 |         15,660 |                20,440 |             16,236 |             1.037 |
+|    407 | hard    |     -0.787 |        -2.104 |         28,058 |                24,123 |             39,864 |             1.421 |
+|    444 | hard    |     -0.314 |        -1.761 |            609 |                   609 |                609 |             1.000 |
+|    460 | control |     -7.924 |        -9.590 |            220 |                   220 |                220 |             1.000 |
+|    479 | hard    |     -0.766 |        -2.644 |          1,211 |                 1,211 |              1,211 |             1.000 |
 
 `*` The displayed sample 246 `random_full` simplex count is the median work accumulated by the
 30-second cutoff across three runs. `random_full` remained unresolved with a positive final
@@ -110,13 +118,13 @@ objective bound in all three runs; `cold` and `pgd_full` each certified in all t
 
 ## Difficult-case and variance checks
 
-The four fixed-cohort samples with the highest pre-treatment `cold` simplex work, in descending
-order, were 246, 46, 359, and 407. Two fresh Julia processes ran them. The forward treatment order
-was `cold`, `random_full`, `pgd_full`; the reverse order was `pgd_full`, `random_full`, `cold`.
-Every sample/treatment pair that resolved in both processes reproduced the same simplex and node
-counters. The `pgd_full / cold` simplex ratio was 1.216 with a 95% interval of [1.051, 1.407]. The
-`random_full / cold` ratio was 1.034 in the forward run and 1.046 in the reverse run; the difference
-came from the time-limited sample 246.
+The four samples with the highest median `cold` simplex-iteration counts in the fixed cohort were,
+in descending order, 246, 46, 407, and 359. They formed the later difficult-case check. Two fresh
+Julia processes ran them. The forward treatment order was `cold`, `random_full`, `pgd_full`; the
+reverse order was `pgd_full`, `random_full`, `cold`. Every sample/treatment pair that resolved in
+both processes reproduced the same simplex and node counters. The `pgd_full / cold` simplex ratio
+was 1.216 with a 95% interval of [1.051, 1.407]. The `random_full / cold` ratio was 1.034 in the
+forward run and 1.046 in the reverse run; the difference came from the time-limited sample 246.
 
 The main cohort supplied three repetitions per sample. All work counters were identical within a
 sample and treatment except:
@@ -125,11 +133,11 @@ sample and treatment except:
   reached the time boundary and certified with 45,563 iterations and 25 nodes; and
 - sample 246 `random_full`: all runs timed out, with 32,122 to 32,922 simplex iterations.
 
-Wall times varied even when exact work counters matched. After the certificate-summation determinism
-fix, both the comparable historical `cold` runs and fresh `cold` runs covered samples 19, 32, 36,
-and 46. Fresh-to-historical ratios of median main-solve wall times ranged from 0.916 to 1.009,
-within the predeclared `[0.5, 2.0]` no-flag range. The fresh hard-tail processes also reproduced the
-`cold` work counters exactly.
+Wall times varied even when exact work counters matched. The comparable historical and fresh `cold`
+runs were both collected after LP-certificate variable contributions were put in deterministic
+order. Both sets covered samples 19, 32, 36, and 46. Fresh-to-historical ratios of median main-solve
+wall times ranged from 0.916 to 1.009, within the predeclared `[0.5, 2.0]` no-flag range. The fresh
+hard-tail processes also reproduced the `cold` work counters exactly.
 
 Peak recorded process resident set size (RSS) was 2,130 MiB. The lowest recorded system-available
 memory was 11,016 MiB, above the 4 GiB guard. Runs were serial, and no memory guard or Linux
