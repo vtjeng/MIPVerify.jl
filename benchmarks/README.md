@@ -4,7 +4,9 @@ Scripts for benchmarking MIPVerify on the MNIST WK17a network.
 
 ## PGD worst-margin warm-start experiment
 
-The completed fixed-cohort result is in [PGD_WARMSTART_REPORT.md](PGD_WARMSTART_REPORT.md).
+The publication-ready report is tracked in
+[PR #248](https://github.com/vtjeng/MIPVerify.jl/pull/248). This branch retains the experimental
+implementation and protocol.
 
 This experiment asks whether a strong non-adversarial PGD candidate helps branch and bound even when
 PGD does not find an attack. For an input with true class `y`, PGD and the MIP optimize the same
@@ -21,11 +23,11 @@ near-misses this experiment is intended to test.
 `PGDWarmStart.jl` is the executable source of truth for the treatments. The treatment names,
 sources, coverage, and rotating block order are tested in `test/pgd_warm_start.jl`.
 
-| Treatment     | Candidate source                         | Variables initialized                           | Role                    |
-| ------------- | ---------------------------------------- | ----------------------------------------------- | ----------------------- |
-| `cold`        | none                                     | none                                            | no-start control        |
-| `random_full` | one deterministic uniform point per box  | every MIP variable after feasibility completion | complete-start control  |
-| `pgd_full`    | PGD near-miss                            | every MIP variable after feasibility completion | candidate-quality test  |
+| Treatment     | Candidate source                        | Variables initialized                           | Role                   |
+| ------------- | --------------------------------------- | ----------------------------------------------- | ---------------------- |
+| `cold`        | none                                    | none                                            | no-start control       |
+| `random_full` | one deterministic uniform point per box | every MIP variable after feasibility completion | complete-start control |
+| `pgd_full`    | PGD near-miss                           | every MIP variable after feasibility completion | candidate-quality test |
 
 Both complete treatments copy the tightened base model, fix its input to the selected candidate,
 solve the resulting feasibility problem, and transfer the complete assignment (including
@@ -122,8 +124,8 @@ are present (or have explicit candidate-attack skips), no memory guard was viola
 observations and dependency/configuration snapshot are archived, cold-reference discrepancies are
 explained, and the report assigns one of the three solver-level conclusions plus the separate
 end-to-end conclusion. The report must also say whether the random control supports attributing the
-effect to candidate quality. Report limitations and the distribution of per-sample effects, not
-only an aggregate runtime.
+effect to candidate quality. Report limitations and the distribution of per-sample effects, not only
+an aggregate runtime.
 
 ### Running the experiment
 
