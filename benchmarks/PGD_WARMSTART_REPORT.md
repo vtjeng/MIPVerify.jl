@@ -205,17 +205,25 @@ completed starts, `random_full` and `pgd_full`, hold that completion-interface d
 
 ## Limitations
 
-- The cohort covers one network, perturbation radius, solver generation, and fixed solver seed.
-- Three order-rotated repetitions and two fresh hard-tail processes provide checks on timing and
-  fixed-limit variance under the fixed solver seed; variation across solver seeds remains
-  unmeasured. Gurobi's performance guidance recommends comparing distributions over multiple seeds
-  for a general solver claim
-  ([staff guidance](https://support.gurobi.com/hc/en-us/community/posts/39029910894353-Why-is-it-slower-to-enter-MIP-start-than-not-to-enter-it)).
-- Seven of 12 samples solve at the root with identical work across treatments. The hard-tail result
-  is more informative about branch-and-bound behavior but has only four samples.
-- The random control is one deterministic draw per sample. Multiple draws could better characterize
-  the distribution of discrete start quality. The predeclared rejection depends on
-  `pgd_full / cold`, so additional random draws are outside that decision.
+This benchmark covers one specific experimental setup. Broader conclusions would require additional
+experiments.
 
-Under the predeclared definition of done, the proposed `pgd_full` warm start is **not supported** at
-the solver level and **not practical** end to end.
+- We tested one MNIST network, an L-infinity perturbation radius of `0.1`, HiGHS 1.14.x, and solver
+  seed zero. Other networks, perturbation sizes, solver versions, or seeds may behave differently.
+- Each treatment ran three times in rotated order. We also reran the four difficult samples in two
+  fresh Julia processes. These repetitions checked timing and process-to-process variation under the
+  same solver seed. We did not measure variation across solver seeds. Gurobi recommends comparing
+  results across multiple seeds before making a general solver claim
+  ([staff guidance](https://support.gurobi.com/hc/en-us/community/posts/39029910894353-Why-is-it-slower-to-enter-MIP-start-than-not-to-enter-it)).
+- Seven of the 12 samples were solved at the root, meaning that the solver finished without
+  exploring a branch-and-bound tree. All treatments required identical work on those samples. Most
+  of the evidence about branch-and-bound behavior therefore comes from the four-sample
+  difficult-case check, which is small.
+- `random_full` used one seeded random candidate per sample. Additional random candidates would
+  provide a better picture of how random start quality varies. They could affect how strongly we
+  attribute the regression to PGD candidate quality. The predeclared go/no-go result would remain
+  unchanged because it depends on `pgd_full / cold`.
+
+Under the predeclared criteria, `pgd_full` is **not supported** at the solver level because it did
+not reduce solver work. It is also **not practical** end to end because PGD generation and start
+construction increased total time.
