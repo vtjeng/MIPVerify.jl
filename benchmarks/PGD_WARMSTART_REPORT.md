@@ -12,11 +12,13 @@ same worst classification margin. For an input with true class `y`, the objectiv
 max_{x' in the L-infinity box} max_{j != y} f_j(x') - f_y(x').
 ```
 
-A nonnegative margin is an adversarial example, so finding one ends the verification task. When PGD
-does not find an attack, its highest-margin candidate is still a feasible near-miss. Supplying that
-point as an initial incumbent gives the solver a strong feasible objective and a complete discrete
-assignment before branch-and-bound search begins. This could let the solver prune more of the search
-tree, and PGD is cheap enough that a moderate reduction in solver work could repay its cost.
+A nonnegative margin is an adversarial example, so finding one ends the verification task and leaves
+no warm-start experiment to run. The benchmark therefore selected only samples for which neither PGD
+nor the random control found a verified attack. For each selected sample, PGD's highest-margin
+candidate was still a feasible near-miss. Supplying that point as an initial incumbent gives the
+solver a strong feasible objective and a complete discrete assignment before branch-and-bound search
+begins. This could let the solver prune more of the search tree, and PGD is cheap enough that a
+moderate reduction in solver work could repay its cost.
 
 The experiment tests that hypothesis by comparing a completed PGD start with no start and with a
 completed random start. The random control helps separate candidate quality from the effect of
@@ -25,10 +27,11 @@ supplying a complete start at all.
 ## Conclusion
 
 Warm-starting each verification problem with the highest-margin candidate found by projected
-gradient descent (PGD) did not help this benchmark. It increased simplex work by 6.8% across the
-fixed cohort and by 21.6% on the four-case hard tail. For `pgd_full / cold`, the fixed-cohort 95%
-bootstrap intervals for simplex work and end-to-end time both lie entirely above 1.0. The `pgd_full`
-end-to-end time was 70.5% higher than `cold`, including PGD generation and full-start completion.
+gradient descent (PGD) did not help this benchmark. It increased simplex work by 6.8% across the 12
+selected samples and by 21.6% on the four cohort samples with the highest pre-treatment no-start
+simplex work. For `pgd_full / cold`, the 12-sample 95% bootstrap intervals for simplex work and
+end-to-end time both lie entirely above 1.0. The `pgd_full` end-to-end time was 70.5% higher than
+`cold`, including PGD generation and full-start completion.
 
 The `random_full / cold` result showed no clear cohort-level simplex penalty. Its interval includes
 a penalty comparable to the `pgd_full` point estimate, and sample 246 timed out in all three
@@ -45,7 +48,12 @@ linear programming (LP) bound tightening, and HiGHS 1.14.x, an open-source LP an
 programming (MIP) solver. HiGHS used one thread, parallel mode off, solver seed zero, and a
 30-second solve limit. PGD used 20 restarts, 100 steps, step size `0.01`, and base seed `20260720`.
 The software versions were Julia 1.12.6, HiGHS.jl 1.23.0, and HiGHS_jll 1.14.0+0. The candidate
-cache SHA-256 was `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`. The fixed
+cache SHA-256 was `f515fe0bf78e515344b3a2a3c7408e3362ba4a2f8acbfcd67537e0d55c2f6640`.
+
+The 12-sample cohort was selected before any treatment results were inspected. Eligible samples had
+correctly classified original inputs, and independent network-output and perturbation checks found
+negative margins for both the PGD and random candidates. A nonnegative candidate would have been
+saved as an attack, and all MIP treatments for that sample would have been skipped. The selected
 cohort contained eight predeclared hard samples and four controls. Each sample had one tightened
 base model and three serial copies per treatment; treatment order rotated across repetition blocks:
 
@@ -55,9 +63,8 @@ base model and three serial copies per treatment; treatment order rotated across
 - `pgd_full` supplied the highest-margin point across all steps of 20 PGD restarts, projected it
   slightly inward, and used the same completion to every MIP variable.
 
-Candidate generation skipped the MIP treatments only when independent network-output and
-perturbation checks confirmed a margin at or above zero. Both PGD and random candidates had negative
-margins for every cohort sample; among negative margins, closer to zero is stronger.
+All candidate margins were negative by cohort construction; among negative margins, closer to zero
+is stronger.
 
 The primary metric is the median simplex-iteration count across the three repetitions for each
 sample. Each simplex ratio is `(numerator + 1) / (denominator + 1)`; adding one keeps ratios defined
