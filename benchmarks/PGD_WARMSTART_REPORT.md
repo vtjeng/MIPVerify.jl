@@ -5,22 +5,29 @@ Implementation commit: `f7e2bec107f4155b84a6d69a04cfda9be950217b`
 
 ## Research idea
 
-Projected gradient descent (PGD) and exact verification search the same perturbation box for the
-same worst classification margin. For an input with true class `y`, the objective is
+A verification run can stop as soon as it finds an allowed perturbation that changes the model's
+predicted class. Otherwise, the solver must prove that no such perturbation exists. Projected
+gradient descent (PGD) can search cheaply for these attacks, but it cannot provide that proof.
+
+This experiment asks whether PGD remains useful when its attack fails. Among all points visited
+during its search, PGD retains the one that comes closest to changing the prediction. Completing
+that candidate into an initial value for every mixed-integer programming variable gives the solver a
+strong feasible incumbent. Such an incumbent might reduce branch-and-bound work by allowing more of
+the search tree to be pruned.
+
+PGD and the verifier measure progress using the same classification margin. For an input with true
+class `y`, they maximize:
 
 ```text
 max_{x' in the L-infinity box} max_{j != y} f_j(x') - f_y(x').
 ```
 
-Here, `f_k(x')` is the network's logit for class `k` at `x'`.
+Here, `f_k(x')` is the network's logit for class `k` at `x'`. A nonnegative margin is an adversarial
+example and ends verification; a negative margin closer to zero is a stronger unsuccessful
+candidate.
 
-A nonnegative margin is an adversarial example, so finding one ends the verification task and leaves
-no warm-start experiment to run. The analyzed cohort therefore contained only samples for which
-neither PGD nor the random control found a verified attack. For each selected sample, PGD's
-highest-margin candidate was still a feasible near-miss. Supplying that point as an initial
-incumbent gives the solver a strong feasible objective and a complete discrete assignment before
-branch-and-bound search begins. This could let the solver prune more of the search tree, and PGD is
-cheap enough that a moderate reduction in solver work could repay its cost.
+The analyzed cohort contained only samples for which neither PGD nor the random control found a
+verified attack.
 
 The experiment tests that hypothesis by comparing `pgd_full` (a completed PGD start) with `cold` (no
 start) and `random_full` (a completed random start). The random control helps separate candidate
