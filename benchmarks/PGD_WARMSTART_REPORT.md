@@ -69,18 +69,28 @@ The cohort indices were chosen before any warm-start treatment results were insp
 comprised the slowest historical LP-feasibility cases after known attacks were excluded; the control
 pool came from a class-balanced historical cohort. The selector retained correctly classified inputs
 whose PGD candidates had independently verified negative margins. It took the first eight eligible
-hard samples and four eligible controls, preferring distinct true classes among the controls. Random
-candidates were generated afterward, and all 12 had independently verified negative margins. Any PGD
-or random candidate with an independently verified nonnegative margin would have been saved as an
-attack, and all MIP treatments for that sample would have been skipped.
+hard samples from the predeclared order. The other four samples were difficulty controls: they were
+not selected for high historical solver cost, so they checked whether the result was confined to the
+deliberately oversampled difficult cases. The selector preferred distinct true classes when choosing
+these four controls.
 
-Each sample had one tightened base model and three serial copies per treatment; treatment order
-rotated across repetition blocks:
+After cohort selection, the benchmark generated one reproducible random candidate per sample. It
+sampled each input coordinate uniformly between that coordinate's lower and upper limits in the
+L-infinity perturbation box, using a recorded random seed. The random candidate was not optimized or
+ranked by its margin. The benchmark checked both the PGD and random candidates by evaluating the
+network and confirming that the candidate remained inside the allowed perturbation box. If either
+candidate had changed the predicted class, the benchmark would have recorded the candidate as a
+verified attack and skipped the MIP solves because the verification question had already been
+answered. Neither candidate was an attack for any of the 12 selected samples.
+
+For each sample, the benchmark built and tightened one base MIP model. It then ran each treatment
+three times. Every run used a fresh copy of the same tightened model, and the copies were created
+and solved one at a time rather than in parallel. Treatment order rotated across the three
+repetition blocks:
 
 - `cold` supplied no start.
-- `random_full` supplied one reproducible uniform draw from the perturbation box without
-  margin-based optimization or ranking, projected it slightly inward, and completed it to every MIP
-  variable.
+- `random_full` supplied the random candidate described above, projected it slightly inward, and
+  completed it to every MIP variable.
 - `pgd_full` supplied the highest-margin point across all steps of 20 PGD restarts, projected it
   slightly inward, and used the same completion to every MIP variable.
 
