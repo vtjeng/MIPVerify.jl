@@ -32,3 +32,10 @@ Manifest.toml
 # .claude/skills/, .claude/agents/) stays trackable.
 .claude/worktrees/
 .claude/settings.local.json
+
+# Python subproject caches. benchmarks/analysis/.gitignore already lists these for
+# Git's purposes. They are repeated here because Prettier reads the root .gitignore
+# and does not read nested ones, and a whole-tree `prettier --check` would otherwise
+# report files that are not part of the repository.
+**/.venv/
+**/.uv-cache/
