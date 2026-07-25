@@ -97,7 +97,7 @@ Ensure that your PR passes all required statuses.
 ### Formatting
 
 Run the format script before pushing. It formats the whole repository with the same tool versions
-that CI checks against — JuliaFormatter for `.jl`, [Ruff](https://docs.astral.sh/ruff/) for `.py`,
+that CI checks against: JuliaFormatter for `.jl`, [Ruff](https://docs.astral.sh/ruff/) for `.py`,
 and [Prettier](https://prettier.io/) for `.md` and `.yaml`.
 
 ```sh

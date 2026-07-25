@@ -19,8 +19,8 @@ edited and Renovate stops updating it, so merge promptly.
 
 ## Flaky CI failures
 
-When a CI job fails on a PR, read the failure log and classify it before rerunning. A failure in
-code or config the PR touches is not flake — debug it instead.
+When a CI job fails on a PR, read the failure log and classify it before rerunning. If the failure
+is in code or config the PR touches, debug it rather than treating it as flake.
 
 For failures unrelated to the PR's changes:
 
@@ -32,10 +32,10 @@ For failures unrelated to the PR's changes:
    expected or crash site, versions from the log), and correct the issue title if the occurrence
    invalidates a qualifier in it. Then rerun the failed jobs.
 3. With no match, rerun first: `gh run rerun <run-id> --failed` (the run must have completed). Only
-   a passing rerun confirms flake — then open "Flaky CI: <signature>" with the failure details,
+   a passing rerun confirms flake. Then open "Flaky CI: <signature>" with the failure details,
    versions, a job link, and an "Occurrences" table ending "Append new occurrences to this table."
-4. If the same leg fails twice in a row on one PR, stop rerunning and report it — repetition
-   suggests a real regression.
+4. If the same leg fails twice in a row on one PR, stop rerunning and report it. Repetition suggests
+   a real regression.
 
 ## Performance log
 
