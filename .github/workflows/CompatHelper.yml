@@ -14,6 +14,11 @@ jobs:
   # above provides alternatives if we want to do this 'right'.
   CompatHelper:
     runs-on: ubuntu-latest
+    permissions:
+      # Pushes the compat branch and opens the pull request. Every other scope is
+      # none, which the default write-all token did not give us.
+      contents: write
+      pull-requests: write
     steps:
       - name: "Add the General registry via Git"
         run: |
