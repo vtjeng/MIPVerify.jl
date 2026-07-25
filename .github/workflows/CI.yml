@@ -389,7 +389,7 @@ jobs:
         # Unquoted, the shell expands it first, and without `globstar` its `**` acts
         # as a single `*`, which reaches only Markdown one directory deep.
         # renovate: datasource=npm depName=prettier
-        run: npx --yes prettier@3.9.5 --check "**/*.{md,yaml}"
+        run: npx --yes prettier@3.9.6 --check "**/*.{md,yaml}"
 
   lint-workflows:
     name: "Lint GitHub Actions Workflows"

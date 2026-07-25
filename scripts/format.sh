@@ -43,7 +43,7 @@ fi
 # (see format-check-prettier in .github/workflows/CI.yml).
 if command -v npx > /dev/null; then
   # renovate: datasource=npm depName=prettier
-  (cd "${repo_root}" && npx --yes prettier@3.9.5 --write "**/*.{md,yaml}")
+  (cd "${repo_root}" && npx --yes prettier@3.9.6 --write "**/*.{md,yaml}")
 else
   echo "WARNING: npx not found; skipping Prettier formatting of Markdown and YAML files." >&2
 fi
