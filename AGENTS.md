@@ -21,11 +21,6 @@ reformatting files the old one accepted. That is not flake, and not a reason to 
 3. Pushing to the branch marks the PR as edited, and Renovate stops updating it. Merge it promptly
    rather than leaving it to collect later releases.
 
-If a reformat is broad and mechanical enough to bury authorship in `git blame`, add the merged
-commit's SHA to `.git-blame-ignore-revs` in a follow-up commit — the SHA does not exist until the
-merge. A squash commit that also carries a substantive change does not qualify, because ignoring it
-would hide that change from blame too.
-
 ## Flaky CI failures
 
 When a CI job fails on a PR, read the failure log and classify it before rerunning. A failure in
