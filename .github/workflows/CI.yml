@@ -231,6 +231,7 @@ jobs:
         uses: astral-sh/ruff-action@v4.1.0
         with:
           # Keep this version in sync with scripts/format.sh.
+          # renovate: datasource=pypi depName=ruff
           version: "0.15.21"
           args: "format --check --diff"
           src: "benchmarks/analysis/"
@@ -361,6 +362,7 @@ jobs:
           # Keep this version in sync with scripts/format.sh. Without a pin, the action
           # installs the latest Prettier, and new releases change formatting rules and
           # break CI on unchanged files.
+          # renovate: datasource=npm depName=prettier
           prettier_version: "3.9.5"
           prettier_options: --check **/*.{md,yaml}
 

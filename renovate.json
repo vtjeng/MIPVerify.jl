@@ -1,0 +1,25 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Formatter and linter versions pinned at their call site. Each pin carries a `# renovate:` comment naming its datasource, so the same manager handles the shell script and the workflow.",
+      "managerFilePatterns": [
+        "/^scripts/format\\.sh$/",
+        "/^\\.github/workflows/CI\\.yml$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[^\\n]*?@(?<currentValue>\\d[^\\s\"']+)",
+        "# renovate: datasource=(?<datasource>[a-z-]+) depName=(?<depName>\\S+)\\s+[^\\n]*?version=?:? ?\"(?<currentValue>\\d[^\"]+)\""
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "JuliaFormatter has no Renovate datasource for the Julia General registry, so it is tracked by GitHub tag, which carries a leading `v`.",
+      "matchDepNames": ["JuliaEditorSupport/JuliaFormatter.jl"],
+      "extractVersion": "^v(?<version>.+)$"
+    }
+  ]
+}
