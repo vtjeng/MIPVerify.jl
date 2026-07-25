@@ -9,13 +9,13 @@ versions pinned inside it, which are the versions CI checks.
 
 ### Formatter version bumps
 
-Renovate bumps those pins. A `Check Formatting` failure on such a PR is expected: the new version
-reformats files the old one accepted.
+Renovate can bump formatter versions. A `Check Formatting` failure on such a PR is expected: the new
+version reformats files the old one accepted.
 
-Run `./scripts/format.sh` on the Renovate branch and commit the result there. The two halves cannot
-land separately, because the check runs `format.sh` with the version that same file pins. Review the
-reformat as a real diff, especially across a major version. Pushing marks the PR as edited and
-Renovate stops updating it, so merge promptly.
+Run `./scripts/format.sh` on the Renovate branch and commit the result there. The pin and the
+reformat have to land together, because the check runs `format.sh` with the version that same file
+pins. Review the reformat as a real diff, especially across a major version. Pushing marks the PR as
+edited and Renovate stops updating it, so merge promptly.
 
 ## Flaky CI failures
 
