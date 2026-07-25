@@ -1,6 +1,0 @@
-# Prettier does not read .gitignore, so vendored and throwaway copies have to be
-# listed again here or a whole-tree `prettier --check` reports files that are not
-# part of the repository.
-.claude/worktrees/
-**/.uv-cache/
-**/.venv/
