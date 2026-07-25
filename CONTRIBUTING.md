@@ -104,10 +104,6 @@ and [Prettier](https://prettier.io/) for `.md` and `.yaml`.
 ./scripts/format.sh
 ```
 
-Ruff runs through `uvx` and Prettier through `npx`; if either is missing from your `PATH` the script
-warns and skips that step, so those files stay unformatted and CI catches them. Pass `--julia-only`
-to run JuliaFormatter alone.
-
 ## Contribution Types
 
 There are many ways to contribute to this package.

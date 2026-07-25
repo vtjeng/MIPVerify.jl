@@ -4,8 +4,8 @@
 
 ## Formatting
 
-Run `./scripts/format.sh` before pushing; CONTRIBUTING.md covers the flags. It uses the tool
-versions pinned inside it, which are the versions CI checks.
+Run `./scripts/format.sh` before pushing. It uses the tool versions pinned inside it, which are the
+versions CI checks.
 
 ### Formatter version bumps
 
