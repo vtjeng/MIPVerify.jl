@@ -185,10 +185,11 @@ jobs:
           # https://discourse.julialang.org/t/easy-workflow-file-for-setting-up-github-actions-ci-for-your-julia-package/49765/46
           #
           # This is an SSH deploy key with push access, so `permissions:` does not
-          # constrain it. `deploydocs` never deploys from a pull request, so withhold
-          # the key there rather than placing it in the environment of a job that runs
-          # third-party actions and instantiates the docs package environment. Every
-          # other event keeps it, which covers the master pushes and tags that deploy.
+          # constrain it. `deploydocs` never deploys from a pull request, so the key is
+          # withheld there: on those runs it would sit unused in the environment of a
+          # job that instantiates the docs package environment and runs four actions
+          # this repository does not own. Every other event keeps it, which covers the
+          # pushes and tags that deploy.
           DOCUMENTER_KEY:
             ${{ github.event_name != 'pull_request' && secrets.DOCUMENTER_KEY || '' }}
       - name: Save documentation Julia package state
