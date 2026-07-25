@@ -4,22 +4,18 @@
 
 ## Formatting
 
-Run `./scripts/format.sh` before pushing. It formats the repository with the tool versions pinned
-inside it, which are the versions CI checks against. See CONTRIBUTING.md for the flags.
+Run `./scripts/format.sh` before pushing; CONTRIBUTING.md covers the flags. It uses the tool
+versions pinned inside it, which are the versions CI checks.
 
 ### Formatter version bumps
 
-Renovate tracks those pins. When a bump makes `Check Formatting` fail, the new version is
-reformatting files the old one accepted. That is not flake, and not a reason to close the PR.
+Renovate bumps those pins. A `Check Formatting` failure on such a PR means the new version reformats
+files the old one accepted — not flake.
 
-1. Check out the Renovate branch, run `./scripts/format.sh`, and commit the result to that same
-   branch. The reformat cannot land on its own: the check runs `format.sh` with the version that
-   same file pins, so a reformat merged ahead of the bump would be reverted by the old version, and
-   the bump merged alone leaves the check red.
-2. Read the reformat commit as a real diff rather than trusting the tool, especially across a major
-   version. The full test matrix reruns on the pushed commit.
-3. Pushing to the branch marks the PR as edited, and Renovate stops updating it. Merge it promptly
-   rather than leaving it to collect later releases.
+Run `./scripts/format.sh` on the Renovate branch and commit the result there. The two halves cannot
+land separately, because the check runs `format.sh` with the version that same file pins. Review the
+reformat as a real diff, especially across a major version. Pushing marks the PR as edited and
+Renovate stops updating it, so merge promptly.
 
 ## Flaky CI failures
 
@@ -29,18 +25,17 @@ code or config the PR touches is not flake — debug it instead.
 For failures unrelated to the PR's changes:
 
 1. Search open issues titled "Flaky CI" for a matching signature (failing test case, error type,
-   crash stack site). Read resolved versions from the job log rather than from the check name —
-   distinct matrix selectors can resolve to the same underlying version.
-2. If an issue matches, the failure is a known flake. Append a row to its "Occurrences" table (date,
-   branch or PR with short SHA, linked job name), add a comment with the specifics — job link,
-   observed vs expected values or crash site, dependency versions from the log — and update the
-   issue title if the new occurrence invalidates a qualifier in it. Then rerun the failed jobs.
-3. If nothing matches, rerun first: `gh run rerun <run-id> --failed` (the run must be completed).
-   Only a passing rerun verifies the failure as flake — then open a new issue titled "Flaky CI:
-   <signature>" with the failure details, versions, a job link, and an "Occurrences" table ending
-   with "Append new occurrences to this table."
+   crash stack site). Read versions from the job log, not the check name — distinct matrix selectors
+   can resolve to the same version.
+2. On a match, it is a known flake: append a row to that issue's "Occurrences" table (date, branch
+   or PR with short SHA, linked job name), comment with the specifics (job link, observed vs
+   expected or crash site, versions from the log), and correct the issue title if the occurrence
+   invalidates a qualifier in it. Then rerun the failed jobs.
+3. With no match, rerun first: `gh run rerun <run-id> --failed` (the run must have completed). Only
+   a passing rerun confirms flake — then open "Flaky CI: <signature>" with the failure details,
+   versions, a job link, and an "Occurrences" table ending "Append new occurrences to this table."
 4. If the same leg fails twice in a row on one PR, stop rerunning and report it — repetition
-   suggests a real regression, not flake.
+   suggests a real regression.
 
 ## Performance log
 
