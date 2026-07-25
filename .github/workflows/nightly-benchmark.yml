@@ -28,6 +28,11 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: master
+          # This job holds a `contents: write` token, and the steps below run a long
+          # benchmark and instantiate a package environment before reaching the push.
+          # The push uses its own clone of `benchmark-results` with an explicit token
+          # URL, so nothing here needs credentials left in .git/config.
+          persist-credentials: false
 
       - uses: julia-actions/setup-julia@v3
         with:
