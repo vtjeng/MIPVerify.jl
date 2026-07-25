@@ -381,14 +381,15 @@ jobs:
         with:
           persist-credentials: false
       - name: "Verify that Prettier does not find any code style issues."
-        uses: creyD/prettier_action@v4.3
-        with:
-          # Keep this version in sync with scripts/format.sh. Without a pin, the action
-          # installs the latest Prettier, and new releases change formatting rules and
-          # break CI on unchanged files.
-          # renovate: datasource=npm depName=prettier
-          prettier_version: "3.9.5"
-          prettier_options: --check **/*.{md,yaml}
+        # Keep this version in sync with scripts/format.sh. Without a pin, npx
+        # resolves the latest Prettier, and new releases change formatting rules and
+        # break CI on unchanged files.
+        #
+        # The glob is quoted so that Prettier expands it, matching scripts/format.sh.
+        # Unquoted, the shell expands it first, and without `globstar` its `**` acts
+        # as a single `*`, which reaches only Markdown one directory deep.
+        # renovate: datasource=npm depName=prettier
+        run: npx --yes prettier@3.9.5 --check "**/*.{md,yaml}"
 
   lint-workflows:
     name: "Lint GitHub Actions Workflows"
