@@ -94,6 +94,20 @@ julia --project=test test/models.jl
 
 Ensure that your PR passes all required statuses.
 
+### Formatting
+
+Run the format script before pushing. It formats the whole repository with the same tool versions
+that CI checks against — JuliaFormatter for `.jl`, [Ruff](https://docs.astral.sh/ruff/) for `.py`,
+and [Prettier](https://prettier.io/) for `.md` and `.yaml`.
+
+```sh
+./scripts/format.sh
+```
+
+Ruff runs through `uvx` and Prettier through `npx`; if either is missing from your `PATH` the script
+warns and skips that step, so those files stay unformatted and CI catches them. Pass `--julia-only`
+to run JuliaFormatter alone.
+
 ## Contribution Types
 
 There are many ways to contribute to this package.
