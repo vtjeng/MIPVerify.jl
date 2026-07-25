@@ -9,8 +9,8 @@ versions pinned inside it, which are the versions CI checks.
 
 ### Formatter version bumps
 
-Renovate bumps those pins. A `Check Formatting` failure on such a PR means the new version reformats
-files the old one accepted — not flake.
+Renovate bumps those pins. A `Check Formatting` failure on such a PR is expected: the new version
+reformats files the old one accepted.
 
 Run `./scripts/format.sh` on the Renovate branch and commit the result there. The two halves cannot
 land separately, because the check runs `format.sh` with the version that same file pins. Review the
@@ -25,8 +25,8 @@ code or config the PR touches is not flake — debug it instead.
 For failures unrelated to the PR's changes:
 
 1. Search open issues titled "Flaky CI" for a matching signature (failing test case, error type,
-   crash stack site). Read versions from the job log, not the check name — distinct matrix selectors
-   can resolve to the same version.
+   crash stack site). Read versions from the job log. A check name records only the matrix selector,
+   so `Julia 1` and `Julia 1.12` can name the same underlying version.
 2. On a match, it is a known flake: append a row to that issue's "Occurrences" table (date, branch
    or PR with short SHA, linked job name), comment with the specifics (job link, observed vs
    expected or crash site, versions from the log), and correct the issue title if the occurrence
