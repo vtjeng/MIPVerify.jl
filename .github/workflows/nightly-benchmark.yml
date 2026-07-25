@@ -14,8 +14,10 @@ on:
           - feasibility
           - closest
 
+# `benchmark` runs for hours and runs third-party actions; `publish` runs a download
+# and a push. Only the second one holds a write token, declared on the job below.
 permissions:
-  contents: write
+  contents: read
 
 env:
   BENCHMARK_OBJECTIVE: ${{ inputs.objective || 'feasibility' }}
@@ -24,14 +26,14 @@ jobs:
   benchmark:
     name: WK17a Benchmark (500 samples)
     runs-on: ubuntu-latest
+    outputs:
+      date: ${{ steps.results.outputs.date }}
     steps:
       - uses: actions/checkout@v7
         with:
           ref: master
-          # This job holds a `contents: write` token, and the steps below run a long
-          # benchmark and instantiate a package environment before reaching the push.
-          # The push uses its own clone of `benchmark-results` with an explicit token
-          # URL, so nothing here needs credentials left in .git/config.
+          # This job's token is read-only and no step here pushes, so nothing needs
+          # credentials left in .git/config.
           persist-credentials: false
 
       - uses: julia-actions/setup-julia@v3
@@ -65,28 +67,33 @@ jobs:
             --log-level warn \
             --out /tmp/bench-wk17a
 
-      - name: Check out benchmark-results branch
-        run: |
-          # Clone just the benchmark-results branch into a separate directory
-          git clone --single-branch --branch benchmark-results \
-            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
-            /tmp/benchmark-results 2>/dev/null || {
-            # Branch doesn't exist yet — create an orphan
-            mkdir -p /tmp/benchmark-results
-            cd /tmp/benchmark-results
-            git init
-            git checkout --orphan benchmark-results
-            git remote add origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          }
-
-      - name: Copy results and update tracking CSV
+      - name: Update the results tree and stage what changed
+        id: results
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+          REPOSITORY: ${{ github.repository }}
         run: |
           DATE=$(date -u +%Y-%m-%d)
-          COMMIT_SHA=${{ github.sha }}
           RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}"
-          RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
 
-          # Copy run artifacts
+          # `benchmark-results` is a branch of this public repository, so reading it
+          # needs no credentials. append_to_tracking.jl resolves the previous run's
+          # dependency snapshot relative to the tracking CSV, so it needs the whole
+          # run history here, not just the new run.
+          #
+          # Test for the branch before cloning instead of treating any clone failure
+          # as an absent branch. A transient failure would otherwise stage a tracking
+          # CSV holding only this run, which `publish` would push over the real one.
+          if git ls-remote --exit-code --heads \
+            "https://github.com/${REPOSITORY}.git" benchmark-results > /dev/null; then
+            git clone --single-branch --branch benchmark-results \
+              "https://github.com/${REPOSITORY}.git" /tmp/benchmark-results
+          else
+            # Branch doesn't exist yet; append_to_tracking.jl starts a new tracking CSV.
+            mkdir -p /tmp/benchmark-results
+          fi
+
+          RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
           mkdir -p "${RUN_DIR}"
           cp /tmp/bench-wk17a/benchmark_metrics.csv "${RUN_DIR}/"
           cp /tmp/bench-wk17a/benchmark_per_sample.csv "${RUN_DIR}/"
@@ -95,7 +102,6 @@ jobs:
           cp /tmp/bench-wk17a/dependency_versions.csv "${RUN_DIR}/"
           cp /tmp/bench-wk17a/dependency_manifest.toml "${RUN_DIR}/"
 
-          # Append to tracking CSV
           julia --project=benchmarks benchmarks/append_to_tracking.jl \
             --metrics-csv /tmp/bench-wk17a/benchmark_metrics.csv \
             --dependency-versions-csv /tmp/bench-wk17a/dependency_versions.csv \
@@ -104,12 +110,71 @@ jobs:
             --commit-sha "${COMMIT_SHA}" \
             --run-id "${RUN_ID}"
 
+          # Stage only what this run changed. The rest of the branch is already on the
+          # branch, and `publish` copies this over its own clone of it.
+          mkdir -p "/tmp/publish/runs/${DATE}"
+          cp -R "${RUN_DIR}" "/tmp/publish/runs/${DATE}/"
+          cp /tmp/benchmark-results/tracking.csv /tmp/publish/tracking.csv
+
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload the staged results
+        uses: actions/upload-artifact@v7
+        with:
+          name: benchmark-results
+          path: /tmp/publish
+          if-no-files-found: error
+
+  publish:
+    name: Publish results
+    needs: benchmark
+    runs-on: ubuntu-latest
+    permissions:
+      # The write token exists only in this job. Its steps are a download of the
+      # files `benchmark` staged and a push of them to `benchmark-results`; no
+      # third-party action and no project code runs here.
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: benchmark-results
+          path: /tmp/publish
+
       - name: Commit and push to benchmark-results
+        env:
+          DATE: ${{ needs.benchmark.outputs.date }}
+          REPOSITORY: ${{ github.repository }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          REMOTE="https://x-access-token:${TOKEN}@github.com/${REPOSITORY}.git"
+          if git ls-remote --exit-code --heads "${REMOTE}" benchmark-results > /dev/null; then
+            git clone --single-branch --branch benchmark-results "${REMOTE}" \
+              /tmp/benchmark-results
+          else
+            # Branch doesn't exist yet; create an orphan
+            mkdir -p /tmp/benchmark-results
+            cd /tmp/benchmark-results
+            git init
+            git checkout --orphan benchmark-results
+            git remote add origin "${REMOTE}"
+          fi
+
+          # The staged CSV is the branch's plus this run's row, so it can never be
+          # shorter. If it is, something upstream lost history; do not push it.
+          if [ -f /tmp/benchmark-results/tracking.csv ]; then
+            before=$(wc -l < /tmp/benchmark-results/tracking.csv)
+            after=$(wc -l < /tmp/publish/tracking.csv)
+            if [ "${after}" -lt "${before}" ]; then
+              echo "staged tracking.csv has ${after} lines, branch has ${before}; refusing to push" >&2
+              exit 1
+            fi
+          fi
+
+          cp -R /tmp/publish/. /tmp/benchmark-results/
+
           cd /tmp/benchmark-results
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          DATE=$(date -u +%Y-%m-%d)
           git commit -m "${BENCHMARK_OBJECTIVE} benchmark results for ${DATE} (${GITHUB_SHA::7})"
           git push origin benchmark-results
