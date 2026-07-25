@@ -113,8 +113,7 @@ function main()
     if objectives_match
         solved_both = filter(
             r ->
-                !ismissing(r.objective_value_baseline) &&
-                    !ismissing(r.objective_value_candidate),
+                !ismissing(r.objective_value_baseline) && !ismissing(r.objective_value_candidate),
             joined,
         )
         println("objective_value_comparable_samples,$(nrow(solved_both))")
