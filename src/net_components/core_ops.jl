@@ -888,7 +888,7 @@ function maximum(
         a = @variable(model, [1:length(xs)], binary = true)
         @constraint(model, sum(a) == 1)
         for (i, x) in enumerate(xs)
-            umaxi = Base.maximum(us[1:end.!=i])
+            umaxi = Base.maximum(us[1:end .!= i])
             @constraint(model, x_max <= x + (1 - a[i]) * (umaxi - ls[i]))
             @constraint(model, x_max >= x)
         end

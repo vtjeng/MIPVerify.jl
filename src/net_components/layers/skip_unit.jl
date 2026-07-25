@@ -43,7 +43,7 @@ end
 function apply(p::SkipBlock, xs::AbstractVector{<:AbstractArray{<:JuMPReal}})
     num_layers = length(p.layers)
     @assert num_layers > 0 "SkipBlock must contain at least one layer."
-    inputs = xs[end-num_layers+1:end]
+    inputs = xs[(end-num_layers+1):end]
     outputs = map((f, x) -> f(x), p.layers, inputs)
 
     reference_size = size(outputs[1])
