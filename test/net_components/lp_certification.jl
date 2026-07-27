@@ -701,4 +701,49 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             )
         end
     end
+
+    @testset "affine_constraints_of_set caches by set type and refreshes when rows are added" begin
+        m = Model()
+        @variable(m, x)
+        @constraint(m, x >= 1)
+
+        greater_than = MathOptInterface.GreaterThan{Float64}
+        less_than = MathOptInterface.LessThan{Float64}
+
+        first_read = MIPVerify.affine_constraints_of_set(m, greater_than)
+        @test length(first_read) == 1
+        # An unchanged model returns the stored vector itself, so no new list was built.
+        @test MIPVerify.affine_constraints_of_set(m, greater_than) === first_read
+
+        @constraint(m, x >= 2)
+        grown = MIPVerify.affine_constraints_of_set(m, greater_than)
+        @test length(grown) == 2
+        @test grown !== first_read
+
+        # Each set type is cached on its own, so a new `LessThan` row leaves the `GreaterThan`
+        # entry in place.
+        @constraint(m, x <= 9)
+        @test length(MIPVerify.affine_constraints_of_set(m, less_than)) == 1
+        @test MIPVerify.affine_constraints_of_set(m, greater_than) === grown
+    end
+
+    @testset "certificate reflects a constraint added between two bound solves" begin
+        # The first bound populates the cache while the model holds one row. The second bound must
+        # use both rows. Objective 2x + 3 over x in [-2, 5].
+        mock = certification_mock()
+        m = Model(() -> mock)
+        @variable(m, -2 <= x <= 5)
+        @constraint(m, x >= 1)
+
+        # Dual 1.9 on `x >= 1` leaves a residual of 2 - 1.9 = 0.1 on x, worth 0.1 * (-2) = -0.2 at
+        # the lower end, so the certificate is 3 + 1.9 * 1 - 0.2 = 4.7.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -1.0) ≈ 4.7
+
+        @constraint(m, x >= 2)
+        # Now the second row carries the dual: 3 + 1.9 * 2 - 0.2 = 6.6. A stale one-row list would
+        # instead find no usable dual and fall back to the -1.0 interval bound.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [0.0, 1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -1.0) ≈ 6.6
+    end
 end

@@ -198,6 +198,39 @@ function resolve_row_duals(constraints, dual_values)
     return [single_constraint_dual_or_nothing(dual_values, c) for c in constraints]
 end
 
+# Model extension key holding `Dict{DataType,Tuple{Int,Any}}`: for each set type, the affine
+# constraints of that type and the constraint count at the time they were listed.
+const AFFINE_CONSTRAINT_CACHE_KEY = :MIPVerifyAffineConstraints
+
+"""
+    affine_constraints_of_set(model, set_type)
+
+Return every `AffExpr`-in-`set_type` constraint of `model`, reusing the previous list while the
+number of such constraints is unchanged.
+
+`certified_lp_bound` runs once per LP bound solve, and a single sample can need hundreds of them.
+Listing the constraints again on each one was a large part of formulation time, so the list is
+cached on the model.
+
+The constraint count is a sound cache key only because MIPVerify adds affine constraints and never
+deletes them: a layer's rows are imposed after that layer's bounds are solved, and relaxing
+integrality removes `ZeroOne` constraints on variables rather than affine rows. A caller that
+deletes an affine constraint and adds another of the same set type would keep a stale list.
+"""
+function affine_constraints_of_set(model::JuMP.Model, set_type::DataType)
+    cache = get!(model.ext, AFFINE_CONSTRAINT_CACHE_KEY) do
+        Dict{DataType,Tuple{Int,Any}}()
+    end
+    constraint_count = JuMP.num_constraints(model, JuMP.AffExpr, set_type)
+    cached = get(cache, set_type, nothing)
+    if cached !== nothing && first(cached) == constraint_count
+        return last(cached)
+    end
+    constraints = JuMP.all_constraints(model, JuMP.AffExpr, set_type)
+    cache[set_type] = (constraint_count, constraints)
+    return constraints
+end
+
 """
     certified_lp_bound(model, bound_type, objective, interval_bound)
 
@@ -238,7 +271,7 @@ function certified_lp_bound(
 
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
-        constraints = JuMP.all_constraints(model, function_type, set_type)
+        constraints = affine_constraints_of_set(model, set_type)
         row_duals = resolve_row_duals(constraints, dual_values)
         certificate =
             add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
