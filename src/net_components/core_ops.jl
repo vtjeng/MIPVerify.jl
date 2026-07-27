@@ -346,12 +346,16 @@ function map_with_progress(f, description::String, show_progress_bar::Bool, arra
     end
 end
 
-# Interval lower bound used to screen a ReLU. When `interval_upper <= 0` the unit is already
-# fixed to zero, so the lower bound is irrelevant; return `interval_upper` as a stand-in to skip
-# the `lower_bound(x)` computation (which allocates for `AffExpr` inputs). Every downstream
-# consumer short-circuits on `interval_upper <= 0` before reading this value.
-function interval_lowerbound_for_relu(x::JuMPLinearType, interval_upper::Real)::Real
-    return interval_upper <= 0 ? interval_upper : lower_bound(x)
+# Both interval bounds of a ReLU input, from one pass over the expression.
+#
+# `IntervalArithmetic.interval` walks every term of an affine expression and produces both end
+# points together, so `upper_bound(x)` already computes the lower end point and discards it. Reading
+# both from a single interval therefore costs no more than reading one, and it replaces the previous
+# arrangement, which called `upper_bound` and then walked the whole expression a second time to
+# recover the lower end point that the first walk had thrown away.
+function relu_input_interval_bounds(x::JuMPLinearType)
+    bounds = IntervalArithmetic.interval(x)
+    return (lower_bound(bounds), upper_bound(bounds))
 end
 
 function relu_tightening_algorithm(
@@ -585,19 +589,14 @@ function progressive_relu_bounds(
     stats::Union{Nothing,VerificationStats},
     show_progress_bar::Bool,
 ) where {T<:JuMPLinearType}
-    interval_upper = map_with_progress(
-        upper_bound,
-        "  Calculating interval upper bounds: ",
+    interval_bounds = map_with_progress(
+        relu_input_interval_bounds,
+        "  Calculating interval bounds: ",
         show_progress_bar,
         x,
     )
-    interval_lower = map_with_progress(
-        interval_lowerbound_for_relu,
-        "  Calculating interval lower bounds: ",
-        show_progress_bar,
-        x,
-        interval_upper,
-    )
+    interval_lower = first.(interval_bounds)
+    interval_upper = last.(interval_bounds)
     lp_lower, lp_upper = lp_relu_bounds(
         x,
         constant_mask,
