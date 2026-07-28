@@ -584,6 +584,29 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test certified_lp_bound(m, lower_bound_type, x - y, -4.0) == 0.0
     end
 
+    @testset "maps each row term to its own variable" begin
+        # The certificate pairs each of the row's `MOI.ScalarAffineTerm` values with
+        # `JuMP.VariableRef(model, term.variable)` itself, where it used to inherit that pairing
+        # from the `AffExpr` `JuMP.constraint_object` built. Every other certificate test here
+        # uses single-variable rows, which cannot tell a correct pairing from a swapped one.
+        mock = certification_mock()
+        m = Model(() -> mock)
+        # The unequal upper bounds keep a swapped pairing from cancelling: x's residual is
+        # absorbed over [0, 3] and y's over [0, 4].
+        @variable(m, 0 <= x <= 3)
+        @variable(m, 0 <= y <= 4)
+        # Distinct coefficients on distinct variables are what make the pairing observable.
+        @constraint(m, 2x + 3y >= 6)
+
+        # Dual 1.0 cancels the objective's coefficients term by term, leaving no residual, so the
+        # certificate is the row's reference value 6.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.0])
+        # A swapped pairing would leave -1 on x and 1 on y, whose lower ends over the declared
+        # ranges are -1 * 3 = -3 and 1 * 0 = 0, certifying 6 - 3 = 3.0 instead. The -100.0
+        # interval bound is below both, so it never wins the final `max` and masks neither.
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3y, -100.0) == 6.0
+    end
+
     @testset "default dual retrieval returns duals in constraint order" begin
         m = Model(HiGHS.Optimizer)
         set_silent(m)
@@ -624,9 +647,9 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             calls = Vector{Vector{Any}}()
             row_duals = MIPVerify.resolve_row_duals(
                 indices,
-                is -> begin
-                    push!(calls, Any[is...])
-                    length(is) == 1 ? [duals[only(is)]] : make_bad_group_read(is)
+                idxs -> begin
+                    push!(calls, Any[idxs...])
+                    length(idxs) == 1 ? [duals[only(idxs)]] : make_bad_group_read(idxs)
                 end,
             )
             # The failed group read is discarded; each row is retried through the same source
@@ -644,7 +667,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             @test(
                 MIPVerify.resolve_row_duals(
                     indices,
-                    is -> length(is) == 1 ? "unavailable" : [0.0],
+                    idxs -> length(idxs) == 1 ? "unavailable" : [0.0],
                 ) == [nothing, nothing]
             )
         )
@@ -695,7 +718,7 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             # ...thrown by a single-row retry after a wrong-length group read.
             @test_throws typeof(fatal_error) MIPVerify.resolve_row_duals(
                 indices,
-                is -> length(is) == 1 ? throw(fatal_error) : [0.0],
+                idxs -> length(idxs) == 1 ? throw(fatal_error) : [0.0],
             )
         end
     end

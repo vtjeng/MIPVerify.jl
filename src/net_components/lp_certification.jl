@@ -160,21 +160,24 @@ unsupported or the projected multiplier or reference is unusable.
 `index` is the row's `MOI.ConstraintIndex`. Reading the set and the function through the index
 is what `JuMP.constraint_object` does, without its conversion of the function into an `AffExpr`.
 Only a row carrying a usable dual reaches this function, so most rows are never read at all.
-
-The `{F,S}` parameters carry the row's function and set types, and the two reads are annotated
-with them. Keep both annotations. `JuMP.Model` stores its backend in a field typed
-`MathOptInterface.ModelLike`, so `JuMP.backend(model)` is abstract here and each
-`MathOptInterface.get` call sees an abstract first argument. Strip the annotations and both
-reads infer as `Any`, which dispatches the set projection and every term dynamically. Checking
-the same two `get` calls against a concretely typed backend infers `F` and `S`, so that check
-reports the annotations as redundant and does not reproduce the `Any` seen here.
 """
+# The `{F,S}` parameters carry the row's function and set types, and the two reads are annotated
+# with them. Keep both annotations. `JuMP.Model` stores its backend in a field typed
+# `MathOptInterface.ModelLike`, so `JuMP.backend(model)` is abstract here and each
+# `MathOptInterface.get` call sees an abstract first argument. Strip the annotations and both
+# reads infer as `Any`, which dispatches the set projection and every term dynamically. Checking
+# the same two `get` calls against a concretely typed backend infers `F` and `S`, so that check
+# reports the annotations as redundant and does not reproduce the `Any` seen here.
+#
+# `F` is bounded because the term loop below reads `row.terms` and `row.constant`, which only a
+# scalar affine function carries. `affine_constraint_indices` already yields nothing else, so the
+# bound states that guarantee rather than adding one.
 function constraint_certificate_term!(
     model::JuMP.Model,
     coefficients,
     index::MathOptInterface.ConstraintIndex{F,S},
     row_dual::Real,
-) where {F,S}
+) where {F<:MathOptInterface.ScalarAffineFunction,S}
     backend = JuMP.backend(model)
     set = MathOptInterface.get(backend, MathOptInterface.ConstraintSet(), index)::S
     projected = projected_dual_and_reference(set, row_dual)
@@ -222,7 +225,7 @@ const AFFINE_MOI_FUNCTION_TYPE = JuMP.moi_function_type(JuMP.AffExpr)
 """
     affine_constraint_indices(model, set_type)
 
-Return the `MOI.ConstraintIndex` of every `AffExpr`-in-`set_type` row of `model`.
+Return the `MOI.ConstraintIndex` values of every `AffExpr`-in-`set_type` row of `model`.
 
 The function type is fixed to `AFFINE_MOI_FUNCTION_TYPE`, so this enumerates only the affine
 rows of `set_type`. `certified_lp_bound` restricts its loop to the same rows through a
@@ -262,7 +265,7 @@ function certified_lp_bound(
     objective::JuMPLinearType,
     interval_bound::Real,
 )::Real
-    dual_values = constraints -> default_constraint_duals(model, constraints)
+    dual_values = indices -> default_constraint_duals(model, indices)
     coefficients = Dict{JuMP.VariableRef,typeof(ZERO_INTERVAL)}()
     objective_affine = convert(JuMP.AffExpr, objective)
     objective_multiplier = bound_type == lower_bound_type ? 1.0 : -1.0
