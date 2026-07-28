@@ -178,6 +178,104 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             solve_output = JuMP.value(xmax)
             @test solve_output ≈ 100
         end
+        @testset "lp tightening relaxes integrality once for the whole call" begin
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            # The only binary variable in the model. `maximum` relaxes it to compute the LP
+            # bounds and has to restore it before formulating the max.
+            @variable(m, z, Bin)
+            # The two constraints are tight at different values of z, so the three tightening
+            # algorithms disagree on the upper bound of x1 and the assertions below can tell
+            # which one ran: interval arithmetic reads the declared bound of 10, the LP
+            # relaxation is maximized at z = 0.5 and gives 6, and the MIP optimum is 4 (at
+            # either z = 0 or z = 1).
+            x1 = @variable(m, lower_bound = -10, upper_bound = 10)
+            @constraint(m, x1 <= 4 + 4 * z)
+            @constraint(m, x1 <= 8 - 4 * z)
+            # x2 needs no tightening: its declared bounds are already its exact extrema.
+            x2 = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            xmax = MIPVerify.maximum([x1, x2])
+
+            # The hoist is not directly observable, since relaxing once per call and once per
+            # solve produce the same bounds. What is observable is the failure mode it risks:
+            # if the bound solves claimed a relaxation that was not in place, the LP solve would
+            # run as a MIP, report no duals, and fall back to the interval bound of 10.
+            # Certified LP bounds are rounded outward, so only the upper side is loose here.
+            @test 6 - 1e-6 <= upper_bound(xmax) <= 6 + 6e-3
+            # max over the LP lower bounds of x1 (-10, unconstrained from below) and x2 (-1).
+            @test lower_bound(xmax) ≈ -1
+
+            # z is binary again, with the bounds it had before the relaxation narrowed it to
+            # [0, 1]. The two extra binaries belong to the max formulation, which runs after the
+            # relaxation has been undone.
+            @test JuMP.is_binary(z)
+            @test !JuMP.has_lower_bound(z)
+            @test !JuMP.has_upper_bound(z)
+            @test count_binary_variables(m) == 3
+        end
+        @testset "mip tightening keeps integrality for its own solves" begin
+            # Same model as the lp case above, so the bounds are directly comparable: mip
+            # tightening must reach the MIP optimum of 4 rather than stopping at the LP
+            # relaxation's 6.
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(mip)
+            @variable(m, z, Bin)
+            x1 = @variable(m, lower_bound = -10, upper_bound = 10)
+            @constraint(m, x1 <= 4 + 4 * z)
+            @constraint(m, x1 <= 8 - 4 * z)
+            x2 = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            xmax = MIPVerify.maximum([x1, x2])
+
+            # mip returns the solver's dual bound, which is within the MIP gap tolerance
+            # (1e-4 relative by default) of the optimum.
+            @test 4 - 1e-6 <= upper_bound(xmax) <= 4 + 4e-3
+            @test lower_bound(xmax) ≈ -1
+            @test JuMP.is_binary(z)
+            @test count_binary_variables(m) == 3
+        end
+        @testset "interval_arithmetic tightening never relaxes integrality" begin
+            # Same model as the lp case above. Here no bound solve runs at all, so the two
+            # constraints on x1 are never consulted and its declared upper bound of 10 survives
+            # unchanged — the value that separates this path from lp's 6 and mip's 4.
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic)
+            @variable(m, z, Bin)
+            x1 = @variable(m, lower_bound = -10, upper_bound = 10)
+            @constraint(m, x1 <= 4 + 4 * z)
+            @constraint(m, x1 <= 8 - 4 * z)
+            x2 = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            xmax = MIPVerify.maximum([x1, x2])
+
+            # Exact equality rather than a tolerance: these are the declared bounds read back,
+            # with no solver in the path to perturb them.
+            @test upper_bound(xmax) == 10
+            @test lower_bound(xmax) == -1
+
+            # `maximum` skips the relaxation entirely on this path, so z never picks up the
+            # [0, 1] bounds that `relax_integrality` would have given it. The lp and mip cases
+            # above assert the same end state, but only after a relaxation has been undone.
+            @test JuMP.is_binary(z)
+            @test !JuMP.has_lower_bound(z)
+            @test !JuMP.has_upper_bound(z)
+            @test count_binary_variables(m) == 3
+        end
+        @testset "inputs spanning two models are rejected" begin
+            # The hoisted relaxation covers only the model of the first non-constant element, so a
+            # second model's element would be solved unrelaxed while being told otherwise.
+            mA = TestHelpers.get_new_model()
+            mA.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            mB = TestHelpers.get_new_model()
+            mB.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            xA = @variable(mA, lower_bound = -1, upper_bound = 1)
+            xB = @variable(mB, lower_bound = -1, upper_bound = 1)
+
+            @test_throws ArgumentError MIPVerify.maximum([xA, xB])
+            # A constant carries no model, so it is exempt and mixes with either side.
+            @test MIPVerify.maximum([one(JuMP.VariableRef) * 2, xA]) !== nothing
+        end
         @testset "lower_bound on one matches upper_bound on another; output expected to be constant" begin
             m = TestHelpers.get_new_model()
             x1 = @variable(m, lower_bound = -6, upper_bound = 2)
@@ -688,6 +786,42 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test stats.bound_tightening[(0, "lp", "upper")].solver_call_count == 1
             @test !haskey(stats.bound_tightening, (0, "mip", "upper"))
             @test count_binary_variables(m) == 2
+        end
+
+        @testset "integrality_is_relaxed" begin
+            # Two binaries capped below their combined maximum: the LP relaxation gives 1.5 and
+            # the MIP optimum is 1, so the two tightening algorithms are distinguishable.
+            m = TestHelpers.get_new_model()
+            @variable(m, 0 <= a[1:2] <= 1, Bin)
+            @constraint(m, 2 * sum(a) <= 3)
+
+            @testset "rejected under mip tightening" begin
+                # The final MIP solve needs the integrality constraints. Were it to run on a
+                # relaxed model it would report an uncertified LP objective bound as a MIP dual
+                # bound, so the caller is rejected instead.
+                @test_throws ArgumentError tight_upperbound(
+                    sum(a);
+                    nta = mip,
+                    integrality_is_relaxed = true,
+                )
+                @test_throws ArgumentError tight_lowerbound(
+                    sum(a);
+                    nta = mip,
+                    integrality_is_relaxed = true,
+                )
+                @test count_binary_variables(m) == 2
+            end
+
+            @testset "accepted under lp tightening" begin
+                # The case the flag exists for: the caller holds the relaxation open, and the
+                # bound solve skips relaxing the model a second time. Certified LP bounds are
+                # rounded outward, so 1.5 is approached from above.
+                MIPVerify.relax_integrality_context(m, true) do _
+                    upper = tight_upperbound(sum(a); nta = lp, integrality_is_relaxed = true)
+                    @test 1.5 <= upper <= 1.5001
+                end
+                @test count_binary_variables(m) == 2
+            end
         end
 
     end

@@ -222,6 +222,11 @@ function optimization_bound(
     stats::Union{Nothing,VerificationStats};
     integrality_is_relaxed::Bool = false,
 )::Real
+    # `integrality_is_relaxed` exists only to suppress the LP relaxation set up below, so a caller
+    # that sets it for any other algorithm has relaxed constraints that algorithm's solve depends
+    # on. `tight_bound` turns that away before it reaches here; this covers callers that arrive by
+    # another route, for which the flag would otherwise be silently ignored.
+    @assert !integrality_is_relaxed || tightening_algorithm == lp "`integrality_is_relaxed` is only valid under `lp` tightening, got $(tightening_algorithm)"
     record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
     model = owner_model(x)
     if tightening_algorithm != lp || integrality_is_relaxed
@@ -246,14 +251,37 @@ tightening algorithm `nta`.
 If an upper bound is proven to be below cutoff, or a lower bound is proven to above cutoff,
 the algorithm returns early with whatever value was found. MIP tightening first tries the LP
 relaxation and passes its certified result to the MIP solve.
+
+Set `integrality_is_relaxed` when the caller has already relaxed the model's integrality
+constraints for the duration of this call, so that the LP solve does not relax them again. It is
+an error to set it under `mip` tightening, which needs those constraints in the model.
+
+The caller's relaxation is also in place while this function reads its interval-arithmetic bound,
+so an integrality-constrained variable inside `x` contributes the bounds `relax_integrality` gave
+it rather than its declared ones. For a binary that is the intersection of its declared bounds
+with [0, 1], which the variable satisfies in the unrelaxed model too, so the interval bound stays
+valid there; it can come out tighter than the declared bounds, and it is defined even when the
+variable declares no bounds at all. None of MIPVerify's own layers hit this: the expressions they
+pass down are affine over continuous variables.
 """
 function tight_bound(
     x::JuMPLinearType,
     nta::Union{TighteningAlgorithm,Nothing},
     bound_type::BoundType,
-    cutoff::Real,
+    cutoff::Real;
+    integrality_is_relaxed::Bool = false,
 )
     tightening_algorithm = get_tightening_algorithm(x, nta)
+    if integrality_is_relaxed && tightening_algorithm == mip
+        # Without this check the MIP solve below would run on a relaxed model and report an
+        # uncertified LP objective bound as if it were a MIP dual bound, bypassing the dual
+        # certification that the LP path applies.
+        throw(
+            ArgumentError(
+                "integrality may only be relaxed by the caller when every solve below is an LP solve; `mip` tightening needs the integrality constraints in the model",
+            ),
+        )
+    end
     b_0 = bound_f[bound_type](x)
     stats = get_verification_stats(x)
     bound_type_name = bound_name[bound_type]
@@ -267,12 +295,21 @@ function tight_bound(
         return b_0
     end
 
-    lp_bound = optimization_bound(x, lp, bound_type, b_0, stats)
+    lp_bound = optimization_bound(
+        x,
+        lp,
+        bound_type,
+        b_0,
+        stats;
+        integrality_is_relaxed = integrality_is_relaxed,
+    )
     if tightening_algorithm == lp
         return lp_bound
     elseif bound_operator[bound_type](lp_bound, cutoff)
         return lp_bound
     end
+    # This solve needs the integrality constraints, so it is never told that they are relaxed. The
+    # guard at the top of this function rejects any caller that relaxed them around this call.
     return optimization_bound(x, mip, bound_type, lp_bound, stats)
 end
 
@@ -280,16 +317,18 @@ function tight_upperbound(
     x::JuMPLinearType;
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff::Real = -Inf,
+    integrality_is_relaxed::Bool = false,
 )
-    tight_bound(x, nta, upper_bound_type, cutoff)
+    tight_bound(x, nta, upper_bound_type, cutoff; integrality_is_relaxed = integrality_is_relaxed)
 end
 
 function tight_lowerbound(
     x::JuMPLinearType;
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     cutoff::Real = Inf,
+    integrality_is_relaxed::Bool = false,
 )
-    tight_bound(x, nta, lower_bound_type, cutoff)
+    tight_bound(x, nta, lower_bound_type, cutoff; integrality_is_relaxed = integrality_is_relaxed)
 end
 
 function log_gap(m::JuMP.Model)
@@ -354,7 +393,7 @@ function interval_lowerbound_for_relu(x::JuMPLinearType, interval_upper::Real)::
     return interval_upper <= 0 ? interval_upper : lower_bound(x)
 end
 
-function relu_tightening_algorithm(
+function first_nonconstant_tightening_algorithm(
     x::AbstractArray{T},
     constant_mask::AbstractArray{Bool},
     nta::Union{TighteningAlgorithm,Nothing},
@@ -681,7 +720,7 @@ function relu(x::JuMPLinearType)::JuMP.AffExpr
     inputs = [x]
     stats = get_verification_stats(inputs)
     constant_mask = is_constant.(inputs)
-    tightening_algorithm = relu_tightening_algorithm(inputs, constant_mask, nothing)
+    tightening_algorithm = first_nonconstant_tightening_algorithm(inputs, constant_mask, nothing)
     l_array, u_array =
         progressive_relu_bounds(inputs, constant_mask, tightening_algorithm, stats, false)
     l = only(l_array)
@@ -700,7 +739,7 @@ function relu(
     stats::Union{Nothing,VerificationStats} = get_verification_stats(x),
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     constant_mask = is_constant.(x)
-    tightening_algorithm = relu_tightening_algorithm(x, constant_mask, nta)
+    tightening_algorithm = first_nonconstant_tightening_algorithm(x, constant_mask, nta)
     log_bounds_summary::Bool =
         MIPVerify.LOGGER.levels[MIPVerify.LOGGER.level] > MIPVerify.LOGGER.levels["debug"]
     show_progress_bar::Bool = isinteractive() && log_bounds_summary
@@ -841,14 +880,67 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
         return xs[1]
     end
 
-    if all(is_constant.(xs))
+    constant_mask = is_constant.(xs)
+    if all(constant_mask)
         return maximum_of_constants(xs)
     end
     # at least one of xs is not constant.
     model = owner_model(xs)
 
-    us = map_with_progress(tight_upperbound, "  Calculating upper bounds: ", isinteractive(), xs)
-    ls = map_with_progress(tight_lowerbound, "  Calculating lower bounds: ", isinteractive(), xs)
+    # Every non-constant element has to belong to `model`, because the relaxation hoisted below is
+    # applied to that one model while every bound call is told the relaxation is in place. An
+    # element owned by a second model would solve unrelaxed, report no duals, and quietly fall back
+    # to its interval bound. Rejecting it here names the real problem; left alone it surfaces later
+    # and less directly, when the max formulation constrains variables across the two models.
+    # `lp_relu_bounds` rejects a mixed batch the same way.
+    for index in eachindex(xs)
+        constant_mask[index] && continue
+        owner_model(xs[index]) === model || throw(
+            ArgumentError("all non-constant inputs to `maximum` must belong to the same model"),
+        )
+    end
+
+    # Relax integrality once for this whole call rather than once per bound solve. Left to itself,
+    # `optimization_bound` relaxes integrality before each LP solve and restores it afterwards, and
+    # both halves of that cycle walk every variable in the model, so the cost of a single bound
+    # scales with the size of the model. Hoisting the relaxation replaces the 2 * length(xs) cycles
+    # this call would otherwise pay with one. `lp_relu_bounds` hoists it the same way for the
+    # neurons of a ReLU layer. A caller that invokes `maximum` in a loop still pays one cycle per
+    # call: #280 tracks that case for the windows of a MaxPool layer.
+    #
+    # Only `lp` tightening can be hoisted. `mip` tightening has to solve with the integrality
+    # constraints present, and a relaxation held across those solves would quietly turn them into
+    # LP solves; `tight_bound` rejects that combination outright.
+    #
+    # The decision to hoist is made once, from the first non-constant element, so every bound call
+    # below is given that same algorithm explicitly rather than left to re-derive its own. Passing
+    # it keeps the two in step by construction. Constant elements are unaffected: they resolve to
+    # `interval_arithmetic` regardless of what is passed, and skip their solves either way.
+    tightening_algorithm = first_nonconstant_tightening_algorithm(xs, constant_mask, nothing)
+    hoist_relaxation = tightening_algorithm == lp
+    us, ls = relax_integrality_context(model, hoist_relaxation) do _
+        upper = map_with_progress(
+            x -> tight_upperbound(
+                x;
+                nta = tightening_algorithm,
+                integrality_is_relaxed = hoist_relaxation,
+            ),
+            "  Calculating upper bounds: ",
+            isinteractive(),
+            xs,
+        )
+        lower = map_with_progress(
+            x -> tight_lowerbound(
+                x;
+                nta = tightening_algorithm,
+                integrality_is_relaxed = hoist_relaxation,
+            ),
+            "  Calculating lower bounds: ",
+            isinteractive(),
+            xs,
+        )
+        return (upper, lower)
+    end
 
     l = Base.maximum(ls)
     u = Base.maximum(us)
