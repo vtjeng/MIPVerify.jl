@@ -71,10 +71,10 @@ Current:
 Replacement:
 
 ```
-- Name the action, the artifact, and the result. All three, not whichever is
-  easiest. Check the verb separately from the nouns: `#276 tracks the control`
-  and `the docstring gives the rules` each name an artifact and still leave the
-  reader asking what happened.
+- Name the action, the artifact, and the result. Check the verb on its own:
+  `tracks`, `gives`, `handles`, and `covers` each attach to a real artifact and
+  still leave the reader asking what happened. The sentence passes when a
+  reader can say which operation ran.
 ```
 
 Why: the current list is disjunctive, so naming any one item discharges it, and all four items are
@@ -97,9 +97,8 @@ Replacement:
   not only at the top of the document. A paragraph that reaches its point in
   the last sentence is a derivation; rewrite it so the first sentence states
   the verdict.
-- Put a caveat after the claim it qualifies. A link to an issue or PR is not a
-  caveat and not a citation. It is a claim of its own and needs the same
-  treatment as any other sentence.
+- Put a caveat after the claim it qualifies. Treat a link to an issue or PR as
+  a claim of its own: it needs the same treatment as any other sentence.
 ```
 
 Why: "lead with the answer" was applied once at document top, leaving six derivation paragraphs. The
@@ -197,8 +196,8 @@ Replacement:
 
 ```
 - Every sentence describing what code does names the call, the value the call
-  returns, and where that value goes. Where the value is discarded rather than
-  stored, say so; that is often the reason for the change. A reviewer must be
+  returns, and where that value goes. Where nothing stores the returned value,
+  say so; that is often the reason for the change. A reviewer must be
   able to check the sentence against the diff. "loads the settings on every
   request" fails: it names no call, no returned value, and no destination.
 - Every quantity states its statistic, the population it covers and that
@@ -236,8 +235,8 @@ Replacement:
   no exemption: a three-sentence comment needs the same introductions as a long
   document.
 - Introduce every referent before relying on it: scripts, files, tools, issue
-  and PR numbers, metric names, and any phrase you coined. GitHub showing a
-  link title on hover is not an introduction.
+  and PR numbers, metric names, and any phrase you coined. Write the
+  introduction yourself, in the sentence that first uses the referent.
 - Group related material under parallel, purpose-based headings.
 ```
 
@@ -297,10 +296,10 @@ Add as a new top-level bullet in `## Performance`, after line 42:
   code is identical, so any difference between them is measurement noise, and
   its size is the smallest effect the benchmark can resolve. Report an effect
   smaller than that as unresolved.
-- One such comparison gives the size of the noise and not its direction, so it
-  is not a bias to subtract from a result. The next comparison can fall the
-  other way. Report a range, and from a single comparison write `can` or
-  `could` rather than `would`.
+- One such comparison gives the size of the noise and leaves its direction
+  unknown, so treat it as an error bar around the result. The next comparison
+  can fall the other way. Report a range, and from a single comparison write
+  `can` or `could` rather than `would`.
 ```
 
 Why: unscoped "method" made run ordering and sibling runs read as required content. The table had
@@ -412,11 +411,11 @@ a lab notebook.
   rules, image embeds, and fenced code on their own lines. Repository `.md`
   files keep their normal wrapping; unwrap only text GitHub renders as a body
   or comment. Check the rendered page after posting.
-- A link to an issue or PR says what that work will do and how it changes this
-  reader's decision, then the mechanism. `#276 tracks the control` is not a
-  reference. Write "#276 tracks the work to make this uncertainty smaller. It
-  starts with the fixed order of `run_pair.sh`, which always runs the base
-  commit first."
+- A link to an issue or PR states what that work will do, how it changes this
+  reader's decision, and then the mechanism. A bare pointer such as "#123
+  tracks this" leaves all three unsaid. Write "#123 tracks the work to remove
+  this limit. It starts with the retry path, which currently swallows the
+  error."
 - Put a caveat or link that does not block the merge in its own paragraph, open
   it with **For your information.**, and say plainly that nothing in it blocks
   this PR. End the results paragraph on its figure.
