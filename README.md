@@ -145,10 +145,10 @@ work can inspect the evidence without merging the experimental code.
   Computing an affine expression's interval bounds walks every term and yields both endpoints, so
   asking for the upper bound and then the lower bound traversed each expression twice. Reading both
   endpoints from one traversal removed the second walk. On 500 MNIST WK17a samples the median
-  per-sample ratio of Julia-only formulation time was 1.001, which is inside this benchmark's 6.8%
-  run-to-run spread. Interval arithmetic is cheap enough here that the redundant walks cost only
-  about 11 s of a 435 s baseline, so removing them entirely had a ceiling near 2.5% — below the
-  noise floor.
+  per-sample ratio of Julia-only formulation time was 1.001. Three behaviorally identical runs of
+  this benchmark spanned 412.1 s to 440.4 s of total Julia-only time, so an effect this small cannot
+  be resolved here. Interval arithmetic is cheap enough that the redundant walks cost about 11 s
+  against a 435 s baseline. Removing them entirely has a ceiling near 2.5%, below that spread.
 
 ## Contributing
 
