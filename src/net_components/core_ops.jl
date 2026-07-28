@@ -222,6 +222,11 @@ function optimization_bound(
     stats::Union{Nothing,VerificationStats};
     integrality_is_relaxed::Bool = false,
 )::Real
+    # `integrality_is_relaxed` exists only to suppress the LP relaxation set up below, so a caller
+    # that sets it for any other algorithm has relaxed constraints that algorithm's solve depends
+    # on. `tight_bound` turns that away before it reaches here; this covers callers that arrive by
+    # another route, for which the flag would otherwise be silently ignored.
+    @assert !integrality_is_relaxed || tightening_algorithm == lp "`integrality_is_relaxed` is only valid under `lp` tightening, got $(tightening_algorithm)"
     record_bound_request!(stats, tightening_algorithm, bound_name[bound_type])
     model = owner_model(x)
     if tightening_algorithm != lp || integrality_is_relaxed
