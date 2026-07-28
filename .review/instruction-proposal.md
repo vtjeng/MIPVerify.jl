@@ -121,8 +121,8 @@ Replacement:
   transitions. Use the exact domain term for the mechanism: `cache`,
   `allocate`, `restore`, `traverse`, `enumerate`, `invalidate`, `relax`.
   Explain an unfamiliar term in one clause at first use. Never substitute a
-  vaguer everyday word for a precise one. "puts it back after" is longer and
-  less checkable than "restores integrality after".
+  vaguer everyday word for a precise one: "puts it back" is longer and less
+  checkable than "restores".
 - A request for plain English, simple language, or ASD-STE100 restricts general
   vocabulary, sentence length, and grammar. It does not restrict technical
   names. Under any such request, keep identifiers, types, fields, API calls,
@@ -150,9 +150,9 @@ Replacement:
   - negated-foil contrast in every surface form: `X, not Y`, `X, and not Y`,
     `X rather than Y`, `X instead of Y`, `it is X, it is not Y`. State the fact
     positively or use two sentences;
-  - instructions on how to read a figure, such as `Read the main solve row as
-    variation` or `Do not read this as a regression`. State what the number is
-    and what it means;
+  - directions telling the reader what to conclude, such as `Read this as`,
+    `Do not read this as`, `Think of it as`, or `The key insight is`. State the
+    fact and what follows from it, and let the reader conclude;
   - forced groups of three, and `-ing` tails that assert significance, such as
     `..., underscoring its importance`;
 ```
@@ -176,8 +176,8 @@ Replacement:
   - filler and hedging such as sentence-opening `Moreover`, `Furthermore`, or
     `Additionally`; `in order to`; `it's worth noting`; and `could
     potentially`. This does not cover `can`, `could`, or `may` when they state
-    real measurement uncertainty. Those are content, and removing them makes
-    the sentence false;
+    real measurement uncertainty. There the modal carries the meaning: delete
+    it and the sentence claims more than the evidence supports;
 ```
 
 Why: this line plus "lead with the answer" turned "can report about 0.95" into "would still report
@@ -196,21 +196,21 @@ Current:
 Replacement:
 
 ```
-- Every sentence describing what code does names the function called, what it
-  produced, that value's type, where the result is stored, and when it is
-  discarded. If nothing stores it, say so; that is usually the reason for the
-  change. A reviewer must be able to check the sentence against the diff.
-  "made a list of every affine constraint" fails, because it names no call and
-  no storage.
-- Every quantity states its statistic, the size and name of the population it
-  covers, and the run it came from. Do not write `thousands`, `approximately`,
-  or a range taken from the few cases you happened to run locally. Write
-  "median 199 over the 492 samples, minimum 88, maximum 372".
-- A figure scaled up from measured cases says how many cases were measured and
-  what the scaling assumes, in its own sentence, separate from directly
-  measured totals.
-- Break complicated details into shorter sentences. Do not compress a sequence
-  of calls into one clause.
+- Every sentence describing what code does names the call, the value the call
+  returns, and where that value goes. Where the value is discarded rather than
+  stored, say so; that is often the reason for the change. A reviewer must be
+  able to check the sentence against the diff. "loads the settings on every
+  request" fails: it names no call, no returned value, and no destination.
+- Every quantity states its statistic, the population it covers and that
+  population's size, and the run it came from, as in "median 199 ms over 492
+  requests, range 88 to 372". Replace `thousands` and `approximately` with the
+  measured figure. A range measured on a handful of local cases does not
+  describe a larger population; measure that population or say which cases the
+  range covers.
+- Distinguish a directly measured value from an extrapolated one by naming, in
+  the same sentence, how many cases you measured and what the scaling assumes.
+- Break complicated details into shorter sentences. Give each step of a
+  sequence its own clause.
 ```
 
 Why: the category checklist ticked on "148 to 230 solves", a range from four local samples in a PR
@@ -232,8 +232,9 @@ Current:
 Replacement:
 
 ```
-- Write for a reader who has not seen the surrounding conversation. This
-  applies to a four-paragraph PR body as much as to a long report.
+- Write for a reader who has not seen the surrounding conversation. Length is
+  no exemption: a three-sentence comment needs the same introductions as a long
+  document.
 - Introduce every referent before relying on it: scripts, files, tools, issue
   and PR numbers, metric names, and any phrase you coined. GitHub showing a
   link title on hover is not an introduction.
@@ -255,10 +256,10 @@ Current:
 Replacement:
 
 ```
-- After revising a document, read the saved file or the posted page from
-  beginning to end, not the draft you remember. Remove repetition, conflicts,
-  vague references, sections that do not fit, and facts that only existed to
-  support a passage you cut.
+- After revising a document, open the saved file or the posted page and read it
+  from beginning to end. Remove repetition, conflicts, vague references,
+  sections that do not fit, and facts that only existed to support a passage
+  you cut.
 ```
 
 Why: after the six-run table was deleted, the Conclusion still said "three of the six runs". The
@@ -284,20 +285,22 @@ Replacement:
 Add after line 41 (the quantiles bullet), a new sub-bullet:
 
 ```
-  - when control noise is comparable to the effect, the headline against each
-    plausible no-change value plus an explicit range in both directions, for
-    example "17 percent against 1.00, 13 percent against 0.95, 21 percent
-    against 1.05; read it as 17 percent with about 4 points of uncertainty
-    each way";
+  - when control noise is comparable to the effect, the headline as a value
+    with a range, such as `17 ± 4%`, and one line naming the control
+    measurement that the range came from;
 ```
 
 Add as a new top-level bullet in `## Performance`, after line 42:
 
 ```
-- A single control run bounds how far the benchmark can move with no code
-  change. It is not an offset to subtract, and it has no known sign: a second
-  control could land on the other side of 1.00. From one observation write
-  `can` or `could`, never `would`.
+- Benchmark the unchanged code against itself and compare the two runs. The
+  code is identical, so any difference between them is measurement noise, and
+  its size is the smallest effect the benchmark can resolve. Report an effect
+  smaller than that as unresolved.
+- One such comparison gives the size of the noise and not its direction, so it
+  is not a bias to subtract from a result. The next comparison can fall the
+  other way. Report a range, and from a single comparison write `can` or
+  `could` rather than `would`.
 ```
 
 Why: unscoped "method" made run ordering and sibling runs read as required content. The table had
@@ -368,8 +371,8 @@ edit in the file.
   load-bearing use, in the same paragraph, in bold, tied to the code or
   artifact it names: what does it, what triggers it, why it is safe. Say that
   you are naming it, as in "This report calls that early return **the skip**".
-  A term you minted two paragraphs earlier still needs this. Using the same
-  word earlier as a verb is not a definition.
+  A term you minted two paragraphs earlier still needs this, and so does one
+  whose word already appeared as an ordinary verb.
 ```
 
 ### B4. Deletion criterion, as a bullet in `## Writing` after A2
@@ -415,8 +418,8 @@ a lab notebook.
   starts with the fixed order of `run_pair.sh`, which always runs the base
   commit first."
 - Put a caveat or link that does not block the merge in its own paragraph, open
-  it with **For information.**, and say plainly that nothing in it blocks this
-  PR. End the results paragraph on its figure.
+  it with **For your information.**, and say plainly that nothing in it blocks
+  this PR. End the results paragraph on its figure.
 - State the basis of an unreplicated claim in the opening paragraph: how many
   cases, under which conditions, what you did not vary, and that it is not
   proof. A confident title does not get to carry a single measurement.
