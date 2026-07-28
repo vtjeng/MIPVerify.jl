@@ -124,11 +124,10 @@ That ceiling sits below the 6.8% noise floor, so this benchmark could not resolv
 it were free. The 3% to 6% estimate came from profiler shares without ever checking what one
 traversal costs.
 
-The skip matters too, but it is the smaller factor. Without it — that is, if every unit paid for the
-second traversal — the redundant work would cost 0.071 s for each sample, or 8.0% of Julia-only
-time. The skip is what brings the available saving down from that 8.0% to 2.5%. It does not remove
-the work altogether: roughly a third of all units still reach the second traversal, as the table
-shows.
+The skip matters too, but it is the smaller factor. If every unit ran the second traversal, the
+redundant work would cost 0.071 s for each sample, or 8.0% of Julia-only time. The skip is what
+brings the available saving down from that 8.0% to 2.5%. It does not remove the work altogether:
+roughly a third of all units still reach the second traversal, as the table shows.
 
 ## Limitations
 
