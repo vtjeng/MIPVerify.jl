@@ -11,8 +11,9 @@ using .BenchmarkHelpers
 
 function get_optimizer_main_and_tightening_options(main_time_limit::Float64)
     optimizer = HiGHS.Optimizer
-    main_solve_options = Dict("output_flag" => false, "time_limit" => main_time_limit)
-    tightening_options = Dict("output_flag" => false, "time_limit" => 20.0)
+    main_solve_options =
+        Dict("output_flag" => false, "time_limit" => main_time_limit, "threads" => 1)
+    tightening_options = Dict("output_flag" => false, "time_limit" => 20.0, "threads" => 1)
     return (optimizer, main_solve_options, tightening_options)
 end
 
