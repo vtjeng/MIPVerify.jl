@@ -162,8 +162,12 @@ is what `JuMP.constraint_object` does, without its conversion of the function in
 Only a row carrying a usable dual reaches this function, so most rows are never read at all.
 
 The `{F,S}` parameters carry the row's function and set types, and the two reads are annotated
-with them. `MathOptInterface.get` is otherwise inferred as `Any`, which would dispatch every
-downstream call on the set and on each term dynamically.
+with them. Keep both annotations. `JuMP.Model` stores its backend in a field typed
+`MathOptInterface.ModelLike`, so `JuMP.backend(model)` is abstract here and each
+`MathOptInterface.get` call sees an abstract first argument. Strip the annotations and both
+reads infer as `Any`, which dispatches the set projection and every term dynamically. Checking
+the same two `get` calls against a concretely typed backend infers `F` and `S`, so that check
+reports the annotations as redundant and does not reproduce the `Any` seen here.
 """
 function constraint_certificate_term!(
     model::JuMP.Model,
@@ -190,7 +194,13 @@ function constraint_certificate_term!(
            (IntervalArithmetic.interval(reference) - IntervalArithmetic.interval(row.constant))
 end
 
-function add_constraint_duals_to_certificate!(model, coefficients, certificate, indices, row_duals)
+function add_constraint_duals_to_certificate!(
+    model::JuMP.Model,
+    coefficients,
+    certificate,
+    indices,
+    row_duals,
+)
     for (index, row_dual) in zip(indices, row_duals)
         is_usable_constraint_dual(row_dual) || continue
         term = constraint_certificate_term!(model, coefficients, index, row_dual)
@@ -213,6 +223,10 @@ const AFFINE_MOI_FUNCTION_TYPE = JuMP.moi_function_type(JuMP.AffExpr)
     affine_constraint_indices(model, set_type)
 
 Return the `MOI.ConstraintIndex` of every `AffExpr`-in-`set_type` row of `model`.
+
+The function type is fixed to `AFFINE_MOI_FUNCTION_TYPE`, so this enumerates only the affine
+rows of `set_type`. `certified_lp_bound` restricts its loop to the same rows through a
+`function_type == JuMP.AffExpr` guard, so the two agree on which rows the certificate covers.
 
 `certified_lp_bound` runs once per LP bound solve, and a single sample can need hundreds of them.
 Enumerating the indices is the cheap half of `JuMP.all_constraints`, which spends almost all of

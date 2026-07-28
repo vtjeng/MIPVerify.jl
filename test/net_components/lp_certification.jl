@@ -601,17 +601,19 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test MIPVerify.default_constraint_duals(m, indices) == [2.0, 3.0]
     end
 
-    @testset "resolve_row_duals retries constraints individually when a group read fails" begin
+    @testset "resolve_row_duals retries rows individually when a group read fails" begin
         # `resolve_row_duals` takes its dual source as a function, so the retry ladder is
         # exercised directly: a source that fails whole-group reads but answers single-element
         # retries cannot be built on top of MockOptimizer, whose vector reads broadcast to
         # scalar reads.
         m = Model()
         @variable(m, x)
-        first_constraint = @constraint(m, x >= 1)
-        second_constraint = @constraint(m, x >= 2)
-        constraints = [first_constraint, second_constraint]
-        duals = Dict(first_constraint => 1.0, second_constraint => 2.0)
+        # `certified_lp_bound` reaches `resolve_row_duals` with the `MOI.ConstraintIndex` values
+        # `affine_constraint_indices` returns, so the retry ladder is exercised on indices here.
+        first_index = JuMP.index(@constraint(m, x >= 1))
+        second_index = JuMP.index(@constraint(m, x >= 2))
+        indices = [first_index, second_index]
+        duals = Dict(first_index => 1.0, second_index => 2.0)
 
         for make_bad_group_read in (
             # An erroring group read exercises the exception fallback.
@@ -621,20 +623,16 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         )
             calls = Vector{Vector{Any}}()
             row_duals = MIPVerify.resolve_row_duals(
-                constraints,
-                cs -> begin
-                    push!(calls, Any[cs...])
-                    length(cs) == 1 ? [duals[only(cs)]] : make_bad_group_read(cs)
+                indices,
+                is -> begin
+                    push!(calls, Any[is...])
+                    length(is) == 1 ? [duals[only(is)]] : make_bad_group_read(is)
                 end,
             )
             # The failed group read is discarded; each row is retried through the same source
             # as a single-element batch, in order.
             @test row_duals == [1.0, 2.0]
-            @test calls == [
-                Any[first_constraint, second_constraint],
-                Any[first_constraint],
-                Any[second_constraint],
-            ]
+            @test calls == [Any[first_index, second_index], Any[first_index], Any[second_index]]
         end
 
         # A retry that answers with something other than a one-element vector leaves that
@@ -645,8 +643,8 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             "Single constraint-dual retry returned an incompatible value",
             @test(
                 MIPVerify.resolve_row_duals(
-                    constraints,
-                    cs -> length(cs) == 1 ? "unavailable" : [0.0],
+                    indices,
+                    is -> length(is) == 1 ? "unavailable" : [0.0],
                 ) == [nothing, nothing]
             )
         )
@@ -686,20 +684,50 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "resolve_row_duals propagates fatal dual-read errors" begin
         m = Model()
         @variable(m, x)
-        constraints = [@constraint(m, x >= 1), @constraint(m, x >= 2)]
+        indices = JuMP.index.([@constraint(m, x >= 1), @constraint(m, x >= 2)])
 
         for fatal_error in (InterruptException(), OutOfMemoryError(), StackOverflowError())
             # ...thrown by the whole-group read.
             @test_throws typeof(fatal_error) MIPVerify.resolve_row_duals(
-                constraints,
+                indices,
                 _ -> throw(fatal_error),
             )
-            # ...thrown by a single-constraint retry after a wrong-length group read.
+            # ...thrown by a single-row retry after a wrong-length group read.
             @test_throws typeof(fatal_error) MIPVerify.resolve_row_duals(
-                constraints,
-                cs -> length(cs) == 1 ? throw(fatal_error) : [0.0],
+                indices,
+                is -> length(is) == 1 ? throw(fatal_error) : [0.0],
             )
         end
+    end
+
+    @testset "affine_constraint_indices matches the enumeration JuMP.all_constraints performs" begin
+        # The certificate reads each row's dual, set, and function through the index this
+        # returns, in place of the `JuMP.ConstraintRef` that `JuMP.all_constraints` builds from
+        # that same index. Pinning the two against each other catches a JuMP-side change to
+        # which rows are enumerated or in what order, which would otherwise surface only as a
+        # wrong bound.
+        m = Model()
+        @variable(m, 0 <= x <= 1)
+        @variable(m, 0 <= y <= 1)
+        # The two affine set types interleave, so an enumeration that returned creation order
+        # across the whole model would fail the per-set-type comparison below.
+        @constraint(m, x + y >= 1)
+        @constraint(m, x - y <= 2)
+        @constraint(m, 2x + y >= 3)
+        # The quadratic row shares `LessThan` with an affine row, so it separates a filter on the
+        # set type from a filter on both the function type and the set type.
+        @constraint(m, x^2 + y <= 4)
+
+        for set_type in (MathOptInterface.GreaterThan{Float64}, MathOptInterface.LessThan{Float64})
+            @test MIPVerify.affine_constraint_indices(m, set_type) ==
+                  JuMP.index.(JuMP.all_constraints(m, JuMP.AffExpr, set_type))
+        end
+        # Two GreaterThan rows and one affine LessThan row; the quadratic row is excluded.
+        @test length(
+            MIPVerify.affine_constraint_indices(m, MathOptInterface.GreaterThan{Float64}),
+        ) == 2
+        @test length(MIPVerify.affine_constraint_indices(m, MathOptInterface.LessThan{Float64})) ==
+              1
     end
 
     @testset "certificate reflects a constraint added between two bound solves" begin
