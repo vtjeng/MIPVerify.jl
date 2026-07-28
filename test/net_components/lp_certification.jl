@@ -589,16 +589,16 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         set_silent(m)
         @variable(m, x)
         @variable(m, y)
-        constraints = [@constraint(m, x >= 1), @constraint(m, y >= 2)]
+        indices = JuMP.index.([@constraint(m, x >= 1), @constraint(m, y >= 2)])
         # Both rows are active at the optimum, so each row's dual equals its variable's objective
         # coefficient; the distinct coefficients 2 and 3 make the returned order observable.
         @objective(m, Min, 2x + 3y)
 
         # Before any solve there are no duals, so the batch read reports them unavailable.
-        @test MIPVerify.default_constraint_duals(m, constraints) === nothing
+        @test MIPVerify.default_constraint_duals(m, indices) === nothing
 
         optimize!(m)
-        @test MIPVerify.default_constraint_duals(m, constraints) == [2.0, 3.0]
+        @test MIPVerify.default_constraint_duals(m, indices) == [2.0, 3.0]
     end
 
     @testset "resolve_row_duals retries constraints individually when a group read fails" begin
@@ -700,5 +700,28 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
                 cs -> length(cs) == 1 ? throw(fatal_error) : [0.0],
             )
         end
+    end
+
+    @testset "certificate reflects a constraint added between two bound solves" begin
+        # Each bound enumerates the model's rows afresh, so a row added between two bounds must
+        # appear in the second certificate. Objective 2x + 3 over x in [-2, 5]. The -100.0 interval
+        # bound is far below every certificate value here, so it never masks one and never wins the
+        # final `max`.
+        mock = certification_mock()
+        m = Model(() -> mock)
+        @variable(m, -2 <= x <= 5)
+        @constraint(m, x >= 1)
+
+        # Dual 1.9 on `x >= 1` leaves a residual of 2 - 1.9 = 0.1 on x, worth 0.1 * (-2) = -0.2 at
+        # the lower end, so the certificate is 3 + 1.9 * 1 - 0.2 = 4.7.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 4.7
+
+        @constraint(m, x >= 2)
+        # Now the second row carries the dual: 3 + 1.9 * 2 - 0.2 = 6.6. A one-row enumeration would
+        # read the first row's 0.0 dual, drop the row as unusable, and be left with the full
+        # coefficient 2 on x, certifying only 3 + 2 * (-2) = -1.0.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [0.0, 1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 6.6
     end
 end

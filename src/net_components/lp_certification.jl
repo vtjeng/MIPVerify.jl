@@ -81,14 +81,14 @@ function solver_attribute_or_nothing(f, description::AbstractString)
 end
 
 """
-    single_constraint_dual_or_nothing(dual_values, constraint)
+    single_constraint_dual_or_nothing(dual_values, index)
 
-Read one constraint's dual through the batched `dual_values` source as a single-element batch,
+Read one row's dual through the batched `dual_values` source as a single-element batch,
 returning `nothing` when the read fails or the result is not a one-element vector.
 """
-function single_constraint_dual_or_nothing(dual_values, constraint)
+function single_constraint_dual_or_nothing(dual_values, index)
     values = solver_read_or_nothing(
-        () -> dual_values([constraint]),
+        () -> dual_values([index]),
         Memento.warn,
         "a constraint dual",
         "treating it as unavailable",
@@ -105,24 +105,20 @@ function single_constraint_dual_or_nothing(dual_values, constraint)
     return first(values)
 end
 
-function default_constraint_duals(model::JuMP.Model, constraints)
+function default_constraint_duals(model::JuMP.Model, indices)
     JuMP.has_duals(model) || return nothing
-    return MathOptInterface.get(
-        JuMP.backend(model),
-        MathOptInterface.ConstraintDual(),
-        JuMP.index.(constraints),
-    )
+    return MathOptInterface.get(JuMP.backend(model), MathOptInterface.ConstraintDual(), indices)
 end
 
-function constraint_duals_or_nothing(constraints, dual_values)
+function constraint_duals_or_nothing(indices, dual_values)
     values = solver_read_or_nothing(
-        () -> dual_values(constraints),
+        () -> dual_values(indices),
         Memento.debug,
         "a batch of constraint duals",
         "retrying individually",
     )
     values === nothing && return nothing
-    if !(values isa AbstractVector) || length(values) != length(constraints)
+    if !(values isa AbstractVector) || length(values) != length(indices)
         Memento.debug(
             MIPVerify.LOGGER,
             "Batch constraint-dual read returned an incompatible value; retrying individually.",
@@ -154,48 +150,80 @@ function is_usable_constraint_dual(row_dual)
 end
 
 """
-    constraint_certificate_term!(coefficients, constraint, row_dual)
+    constraint_certificate_term!(model, coefficients, index, row_dual)
 
 Apply one row's certificate contribution, split in two: the row's variable terms are subtracted
 into `coefficients` (mutated in place), and its scalar `multiplier * (reference - constant)`
 term is returned. Returns `nothing`, leaving `coefficients` unchanged, when the row's set is
 unsupported or the projected multiplier or reference is unusable.
+
+`index` is the row's `MOI.ConstraintIndex`. Reading the set and the function through the index
+is what `JuMP.constraint_object` does, without its conversion of the function into an `AffExpr`.
+Only a row carrying a usable dual reaches this function, so most rows are never read at all.
+
+The `{F,S}` parameters carry the row's function and set types, and the two reads are annotated
+with them. `MathOptInterface.get` is otherwise inferred as `Any`, which would dispatch every
+downstream call on the set and on each term dynamically.
 """
-function constraint_certificate_term!(coefficients, constraint, row_dual::Real)
-    constraint_object = JuMP.constraint_object(constraint)
-    projected = projected_dual_and_reference(constraint_object.set, row_dual)
+function constraint_certificate_term!(
+    model::JuMP.Model,
+    coefficients,
+    index::MathOptInterface.ConstraintIndex{F,S},
+    row_dual::Real,
+) where {F,S}
+    backend = JuMP.backend(model)
+    set = MathOptInterface.get(backend, MathOptInterface.ConstraintSet(), index)::S
+    projected = projected_dual_and_reference(set, row_dual)
     projected === nothing && return nothing
     multiplier, reference = projected
     (iszero(multiplier) || !isfinite(reference)) && return nothing
     multiplier_interval = IntervalArithmetic.interval(multiplier)
-    function_value = constraint_object.func
-    for (variable, coefficient) in function_value.terms
+    row = MathOptInterface.get(backend, MathOptInterface.ConstraintFunction(), index)::F
+    for term in row.terms
         add_interval_coefficient!(
             coefficients,
-            variable,
-            -multiplier_interval * IntervalArithmetic.interval(coefficient),
+            JuMP.VariableRef(model, term.variable),
+            -multiplier_interval * IntervalArithmetic.interval(term.coefficient),
         )
     end
-    return multiplier_interval * (
-        IntervalArithmetic.interval(reference) -
-        IntervalArithmetic.interval(function_value.constant)
-    )
+    return multiplier_interval *
+           (IntervalArithmetic.interval(reference) - IntervalArithmetic.interval(row.constant))
 end
 
-function add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
-    for (constraint, row_dual) in zip(constraints, row_duals)
+function add_constraint_duals_to_certificate!(model, coefficients, certificate, indices, row_duals)
+    for (index, row_dual) in zip(indices, row_duals)
         is_usable_constraint_dual(row_dual) || continue
-        term = constraint_certificate_term!(coefficients, constraint, row_dual)
+        term = constraint_certificate_term!(model, coefficients, index, row_dual)
         term === nothing && continue
         certificate += term
     end
     return certificate
 end
 
-function resolve_row_duals(constraints, dual_values)
-    row_duals = constraint_duals_or_nothing(constraints, dual_values)
+function resolve_row_duals(indices, dual_values)
+    row_duals = constraint_duals_or_nothing(indices, dual_values)
     row_duals !== nothing && return row_duals
-    return [single_constraint_dual_or_nothing(dual_values, c) for c in constraints]
+    return [single_constraint_dual_or_nothing(dual_values, i) for i in indices]
+end
+
+# The MOI function type carried by `AffExpr` constraints, `ScalarAffineFunction{Float64}`.
+const AFFINE_MOI_FUNCTION_TYPE = JuMP.moi_function_type(JuMP.AffExpr)
+
+"""
+    affine_constraint_indices(model, set_type)
+
+Return the `MOI.ConstraintIndex` of every `AffExpr`-in-`set_type` row of `model`.
+
+`certified_lp_bound` runs once per LP bound solve, and a single sample can need hundreds of them.
+Enumerating the indices is the cheap half of `JuMP.all_constraints`, which spends almost all of
+its time wrapping each index in a `JuMP.ConstraintRef`. The certificate reads each row's dual,
+set, and function straight off the index, so it never needs that wrapper.
+"""
+function affine_constraint_indices(model::JuMP.Model, set_type::DataType)
+    return MathOptInterface.get(
+        model,
+        MathOptInterface.ListOfConstraintIndices{AFFINE_MOI_FUNCTION_TYPE,set_type}(),
+    )
 end
 
 """
@@ -238,10 +266,15 @@ function certified_lp_bound(
 
     for (function_type, set_type) in JuMP.list_of_constraint_types(model)
         function_type == JuMP.AffExpr || continue
-        constraints = JuMP.all_constraints(model, function_type, set_type)
-        row_duals = resolve_row_duals(constraints, dual_values)
-        certificate =
-            add_constraint_duals_to_certificate!(coefficients, certificate, constraints, row_duals)
+        indices = affine_constraint_indices(model, set_type)
+        row_duals = resolve_row_duals(indices, dual_values)
+        certificate = add_constraint_duals_to_certificate!(
+            model,
+            coefficients,
+            certificate,
+            indices,
+            row_duals,
+        )
     end
 
     for (variable, coefficient) in coefficients
