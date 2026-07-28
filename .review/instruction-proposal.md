@@ -71,15 +71,14 @@ Current:
 Replacement:
 
 ```
-- Say what ran, what it ran on, and what came out. Naming only the thing acted
-  on is not enough: `tracks`, `gives`, `handles`, and `covers` all attach to a
-  real object and still leave the operation unnamed. Rewrite until a reader can
-  name the operation from the sentence alone.
+- Every sentence names its operation as well as its object. `tracks`, `gives`,
+  `handles`, and `covers` all attach to a real object and still leave the
+  operation unnamed. A reader can name the operation from the sentence alone.
 ```
 
 Why: the current list is disjunctive, so naming any one item discharges it, and all four items are
-nouns. The replacement is testable per sentence: point at the action, the artifact, the result, and
-ask whether the verb names an operation.
+nouns, so the verb is never checked. The replacement is testable per sentence: read the verb on its
+own and ask whether it names an operation.
 
 ### A2. Line 50-51: no unit, and issue links classed as citations
 
@@ -94,8 +93,7 @@ Replacement:
 
 ```
 - Open every paragraph with its topic sentence: the answer, status, warning, or
-  required action. A paragraph that reaches its point in the last sentence is a
-  derivation; rewrite it so the first sentence states the verdict.
+  required action.
 - Put caveats after the claims they qualify. Place a link to an issue or PR in
   context: say what that work is and how it bears on what you just wrote.
 ```
