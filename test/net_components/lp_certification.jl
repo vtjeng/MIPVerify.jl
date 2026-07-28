@@ -584,34 +584,59 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test certified_lp_bound(m, lower_bound_type, x - y, -4.0) == 0.0
     end
 
+    @testset "maps each row term to its own variable" begin
+        # The certificate pairs each of the row's `MOI.ScalarAffineTerm` values with
+        # `JuMP.VariableRef(model, term.variable)` itself, where it used to inherit that pairing
+        # from the `AffExpr` `JuMP.constraint_object` built. Every other certificate test here
+        # uses single-variable rows, which cannot tell a correct pairing from a swapped one.
+        mock = certification_mock()
+        m = Model(() -> mock)
+        # The unequal upper bounds keep a swapped pairing from cancelling: x's residual is
+        # absorbed over [0, 3] and y's over [0, 4].
+        @variable(m, 0 <= x <= 3)
+        @variable(m, 0 <= y <= 4)
+        # Distinct coefficients on distinct variables are what make the pairing observable.
+        @constraint(m, 2x + 3y >= 6)
+
+        # Dual 1.0 cancels the objective's coefficients term by term, leaving no residual, so the
+        # certificate is the row's reference value 6.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.0])
+        # A swapped pairing would leave -1 on x and 1 on y, whose lower ends over the declared
+        # ranges are -1 * 3 = -3 and 1 * 0 = 0, certifying 6 - 3 = 3.0 instead. The -100.0
+        # interval bound is below both, so it never wins the final `max` and masks neither.
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3y, -100.0) == 6.0
+    end
+
     @testset "default dual retrieval returns duals in constraint order" begin
         m = Model(HiGHS.Optimizer)
         set_silent(m)
         @variable(m, x)
         @variable(m, y)
-        constraints = [@constraint(m, x >= 1), @constraint(m, y >= 2)]
+        indices = JuMP.index.([@constraint(m, x >= 1), @constraint(m, y >= 2)])
         # Both rows are active at the optimum, so each row's dual equals its variable's objective
         # coefficient; the distinct coefficients 2 and 3 make the returned order observable.
         @objective(m, Min, 2x + 3y)
 
         # Before any solve there are no duals, so the batch read reports them unavailable.
-        @test MIPVerify.default_constraint_duals(m, constraints) === nothing
+        @test MIPVerify.default_constraint_duals(m, indices) === nothing
 
         optimize!(m)
-        @test MIPVerify.default_constraint_duals(m, constraints) == [2.0, 3.0]
+        @test MIPVerify.default_constraint_duals(m, indices) == [2.0, 3.0]
     end
 
-    @testset "resolve_row_duals retries constraints individually when a group read fails" begin
+    @testset "resolve_row_duals retries rows individually when a group read fails" begin
         # `resolve_row_duals` takes its dual source as a function, so the retry ladder is
         # exercised directly: a source that fails whole-group reads but answers single-element
         # retries cannot be built on top of MockOptimizer, whose vector reads broadcast to
         # scalar reads.
         m = Model()
         @variable(m, x)
-        first_constraint = @constraint(m, x >= 1)
-        second_constraint = @constraint(m, x >= 2)
-        constraints = [first_constraint, second_constraint]
-        duals = Dict(first_constraint => 1.0, second_constraint => 2.0)
+        # `certified_lp_bound` reaches `resolve_row_duals` with the `MOI.ConstraintIndex` values
+        # `affine_constraint_indices` returns, so the retry ladder is exercised on indices here.
+        first_index = JuMP.index(@constraint(m, x >= 1))
+        second_index = JuMP.index(@constraint(m, x >= 2))
+        indices = [first_index, second_index]
+        duals = Dict(first_index => 1.0, second_index => 2.0)
 
         for make_bad_group_read in (
             # An erroring group read exercises the exception fallback.
@@ -621,20 +646,16 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         )
             calls = Vector{Vector{Any}}()
             row_duals = MIPVerify.resolve_row_duals(
-                constraints,
-                cs -> begin
-                    push!(calls, Any[cs...])
-                    length(cs) == 1 ? [duals[only(cs)]] : make_bad_group_read(cs)
+                indices,
+                idxs -> begin
+                    push!(calls, Any[idxs...])
+                    length(idxs) == 1 ? [duals[only(idxs)]] : make_bad_group_read(idxs)
                 end,
             )
             # The failed group read is discarded; each row is retried through the same source
             # as a single-element batch, in order.
             @test row_duals == [1.0, 2.0]
-            @test calls == [
-                Any[first_constraint, second_constraint],
-                Any[first_constraint],
-                Any[second_constraint],
-            ]
+            @test calls == [Any[first_index, second_index], Any[first_index], Any[second_index]]
         end
 
         # A retry that answers with something other than a one-element vector leaves that
@@ -645,8 +666,8 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
             "Single constraint-dual retry returned an incompatible value",
             @test(
                 MIPVerify.resolve_row_duals(
-                    constraints,
-                    cs -> length(cs) == 1 ? "unavailable" : [0.0],
+                    indices,
+                    idxs -> length(idxs) == 1 ? "unavailable" : [0.0],
                 ) == [nothing, nothing]
             )
         )
@@ -686,19 +707,72 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
     @testset "resolve_row_duals propagates fatal dual-read errors" begin
         m = Model()
         @variable(m, x)
-        constraints = [@constraint(m, x >= 1), @constraint(m, x >= 2)]
+        indices = JuMP.index.([@constraint(m, x >= 1), @constraint(m, x >= 2)])
 
         for fatal_error in (InterruptException(), OutOfMemoryError(), StackOverflowError())
             # ...thrown by the whole-group read.
             @test_throws typeof(fatal_error) MIPVerify.resolve_row_duals(
-                constraints,
+                indices,
                 _ -> throw(fatal_error),
             )
-            # ...thrown by a single-constraint retry after a wrong-length group read.
+            # ...thrown by a single-row retry after a wrong-length group read.
             @test_throws typeof(fatal_error) MIPVerify.resolve_row_duals(
-                constraints,
-                cs -> length(cs) == 1 ? throw(fatal_error) : [0.0],
+                indices,
+                idxs -> length(idxs) == 1 ? throw(fatal_error) : [0.0],
             )
         end
+    end
+
+    @testset "affine_constraint_indices matches the enumeration JuMP.all_constraints performs" begin
+        # The certificate reads each row's dual, set, and function through the index this
+        # returns, in place of the `JuMP.ConstraintRef` that `JuMP.all_constraints` builds from
+        # that same index. Pinning the two against each other catches a JuMP-side change to
+        # which rows are enumerated or in what order, which would otherwise surface only as a
+        # wrong bound.
+        m = Model()
+        @variable(m, 0 <= x <= 1)
+        @variable(m, 0 <= y <= 1)
+        # The two affine set types interleave, so an enumeration that returned creation order
+        # across the whole model would fail the per-set-type comparison below.
+        @constraint(m, x + y >= 1)
+        @constraint(m, x - y <= 2)
+        @constraint(m, 2x + y >= 3)
+        # The quadratic row shares `LessThan` with an affine row, so it separates a filter on the
+        # set type from a filter on both the function type and the set type.
+        @constraint(m, x^2 + y <= 4)
+
+        for set_type in (MathOptInterface.GreaterThan{Float64}, MathOptInterface.LessThan{Float64})
+            @test MIPVerify.affine_constraint_indices(m, set_type) ==
+                  JuMP.index.(JuMP.all_constraints(m, JuMP.AffExpr, set_type))
+        end
+        # Two GreaterThan rows and one affine LessThan row; the quadratic row is excluded.
+        @test length(
+            MIPVerify.affine_constraint_indices(m, MathOptInterface.GreaterThan{Float64}),
+        ) == 2
+        @test length(MIPVerify.affine_constraint_indices(m, MathOptInterface.LessThan{Float64})) ==
+              1
+    end
+
+    @testset "certificate reflects a constraint added between two bound solves" begin
+        # Each bound enumerates the model's rows afresh, so a row added between two bounds must
+        # appear in the second certificate. Objective 2x + 3 over x in [-2, 5]. The -100.0 interval
+        # bound is far below every certificate value here, so it never masks one and never wins the
+        # final `max`.
+        mock = certification_mock()
+        m = Model(() -> mock)
+        @variable(m, -2 <= x <= 5)
+        @constraint(m, x >= 1)
+
+        # Dual 1.9 on `x >= 1` leaves a residual of 2 - 1.9 = 0.1 on x, worth 0.1 * (-2) = -0.2 at
+        # the lower end, so the certificate is 3 + 1.9 * 1 - 0.2 = 4.7.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 4.7
+
+        @constraint(m, x >= 2)
+        # Now the second row carries the dual: 3 + 1.9 * 2 - 0.2 = 6.6. A one-row enumeration would
+        # read the first row's 0.0 dual, drop the row as unusable, and be left with the full
+        # coefficient 2 on x, certifying only 3 + 2 * (-2) = -1.0.
+        optimize_with_mock_duals!(mock, m, AFFINE_GT => [0.0, 1.9])
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 6.6
     end
 end
