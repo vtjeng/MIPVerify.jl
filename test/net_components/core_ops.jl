@@ -262,6 +262,20 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test !JuMP.has_upper_bound(z)
             @test count_binary_variables(m) == 3
         end
+        @testset "inputs spanning two models are rejected" begin
+            # The hoisted relaxation covers only the model of the first non-constant element, so a
+            # second model's element would be solved unrelaxed while being told otherwise.
+            mA = TestHelpers.get_new_model()
+            mA.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            mB = TestHelpers.get_new_model()
+            mB.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(lp)
+            xA = @variable(mA, lower_bound = -1, upper_bound = 1)
+            xB = @variable(mB, lower_bound = -1, upper_bound = 1)
+
+            @test_throws ArgumentError MIPVerify.maximum([xA, xB])
+            # A constant carries no model, so it is exempt and mixes with either side.
+            @test MIPVerify.maximum([one(JuMP.VariableRef) * 2, xA]) !== nothing
+        end
         @testset "lower_bound on one matches upper_bound on another; output expected to be constant" begin
             m = TestHelpers.get_new_model()
             x1 = @variable(m, lower_bound = -6, upper_bound = 2)

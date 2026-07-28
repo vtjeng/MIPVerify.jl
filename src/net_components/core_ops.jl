@@ -882,6 +882,19 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # at least one of xs is not constant.
     model = owner_model(xs)
 
+    # Every non-constant element has to belong to `model`, because the relaxation hoisted below is
+    # applied to that one model while every bound call is told the relaxation is in place. An
+    # element owned by a second model would solve unrelaxed, report no duals, and quietly fall back
+    # to its interval bound. Rejecting it here names the real problem; left alone it surfaces later
+    # and less directly, when the max formulation constrains variables across the two models.
+    # `lp_relu_bounds` rejects a mixed batch the same way.
+    for index in eachindex(xs)
+        constant_mask[index] && continue
+        owner_model(xs[index]) === model || throw(
+            ArgumentError("all non-constant inputs to `maximum` must belong to the same model"),
+        )
+    end
+
     # Relax integrality once for this whole call rather than once per bound solve. Left to itself,
     # `optimization_bound` relaxes integrality before each LP solve and restores it afterwards, and
     # both halves of that cycle walk every variable in the model, so the cost of a single bound
