@@ -198,36 +198,55 @@ function resolve_row_duals(constraints, dual_values)
     return [single_constraint_dual_or_nothing(dual_values, c) for c in constraints]
 end
 
-# Model extension key holding `Dict{DataType,Tuple{Int,Any}}`: for each set type, the affine
-# constraints of that type and the constraint count at the time they were listed.
+# The MOI function type carried by `AffExpr` constraints, `ScalarAffineFunction{Float64}`.
+# `JuMP.all_constraints` enumerates a model through `moi_function_type(AffExpr)`, so an index list
+# fetched with this same type lines up one-to-one with the constraints that call returns.
+const AFFINE_MOI_FUNCTION_TYPE = JuMP.moi_function_type(JuMP.AffExpr)
+
+# One cache entry: the constraint indices the list was built from, and the list itself.
+const AffineConstraintCacheEntry =
+    Tuple{Vector{<:MathOptInterface.ConstraintIndex},Vector{<:JuMP.ConstraintRef}}
+
+# Model extension key holding one `AffineConstraintCacheEntry` per affine set type.
 const AFFINE_CONSTRAINT_CACHE_KEY = :MIPVerifyAffineConstraints
 
 """
     affine_constraints_of_set(model, set_type)
 
-Return every `AffExpr`-in-`set_type` constraint of `model`, reusing the previous list while the
-number of such constraints is unchanged.
+Return every `AffExpr`-in-`set_type` constraint of `model`, reusing the list built by an earlier
+call while `model` still holds exactly those constraints.
 
 `certified_lp_bound` runs once per LP bound solve, and a single sample can need hundreds of them.
-Listing the constraints again on each one was a large part of formulation time, so the list is
-cached on the model.
+Building the list on each one was a large part of formulation time, so it is cached on the model.
+The cost of the call is dominated by wrapping each constraint in a `JuMP.ConstraintRef`, not by
+enumerating the model, so the cache is validated by re-reading the constraint indices and reusing
+the list while they are unchanged. MOI assigns index values from a counter that never reuses a
+value, so any constraint added, deleted, or replaced since the list was built changes the indices
+and the list is rebuilt. Modifying a constraint in place needs no new list, because the
+certificate reads each row's set and function through the reference at the point of use.
 
-The constraint count is a sound cache key only because MIPVerify adds affine constraints and never
-deletes them: a layer's rows are imposed after that layer's bounds are solved, and relaxing
-integrality removes `ZeroOne` constraints on variables rather than affine rows. A caller that
-deletes an affine constraint and adds another of the same set type would keep a stale list.
+The returned vector is the cached one. Callers must read it without mutating it, since mutating
+it corrupts every later call for that model.
+
+Not safe against concurrent use of one `model`, which JuMP does not support in any case.
 """
 function affine_constraints_of_set(model::JuMP.Model, set_type::DataType)
+    # `model.ext` is a `Dict{Symbol,Any}`, so the annotation is what lets the compiler see the
+    # cache's element type through it.
     cache = get!(model.ext, AFFINE_CONSTRAINT_CACHE_KEY) do
-        Dict{DataType,Tuple{Int,Any}}()
-    end
-    constraint_count = JuMP.num_constraints(model, JuMP.AffExpr, set_type)
+        Dict{DataType,AffineConstraintCacheEntry}()
+    end::Dict{DataType,AffineConstraintCacheEntry}
+    indices = MathOptInterface.get(
+        model,
+        MathOptInterface.ListOfConstraintIndices{AFFINE_MOI_FUNCTION_TYPE,set_type}(),
+    )
     cached = get(cache, set_type, nothing)
-    if cached !== nothing && first(cached) == constraint_count
-        return last(cached)
+    if cached !== nothing
+        cached_indices, cached_constraints = cached
+        cached_indices == indices && return cached_constraints
     end
     constraints = JuMP.all_constraints(model, JuMP.AffExpr, set_type)
-    cache[set_type] = (constraint_count, constraints)
+    cache[set_type] = (indices, constraints)
     return constraints
 end
 

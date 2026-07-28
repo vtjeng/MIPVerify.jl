@@ -727,9 +727,31 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         @test MIPVerify.affine_constraints_of_set(m, greater_than) === grown
     end
 
+    @testset "affine_constraints_of_set rebuilds when a row is replaced by one of the same set type" begin
+        m = Model()
+        @variable(m, x)
+        original = @constraint(m, x >= 1)
+
+        greater_than = MathOptInterface.GreaterThan{Float64}
+        first_read = MIPVerify.affine_constraints_of_set(m, greater_than)
+        @test first_read == [original]
+
+        # Deleting one row and adding another holds the count at 1, so a count-keyed cache would
+        # keep serving the deleted row. MOI never reissues an index value, so the index list
+        # differs and the constraint list is rebuilt.
+        JuMP.delete(m, original)
+        replacement = @constraint(m, x >= 2)
+        @test JuMP.num_constraints(m, AffExpr, greater_than) == 1
+
+        replaced = MIPVerify.affine_constraints_of_set(m, greater_than)
+        @test replaced == [replacement]
+        @test replaced !== first_read
+    end
+
     @testset "certificate reflects a constraint added between two bound solves" begin
         # The first bound populates the cache while the model holds one row. The second bound must
-        # use both rows. Objective 2x + 3 over x in [-2, 5].
+        # use both rows. Objective 2x + 3 over x in [-2, 5]. The -100.0 interval bound is far below
+        # every certificate value here, so it never masks one and never wins the final `max`.
         mock = certification_mock()
         m = Model(() -> mock)
         @variable(m, -2 <= x <= 5)
@@ -738,12 +760,13 @@ TestHelpers.@timed_testset "lp_certification.jl" begin
         # Dual 1.9 on `x >= 1` leaves a residual of 2 - 1.9 = 0.1 on x, worth 0.1 * (-2) = -0.2 at
         # the lower end, so the certificate is 3 + 1.9 * 1 - 0.2 = 4.7.
         optimize_with_mock_duals!(mock, m, AFFINE_GT => [1.9])
-        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -1.0) ≈ 4.7
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 4.7
 
         @constraint(m, x >= 2)
         # Now the second row carries the dual: 3 + 1.9 * 2 - 0.2 = 6.6. A stale one-row list would
-        # instead find no usable dual and fall back to the -1.0 interval bound.
+        # read the first row's 0.0 dual, drop the row as unusable, and be left with the full
+        # coefficient 2 on x, certifying only 3 + 2 * (-2) = -1.0.
         optimize_with_mock_duals!(mock, m, AFFINE_GT => [0.0, 1.9])
-        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -1.0) ≈ 6.6
+        @test certified_lp_bound(m, lower_bound_type, 2x + 3, -100.0) ≈ 6.6
     end
 end
