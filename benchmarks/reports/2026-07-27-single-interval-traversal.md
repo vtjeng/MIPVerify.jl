@@ -92,14 +92,14 @@ driven by a small number of samples that cross the 120 s limit in some runs and 
 The estimate was never achievable. Interval arithmetic over these expressions is cheap in absolute
 terms, which the profiler's relative shares could not show.
 
-Timing the bound calls directly on WK17a sample 2 gives both the cost of a traversal and the share
-of units that reach the second one.
+Timing the bound calls directly on WK17a sample 2 measures both the cost of a traversal and the
+share of units that reach the second one.
 
 Not every unit reaches it. `progressive_relu_bounds` computes all the upper bounds first, then asks
 `interval_lowerbound_for_relu` for each lower bound. That helper returns immediately, without
 walking the expression, whenever the unit's interval upper bound is nonpositive: such a unit is
 fixed to zero, so nothing downstream reads its lower bound. This report calls that early return
-**the skip**. The last two columns below show how much work it removes — how many units still need a
+**the skip**. The last two columns below show how much work it removes: how many units still need a
 lower bound, and what computing only those costs.
 
 | Layer | Expressions | All upper bounds | All lower bounds | Units needing a lower bound | Lower bounds actually computed |
@@ -134,8 +134,8 @@ shows.
 
 - One network and one perturbation family. The benchmark does not exercise MIP tightening,
   `masked_relu`, or blurring perturbations, all of which reach the same bound code.
-- One run for each configuration. The noise floor is estimated from three behaviorally identical
-  runs, not from repetitions of each configuration.
+- One run for each configuration. The noise floor comes from three runs of behaviorally identical
+  code. No configuration was repeated, so the candidate's own run-to-run variation is unmeasured.
 - One machine. The drift control bounds how much that machine changed during the experiment, but it
   does not generalize to other hardware.
 - The 2.5% ceiling extrapolates per-sample redundant work measured on two samples, 2 and 3, to
