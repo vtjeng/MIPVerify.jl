@@ -235,6 +235,33 @@ TestHelpers.@timed_testset "core_ops.jl" begin
             @test JuMP.is_binary(z)
             @test count_binary_variables(m) == 3
         end
+        @testset "interval_arithmetic tightening never relaxes integrality" begin
+            # Same model as the lp case above. Here no bound solve runs at all, so the two
+            # constraints on x1 are never consulted and its declared upper bound of 10 survives
+            # unchanged — the value that separates this path from lp's 6 and mip's 4.
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(interval_arithmetic)
+            @variable(m, z, Bin)
+            x1 = @variable(m, lower_bound = -10, upper_bound = 10)
+            @constraint(m, x1 <= 4 + 4 * z)
+            @constraint(m, x1 <= 8 - 4 * z)
+            x2 = @variable(m, lower_bound = -1, upper_bound = 1)
+
+            xmax = MIPVerify.maximum([x1, x2])
+
+            # Exact equality rather than a tolerance: these are the declared bounds read back,
+            # with no solver in the path to perturb them.
+            @test upper_bound(xmax) == 10
+            @test lower_bound(xmax) == -1
+
+            # `maximum` skips the relaxation entirely on this path, so z never picks up the
+            # [0, 1] bounds that `relax_integrality` would have given it. The lp and mip cases
+            # above assert the same end state, but only after a relaxation has been undone.
+            @test JuMP.is_binary(z)
+            @test !JuMP.has_lower_bound(z)
+            @test !JuMP.has_upper_bound(z)
+            @test count_binary_variables(m) == 3
+        end
         @testset "lower_bound on one matches upper_bound on another; output expected to be constant" begin
             m = TestHelpers.get_new_model()
             x1 = @variable(m, lower_bound = -6, upper_bound = 2)

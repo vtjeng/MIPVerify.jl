@@ -250,6 +250,14 @@ relaxation and passes its certified result to the MIP solve.
 Set `integrality_is_relaxed` when the caller has already relaxed the model's integrality
 constraints for the duration of this call, so that the LP solve does not relax them again. It is
 an error to set it under `mip` tightening, which needs those constraints in the model.
+
+The caller's relaxation is also in place while this function reads its interval-arithmetic bound,
+so an integrality-constrained variable inside `x` contributes the bounds `relax_integrality` gave
+it rather than its declared ones. For a binary that is the intersection of its declared bounds
+with [0, 1], which the variable satisfies in the unrelaxed model too, so the interval bound stays
+valid there; it can come out tighter than the declared bounds, and it is defined even when the
+variable declares no bounds at all. None of MIPVerify's own layers hit this: the expressions they
+pass down are affine over continuous variables.
 """
 function tight_bound(
     x::JuMPLinearType,
@@ -885,17 +893,30 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # Only `lp` tightening can be hoisted. `mip` tightening has to solve with the integrality
     # constraints present, and a relaxation held across those solves would quietly turn them into
     # LP solves; `tight_bound` rejects that combination outright.
+    #
+    # The decision to hoist is made once, from the first non-constant element, so every bound call
+    # below is given that same algorithm explicitly rather than left to re-derive its own. Passing
+    # it keeps the two in step by construction. Constant elements are unaffected: they resolve to
+    # `interval_arithmetic` regardless of what is passed, and skip their solves either way.
     tightening_algorithm = first_nonconstant_tightening_algorithm(xs, constant_mask, nothing)
     hoist_relaxation = tightening_algorithm == lp
     us, ls = relax_integrality_context(model, hoist_relaxation) do _
         upper = map_with_progress(
-            x -> tight_upperbound(x; integrality_is_relaxed = hoist_relaxation),
+            x -> tight_upperbound(
+                x;
+                nta = tightening_algorithm,
+                integrality_is_relaxed = hoist_relaxation,
+            ),
             "  Calculating upper bounds: ",
             isinteractive(),
             xs,
         )
         lower = map_with_progress(
-            x -> tight_lowerbound(x; integrality_is_relaxed = hoist_relaxation),
+            x -> tight_lowerbound(
+                x;
+                nta = tightening_algorithm,
+                integrality_is_relaxed = hoist_relaxation,
+            ),
             "  Calculating lower bounds: ",
             isinteractive(),
             xs,
