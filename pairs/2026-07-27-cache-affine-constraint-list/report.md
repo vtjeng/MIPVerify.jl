@@ -92,12 +92,12 @@ The bound-call curves lie on top of each other, confirming that no solve was add
 
 ### Aggregate saving and concentration
 
-| series                   |    baseline |   candidate |     net saved | pooled ratio | top-10 concentration |
-| ------------------------ | ----------: | ----------: | ------------: | -----------: | -------------------: |
-| Build + bound tightening |       602 s |       502 s |       +100 s |         0.83 |                   7% |
-| Main solve time          |       451 s |       514 s |         −64 s |         1.14 |                  94% |
-| Total end-to-end time    |      1053 s |      1017 s |        +36 s |         0.97 |                  50% |
-| Bound solver calls       | 99067 calls | 99067 calls |      +0 calls |         1.00 |                   0% |
+| series                   |    baseline |   candidate | net saved | pooled ratio | top-10 concentration |
+| ------------------------ | ----------: | ----------: | --------: | -----------: | -------------------: |
+| Build + bound tightening |       602 s |       502 s |    +100 s |         0.83 |                   7% |
+| Main solve time          |       451 s |       514 s |     −64 s |         1.14 |                  94% |
+| Total end-to-end time    |      1053 s |      1017 s |     +36 s |         0.97 |                  50% |
+| Bound solver calls       | 99067 calls | 99067 calls |  +0 calls |         1.00 |                   0% |
 
 - `net saved` = baseline − candidate total; positive = candidate cheaper.
 - `pooled ratio` = candidate total ÷ baseline total (aggregate counterpart to the per-sample
@@ -145,9 +145,14 @@ fresh-process solver-path differences rather than a semantic effect.
 
 A same-commit control run in this session measured `master` against itself. It produced a median
 ratio of 0.95 on `Build + bound tightening`, a pooled main-solve ratio of 0.91, and one solve-status
-flip of its own with no code change at all. Read this report's 0.83 against that 0.95 floor: the
-formulation saving is real but nearer 13% than 17%, and the sample-480 flip is within what identical
-code already produces. Issue #276 tracks the benchmark-ordering question this raises.
+flip of its own with no code change at all.
+
+The measured median here is 0.83, a 17% saving against a perfect 1.00. The control landed at 0.95
+rather than 1.00, so this benchmark moves by roughly 5 points with no code change — and that
+movement can go either way. If the true no-change value is 0.95, the saving is 13%. If it is 1.05,
+the saving is 21%. So the saving is 17% with about 4 points of uncertainty in each direction, and one
+control run cannot narrow that range. The sample-480 flip is within what identical code already
+produced. Issue #276 tracks the benchmark-ordering question this raises.
 
 ## Reproduce
 

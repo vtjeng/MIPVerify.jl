@@ -93,8 +93,8 @@ The bound-call curves coincide, confirming that no solve was added or removed.
 
 ### Aggregate saving and concentration
 
-| series                   |    baseline |   candidate |  net saved | pooled ratio | top-10 concentration |
-| ------------------------ | ----------: | ----------: | ---------: | -----------: | -------------------: |
+| series                   |    baseline |   candidate | net saved | pooled ratio | top-10 concentration |
+| ------------------------ | ----------: | ----------: | --------: | -----------: | -------------------: |
 | Build + bound tightening |       602 s |       501 s |    +102 s |         0.83 |                   8% |
 | Main solve time          |       451 s |       362 s |     +89 s |         0.80 |                  96% |
 | Total end-to-end time    |      1053 s |       862 s |    +191 s |         0.82 |                  58% |
@@ -134,8 +134,13 @@ _None._
 
 A same-commit control run in this session measured `master` against itself and produced a median
 ratio of 0.95 on `Build + bound tightening`, along with one solve-status flip and no code change.
-Read this report's 0.82 against that 0.95 floor: the formulation saving is real but nearer 14% than
-18%. Issue #276 tracks the benchmark-ordering question this raises.
+
+The measured median here is 0.82, an 18% saving against a perfect 1.00. The control landed at 0.95
+rather than 1.00, so this benchmark moves by roughly 5 points with no code change — and that
+movement can go either way. If the true no-change value is 0.95, the saving is 14%. If it is 1.05,
+the saving is 22%. So the saving is 18% with about 4 points of uncertainty in each direction, and one
+control run cannot narrow that range. Issue #276 tracks the benchmark-ordering question this
+raises.
 
 ## Reproduce
 
