@@ -292,13 +292,7 @@ function tight_upperbound(
     cutoff::Real = -Inf,
     integrality_is_relaxed::Bool = false,
 )
-    tight_bound(
-        x,
-        nta,
-        upper_bound_type,
-        cutoff;
-        integrality_is_relaxed = integrality_is_relaxed,
-    )
+    tight_bound(x, nta, upper_bound_type, cutoff; integrality_is_relaxed = integrality_is_relaxed)
 end
 
 function tight_lowerbound(
@@ -307,13 +301,7 @@ function tight_lowerbound(
     cutoff::Real = Inf,
     integrality_is_relaxed::Bool = false,
 )
-    tight_bound(
-        x,
-        nta,
-        lower_bound_type,
-        cutoff;
-        integrality_is_relaxed = integrality_is_relaxed,
-    )
+    tight_bound(x, nta, lower_bound_type, cutoff; integrality_is_relaxed = integrality_is_relaxed)
 end
 
 function log_gap(m::JuMP.Model)
@@ -879,8 +867,7 @@ function maximum(xs::AbstractArray{T})::JuMP.AffExpr where {T<:JuMPLinearType}
     # Only `lp` tightening can be hoisted. `mip` tightening has to solve with the integrality
     # constraints present, and a relaxation held across those solves would quietly turn them into
     # LP solves.
-    tightening_algorithm =
-        first_nonconstant_tightening_algorithm(xs, is_constant.(xs), nothing)
+    tightening_algorithm = first_nonconstant_tightening_algorithm(xs, is_constant.(xs), nothing)
     hoist_relaxation = tightening_algorithm == lp
     us, ls = relax_integrality_context(model, hoist_relaxation) do _
         upper = map_with_progress(
