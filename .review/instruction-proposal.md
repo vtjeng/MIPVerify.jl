@@ -71,10 +71,10 @@ Current:
 Replacement:
 
 ```
-- Name the action, the artifact, and the result. Check the verb on its own:
-  `tracks`, `gives`, `handles`, and `covers` each attach to a real artifact and
-  still leave the reader asking what happened. The sentence passes when a
-  reader can say which operation ran.
+- Say what ran, what it ran on, and what came out. Naming only the thing acted
+  on is not enough: `tracks`, `gives`, `handles`, and `covers` all attach to a
+  real object and still leave the operation unnamed. Rewrite until a reader can
+  name the operation from the sentence alone.
 ```
 
 Why: the current list is disjunctive, so naming any one item discharges it, and all four items are
@@ -93,12 +93,11 @@ Current:
 Replacement:
 
 ```
-- Lead with the answer, status, warning, or required action in every paragraph,
-  not only at the top of the document. A paragraph that reaches its point in
-  the last sentence is a derivation; rewrite it so the first sentence states
-  the verdict.
-- Put a caveat after the claim it qualifies. Treat a link to an issue or PR as
-  a claim of its own: it needs the same treatment as any other sentence.
+- Open every paragraph with its topic sentence: the answer, status, warning, or
+  required action. A paragraph that reaches its point in the last sentence is a
+  derivation; rewrite it so the first sentence states the verdict.
+- Put caveats after the claims they qualify. Place a link to an issue or PR in
+  context: say what that work is and how it bears on what you just wrote.
 ```
 
 Why: "lead with the answer" was applied once at document top, leaving six derivation paragraphs. The
@@ -174,9 +173,9 @@ Replacement:
 ```
   - filler and hedging such as sentence-opening `Moreover`, `Furthermore`, or
     `Additionally`; `in order to`; `it's worth noting`; and `could
-    potentially`. This does not cover `can`, `could`, or `may` when they state
-    real measurement uncertainty. There the modal carries the meaning: delete
-    it and the sentence claims more than the evidence supports;
+    potentially`. Say plainly where you are uncertain: `can`, `could`, and
+    `may` carry the meaning when the evidence is limited, and keeping them is
+    what makes the sentence true;
 ```
 
 Why: this line plus "lead with the answer" turned "can report about 0.95" into "would still report
@@ -195,17 +194,18 @@ Current:
 Replacement:
 
 ```
-- Every sentence describing what code does names the call, the value the call
-  returns, and where that value goes. Where nothing stores the returned value,
-  say so; that is often the reason for the change. A reviewer must be
-  able to check the sentence against the diff. "loads the settings on every
-  request" fails: it names no call, no returned value, and no destination.
+- Every sentence describing what code does names the function it invokes, the
+  value that function returns, and where that value goes. Where nothing stores
+  the returned value, say so; that is often the reason for the change. A
+  reviewer must be able to check the sentence against the diff. For example:
+  "calls loadSettings() on each request and holds the result in the request
+  context, which is discarded when the request ends".
 - Every quantity states its statistic, the population it covers and that
-  population's size, and the run it came from, as in "median 199 ms over 492
-  requests, range 88 to 372". Replace `thousands` and `approximately` with the
-  measured figure. A range measured on a handful of local cases does not
-  describe a larger population; measure that population or say which cases the
-  range covers.
+  population's size, and the measurement it came from, as in "median 199 ms
+  over 492 requests, from 88 ms to 372 ms". Replace `thousands` and
+  `approximately` with the measured figure. Figures from a handful of cases
+  describe those cases; to describe a larger population, measure it or say
+  which cases the figure covers.
 - Distinguish a directly measured value from an extrapolated one by naming, in
   the same sentence, how many cases you measured and what the scaling assumes.
 - Break complicated details into shorter sentences. Give each step of a
@@ -232,7 +232,7 @@ Replacement:
 
 ```
 - Write for a reader who has not seen the surrounding conversation. Length is
-  no exemption: a three-sentence comment needs the same introductions as a long
+  no exemption: a three-sentence comment needs the same context as a long
   document.
 - Introduce every referent before relying on it: scripts, files, tools, issue
   and PR numbers, metric names, and any phrase you coined. Write the
@@ -257,8 +257,8 @@ Replacement:
 ```
 - After revising a document, open the saved file or the posted page and read it
   from beginning to end. Remove repetition, conflicts, vague references,
-  sections that do not fit, and facts that only existed to support a passage
-  you cut.
+  sections that do not fit, and facts that supported a conclusion you
+  removed.
 ```
 
 Why: after the six-run table was deleted, the Conclusion still said "three of the six runs". The
@@ -276,17 +276,17 @@ Replacement:
 
 ```
   - the comparison that supports the claim, what makes it valid, key findings,
-    and limitations. Leave out session logistics: run order, which other
-    candidates shared the machine, and what else you tried. Link an issue for
-    open methodology questions;
+    and limitations. Leave out how the work was organised: the order you did
+    things in, what else was running at the time, and approaches you tried and
+    abandoned. Link an issue for open methodology questions;
 ```
 
 Add after line 41 (the quantiles bullet), a new sub-bullet:
 
 ```
-  - when control noise is comparable to the effect, the headline as a value
-    with a range, such as `17 ± 4%`, and one line naming the control
-    measurement that the range came from;
+  - when control noise is comparable to the effect, the headline figure with
+    its uncertainty attached, such as `17 ± 4%`, and one line naming the
+    measurement that the `± 4` came from;
 ```
 
 Add as a new top-level bullet in `## Performance`, after line 42:
@@ -366,10 +366,11 @@ edit in the file.
 ### B3. Coined terms, as a bullet in `## Writing` next to the introduce-referents rule (A7)
 
 ```
-- Define any noun phrase you invent for a document before its first
-  load-bearing use, in the same paragraph, in bold, tied to the code or
-  artifact it names: what does it, what triggers it, why it is safe. Say that
-  you are naming it, as in "This report calls that early return **the skip**".
+- Prefer describing the thing over coining a name for it. Where a name earns
+  its place, define it before its first load-bearing use, in the same
+  paragraph, in bold, tied to the code it names: what does it, what triggers
+  it, why it is safe. Say that you are naming it, as in "This report calls that
+  early return **the skip**".
   A term you minted two paragraphs earlier still needs this, and so does one
   whose word already appeared as an ordinary verb.
 ```
@@ -377,11 +378,11 @@ edit in the file.
 ### B4. Deletion criterion, as a bullet in `## Writing` after A2
 
 ```
-- Delete any paragraph that does not change what the reader will do. That cuts
-  derivations reasoning toward a number before stating it, restatements of a
-  definition given above, step-by-step metric recipes, and inventories of runs
-  that produced no reported number. Keep the verdict and the number that
-  supports it.
+- Delete any paragraph that adds nothing to the reader's understanding of the
+  change or to the decision they are making about it. That cuts derivations
+  reasoning toward a number before stating it, restatements of a definition
+  given above, step-by-step recipes for a metric, and inventories of work that
+  produced no reported figure. Keep the verdict and the evidence for it.
 ```
 
 The file has a floor on context and no ceiling. "Be concise" has no stopping condition, and the four
