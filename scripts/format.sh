@@ -34,7 +34,7 @@ fi
 # (see format-check-python in .github/workflows/CI.yml).
 if command -v uvx > /dev/null; then
   # renovate: datasource=pypi depName=ruff
-  (cd "${repo_root}" && uvx ruff@0.15.21 format benchmarks/analysis/)
+  (cd "${repo_root}" && uvx ruff@0.15.22 format benchmarks/analysis/)
 else
   echo "WARNING: uvx not found; skipping Ruff formatting of Python files." >&2
 fi
