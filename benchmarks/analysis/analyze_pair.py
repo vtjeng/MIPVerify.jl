@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Paired before/after benchmark analysis: the distribution of per-sample improvements.
 
 Reads ``benchmark_per_sample.csv`` from a baseline and a candidate run directory, joins on
@@ -19,9 +18,9 @@ from __future__ import annotations
 
 import argparse
 import math
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
 
 import matplotlib
 
@@ -61,7 +60,7 @@ class Series:
     key: str
     label: str
     unit: str
-    builder: Callable[[pd.DataFrame], "pd.DataFrame | None"]
+    builder: Callable[[pd.DataFrame], pd.DataFrame | None]
 
 
 def _col(df: pd.DataFrame, name: str, side: str):
@@ -177,7 +176,7 @@ def joined_frame(baseline: pd.DataFrame, candidate: pd.DataFrame) -> pd.DataFram
     ].copy()
 
 
-def build_series_frame(merged: pd.DataFrame, series: Series) -> "pd.DataFrame | None":
+def build_series_frame(merged: pd.DataFrame, series: Series) -> pd.DataFrame | None:
     frame = series.builder(merged)
     if frame is None:
         return None
@@ -256,9 +255,11 @@ def stats_markdown(
     ]
     if baseline_objective != candidate_objective:
         out += [
-            "> **Cross-objective comparison.** These runs use different solve goals. Interpret "
-            "the timings as the performance tradeoff between exact distortion and a feasibility "
-            "solve.",
+            (
+                "> **Cross-objective comparison.** These runs use different solve goals. "
+                "Interpret the timings as the performance tradeoff between exact distortion and "
+                "a feasibility solve."
+            ),
             "",
         ]
     out += [
@@ -289,17 +290,22 @@ def stats_markdown(
     out += [
         "",
         f"- `ratio` = candidate ÷ baseline; < 1 = candidate faster. `improved`/`regressed` use a ±{TOLERANCE * 100:.0f}% band.",
-        "- `build` = constructing the MIP model; `tightening` = the "
-        f"{TIGHTENING_LABELS[tightening_algorithm]} bound-tightening pass; `main solve` = the final "
-        "verification MIP.",
+        (
+            "- `build` = constructing the MIP model; `tightening` = the "
+            f"{TIGHTENING_LABELS[tightening_algorithm]} bound-tightening pass; `main solve` = the "
+            "final verification MIP."
+        ),
         "- `total` = `build` + `tightening` + `main solve`.",
         "",
         "### Aggregate saving and concentration",
         "",
         "- `net saved` = baseline − candidate total; positive = candidate cheaper.",
         "- `pooled ratio` = candidate total ÷ baseline total (aggregate counterpart to the per-sample median).",
-        "- `top-10 concentration` = the 10 samples with the largest absolute change account for this "
-        "share of the total absolute per-sample change (0–100%; higher = a few samples dominate).",
+        (
+            "- `top-10 concentration` = the 10 samples with the largest absolute change account "
+            "for this share of the total absolute per-sample change (0–100%; higher = a few "
+            "samples dominate)."
+        ),
         "",
         "| series | baseline | candidate | net saved | pooled ratio | top-10 concentration |",
         "|---|--:|--:|--:|--:|--:|",
@@ -401,10 +407,20 @@ def _frames_for_unit(frames, unit):
 # Per-unit presentation: axis label, metric name for parallel titles, log-axis floor, and the
 # words for the lower-is-better / higher-is-worse directions.
 _UNIT_META = {
-    "s": dict(value_label="seconds", metric="Runtime", floor=1e-3, lower="faster", higher="slower"),
-    "calls": dict(
-        value_label="calls", metric="Solver calls", floor=1.0, lower="fewer", higher="more"
-    ),
+    "s": {
+        "value_label": "seconds",
+        "metric": "Runtime",
+        "floor": 1e-3,
+        "lower": "faster",
+        "higher": "slower",
+    },
+    "calls": {
+        "value_label": "calls",
+        "metric": "Solver calls",
+        "floor": 1.0,
+        "lower": "fewer",
+        "higher": "more",
+    },
 }
 
 
