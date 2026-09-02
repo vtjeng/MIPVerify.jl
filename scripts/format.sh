@@ -19,7 +19,7 @@ fi
     using Pkg;
     Pkg.activate(tempname());
     # renovate: datasource=github-tags depName=JuliaEditorSupport/JuliaFormatter.jl
-    Pkg.add(PackageSpec(name="JuliaFormatter", version="2.12.4"));
+    Pkg.add(PackageSpec(name="JuliaFormatter", version="2.12.6"));
     using JuliaFormatter;
     format(".", verbose=true)
   '
