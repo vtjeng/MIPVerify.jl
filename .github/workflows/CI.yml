@@ -248,7 +248,7 @@ jobs:
         with:
           # Keep this version in sync with scripts/format.sh.
           # renovate: datasource=pypi depName=ruff
-          version: "0.16.3"
+          version: "0.16.4"
           args: "format --check --diff"
           src: "benchmarks/analysis/"
       - name: "Verify that Ruff does not find any lint issues."
