@@ -9,5 +9,5 @@ MIPVerify = "e5e5f8be-2a6a-5994-adbb-5afbd0e30425"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
 [compat]
-HiGHS = "~1.23.0"
+HiGHS = "~1.23.0, ~1.26"
 HiGHS_jll = "~1.14, ~1.15"
