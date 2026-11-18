@@ -16,7 +16,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 MIPVerify = {path = ".."}
 
 [compat]
-HiGHS = "1.23"
+HiGHS = "~1.23.0, ~1.27.0"
 # Exclude native HiGHS 1.15.x because it returned incorrect optima (#219).
-HiGHS_jll = "~1.14, 1.16"
+HiGHS_jll = "~1.14, ~1.16"
 TimerOutputs = "0.5"

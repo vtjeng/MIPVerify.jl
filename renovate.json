@@ -2,6 +2,12 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "minimumReleaseAge": "14 days",
+  "julia": {
+    "ignorePaths": [
+      "**/{node_modules,bower_components,vendor,examples,__tests__,tests,__fixtures__}/**",
+      "**/test/*/**"
+    ]
+  },
   "customManagers": [
     {
       "customType": "regex",
@@ -17,6 +23,21 @@
     }
   ],
   "packageRules": [
+    {
+      "description": "Track only the solver pins in the test project.",
+      "matchManagers": ["julia"],
+      "matchFileNames": ["test/Project.toml"],
+      "enabled": false
+    },
+    {
+      "description": "Review changes to the Julia wrapper and native solver together across the shared workspace.",
+      "matchManagers": ["julia"],
+      "matchFileNames": ["test/Project.toml", "benchmarks/Project.toml"],
+      "matchDepNames": ["HiGHS", "HiGHS_jll"],
+      "groupName": "HiGHS solver",
+      "enabled": true,
+      "automerge": false
+    },
     {
       "description": "JuliaFormatter has no Renovate datasource for the Julia General registry, so it is tracked by GitHub tag, which carries a leading `v`.",
       "matchDepNames": ["JuliaEditorSupport/JuliaFormatter.jl"],
