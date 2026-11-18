@@ -38,9 +38,9 @@ MIPVerify's public API still defaults to the exact minimum-distance `closest` ob
 `--objective closest` to benchmark that objective.
 
 Fresh benchmark environments can resolve HiGHS.jl 1.27.x with native HiGHS 1.16. The test and
-benchmark environments exclude native HiGHS 1.15.x because it returned incorrect optima on the
-blur regression ([#219](https://github.com/vtjeng/MIPVerify.jl/issues/219)). The older 1.23.x /
-1.14.x pair remains available for controlled comparisons with historical commits.
+benchmark environments exclude native HiGHS 1.15.x because it returned incorrect optima on the blur
+regression ([#219](https://github.com/vtjeng/MIPVerify.jl/issues/219)). The older 1.23.x / 1.14.x
+pair remains available for controlled comparisons with historical commits.
 
 ### Output
 
@@ -215,8 +215,8 @@ workflow is three steps: run, analyze, publish.
 Runs the WK17a benchmark on two commits, each in its own throwaway git worktree (so each uses that
 commit's own `src` + `benchmarks`), then analyzes the pair. The current branch and working tree are
 untouched. The runner develops each worktree's MIPVerify checkout into its benchmark environment and
-pins the historical reference pair (HiGHS.jl 1.23.0 / HiGHS_jll 1.14.0+0) on both sides, including older
-commits whose benchmark project did not yet contain the pin.
+pins the historical reference pair (HiGHS.jl 1.23.0 / HiGHS_jll 1.14.0+0) on both sides, including
+older commits whose benchmark project did not yet contain the pin.
 
 ```sh
 benchmarks/run_pair.sh \
