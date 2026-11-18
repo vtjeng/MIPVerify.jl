@@ -21,6 +21,16 @@
       "description": "JuliaFormatter has no Renovate datasource for the Julia General registry, so it is tracked by GitHub tag, which carries a leading `v`.",
       "matchDepNames": ["JuliaEditorSupport/JuliaFormatter.jl"],
       "extractVersion": "^v(?<version>.+)$"
+    },
+    {
+      "description": "Batch mature formatter patches once a week. Both formatter jobs are required on master.",
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["ruff", "JuliaEditorSupport/JuliaFormatter.jl"],
+      "matchUpdateTypes": ["patch"],
+      "groupName": "formatter patches",
+      "timezone": "America/Los_Angeles",
+      "schedule": ["* * * * 1"],
+      "automerge": true
     }
   ]
 }
