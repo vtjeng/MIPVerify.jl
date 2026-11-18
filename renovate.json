@@ -31,6 +31,15 @@
       "timezone": "America/Los_Angeles",
       "schedule": ["* * * * 1"],
       "automerge": true
+    },
+    {
+      "description": "Auto-merge uv tool patches after the required benchmark analysis tests pass.",
+      "matchManagers": ["github-actions"],
+      "matchFileNames": [".github/workflows/CI.yml"],
+      "matchDepTypes": ["uses-with"],
+      "matchPackageNames": ["astral-sh/uv"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true
     }
   ]
 }
