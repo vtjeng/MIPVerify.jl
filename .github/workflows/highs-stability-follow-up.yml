@@ -1,0 +1,56 @@
+name: HiGHS 1.16 follow-up
+on:
+  push:
+    branches: [validation/highs-1-16-stability]
+  workflow_dispatch:
+permissions:
+  contents: read
+
+jobs:
+  reproducer:
+    name: Blur reproducer (${{ matrix.os }}, process ${{ matrix.process }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: aarch64
+            process: 8
+          - os: macos-latest
+            arch: aarch64
+            process: 9
+          - os: ubuntu-latest
+            arch: x64
+            process: 10
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      JULIA_PKG_PRECOMPILE_AUTO: '0'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.7'
+          arch: ${{ matrix.arch }}
+      - name: Instantiate workspace
+        run: julia --startup-file=no --project=. -e 'using Pkg; Pkg.instantiate()'
+      - name: Run blur fixture in a fresh process
+        run: julia --startup-file=no --project=test .github/scripts/highs-stability-repro.jl
+
+  timing:
+    name: Paired full-suite timing (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 95
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: '1.12.7'
+          arch: x64
+      - name: Run three matched full-suite pairs on one runner
+        run: bash .github/scripts/highs-stability-timing.sh
