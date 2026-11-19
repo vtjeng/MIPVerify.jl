@@ -2,7 +2,7 @@
 name = "mipverify-benchmark-analysis"
 version = "0.1.0"
 description = "Paired before/after benchmark analysis: distribution of per-sample improvements"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "matplotlib>=3.8",
     "numpy>=1.24",
