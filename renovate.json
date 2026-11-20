@@ -44,6 +44,14 @@
       "extractVersion": "^v(?<version>.+)$"
     },
     {
+      "description": "Track Ruff tool pins together through the custom manager.",
+      "matchManagers": ["github-actions"],
+      "matchFileNames": [".github/workflows/CI.yml"],
+      "matchDepTypes": ["uses-with"],
+      "matchDepNames": ["ruff"],
+      "enabled": false
+    },
+    {
       "description": "Batch mature formatter patches once a week. Both formatter jobs are required on master.",
       "matchManagers": ["custom.regex"],
       "matchDepNames": ["ruff", "JuliaEditorSupport/JuliaFormatter.jl"],
@@ -51,6 +59,8 @@
       "groupName": "formatter patches",
       "timezone": "America/Los_Angeles",
       "schedule": ["* * * * 1"],
+      "automergeSchedule": ["* * * * 1"],
+      "platformAutomerge": false,
       "automerge": true
     },
     {
