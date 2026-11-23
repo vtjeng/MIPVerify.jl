@@ -19,7 +19,7 @@ fi
     using Pkg;
     Pkg.activate(tempname());
     # renovate: datasource=github-tags depName=JuliaEditorSupport/JuliaFormatter.jl
-    Pkg.add(PackageSpec(name="JuliaFormatter", version="2.14.8"));
+    Pkg.add(PackageSpec(name="JuliaFormatter", version="2.14.10"));
     using JuliaFormatter;
     format(".", verbose=true)
   '
@@ -34,7 +34,7 @@ fi
 # (see format-check-python in .github/workflows/CI.yml).
 if command -v uvx > /dev/null; then
   # renovate: datasource=pypi depName=ruff
-  (cd "${repo_root}" && uvx ruff@0.17.3 format benchmarks/analysis/)
+  (cd "${repo_root}" && uvx ruff@0.17.4 format benchmarks/analysis/)
 else
   echo "WARNING: uvx not found; skipping Ruff formatting of Python files." >&2
 fi
