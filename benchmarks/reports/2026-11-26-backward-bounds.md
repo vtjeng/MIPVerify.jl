@@ -1,4 +1,4 @@
-# Verifying 2,000 MNIST images with backward bounds
+# Verifying 2,000 MNIST images with backward score-gap screening
 
 We tested Wong and Kolter’s WK17a classifier on the first 2,000 MNIST test images. The **true
 label** is the digit assigned to an image. Each other digit is a **target label**. A change is
@@ -6,51 +6,55 @@ allowed if every pixel stays between 0 and 1 and changes by at most 0.1. An allo
 an **adversarial example** if a target scores at least as highly as the true label. If no such
 change exists, the image is robust.
 
-**Backward bounds** reduced total verification time from 29.5 minutes with Target LP to 7.4 minutes
-(75.1%). Removing the ten images with the largest savings still left a 75.8% reduction. Target LP
-resolved 1,997 images on its first pass. Backward bounds resolved all 2,000 on each pass, with 1,874
-robustness certificates and 126 adversarial examples.
+**Backward score-gap screening** reduced total verification time from 29.5 minutes with Target LP to
+7.4 minutes (75.1%). Removing the ten images with the largest savings still left a 75.8% reduction.
+Target LP resolved 1,997 images on its first pass. The screen resolved all 2,000 on each pass, with
+1,874 robustness certificates and 126 adversarial examples.
 
-## How the verifier uses the network
+## How backward score-gap screening works
 
-Target LP builds a mixed-integer model and uses intervals and linear programs (LPs) to screen target
-labels before the final solve. The new verifier bounds the target score minus the true-label score
-by working backward through the network’s layers. Its backward calculation uses linear bounds for
-the network’s rectified linear units, following the approach used in CROWN.
+For a perturbed image $x$, let $f_i(x)$ be the score for the true digit and $f_j(x)$ the score for a
+target digit. The **score gap** is $f_j(x)-f_i(x)$. If its maximum over all allowed changes is below
+zero, that target cannot even tie the true digit.
+
+> Target LP first uses separate score intervals to rule out targets. If a target could still tie,
+> Target LP solves a linear program (LP) to bound its score gap. The new screen instead computes an
+> upper bound on the gap directly from the network’s layers, before building a solver model.
+
+1. **Bound what each hidden neuron can do.** Start with each pixel’s allowed range and propagate
+   those intervals through the network. This bounds the input to each rectified linear unit (ReLU),
+   which outputs $\max(0,z)$ for input $z$. A neuron whose input is always nonpositive always
+   outputs zero. One whose input is always nonnegative always passes its input through. In deeper
+   layers, the verifier tightens these ranges by tracing each neuron back to the pixels.
+2. **Rule out targets.** Start at a target’s score gap and work backward through the layers. At a
+   ReLU with a known sign, use its exact behavior. If its input can cross zero, bound its weighted
+   contribution from above with a straight line. The result is a constant plus a weighted sum of
+   pixels that bounds the gap on every allowed image. Maximize it by choosing the upper pixel
+   endpoint for each positive weight and the lower endpoint for each negative weight. If the
+   resulting upper bounds for all nine targets are strictly negative, the image is robust. A zero
+   upper bound leaves a tie possible.
+3. **Check the cases the bounds leave open.** For each target still in play, search for an allowed
+   image that increases its score gap. A checked example settles the image. If the search finds
+   none, build the Target LP mixed-integer program (MIP). Its ReLU constraints reuse the neuron
+   ranges from step 1 for this image, so a neuron with a fixed sign needs no binary variable.
+   Infeasibility certifies robustness. A proposed example must satisfy both the pixel budget and the
+   score comparison, including a tie. Without either result, the image remains unresolved.
+
+The backward calculation uses linear bounds for rectified linear units as in CROWN.
 [CROWN paper](https://arxiv.org/abs/1811.00866)
-
-1. Starting from the allowed pixel ranges, use interval arithmetic to bound the input to each hidden
-   neuron. In deeper layers, tighten those intervals by working back toward the pixels. Keep the
-   bounds for this image.
-2. For each target label $j$, bound its score minus the true label’s score, $f_j(x)-f_i(x)$, on the
-   same perturbed image $x$. Start at the outputs and work back toward the pixels. A rectified
-   linear unit (ReLU) outputs $\max(0,z)$. With a known input sign, its action is exact. Otherwise
-   use a line that bounds its contribution from above. This gives a linear expression in the pixels
-   plus a constant. Its maximum over the allowed pixel ranges uses the upper endpoint for each
-   positive coefficient and the lower endpoint for each negative one. If all nine upper bounds are
-   strictly negative, the image is robust. A bound equal to zero keeps a possible tie in play.
-3. For any target still in play, use gradients to search for an allowed image that increases the
-   score difference. Clip each step to the pixel limits and check the resulting scores with outward
-   rounding. An allowed image that passes this check proves that the original digit is vulnerable.
-4. If a target remains and the search found no example, build the Target LP mixed-integer program
-   (MIP). Reuse the hidden-neuron bounds from step 1 in its ReLU constraints. Whenever a neuron's
-   input has a fixed sign, the MIP can represent it without a binary decision. If the solver returns
-   an input, check its pixel values and scores. Move out-of-budget pixels to the nearest allowed
-   floating-point value and check the scores again, using exact arithmetic for uncertain
-   comparisons. Try nearby inputs if needed. If none passes, report the image as unresolved.
 
 ## Verification time
 
-Backward bounds directly certified 1,844 images. The search found 122 adversarial inputs. Only 34
-images required the MIP. Reused hidden bounds are the default for this verifier. Bound tightening
-needed 1,997 LP calls with Target LP and 104 with backward bounds. Time outside the final MIP solve
-includes screening, witness search, any model construction, and bound LPs.
+The screen directly certified 1,844 images. The search found 122 adversarial inputs. Only 34 images
+required the MIP. Reused hidden bounds are the default for this verifier. Bound tightening needed
+1,997 LP calls with Target LP and 104 with the screen. Time outside the final MIP solve includes
+screening, witness search, any model construction, and bound LPs.
 
-| Verification time           | Target LP (s) | Backward bounds (s) | Seconds saved |
-| --------------------------- | ------------: | ------------------: | ------------: |
-| Outside the final MIP solve |         990.5 |               225.6 |         764.9 |
-| Final MIP solve             |         781.3 |               215.6 |         565.7 |
-| Total                       |       1,771.9 |               441.3 |       1,330.6 |
+| Verification time           | Target LP (s) | Screen (s) | Seconds saved |
+| --------------------------- | ------------: | ---------: | ------------: |
+| Outside the final MIP solve |         990.5 |      225.6 |         764.9 |
+| Final MIP solve             |         781.3 |      215.6 |         565.7 |
+| Total                       |       1,771.9 |      441.3 |       1,330.6 |
 
 Image 212 had the largest slowdown. It still needed a MIP, and its mean time rose from 13.9 to 57.9
 seconds.
@@ -74,20 +78,20 @@ timing gain came from images 584, 1572. Removing those two leaves a 3.2% reducti
 
 Counts use the first observation of each image under each method.
 
-| Status                          | Target LP | Backward bounds |
-| ------------------------------- | --------: | --------------: |
-| `INFEASIBLE`                    |      1872 |              30 |
-| `NO_SOLVER`                     |         0 |            1966 |
-| `OPTIMAL`                       |        76 |               4 |
-| `SKIPPED_PREDICTED_IN_TARGETED` |        49 |               0 |
-| `TIME_LIMIT`                    |         3 |               0 |
+| Status                          | Target LP | Screen |
+| ------------------------------- | --------: | -----: |
+| `INFEASIBLE`                    |      1872 |     30 |
+| `NO_SOLVER`                     |         0 |   1966 |
+| `OPTIMAL`                       |        76 |      4 |
+| `SKIPPED_PREDICTED_IN_TARGETED` |        49 |      0 |
+| `TIME_LIMIT`                    |         3 |      0 |
 
 `NO_SOLVER` records a result reached without running the integer solver. The verification-outcome
 table below distinguishes robustness certificates from adversarial examples.
 
 **Solve status**
 
-| Transition (Target LP → Backward bounds)      | Count |                                                                                                                                                                                                           MNIST test image IDs |
+| Transition (Target LP → Screen)               | Count |                                                                                                                                                                                                           MNIST test image IDs |
 | --------------------------------------------- | ----: | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
 | `INFEASIBLE` → `NO_SOLVER`                    |  1844 |                 [All 1,844 image IDs](https://github.com/vtjeng/MIPVerify.jl/blob/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/image-ids/solve_status-INFEASIBLE-to-NO_SOLVER.csv) |
 | `OPTIMAL` → `NO_SOLVER`                       |    72 |                       [All 72 image IDs](https://github.com/vtjeng/MIPVerify.jl/blob/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/image-ids/solve_status-OPTIMAL-to-NO_SOLVER.csv) |
@@ -97,7 +101,7 @@ table below distinguishes robustness certificates from adversarial examples.
 
 **Semantic outcome**
 
-| Transition (Target LP → Backward bounds)                            | Count | MNIST test image IDs |
+| Transition (Target LP → Screen)                                     | Count | MNIST test image IDs |
 | ------------------------------------------------------------------- | ----: | -------------------: |
 | `time_limit_unresolved` → `adversarial_example_found_or_best_known` |     1 |                   63 |
 | `time_limit_unresolved` → `certified_no_adversarial_example`        |     2 |            584, 1572 |
@@ -126,10 +130,11 @@ returned inputs across both passes, including all eight from the MIP.
 
 ## Per-image results
 
-A ratio below 1 favors backward bounds. Ratios use images with positive Target LP cost for the
-measure. The median per-image end-to-end time ratio was 0.14. Backward bounds were faster by more
-than 1% on 1,935 images, slower by more than 1% on 64, and within 1% on 1. The slower group includes
-all 49 images that Target LP skipped because the network already misclassified them.
+The plots label the screen “Backward bounds.” A ratio below 1 favors the screen. Ratios use images
+with positive Target LP cost for the measure. The median per-image end-to-end time ratio was 0.14.
+The screen was faster by more than 1% on 1,935 images, slower by more than 1% on 64, and within 1%
+on 1. The slower group includes all 49 images that Target LP skipped because the network already
+misclassified them.
 
 ![Paired cost ratios](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/plots/ratio_ecdf.png)
 
@@ -143,7 +148,7 @@ bounds.
 
 ![Paired runtimes](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/plots/magnitude_scatter.png)
 
-Backward bounds needed no bound LPs on 1,966 images. Target LP needed none on 1,223.
+The screen needed no bound LPs on 1,966 images. Target LP needed none on 1,223.
 
 ![Distribution of bound solver calls](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/plots/absolute_calls_ecdf.png)
 

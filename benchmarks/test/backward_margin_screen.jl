@@ -64,6 +64,19 @@ end
     stages = compile_stages(nn, size(input))
     @test last(forward(stages, input)) ≈ nn(input) rtol = 1e-12
     @test_throws ArgumentError hidden_bounds(stages, fill(NaN, size(input)))
+    # A nontrivial leading permutation catches a swap of the input pixel axes.
+    # RSL18a flattens its image before the first dense layer.
+    flatten = MIPVerify.Flatten([1, 3, 2, 4])
+    pixels = reshape(collect(1.0:6.0), 1, 2, 3, 1)
+    # Distinct weights expose a wrong pixel order in each basis direction.
+    dense = MIPVerify.Linear(reshape(collect(1.0:12.0), 6, 2), zeros(2))
+    flat_net = MIPVerify.Sequential([flatten, dense], "input permutation")
+    flat_stages = compile_stages(flat_net, size(pixels))
+    for index in eachindex(pixels)
+        basis = zeros(size(pixels))
+        basis[index] = 1.0
+        @test last(forward(flat_stages, basis)) == flat_net(basis)
+    end
     @test_throws ArgumentError compile_stages(MIPVerify.Sequential([], "empty"), (1,))
 
 end

@@ -54,7 +54,7 @@ function compile_stages(nn, shape)
     flattened = false
     for p in nn.layers
         if p isa MIPVerify.Flatten
-            (isempty(stages) || expect_relu) && throw(ArgumentError("Flatten must follow a ReLU"))
+            expect_relu && throw(ArgumentError("Flatten must precede an affine layer"))
             flattened && throw(ArgumentError("only one Flatten layer is supported"))
             flattened = true
             ids = p(collect(ids))
@@ -446,7 +446,8 @@ function benchmark(args)
     output = abspath(options["out"])
     mkpath(output)
     samples = parse_sample_spec(get(options, "samples", "1:100"))
-    nn = MIPVerify.get_example_network_params("MNIST.WK17a_linf0.1_authors")
+    network_name = get(options, "network", "MNIST.WK17a_linf0.1_authors")
+    nn = MIPVerify.get_example_network_params(network_name)
     test = MIPVerify.read_datasets("MNIST").test
     setup = @elapsed stages = compile_stages(nn, size(MIPVerify.get_image(test, 1)))
     # Keep compilation separate from the per-image cost. Report setup and
@@ -466,6 +467,7 @@ function benchmark(args)
             rows,
             (
                 sample_index = i,
+                network = nn.UUID,
                 solve_status = result.solve_status,
                 adversarial_example_objective = "feasibility",
                 semantic_outcome = result.semantic_outcome,
