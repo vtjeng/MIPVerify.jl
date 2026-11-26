@@ -8,21 +8,23 @@ const isoDay = (day) => new Date(day * dayMs).toISOString().slice(0, 10);
 let firstDay, afterLastDay, windowStart, windowEnd;
 
 function presetWindow(days) {
-  windowEnd = afterLastDay;
-  windowStart = days ? Math.max(firstDay, windowEnd - days) : firstDay;
+  const total = afterLastDay - firstDay;
+  const span = days ? Math.min(days, total) : total;
+  // Keep the right edge unless the interval would start before the archive.
+  windowEnd = Math.max(windowEnd ?? afterLastDay, firstDay + span);
+  windowStart = windowEnd - span;
 }
 
-function drawOverview(key, prsByDate) {
+function drawOverview(values, [low, high], logScale, prsByDate) {
   const total = afterLastDay - firstDay;
   const x = (day) => ((day - firstDay + 0.5) / total) * 1000;
-  const values = history.map((row) => valueOf(row, key));
-  const max = Math.max(0, ...values) || 1;
   let path = "";
   for (const [i, row] of history.entries()) {
     if (values[i] === null) continue;
     const day = utcDay(row.date);
     const continued = i && values[i - 1] !== null && utcDay(history[i - 1].date) === day - 1;
-    path += (continued ? "L" : "M") + x(day) + " " + (35 - (32 * values[i]) / max) + " ";
+    const height = ((logScale ? Math.log10(values[i]) : values[i]) - low) / (high - low);
+    path += (continued ? "L" : "M") + x(day) + " " + (35 - 32 * height) + " ";
   }
   el("overview-line").setAttribute("d", path);
   el("overview-prs").setAttribute(
@@ -85,7 +87,9 @@ function wireOverview() {
     if (delta === undefined) return;
     event.preventDefault();
     move(event.target.id, delta, windowStart, windowEnd);
+    if (!event.repeat) shareView();
   });
+  strip.addEventListener("keyup", shareView);
   strip.addEventListener("pointerdown", (event) => {
     if (!history.length || !event.isPrimary || event.button !== 0) return;
     const box = strip.getBoundingClientRect();
@@ -106,5 +110,6 @@ function wireOverview() {
   });
   strip.addEventListener("lostpointercapture", () => {
     drag = null;
+    shareView();
   });
 }
