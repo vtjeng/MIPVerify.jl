@@ -120,6 +120,20 @@ benchmark nightly on 500 samples with `lp` tightening.
 Runs daily at 6 AM UTC. Manual runs default to `feasibility`; select the closest-objective variant
 with `gh workflow run nightly-benchmark.yml -f objective=closest`.
 
+### Dashboard
+
+[Explore the nightly benchmarks](https://vtjeng.github.io/MIPVerify.jl/dev/benchmarks/). Documenter
+copies the static dashboard from `docs/src/benchmarks/` when publishing the documentation. Opening
+the page reads `daily.json` from the results branch. The nightly workflow rebuilds that file from
+the archived metrics and publishes it in the same commit as the new run. To backfill or verify it
+locally, run `python3 benchmarks/analysis/build_dashboard_data.py <results-checkout> <output.json>`.
+For dates with reruns, the latest archived run supplies the daily point.
+
+Apply the GitHub label `verification-performance` to a measured verification change. The page reads
+labeled PRs separately and marks the first nightly revision containing each merge commit. Unmerged
+PRs appear in the list. The bundled marker snapshot supplies historical links when GitHub's API is
+unavailable.
+
 ### Results storage
 
 Results are committed to the

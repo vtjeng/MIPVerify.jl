@@ -4,6 +4,8 @@
 closest adversarial example to a selected input, or 2) proving that no adversarial example exists
 for some bounded family of perturbations.
 
+Explore [nightly benchmark results](benchmarks/index.html) for the WK17a verification workload.
+
 ## Installation
 
 ### Prerequisites

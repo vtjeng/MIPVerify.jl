@@ -1,0 +1,94 @@
+[
+  {
+    "number": 191,
+    "title": "core: prune inactive maximum variables without bound-heuristic changes",
+    "note": "Already present in the first archived run. The PR reports a 2.7% lower wall clock on 200 samples.",
+    "merged": "2026-03-05T07:02:05Z",
+    "sha": "9ba9f2990300ae07fb12c9ddfe8c2dcb8027690a",
+    "date": "2026-03-06",
+    "runSha": "65ba42b0a79b1c2990698152d51df25ee8b77cda"
+  },
+  {
+    "number": 208,
+    "title": "Certify LP tightening bounds and instrument verification runs",
+    "note": "Independent LP bound checks increased wall time in the paired benchmark.",
+    "merged": "2026-07-13T06:29:36Z",
+    "sha": "dd86a497014713627ed398b2b0a4699dfa59b356",
+    "date": "2026-07-13",
+    "runSha": "1bb5d03b1385886d522530e74376042885c17c95"
+  },
+  {
+    "number": 209,
+    "title": "Screen ReLU bounds progressively before LP and MIP solves",
+    "note": "Progressive screening reduced the number of bound-solver calls.",
+    "merged": "2026-07-16T09:36:13Z",
+    "sha": "8a455e2756a0d45e224bb1da95f2de8dc2ba3df4",
+    "date": "2026-07-17",
+    "runSha": "ee5fcfa267cd664799a90a7d22c7258546e9df1a"
+  },
+  {
+    "number": 222,
+    "title": "Batch LP certificate dual reads",
+    "note": "Batching dual reads reduced model formulation time.",
+    "merged": "2026-07-17T01:57:08Z",
+    "sha": "7471569bce263e2ffe4a57c20566bec1496cd38d",
+    "date": "2026-07-17",
+    "runSha": "ee5fcfa267cd664799a90a7d22c7258546e9df1a"
+  },
+  {
+    "number": 233,
+    "title": "Add a feasibility objective with verified adversarial witnesses",
+    "note": "The nightly objective switched to feasibility on this run.",
+    "merged": "2026-07-18T03:43:25Z",
+    "sha": "650c39b2603c0376e9378d376cd2a814d7ad6e98",
+    "date": "2026-07-18",
+    "runSha": "cc6980ab45c33196ffc698f71c0812a69e130060"
+  },
+  {
+    "number": 277,
+    "title": "Cache the affine constraint list used by the LP certificate",
+    "note": "Closed in favor of #282. Its implementation stayed on the experimental branch.",
+    "merged": null
+  },
+  {
+    "number": 278,
+    "title": "Relax integrality once around the logit bound solves",
+    "note": "Relaxing integrality once across logit bounds reduced formulation time.",
+    "merged": "2026-07-28T06:20:22Z",
+    "sha": "3041b8d93b317a3edd4f79da39b0b87a1f63464d",
+    "date": "2026-07-28",
+    "runSha": "6c77b0b07120be6cd5955eccc173ad0fc3577f78"
+  },
+  {
+    "number": 282,
+    "title": "Read the LP certificate's rows straight off their MOI constraint indices",
+    "note": "Reading rows by constraint index reduced formulation time.",
+    "merged": "2026-07-28T07:09:34Z",
+    "sha": "6ed3383e62f5eea82847e38d90d653066d1ef1c1",
+    "date": "2026-07-28",
+    "runSha": "6c77b0b07120be6cd5955eccc173ad0fc3577f78"
+  },
+  {
+    "number": 319,
+    "title": "Validate HiGHS 1.16 on the historical solver regressions",
+    "note": "Updates the benchmark solver. The PR timed a separate blur fixture.",
+    "merged": "2026-11-18T08:52:32Z",
+    "sha": "f6f5501dccb05832d941e2d55b495f673acf956a",
+    "date": "2026-11-18",
+    "runSha": "f6f5501dccb05832d941e2d55b495f673acf956a"
+  },
+  {
+    "number": 326,
+    "title": "Screen target-label margins with certified LP bounds",
+    "note": "Introduces target_lp. The paired result compares tightening algorithms; check the run\u2019s tightening setting below.",
+    "merged": "2026-11-26T08:09:30Z",
+    "sha": "8e1d435ea48b3ad4f750a2ebec28f166248ec61e",
+    "date": "2026-11-26",
+    "runSha": "8e1d435ea48b3ad4f750a2ebec28f166248ec61e"
+  },
+  {
+    "number": 328,
+    "title": "Make target LP the default for verification and the nightly benchmark",
+    "merged": null
+  }
+]
