@@ -251,6 +251,90 @@ function confirms_witness(stages, z, y, j)
     return lo[j] > hi[y]
 end
 
+# Float64 endpoints rounded into the exact radius-1/10 box. MNIST centers
+# also retain their original byte/255 interpretation. These endpoints constrain
+# proposed witnesses only; the certification and MIP domains are untouched.
+function witness_box(x)
+    Q = Rational{BigInt}
+    pixels = vec(x)
+    bytes = round.(Int, 255 .* pixels)
+    byte_centers = all(pixels .== bytes ./ 255)
+    lower, upper = zeros(length(pixels)), zeros(length(pixels))
+    for i in eachindex(pixels)
+        center = Q(pixels[i])
+        l, u = max(Q(0), center - 1//10), min(Q(1), center + 1//10)
+        if byte_centers
+            original = Q(bytes[i]) / 255
+            l, u = max(l, original - 1//10), min(u, original + 1//10)
+        end
+        lower[i], upper[i] = Float64(l), Float64(u)
+        Q(lower[i]) < l && (lower[i] = nextfloat(lower[i]))
+        Q(upper[i]) > u && (upper[i] = prevfloat(upper[i]))
+    end
+    return lower, upper
+end
+
+function exact_scores(stages, z)
+    Q = Rational{BigInt}
+    values = Q.(z)
+    for (k, stage) in enumerate(stages)
+        values = transpose(Q.(stage.weights)) * values + Q.(stage.bias)
+        k < length(stages) && (values = max.(values, 0))
+    end
+    return values
+end
+
+# Return the proof method, accepting a true tie only after exact evaluation.
+# An interval that proves every target loses needs no rational calculation.
+function check_witness(stages, z, y, lower, upper)
+    length(z) == length(lower) || return "invalid"
+    all(isfinite, z) && all(lower .<= z .<= upper) || return "invalid"
+    lo = hi = z
+    for (k, stage) in enumerate(stages)
+        lo, hi = interval_stage(stage, lo, hi)
+        if k < length(stages)
+            lo, hi = max.(lo, 0), max.(hi, 0)
+        end
+    end
+    targets = setdiff(eachindex(lo), y)
+    any(lo[j] >= hi[y] for j in targets) && return "outward_interval"
+    all(hi[j] < lo[y] for j in targets) && return "invalid"
+    scores = exact_scores(stages, z)
+    return any(scores[j] >= scores[y] for j in targets) ? "exact_rational" : "invalid"
+end
+
+# A solver point can miss the exact box or output constraint by its feasibility
+# tolerance. Clip into the exact box, then try nearby projected gradient steps.
+# Every returned point is independently checked; search failure proves nothing.
+function repair_witness(stages, x, proposed, y)
+    proposed === nothing && return nothing
+    length(proposed) == length(x) && all(isfinite, proposed) || return nothing
+    lower, upper = witness_box(x)
+    z = clamp.(vec(proposed), lower, upper)
+    proof = check_witness(stages, z, y, lower, upper)
+    proof != "invalid" && return (witness = reshape(z, size(x)), proof = proof)
+    for step in (1e-9, 1e-7, 1e-5, 1e-3, 0.02)
+        act = forward(stages, z)
+        targets = setdiff(eachindex(act[end]), y)
+        target = targets[argmax(act[end][targets])]
+        gradient = zeros(length(act[end]))
+        gradient[target], gradient[y] = 1, -1
+        for k in reverse(eachindex(stages))
+            gradient = stages[k].weights * gradient
+            k > 1 && (gradient[act[k] .<= 0] .= 0)
+        end
+        trial = clamp.(z + step * sign.(gradient), lower, upper)
+        proof = check_witness(stages, trial, y, lower, upper)
+        proof != "invalid" && return (witness = reshape(trial, size(x)), proof = proof)
+        current = act[end][target] - act[end][y]
+        scores = last(forward(stages, trial))
+        if maximum(scores[targets]) - scores[y] > current
+            z = trial
+        end
+    end
+    return nothing
+end
+
 function find_box_witness(stages, x, y, bounds)
     # Shrink the witness box by the same rounding allowance.
     lo = max.(0.0, vec(x) .- 0.1 .+ 4eps())
@@ -293,26 +377,23 @@ function verify_image(nn, stages, x, y; prebound_fallback = true)
             semantic_outcome = "certified_no_adversarial_example",
             source = "backward",
             witness = nothing,
+            witness_verification = "none",
+            witness_repaired = false,
             margin_upper = worst_margin,
             main_solve_wall_time_seconds = 0.0,
             bound_solver_call_count = 0,
         )
     end
-    z = find_box_witness(stages, x, y, bounds)
-    if z !== nothing
-        others = setdiff(eachindex(bounds), y)
-        @assert MIPVerify.witness_satisfies_target(nn(z), others, 0)[2]
-        @assert MIPVerify.verify_perturbation_witness(
-            MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-            x,
-            z,
-            Dict(),
-        )[1]
+    proposed = find_box_witness(stages, x, y, bounds)
+    checked = repair_witness(stages, x, proposed, y)
+    if checked !== nothing
         return (
             solve_status = "NO_SOLVER",
             semantic_outcome = "adversarial_example_found_or_best_known",
             source = "ascent",
-            witness = z,
+            witness = checked.witness,
+            witness_verification = checked.proof,
+            witness_repaired = vec(checked.witness) != vec(proposed),
             margin_upper = worst_margin,
             main_solve_wall_time_seconds = 0.0,
             bound_solver_call_count = 0,
@@ -337,15 +418,22 @@ function verify_image(nn, stages, x, y; prebound_fallback = true)
         adversarial_example_objective = MIPVerify.feasibility,
     )
     status = string(get(d, :SolveStatus, "SKIPPED_PREDICTED_IN_TARGETED"))
+    proposed = get(d, :PerturbedInputValue, nothing)
+    checked = repair_witness(stages, x, proposed, y)
+    outcome = if checked !== nothing
+        "adversarial_example_found_or_best_known"
+    elseif proposed !== nothing
+        "witness_verification_failed"
+    else
+        classify_semantic_outcome(status, false, false)
+    end
     return (
         solve_status = status,
-        semantic_outcome = classify_semantic_outcome(
-            status,
-            d[:WitnessAvailable],
-            d[:WitnessVerified],
-        ),
+        semantic_outcome = outcome,
         source = "MIP",
-        witness = d[:WitnessVerified] ? get(d, :PerturbedInputValue, nothing) : nothing,
+        witness = checked === nothing ? nothing : checked.witness,
+        witness_verification = checked === nothing ? "none" : checked.proof,
+        witness_repaired = checked !== nothing && vec(checked.witness) != vec(proposed),
         margin_upper = worst_margin,
         main_solve_wall_time_seconds = Float64(get(d, :MainSolveWallTime, 0.0)),
         bound_solver_call_count = Int(get(d, :BoundSolverCallCount, 0)),
@@ -382,6 +470,8 @@ function benchmark(args)
                 adversarial_example_objective = "feasibility",
                 semantic_outcome = result.semantic_outcome,
                 source = result.source,
+                witness_verification = result.witness_verification,
+                witness_repaired = result.witness_repaired,
                 total_time_seconds = t,
                 margin_upper = result.margin_upper,
                 main_solve_wall_time_seconds = result.main_solve_wall_time_seconds,
