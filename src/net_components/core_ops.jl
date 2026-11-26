@@ -28,9 +28,10 @@ function get_tightening_algorithm(
     else
         # x is not constant, and thus x must have an associated model
         model = owner_model(x)
-        algorithm =
-            !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
-            model.ext[:MIPVerify].tightening_algorithm
+        # Standalone JuMP expressions have no target logits and may rely on model
+        # constraints for finite bounds. Preserve their full-model bound solves.
+        haskey(model.ext, :MIPVerify) || return mip
+        algorithm = model.ext[:MIPVerify].tightening_algorithm
         return algorithm == target_lp ? interval_arithmetic : algorithm
     end
 end

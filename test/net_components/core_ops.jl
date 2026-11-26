@@ -17,7 +17,6 @@ using MIPVerify:
     mip,
     lp,
     interval_arithmetic,
-    DEFAULT_TIGHTENING_ALGORITHM,
     TighteningAlgorithm,
     MIPVerifyExt,
     upper_bound,
@@ -84,10 +83,10 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                     @test get_tightening_algorithm(y, nothing) == alg
                 end
             end
-            @testset "fall back to package default tightening algorithm as last resort" begin
+            @testset "standalone JuMP models use full-model bounds" begin
                 m = TestHelpers.get_new_model()
                 y = @variable(m)
-                @test get_tightening_algorithm(y, nothing) == DEFAULT_TIGHTENING_ALGORITHM
+                @test get_tightening_algorithm(y, nothing) == mip
             end
         end
     end

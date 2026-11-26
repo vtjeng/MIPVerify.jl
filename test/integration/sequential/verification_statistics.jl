@@ -8,6 +8,23 @@ include("../../TestHelpers.jl")
 @testset "verification statistics" begin
     main_solve_options = Dict()
 
+    @testset "default tightening screens rival logits" begin
+        # On the unit interval the reference x + 1 always beats x and x - 1.
+        # The separate ranges of x + 1 and x touch, so ruling out x needs a margin LP.
+        nn = MIPVerify.Sequential([MIPVerify.Linear([1.0 1.0 1.0], [1.0, 0.0, -1.0])], "Rivals")
+        d = find_adversarial_example(
+            nn,
+            [0.5], # An interior input classified as the first of the three logits.
+            [2, 3],
+            TestHelpers.get_optimizer(),
+            TestHelpers.get_main_solve_options(),
+            collect_stats = true,
+        )
+        @test d[:TighteningApproach] == "target_lp"
+        @test d[:BoundSolverCallCount] == 1
+        @test d[:SolveStatus] == MOI.INFEASIBLE
+    end
+
     @testset "interval arithmetic records no bound solves" begin
         # SimpleNet: 2 -> 2 (ReLU) -> 2. The identity first layer sends the raw inputs into the
         # ReLU, so interval arithmetic alone bounds every unit and no solver is called.

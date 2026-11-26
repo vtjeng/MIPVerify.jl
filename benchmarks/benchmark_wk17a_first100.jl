@@ -218,7 +218,9 @@ function main()
     sample_indices = parse_sample_spec(sample_spec)
     isempty(sample_indices) &&
         error("--samples $(sample_spec) selects no samples; nothing to benchmark")
-    tightening_algorithm = parse_tightening_algorithm(get(args, "tightening", "mip"))
+    tightening_algorithm =
+        haskey(args, "tightening") ? parse_tightening_algorithm(args["tightening"]) :
+        MIPVerify.DEFAULT_TIGHTENING_ALGORITHM
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
     objective_name = parse_benchmark_objective(get(args, "objective", "feasibility"))
