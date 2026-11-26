@@ -22,6 +22,8 @@ function parse_tightening_algorithm(name::String)::MIPVerify.TighteningAlgorithm
         return MIPVerify.interval_arithmetic
     elseif lowered == "lp"
         return MIPVerify.lp
+    elseif lowered == "target_lp"
+        return MIPVerify.target_lp
     elseif lowered == "mip"
         return MIPVerify.mip
     else

@@ -23,15 +23,15 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 
 ### Arguments
 
-| Argument            | Default        | Description                                                          |
-| ------------------- | -------------- | -------------------------------------------------------------------- |
-| `--out`             | **(required)** | Output directory for CSV results                                     |
-| `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated) |
-| `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, or `mip`          |
-| `--main-time-limit` | `120`          | Time limit in seconds for the main solve                             |
-| `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`            |
-| `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                  |
-| `--log-level`       | `warn`         | MIPVerify log level                                                  |
+| Argument            | Default        | Description                                                              |
+| ------------------- | -------------- | ------------------------------------------------------------------------ |
+| `--out`             | **(required)** | Output directory for CSV results                                         |
+| `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated)     |
+| `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
+| `--main-time-limit` | `120`          | Time limit in seconds for the main solve                                 |
+| `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`                |
+| `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                      |
+| `--log-level`       | `warn`         | MIPVerify log level                                                      |
 
 The benchmark defaults to `feasibility` because its primary series tracks fixed-budget robustness.
 MIPVerify's public API still defaults to the exact minimum-distance `closest` objective. Pass

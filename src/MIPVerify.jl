@@ -23,9 +23,9 @@ end
 
 const dependencies_path = resolve_dependencies_path()
 
-export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip
+export find_adversarial_example, frac_correct, interval_arithmetic, lp, mip, target_lp
 
-@enum TighteningAlgorithm interval_arithmetic = 1 lp = 2 mip = 3
+@enum TighteningAlgorithm interval_arithmetic = 1 lp = 2 mip = 3 target_lp = 4
 
 """
 Objective used when searching for an adversarial example.
@@ -237,14 +237,17 @@ check unless they implement `verify_perturbation_witness`.
   - `feasibility` asks whether any adversarial example satisfies the constraints. A returned
     `WitnessDistance` describes that candidate but is not necessarily minimal.
 - `tightening_algorithm`: Defaults to `mip`. Determines how we determine the upper and lower bounds
-    on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`.
+    on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`, and `target_lp`.
   - `interval_arithmetic` looks at the bounds on the output to the previous layer.
   - `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints
     relaxed.
+  - `target_lp` uses interval bounds inside the network unless a layer specifies an override.
+    For `feasibility` and `closest` with several targets and one non-target, it uses LP
+    upper bounds on rival-minus-non-target logits to eliminate impossible targets.
   - `mip` solves the full `mip` formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the
-    `tightening_algorithm` is `lp` or `mip` (no solver is used when `interval_arithmetic` is used
+    `tightening_algorithm` is `lp`, `mip`, or `target_lp` (no solver is used when `interval_arithmetic` is used
     to compute the bounds). Defaults for Gurobi and HiGHS to a time limit of 20s per solve, with
     output suppressed.
 - `solve_if_predicted_in_targeted`: Defaults to `true`. The prediction that `nn` makes for the

@@ -24,12 +24,14 @@ function get_tightening_algorithm(
     if is_constant(x)
         return interval_arithmetic
     elseif !(nta === nothing)
-        return nta
+        return nta == target_lp ? interval_arithmetic : nta
     else
         # x is not constant, and thus x must have an associated model
         model = owner_model(x)
-        return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
-               model.ext[:MIPVerify].tightening_algorithm
+        algorithm =
+            !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
+            model.ext[:MIPVerify].tightening_algorithm
+        return algorithm == target_lp ? interval_arithmetic : algorithm
     end
 end
 
@@ -1087,6 +1089,37 @@ function get_vars_for_max_index(
     return (maximum_target_var, nontarget_vars)
 end
 
+# With one non-target, a rival can win only if its individual margin can reach
+# the threshold. Relaxing the network gives an upper bound for each such margin.
+function constrain_target_margins!(model, xs, target_indexes, reference_index, margin)
+    reference = xs[reference_index]
+    # Naming the reference avoids rounding coefficient differences when two
+    # logits contain the same hidden variable. Its bounds also bound the LP
+    # certificate's residual when a row dual is inexact.
+    ref_var =
+        @variable(model, lower_bound = lower_bound(reference), upper_bound = upper_bound(reference))
+    @constraint(model, ref_var == reference)
+    remaining = relax_integrality_context(model, true) do _
+        filter(target_indexes) do i
+            bound = tight_upperbound(
+                xs[i] - ref_var;
+                nta = lp,
+                cutoff = margin,
+                integrality_is_relaxed = true,
+            )
+            return !(bound < margin) # A tie is feasible.
+        end
+    end
+    if isempty(remaining)
+        # Every disjunct has a certificate. Encode the empty disjunction.
+        @constraint(model, 0 * ref_var >= 1)
+    else
+        largest = MIPVerify.maximum(xs[remaining])
+        @constraint(model, largest >= ref_var + margin)
+    end
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -1100,6 +1133,13 @@ function set_max_indexes(
     target_indexes::Array{<:Integer,1};
     margin::Real = 0,
 )::Nothing
+
+    if haskey(model.ext, :MIPVerify) && model.ext[:MIPVerify].tightening_algorithm == target_lp
+        nontargets = setdiff(eachindex(xs), target_indexes)
+        if length(nontargets) == 1 && length(target_indexes) > 1
+            return constrain_target_margins!(model, xs, target_indexes, only(nontargets), margin)
+        end
+    end
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 
