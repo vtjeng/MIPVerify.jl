@@ -182,10 +182,63 @@ function readout(row, key) {
 function runPath(row) {
   return "runs/" + row.date + (row.run_id ? "/" + encodeURIComponent(row.run_id) : "");
 }
+// Plotly expects log-axis limits in base-10 exponents, but trace values in display units.
+function axisRange(values, logScale) {
+  if (!values.length) return logScale ? [0, 1] : [-0.12, 1];
+  const max = Math.max(...values);
+  if (logScale) {
+    const low = Math.log10(Math.min(...values));
+    const high = Math.log10(max);
+    const padding = high === low ? 0.05 : (high - low) * 0.05;
+    return [low - padding, high + padding];
+  }
+  return max === 0 ? [-0.12, 1] : [-0.03 * max, 1.05 * max];
+}
+let preferLog = false;
 let history = [],
   visible = [],
   selected = "",
   bound = false;
+function restoreView() {
+  const params = new URLSearchParams(location.search);
+  const key = params.get("metric");
+  el("metric").value = metrics.has(key) ? key : "wall_clock_seconds";
+  preferLog = params.get("log") === "1";
+  el("fixed-axis").checked = params.get("fixed") !== "0";
+
+  const end = params.get("end");
+  const day = utcDay(end);
+  const validDate = /^\d{4}-\d{2}-\d{2}$/.test(end) && Number.isFinite(day) && isoDay(day) === end;
+  windowEnd = validDate ? Math.min(afterLastDay, Math.max(firstDay + 1, day + 1)) : afterLastDay;
+  const interval = params.get("interval");
+  if (interval === "all") windowStart = firstDay;
+  else {
+    const days = Number(interval);
+    presetWindow(Number.isSafeInteger(days) && days > 0 ? days : 90);
+  }
+}
+
+function shareView() {
+  if (!history.length) return;
+  const url = new URL(location.href);
+  const all = windowStart === firstDay && windowEnd === afterLastDay;
+  url.searchParams.set("interval", all ? "all" : String(windowEnd - windowStart));
+  const endDate = isoDay(windowEnd - 1);
+  if (windowEnd < afterLastDay) url.searchParams.set("end", endDate);
+  // At the newest run, keep an explicitly linked date pinned. Returning here
+  // from an older date restores the rolling view.
+  else if (url.searchParams.get("end") !== endDate) url.searchParams.delete("end");
+  url.searchParams.set("metric", el("metric").value);
+  url.searchParams.set("log", el("log-scale").checked ? "1" : "0");
+  url.searchParams.set("fixed", el("fixed-axis").checked ? "1" : "0");
+  if (url.href !== location.href) window.history.replaceState(window.history.state, "", url);
+}
+
+function renderAndShare() {
+  render();
+  shareView();
+}
+
 function inspect() {
   const row = visible.find((r) => r.date === selected);
   if (!row) return;
@@ -244,10 +297,7 @@ function render(resetSelection = false) {
     const days = Number(b.dataset.days);
     const span = windowEnd - windowStart;
     const full = span === afterLastDay - firstDay;
-    b.setAttribute(
-      "aria-pressed",
-      String(full ? days === 0 : windowEnd === afterLastDay && span === days),
-    );
+    b.setAttribute("aria-pressed", String(full ? days === 0 : span === days));
   }
   const prsByDate = new Map();
   for (const pr of performancePRs) {
@@ -255,8 +305,18 @@ function render(resetSelection = false) {
     if (!prsByDate.has(pr.date)) prsByDate.set(pr.date, []);
     prsByDate.get(pr.date).push(pr);
   }
-  drawOverview(key, prsByDate);
   const [factor, unit] = scale(key);
+  const historyValues = history.map((row) => {
+    const value = valueOf(row, key);
+    return value === null ? null : value * factor;
+  });
+  const recorded = historyValues.filter((value) => value !== null);
+  const canLog = recorded.length > 0 && recorded.every((value) => value > 0);
+  const logScale = preferLog && canLog;
+  el("log-scale").disabled = !canLog;
+  el("log-scale").checked = logScale;
+  const fullRange = axisRange(recorded, logScale);
+  drawOverview(historyValues, fullRange, logScale, prsByDate);
   const dates = [],
     values = [],
     tips = [];
@@ -333,17 +393,22 @@ function render(resetSelection = false) {
       text: "No recorded values in this period",
       showarrow: false,
     });
-  const flatZero = valid.length && valid.every((v) => v === 0);
+  const fixed = el("fixed-axis").checked;
+  const domainValues = fixed ? recorded : valid;
+  const max = domainValues.length ? Math.max(...domainValues) : null;
   const axis = {
     title: { text: unit || "Count", font: { size: 13 } },
-    rangemode: "tozero",
+    type: logScale ? "log" : "linear",
+    range: fixed || !valid.length ? fullRange : axisRange(valid, logScale),
     fixedrange: true,
     gridcolor: "#e0e7e1",
     zeroline: false,
     nticks: 6,
   };
-  if (flatZero) Object.assign(axis, { range: [-0.12, 1], tickvals: [0, 1] });
-  if (!unit && valid.length && Math.max(...valid) <= 5 && !flatZero) axis.dtick = 1;
+  // Plotly abbreviates minor log ticks to their leading digit unless a format is set.
+  if (logScale) axis.tickformat = "~g";
+  if (max === 0) axis.tickvals = [0, 1];
+  else if (!logScale && !unit && max !== null && max <= 5) axis.dtick = 1;
   const chart = el("graph");
   Plotly.react(
     chart,
@@ -416,10 +481,15 @@ el("ranges").addEventListener("click", (e) => {
   if (e.target.dataset.days !== undefined) {
     if (!history.length) return;
     presetWindow(Number(e.target.dataset.days));
-    render();
+    renderAndShare();
   }
 });
-el("metric").addEventListener("change", () => render());
+el("log-scale").addEventListener("change", (event) => {
+  preferLog = event.target.checked;
+  renderAndShare();
+});
+el("fixed-axis").addEventListener("change", renderAndShare);
+el("metric").addEventListener("change", renderAndShare);
 el("day").addEventListener("change", (e) => {
   selected = e.target.value;
   activeDay = null;
@@ -438,8 +508,9 @@ async function start() {
     if (!history.length) throw Error("Empty archive");
     firstDay = utcDay(history[0].date);
     afterLastDay = utcDay(history.at(-1).date) + 1;
-    presetWindow(90);
+    restoreView();
     render(true);
+    shareView();
     el("status").textContent = "GitHub archive · " + history.length + " daily runs";
   } catch {
     el("latest").textContent = "Unavailable";
