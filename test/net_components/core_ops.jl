@@ -615,6 +615,21 @@ TestHelpers.@timed_testset "core_ops.jl" begin
                 @test termination_status(m) == status
             end
 
+            # For x in [0, 1], interval bounds let x tie the true score x + 1.
+            # The LP can prove their difference is -1. A second target, either
+            # constant 1 or constant 0, tests an attainable tie or a strict loss.
+            for (score, calls, status) in [(1.0, 2, MOI.OPTIMAL), (0.0, 1, MOI.INFEASIBLE)]
+                m = TestHelpers.get_new_model()
+                stats = MIPVerify.VerificationStats()
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(MIPVerify.target_lp, stats)
+                x = @variable(m, 0 <= x <= 1)
+                set_max_indexes(m, [x + 1, x + 0, 0 * x + score], [2, 3])
+                @test MIPVerify.summarize_verification_stats(stats)[:BoundSolverCallCount] == calls
+                @objective(m, Max, x)
+                optimize!(m)
+                @test termination_status(m) == status
+            end
+
             # Each rival wins at one end of the box. Keeping both disjuncts
             # excludes the midpoint, where neither clears the positive margin.
             m = TestHelpers.get_new_model()

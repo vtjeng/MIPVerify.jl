@@ -243,7 +243,7 @@ check unless they implement `verify_perturbation_witness`.
     relaxed.
   - `target_lp` uses interval bounds inside the network unless a layer specifies an override.
     For `feasibility` and `closest` with several targets and one non-target, it uses LP
-    upper bounds on rival-minus-non-target logits to eliminate impossible targets.
+    upper bounds on each target logit minus the non-target logit to eliminate impossible targets.
   - `mip` solves the full `mip` formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the

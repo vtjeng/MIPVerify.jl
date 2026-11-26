@@ -258,6 +258,9 @@ Set `integrality_is_relaxed` when the caller has already relaxed the model's int
 constraints for the duration of this call, so that the LP solve does not relax them again. It is
 an error to set it under `mip` tightening, which needs those constraints in the model.
 
+`cutoff_reached(bound, cutoff)` determines when further tightening is unnecessary. The default
+accepts equality. Target-label screening uses a strict upper cutoff because ties are feasible.
+
 The caller's relaxation is also in place while this function reads its interval-arithmetic bound,
 so an integrality-constrained variable inside `x` contributes the bounds `relax_integrality` gave
 it rather than its declared ones. For a binary that is the intersection of its declared bounds
@@ -272,6 +275,7 @@ function tight_bound(
     bound_type::BoundType,
     cutoff::Real;
     integrality_is_relaxed::Bool = false,
+    cutoff_reached = bound_operator[bound_type],
 )
     tightening_algorithm = get_tightening_algorithm(x, nta)
     if integrality_is_relaxed && tightening_algorithm == mip
@@ -292,7 +296,7 @@ function tight_bound(
         tightening_algorithm,
         bound_type_name,
         is_constant(x),
-        bound_operator[bound_type](b_0, cutoff),
+        cutoff_reached(b_0, cutoff),
     )
         return b_0
     end
@@ -307,7 +311,7 @@ function tight_bound(
     )
     if tightening_algorithm == lp
         return lp_bound
-    elseif bound_operator[bound_type](lp_bound, cutoff)
+    elseif cutoff_reached(lp_bound, cutoff)
         return lp_bound
     end
     # This solve needs the integrality constraints, so it is never told that they are relaxed. The
@@ -1101,11 +1105,13 @@ function constrain_target_margins!(model, xs, target_indexes, reference_index, m
     @constraint(model, ref_var == reference)
     remaining = relax_integrality_context(model, true) do _
         filter(target_indexes) do i
-            bound = tight_upperbound(
-                xs[i] - ref_var;
-                nta = lp,
-                cutoff = margin,
+            bound = tight_bound(
+                xs[i] - ref_var,
+                lp,
+                upper_bound_type,
+                margin;
                 integrality_is_relaxed = true,
+                cutoff_reached = (<),
             )
             return !(bound < margin) # A tie is feasible.
         end
