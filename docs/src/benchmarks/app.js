@@ -223,7 +223,11 @@ function shareView() {
   const url = new URL(location.href);
   const all = windowStart === firstDay && windowEnd === afterLastDay;
   url.searchParams.set("interval", all ? "all" : String(windowEnd - windowStart));
-  url.searchParams.set("end", isoDay(windowEnd - 1));
+  const endDate = isoDay(windowEnd - 1);
+  if (windowEnd < afterLastDay) url.searchParams.set("end", endDate);
+  // At the newest run, keep an explicitly linked date pinned. Returning here
+  // from an older date restores the rolling view.
+  else if (url.searchParams.get("end") !== endDate) url.searchParams.delete("end");
   url.searchParams.set("metric", el("metric").value);
   url.searchParams.set("log", el("log-scale").checked ? "1" : "0");
   url.searchParams.set("fixed", el("fixed-axis").checked ? "1" : "0");

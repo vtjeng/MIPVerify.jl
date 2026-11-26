@@ -130,8 +130,10 @@ the archived metrics and publishes it in the same commit as the new run. To back
 locally, run `python3 benchmarks/analysis/build_dashboard_data.py <results-checkout> <output.json>`.
 For dates with reruns, the latest archived run supplies the daily point. Drag the window in the
 overview to browse earlier runs, or drag either edge to change the number of days shown. Copy the
-address bar to share that view. The URL records the interval in days (or `all`), the inclusive UTC
-end date, the metric’s CSV column name, and the log-scale and fixed-axis settings.
+address bar to share that view. The URL records the interval in days (or `all`), the metric’s CSV
+column name, and both axis settings. By default, the link opens at the newest archived run. Moving
+the window into history adds an inclusive UTC `end` date. Moving it back to the newest run removes
+the date so the link follows future runs again.
 
 Apply the GitHub label `verification-performance` to a measured verification change. The page reads
 labeled PRs separately and marks the first nightly revision containing each merge commit. Unmerged
