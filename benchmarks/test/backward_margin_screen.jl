@@ -87,6 +87,9 @@ end
         @test bounded([pixel]) == network([pixel])
     end
     model = Model(HiGHS.Optimizer)
+    # HiGHS shares its thread scheduler across models in this process. Match
+    # the verifier's one-thread setting before the first optimizer runs.
+    set_optimizer_attribute(model, "threads", 1)
     set_silent(model)
     pixel = @variable(model, 0.4 <= p <= 0.6)
     scores = bounded([pixel])
