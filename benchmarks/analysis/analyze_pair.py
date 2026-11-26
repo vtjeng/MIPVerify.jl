@@ -40,6 +40,7 @@ TIGHTENING_LABELS = {
     "interval_arithmetic": "interval-arithmetic",
     "lp": "LP",
     "mip": "MIP",
+    "target_lp": "target-margin LP",
 }
 
 # Color encodes the phase/series consistently across every plot (blue = build + bound tightening,

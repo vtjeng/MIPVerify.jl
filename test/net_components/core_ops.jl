@@ -601,6 +601,45 @@ TestHelpers.@timed_testset "core_ops.jl" begin
     end
 
     @testset "set_max_indexes" begin
+        @testset "target LP certificates and ties" begin
+            # Both rival logits share the reference's input. The first is always
+            # one below it and the second ties it, even though their ranges overlap.
+            for (margin, status) in [(0.0, MOI.OPTIMAL), (0.25, MOI.INFEASIBLE)]
+                m = TestHelpers.get_new_model()
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(MIPVerify.target_lp)
+                x = @variable(m, 0 <= x <= 2, Int)
+                set_max_indexes(m, [x + 0, x - 1, x + 0], [2, 3]; margin = margin)
+                @objective(m, Max, x)
+                optimize!(m)
+                @test is_integer(x)
+                @test termination_status(m) == status
+            end
+
+            # For x in [0, 1], interval bounds let x tie the true score x + 1.
+            # The LP can prove their difference is -1. A second target, either
+            # constant 1 or constant 0, tests an attainable tie or a strict loss.
+            for (score, calls, status) in [(1.0, 2, MOI.OPTIMAL), (0.0, 1, MOI.INFEASIBLE)]
+                m = TestHelpers.get_new_model()
+                stats = MIPVerify.VerificationStats()
+                m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(MIPVerify.target_lp, stats)
+                x = @variable(m, 0 <= x <= 1)
+                set_max_indexes(m, [x + 1, x + 0, 0 * x + score], [2, 3])
+                @test MIPVerify.summarize_verification_stats(stats)[:BoundSolverCallCount] == calls
+                @objective(m, Max, x)
+                optimize!(m)
+                @test termination_status(m) == status
+            end
+
+            # Each rival wins at one end of the box. Keeping both disjuncts
+            # excludes the midpoint, where neither clears the positive margin.
+            m = TestHelpers.get_new_model()
+            m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(MIPVerify.target_lp)
+            x = @variable(m, -1 <= x <= 1)
+            set_max_indexes(m, [0 * x, x + 0, -x], [2, 3]; margin = 0.5)
+            fix(x, 0; force = true)
+            optimize!(m)
+            @test termination_status(m) == MOI.INFEASIBLE
+        end
         @testset "single target index" begin
             @testset "vanilla" begin
                 m = TestHelpers.get_new_model()

@@ -24,12 +24,14 @@ function get_tightening_algorithm(
     if is_constant(x)
         return interval_arithmetic
     elseif !(nta === nothing)
-        return nta
+        return nta == target_lp ? interval_arithmetic : nta
     else
         # x is not constant, and thus x must have an associated model
         model = owner_model(x)
-        return !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
-               model.ext[:MIPVerify].tightening_algorithm
+        algorithm =
+            !haskey(model.ext, :MIPVerify) ? DEFAULT_TIGHTENING_ALGORITHM :
+            model.ext[:MIPVerify].tightening_algorithm
+        return algorithm == target_lp ? interval_arithmetic : algorithm
     end
 end
 
@@ -256,6 +258,9 @@ Set `integrality_is_relaxed` when the caller has already relaxed the model's int
 constraints for the duration of this call, so that the LP solve does not relax them again. It is
 an error to set it under `mip` tightening, which needs those constraints in the model.
 
+`cutoff_reached(bound, cutoff)` determines when further tightening is unnecessary. The default
+accepts equality. Target-label screening uses a strict upper cutoff because ties are feasible.
+
 The caller's relaxation is also in place while this function reads its interval-arithmetic bound,
 so an integrality-constrained variable inside `x` contributes the bounds `relax_integrality` gave
 it rather than its declared ones. For a binary that is the intersection of its declared bounds
@@ -270,6 +275,7 @@ function tight_bound(
     bound_type::BoundType,
     cutoff::Real;
     integrality_is_relaxed::Bool = false,
+    cutoff_reached = bound_operator[bound_type],
 )
     tightening_algorithm = get_tightening_algorithm(x, nta)
     if integrality_is_relaxed && tightening_algorithm == mip
@@ -290,7 +296,7 @@ function tight_bound(
         tightening_algorithm,
         bound_type_name,
         is_constant(x),
-        bound_operator[bound_type](b_0, cutoff),
+        cutoff_reached(b_0, cutoff),
     )
         return b_0
     end
@@ -305,7 +311,7 @@ function tight_bound(
     )
     if tightening_algorithm == lp
         return lp_bound
-    elseif bound_operator[bound_type](lp_bound, cutoff)
+    elseif cutoff_reached(lp_bound, cutoff)
         return lp_bound
     end
     # This solve needs the integrality constraints, so it is never told that they are relaxed. The
@@ -1087,6 +1093,39 @@ function get_vars_for_max_index(
     return (maximum_target_var, nontarget_vars)
 end
 
+# With one non-target, a rival can win only if its individual margin can reach
+# the threshold. Relaxing the network gives an upper bound for each such margin.
+function constrain_target_margins!(model, xs, target_indexes, reference_index, margin)
+    reference = xs[reference_index]
+    # Naming the reference avoids rounding coefficient differences when two
+    # logits contain the same hidden variable. Its bounds also bound the LP
+    # certificate's residual when a row dual is inexact.
+    ref_var =
+        @variable(model, lower_bound = lower_bound(reference), upper_bound = upper_bound(reference))
+    @constraint(model, ref_var == reference)
+    remaining = relax_integrality_context(model, true) do _
+        filter(target_indexes) do i
+            bound = tight_bound(
+                xs[i] - ref_var,
+                lp,
+                upper_bound_type,
+                margin;
+                integrality_is_relaxed = true,
+                cutoff_reached = (<),
+            )
+            return !(bound < margin) # A tie is feasible.
+        end
+    end
+    if isempty(remaining)
+        # Every disjunct has a certificate. Encode the empty disjunction.
+        @constraint(model, 0 * ref_var >= 1)
+    else
+        largest = MIPVerify.maximum(xs[remaining])
+        @constraint(model, largest >= ref_var + margin)
+    end
+    return nothing
+end
+
 """
 $(SIGNATURES)
 
@@ -1100,6 +1139,13 @@ function set_max_indexes(
     target_indexes::Array{<:Integer,1};
     margin::Real = 0,
 )::Nothing
+
+    if haskey(model.ext, :MIPVerify) && model.ext[:MIPVerify].tightening_algorithm == target_lp
+        nontargets = setdiff(eachindex(xs), target_indexes)
+        if length(nontargets) == 1 && length(target_indexes) > 1
+            return constrain_target_margins!(model, xs, target_indexes, only(nontargets), margin)
+        end
+    end
 
     (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
 

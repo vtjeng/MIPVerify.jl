@@ -89,7 +89,7 @@ class TighteningMetadataTests(unittest.TestCase):
                     self.assertNotIn("the LP bound-tightening pass", markdown)
 
     def test_loads_supported_tightening_modes_from_run_metadata(self):
-        for algorithm in ("interval_arithmetic", "lp", "mip"):
+        for algorithm in ("interval_arithmetic", "lp", "mip", "target_lp"):
             with self.subTest(algorithm=algorithm), TemporaryDirectory() as run_dir:
                 metrics_path = Path(run_dir) / "benchmark_metrics.csv"
                 pd.DataFrame({"tightening_algorithm": [algorithm]}).to_csv(
