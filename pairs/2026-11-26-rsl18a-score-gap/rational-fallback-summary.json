@@ -1,0 +1,10 @@
+{
+  "images": 49,
+  "hidden_intervals": 24500,
+  "unproved_hidden_intervals": 0,
+  "target_upper_bounds_enclosed": 441,
+  "nonnegative_target_bounds": 229,
+  "checker_exit_code": 0,
+  "mode": "fallback",
+  "source_image_ids": "fallback-images.txt"
+}

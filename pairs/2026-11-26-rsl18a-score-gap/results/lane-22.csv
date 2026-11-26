@@ -1,0 +1,9 @@
+image,method,observation,seconds,source,status,outcome,bound_calls,main_seconds,coordinates
+23,target_lp,1,121.584225076,MIP,TIME_LIMIT,time_limit_unresolved,9,120.08775469,
+23,screen,1,122.073044849,MIP,TIME_LIMIT,time_limit_unresolved,9,120.065649919,
+23,screen,2,121.568222763,MIP,TIME_LIMIT,time_limit_unresolved,9,120.068895485,
+23,target_lp,2,122.31021737,MIP,TIME_LIMIT,time_limit_unresolved,9,120.303038791,
+71,screen,1,0.009797819,backward,NO_SOLVER,certified_no_adversarial_example,0,0.0,
+71,target_lp,1,2.57267382,MIP,INFEASIBLE,certified_no_adversarial_example,9,0.577246605,
+71,target_lp,2,2.997904784,MIP,INFEASIBLE,certified_no_adversarial_example,9,0.565274896,
+71,screen,2,0.008703665,backward,NO_SOLVER,certified_no_adversarial_example,0,0.0,

@@ -1,0 +1,491 @@
+mode=fallback images=49
+image=3 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.06710645320521068
+digit=1 target=2 upper=0.19735054271564104
+digit=1 target=3 upper=0.10455031770746014
+digit=1 target=4 upper=0.016962482028477416
+digit=1 target=5 upper=0.18026245839087487
+digit=1 target=6 upper=0.09053035114648987
+digit=1 target=7 upper=-0.048370453864414596
+digit=1 target=8 upper=0.10063467157984002
+digit=1 target=9 upper=-0.06915328334529051
+image=5 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=-0.10795499027450597
+digit=4 target=1 upper=-0.28061504851908725
+digit=4 target=2 upper=0.0937386924748655
+digit=4 target=3 upper=-0.21108092499524178
+digit=4 target=5 upper=-0.07348752539721225
+digit=4 target=6 upper=-0.1552261095334488
+digit=4 target=7 upper=-0.016807504093691427
+digit=4 target=8 upper=-0.05446368150545798
+digit=4 target=9 upper=0.15785090290186493
+image=7 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=-0.13733741508463929
+digit=4 target=1 upper=-0.06441452714239433
+digit=4 target=2 upper=-0.08177548697949712
+digit=4 target=3 upper=0.08443301461962084
+digit=4 target=5 upper=0.12086967128183868
+digit=4 target=6 upper=-0.06587663831393772
+digit=4 target=7 upper=-0.016057459499379232
+digit=4 target=8 upper=0.25384415914052166
+digit=4 target=9 upper=0.038723847453509826
+image=8 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.1850521114263451
+digit=9 target=1 upper=0.22862852896429636
+digit=9 target=2 upper=0.49523818338903236
+digit=9 target=3 upper=0.41860414376541005
+digit=9 target=4 upper=0.4374322742020043
+digit=9 target=5 upper=0.5343848698237761
+digit=9 target=6 upper=0.3013177338426945
+digit=9 target=7 upper=0.2772951815884252
+digit=9 target=8 upper=0.4041517247975017
+image=10 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.10865418962751239
+digit=9 target=1 upper=-0.12001880795331812
+digit=9 target=2 upper=0.2104142708545113
+digit=9 target=3 upper=0.15056607839880806
+digit=9 target=4 upper=0.4151389942856549
+digit=9 target=5 upper=0.2285188601750426
+digit=9 target=6 upper=0.03857677754710534
+digit=9 target=7 upper=0.3285969126267596
+digit=9 target=8 upper=0.30854873591410975
+image=12 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=0.24119189442105193
+digit=6 target=1 upper=-0.05376884034311371
+digit=6 target=2 upper=0.24507677778217707
+digit=6 target=3 upper=0.15465573396993543
+digit=6 target=4 upper=0.21118490830303177
+digit=6 target=5 upper=0.13028648990571703
+digit=6 target=7 upper=-0.04956605078195122
+digit=6 target=8 upper=0.27630256138531545
+digit=6 target=9 upper=0.025392619086633046
+image=13 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.056122310536706306
+digit=9 target=1 upper=-0.2671420296061215
+digit=9 target=2 upper=0.03849236300072254
+digit=9 target=3 upper=0.04905376219994473
+digit=9 target=4 upper=0.21452799863990057
+digit=9 target=5 upper=0.0931694976226066
+digit=9 target=6 upper=-0.11885466353146133
+digit=9 target=7 upper=0.12122409529230156
+digit=9 target=8 upper=0.07253614702026591
+image=16 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=5 target=0 upper=0.2276916884873522
+digit=5 target=1 upper=0.23746965823903693
+digit=5 target=2 upper=0.26935537957802935
+digit=5 target=3 upper=0.30770489767698245
+digit=5 target=4 upper=0.22262669301420937
+digit=5 target=6 upper=0.20007085957409682
+digit=5 target=7 upper=0.26153598524819316
+digit=5 target=8 upper=0.30109225723587263
+digit=5 target=9 upper=0.0010640581962148862
+image=17 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.14380476015995294
+digit=9 target=1 upper=-0.16225761889254595
+digit=9 target=2 upper=0.21077237454197076
+digit=9 target=3 upper=-0.023279728765169684
+digit=9 target=4 upper=0.32398927530572
+digit=9 target=5 upper=0.058343363621275256
+digit=9 target=6 upper=0.08064670811501332
+digit=9 target=7 upper=0.1593126252418599
+digit=9 target=8 upper=0.1458250126126149
+image=20 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=-0.1138477674068533
+digit=4 target=1 upper=-0.2888649311274015
+digit=4 target=2 upper=0.038593725926082956
+digit=4 target=3 upper=-0.023091484287835643
+digit=4 target=5 upper=0.09115812830644152
+digit=4 target=6 upper=-0.1519704058989283
+digit=4 target=7 upper=-0.10079027577284148
+digit=4 target=8 upper=-0.0746010071713706
+digit=4 target=9 upper=-0.0008582619620300263
+image=21 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.12881941340902622
+digit=9 target=1 upper=-0.21956722836064085
+digit=9 target=2 upper=-0.1399824398972074
+digit=9 target=3 upper=0.24845387826579796
+digit=9 target=4 upper=0.10136404860443302
+digit=9 target=5 upper=0.1732145894910768
+digit=9 target=6 upper=-0.3041497258663157
+digit=9 target=7 upper=0.15638923564988153
+digit=9 target=8 upper=0.09044698018249502
+image=22 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=-0.15915955183480537
+digit=6 target=1 upper=-0.41290586714271516
+digit=6 target=2 upper=-0.0982305582303239
+digit=6 target=3 upper=-0.2757491831601817
+digit=6 target=4 upper=0.021946125482238295
+digit=6 target=5 upper=0.061111543747283004
+digit=6 target=7 upper=-0.39850160814196267
+digit=6 target=8 upper=-0.01997162683827988
+digit=6 target=9 upper=-0.36809851089995654
+image=23 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=-0.11401639493002179
+digit=6 target=1 upper=-0.012687955571820626
+digit=6 target=2 upper=0.07396712291011912
+digit=6 target=3 upper=-0.18321155065472228
+digit=6 target=4 upper=0.1769036183407506
+digit=6 target=5 upper=-0.04557724236589637
+digit=6 target=7 upper=-0.008200097591743076
+digit=6 target=8 upper=-0.00788363227557619
+digit=6 target=9 upper=-0.05048949379364901
+image=24 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=5 target=0 upper=0.08841708236902437
+digit=5 target=1 upper=-0.2234360636608355
+digit=5 target=2 upper=0.02376826968433081
+digit=5 target=3 upper=-0.03305612308547236
+digit=5 target=4 upper=0.08485098344049172
+digit=5 target=6 upper=0.07356959380722511
+digit=5 target=7 upper=-0.15690808248886318
+digit=5 target=8 upper=-0.03161795063960638
+digit=5 target=9 upper=-0.06371307789438943
+image=25 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=0.2601242284581931
+digit=4 target=1 upper=0.06217178647251479
+digit=4 target=2 upper=0.41728739082871674
+digit=4 target=3 upper=0.2886512809792674
+digit=4 target=5 upper=0.4333103228225302
+digit=4 target=6 upper=0.23656638806654115
+digit=4 target=7 upper=0.36386289786624715
+digit=4 target=8 upper=0.2557065525403253
+digit=4 target=9 upper=0.2769805944749523
+image=27 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=0.0777616463388203
+digit=7 target=1 upper=-0.15723069943607704
+digit=7 target=2 upper=0.07714026602230499
+digit=7 target=3 upper=0.10450497683777767
+digit=7 target=4 upper=-0.020393608271153083
+digit=7 target=5 upper=0.051515089824306436
+digit=7 target=6 upper=-0.24318461810366782
+digit=7 target=8 upper=-0.14356329219188738
+digit=7 target=9 upper=0.10224905503202526
+image=30 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.3135033942444714
+digit=1 target=2 upper=-0.09915845934982652
+digit=1 target=3 upper=-0.036594919917216646
+digit=1 target=4 upper=-0.16586114905296825
+digit=1 target=5 upper=0.13748876900754325
+digit=1 target=6 upper=-0.032097844744824494
+digit=1 target=7 upper=-0.24482745102271034
+digit=1 target=8 upper=-0.0450072951202681
+digit=1 target=9 upper=-0.23068806938458336
+image=32 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.1909532738769691
+digit=1 target=2 upper=-0.003725650106663688
+digit=1 target=3 upper=0.08572929333352675
+digit=1 target=4 upper=-0.05824607524470002
+digit=1 target=5 upper=0.18437878703595229
+digit=1 target=6 upper=-0.015022616543244903
+digit=1 target=7 upper=-0.05545443929356213
+digit=1 target=8 upper=0.01023817764522479
+digit=1 target=9 upper=0.08848779471345553
+image=35 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=-0.3419792077486543
+digit=7 target=1 upper=-0.39501238426849766
+digit=7 target=2 upper=0.015630030158141055
+digit=7 target=3 upper=-0.09010639253852935
+digit=7 target=4 upper=-0.34744452637029727
+digit=7 target=5 upper=-0.32056959568061677
+digit=7 target=6 upper=-0.4514773805143919
+digit=7 target=8 upper=-0.06659913886148983
+digit=7 target=9 upper=-0.11024575829500009
+image=37 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=-0.07512057105598591
+digit=7 target=1 upper=-0.22136397411953032
+digit=7 target=2 upper=0.14479528721772558
+digit=7 target=3 upper=0.04125849539160814
+digit=7 target=4 upper=-0.2784827722855171
+digit=7 target=5 upper=-0.09330797517998447
+digit=7 target=6 upper=-0.22276593931809355
+digit=7 target=8 upper=-0.1437527759631878
+digit=7 target=9 upper=0.01279400800896396
+image=40 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.3311975953253659
+digit=1 target=2 upper=-0.0826771879556106
+digit=1 target=3 upper=0.00876216120280378
+digit=1 target=4 upper=-0.30248029901873985
+digit=1 target=5 upper=-0.07902487416162879
+digit=1 target=6 upper=-0.18565727231337184
+digit=1 target=7 upper=-0.32591325261465004
+digit=1 target=8 upper=0.059489987550341274
+digit=1 target=9 upper=-0.383427864902519
+image=41 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.04338026608527765
+digit=1 target=2 upper=0.1746669693616075
+digit=1 target=3 upper=0.10995727696105075
+digit=1 target=4 upper=0.04297299688442243
+digit=1 target=5 upper=0.3344829147427777
+digit=1 target=6 upper=0.12599491817898809
+digit=1 target=7 upper=-0.023613843730206575
+digit=1 target=8 upper=0.07210917569644543
+digit=1 target=9 upper=0.0986391765167547
+image=42 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=-0.09618259848987566
+digit=7 target=1 upper=-0.25377429021357256
+digit=7 target=2 upper=0.2159479881122841
+digit=7 target=3 upper=0.05400649691176934
+digit=7 target=4 upper=-0.25892296233590845
+digit=7 target=5 upper=0.03193971303694403
+digit=7 target=6 upper=-0.16381760895156433
+digit=7 target=8 upper=-0.11286995743267152
+digit=7 target=9 upper=0.11064009960319092
+image=43 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=-0.36407924977418415
+digit=4 target=1 upper=-0.17099684371335336
+digit=4 target=2 upper=-0.1324387543115854
+digit=4 target=3 upper=-0.0945753779389743
+digit=4 target=5 upper=-0.24352426229943108
+digit=4 target=6 upper=-0.2501973989772374
+digit=4 target=7 upper=-0.1820600259133854
+digit=4 target=8 upper=0.13343879738440825
+digit=4 target=9 upper=-0.02926461458406925
+image=45 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=3 target=0 upper=-0.08893755623918966
+digit=3 target=1 upper=0.33185605411994956
+digit=3 target=2 upper=0.15000276736024434
+digit=3 target=4 upper=0.2607685683894972
+digit=3 target=5 upper=0.39353074145958405
+digit=3 target=6 upper=0.31181698655662093
+digit=3 target=7 upper=0.09243873898945225
+digit=3 target=8 upper=0.023194910160385558
+digit=3 target=9 upper=0.05552382955049187
+image=46 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=5 target=0 upper=0.19379812029051197
+digit=5 target=1 upper=-0.01826701429137123
+digit=5 target=2 upper=0.13096351545867757
+digit=5 target=3 upper=0.3373050647670981
+digit=5 target=4 upper=0.1852139535355909
+digit=5 target=6 upper=0.10793276710322627
+digit=5 target=7 upper=-0.024910609056335294
+digit=5 target=8 upper=0.28488703291407985
+digit=5 target=9 upper=-0.01897564229299547
+image=47 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.11192182965600386
+digit=1 target=2 upper=0.21983849736804162
+digit=1 target=3 upper=0.30756010846052795
+digit=1 target=4 upper=0.014811238899470907
+digit=1 target=5 upper=0.20556446699934672
+digit=1 target=6 upper=-0.002870439397687904
+digit=1 target=7 upper=0.041616409314560385
+digit=1 target=8 upper=0.17292576196820686
+digit=1 target=9 upper=0.1892441547295149
+image=48 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=2 target=0 upper=0.025591860187595124
+digit=2 target=1 upper=0.014520076549783973
+digit=2 target=3 upper=-0.0006129400158801184
+digit=2 target=4 upper=0.343777043589245
+digit=2 target=5 upper=0.20479031562296784
+digit=2 target=6 upper=0.22540563066507802
+digit=2 target=7 upper=-0.022790378554950048
+digit=2 target=8 upper=-0.025662127740016583
+digit=2 target=9 upper=0.013749996555520092
+image=51 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=0.06272806294496618
+digit=6 target=1 upper=-0.48244394344763597
+digit=6 target=2 upper=-0.04168651613475906
+digit=6 target=3 upper=-0.14388157563900394
+digit=6 target=4 upper=-0.14132879268043969
+digit=6 target=5 upper=-0.17870632699783254
+digit=6 target=7 upper=-0.32866279975988794
+digit=6 target=8 upper=-0.34550784059105577
+digit=6 target=9 upper=-0.4700113365974244
+image=53 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=5 target=0 upper=0.03201157793701362
+digit=5 target=1 upper=-0.35103044958729296
+digit=5 target=2 upper=-0.10579117883890513
+digit=5 target=3 upper=-0.04302200622076298
+digit=5 target=4 upper=0.14896549652936697
+digit=5 target=6 upper=-0.16687056138849785
+digit=5 target=7 upper=-0.10690596939174836
+digit=5 target=8 upper=-0.17487194411798176
+digit=5 target=9 upper=0.05363024140959108
+image=54 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=5 target=0 upper=0.2649665963676588
+digit=5 target=1 upper=0.31751366760796856
+digit=5 target=2 upper=0.21725057862842756
+digit=5 target=3 upper=0.32236408533109456
+digit=5 target=4 upper=0.5143522074770996
+digit=5 target=6 upper=0.2927676157592415
+digit=5 target=7 upper=0.2647394954585766
+digit=5 target=8 upper=0.3926191535631784
+digit=5 target=9 upper=0.22462259984810912
+image=55 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=0.04329215831023385
+digit=6 target=1 upper=-0.21570401066145006
+digit=6 target=2 upper=-0.0278255931457586
+digit=6 target=3 upper=-0.107082985365608
+digit=6 target=4 upper=0.03931268873831883
+digit=6 target=5 upper=-0.07093984552103615
+digit=6 target=7 upper=-0.3498775133339515
+digit=6 target=8 upper=-0.051281172095651084
+digit=6 target=9 upper=-0.17965036086696523
+image=58 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.2174680567253529
+digit=1 target=2 upper=0.0660796555262549
+digit=1 target=3 upper=0.021961082409185942
+digit=1 target=4 upper=-0.08994034043108859
+digit=1 target=5 upper=-0.037795175796864644
+digit=1 target=6 upper=-0.14906893731085283
+digit=1 target=7 upper=-0.19571402938983964
+digit=1 target=8 upper=-0.01980566052443374
+digit=1 target=9 upper=-0.22632726007750337
+image=59 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.06234613393711983
+digit=9 target=1 upper=-0.28693279661058846
+digit=9 target=2 upper=0.13772085137786458
+digit=9 target=3 upper=0.0637143535272271
+digit=9 target=4 upper=0.37684180110518195
+digit=9 target=5 upper=0.07176290188565558
+digit=9 target=6 upper=-0.08992799035498993
+digit=9 target=7 upper=0.14418747923693906
+digit=9 target=8 upper=-0.0016758682575829292
+image=66 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=0.1975960597337693
+digit=4 target=1 upper=-0.017300915875933756
+digit=4 target=2 upper=0.22326662153230295
+digit=4 target=3 upper=0.39136263317113046
+digit=4 target=5 upper=0.46636468583817287
+digit=4 target=6 upper=0.13683152949319483
+digit=4 target=7 upper=0.1252807531309416
+digit=4 target=8 upper=0.2857322367437228
+digit=4 target=9 upper=0.30036673651385676
+image=67 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=0.4110312360968989
+digit=6 target=1 upper=0.37239804871538995
+digit=6 target=2 upper=0.4988519685599913
+digit=6 target=3 upper=0.45900732853235926
+digit=6 target=4 upper=0.45830847953860493
+digit=6 target=5 upper=0.2951682923067724
+digit=6 target=7 upper=0.4456124199393684
+digit=6 target=8 upper=0.23157599786787855
+digit=6 target=9 upper=0.2123583384243845
+image=68 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=-0.2952471513731535
+digit=4 target=1 upper=-0.3987399431962596
+digit=4 target=2 upper=0.10813885347599032
+digit=4 target=3 upper=-0.1339222832324259
+digit=4 target=5 upper=-0.1230888637270713
+digit=4 target=6 upper=-0.27365002671695565
+digit=4 target=7 upper=-0.24357389471634455
+digit=4 target=8 upper=-0.20214620725941473
+digit=4 target=9 upper=-0.046928987091542085
+image=73 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=2 target=0 upper=0.2555699582746939
+digit=2 target=1 upper=-0.31455503575996374
+digit=2 target=3 upper=0.061257890575938063
+digit=2 target=4 upper=-0.2865694726801773
+digit=2 target=5 upper=-0.029263374502374567
+digit=2 target=6 upper=-0.14562191821036227
+digit=2 target=7 upper=-0.20640411759342733
+digit=2 target=8 upper=-0.2042835433369745
+digit=2 target=9 upper=-0.23335753353881408
+image=75 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.4007797492015174
+digit=1 target=2 upper=-0.18890155978462633
+digit=1 target=3 upper=-0.09884379844468417
+digit=1 target=4 upper=-0.17353289534205496
+digit=1 target=5 upper=0.014812434983220981
+digit=1 target=6 upper=-0.17506428344537592
+digit=1 target=7 upper=-0.2963953974915887
+digit=1 target=8 upper=-0.02906623555005667
+digit=1 target=9 upper=-0.20348359661821253
+image=76 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=-0.15840030245890094
+digit=7 target=1 upper=-0.01313627752079009
+digit=7 target=2 upper=0.15810028262301648
+digit=7 target=3 upper=0.12562789986196096
+digit=7 target=4 upper=0.3355147407725988
+digit=7 target=5 upper=0.22265269195039203
+digit=7 target=6 upper=-0.06356814836064112
+digit=7 target=8 upper=0.19014569926792765
+digit=7 target=9 upper=0.1885047411427276
+image=77 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=3 target=0 upper=-0.19342315973076504
+digit=3 target=1 upper=-0.10076267975846967
+digit=3 target=2 upper=-0.16149364263420848
+digit=3 target=4 upper=-0.04621760115580498
+digit=3 target=5 upper=0.12571491270625568
+digit=3 target=6 upper=-0.1980553719516502
+digit=3 target=7 upper=-0.28984237537246454
+digit=3 target=8 upper=-0.0516109786793486
+digit=3 target=9 upper=-0.1714145868441388
+image=79 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=9 target=0 upper=0.2147761126390039
+digit=9 target=1 upper=0.34141769860619536
+digit=9 target=2 upper=0.23369793268649788
+digit=9 target=3 upper=0.43744562007443827
+digit=9 target=4 upper=0.3505774220521715
+digit=9 target=5 upper=0.33939458799958727
+digit=9 target=6 upper=0.24836433901966748
+digit=9 target=7 upper=0.21487908830238875
+digit=9 target=8 upper=0.5580770565947497
+image=81 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=7 target=0 upper=0.07798513557543157
+digit=7 target=1 upper=-0.3740393309330469
+digit=7 target=2 upper=-0.1368439402387578
+digit=7 target=3 upper=-0.08931314745329304
+digit=7 target=4 upper=0.11368576041824796
+digit=7 target=5 upper=0.1035874841910555
+digit=7 target=6 upper=-0.20449359774396364
+digit=7 target=8 upper=-0.15485467045079943
+digit=7 target=9 upper=0.22712715326457797
+image=85 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=8 target=0 upper=-0.0889508632236115
+digit=8 target=1 upper=-0.0597757787566409
+digit=8 target=2 upper=0.07862456136579687
+digit=8 target=3 upper=-0.1044766961362761
+digit=8 target=4 upper=0.14748743573645567
+digit=8 target=5 upper=0.20202754451474317
+digit=8 target=6 upper=0.1868450116853859
+digit=8 target=7 upper=-0.15181385244619128
+digit=8 target=9 upper=0.14563984312228764
+image=90 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.3023968697090478
+digit=1 target=2 upper=0.02837921833860228
+digit=1 target=3 upper=-0.03320360815746155
+digit=1 target=4 upper=-0.10162423629600086
+digit=1 target=5 upper=-0.01042527923387929
+digit=1 target=6 upper=-0.08894481663127618
+digit=1 target=7 upper=-0.26768532212609913
+digit=1 target=8 upper=-0.024864017615555345
+digit=1 target=9 upper=-0.28867924991545757
+image=95 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.31561017538836744
+digit=1 target=2 upper=0.0584285636383201
+digit=1 target=3 upper=-0.09641606510304186
+digit=1 target=4 upper=-0.10335713854581666
+digit=1 target=5 upper=-0.079609885562568
+digit=1 target=6 upper=0.016081440074006668
+digit=1 target=7 upper=-0.276483467066288
+digit=1 target=8 upper=0.14846198684288822
+digit=1 target=9 upper=-0.28471304232828654
+image=96 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=4 target=0 upper=0.012284482674521582
+digit=4 target=1 upper=-0.22348044516089655
+digit=4 target=2 upper=0.19532385630647078
+digit=4 target=3 upper=-0.059873433367207504
+digit=4 target=5 upper=0.07639707540676621
+digit=4 target=6 upper=0.29399286935732527
+digit=4 target=7 upper=-0.031261971655627746
+digit=4 target=8 upper=0.38544469153976224
+digit=4 target=9 upper=0.35045504993059434
+image=97 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=1 target=0 upper=-0.011205002825858339
+digit=1 target=2 upper=0.1419171395608898
+digit=1 target=3 upper=0.23223317711729896
+digit=1 target=4 upper=0.10929989999117606
+digit=1 target=5 upper=0.360368637966623
+digit=1 target=6 upper=0.10835056893700419
+digit=1 target=7 upper=0.14011351604211703
+digit=1 target=8 upper=0.1982672373394271
+digit=1 target=9 upper=0.23403923079837194
+image=99 layer=1 intervals=500 refined_sides=0 unproved=0
+digit=6 target=0 upper=0.2568969210762636
+digit=6 target=1 upper=-0.2875425560703952
+digit=6 target=2 upper=0.06918455507083736
+digit=6 target=3 upper=-0.34002307334657195
+digit=6 target=4 upper=-0.06842170155444359
+digit=6 target=5 upper=0.13892844727400266
+digit=6 target=7 upper=-0.2311719091764322
+digit=6 target=8 upper=-0.2693624721014233
+digit=6 target=9 upper=-0.3022613809944605

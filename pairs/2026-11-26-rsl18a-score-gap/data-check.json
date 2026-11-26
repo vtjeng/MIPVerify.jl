@@ -1,0 +1,15 @@
+{
+  "rows": 400,
+  "workers": 48,
+  "setup_rows": 48,
+  "all_worker_lanes_present": true,
+  "fallback_ids_match_independent_check": true,
+  "method_means_seconds": {
+    "target_lp": 7244.8342178225,
+    "screen": 5470.713315482
+  },
+  "setup_seconds_summed_over_workers": 45.339374403,
+  "warmup_seconds_summed_over_workers": 24383.307848313,
+  "setup_timing_scope": "Concurrent worker sums, not wall-clock elapsed; excluded from verification totals",
+  "witness_replay_status": "Passed: 32 rows across 16 distinct images; exact box and score checks all true"
+}
