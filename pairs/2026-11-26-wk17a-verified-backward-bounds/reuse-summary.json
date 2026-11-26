@@ -1,0 +1,196 @@
+{
+  "scope": "One paired observation per image and reuse setting, all 2,000 images, same physical core. Order reverses between disjoint odd/even image groups.",
+  "without_reuse_seconds": 555.959696301,
+  "with_reuse_seconds": 439.097076753,
+  "saved_seconds": 116.862619548,
+  "reduction_pct": 21.01998046360718,
+  "median_with_over_without_ratio": 0.9793632771150667,
+  "main_solve_without_reuse_seconds": 324.059009296,
+  "main_solve_with_reuse_seconds": 236.136669133,
+  "bound_calls_without_reuse": 145.0,
+  "bound_calls_with_reuse": 104.0,
+  "reduction_excluding_largest_savings_pct": {
+    "1": 11.51057933026708,
+    "2": 3.208218312107136,
+    "5": -7.419184221911235,
+    "10": -14.746452402440212
+  },
+  "top_savings": [
+    {
+      "sample": 1572,
+      "saved_seconds": 65.91934493900001
+    },
+    {
+      "sample": 584,
+      "saved_seconds": 40.622508659000005
+    },
+    {
+      "sample": 327,
+      "saved_seconds": 12.215112511000001
+    },
+    {
+      "sample": 66,
+      "saved_seconds": 10.401463786999999
+    },
+    {
+      "sample": 952,
+      "saved_seconds": 7.200826913
+    }
+  ],
+  "top_regressions": [
+    {
+      "sample": 212,
+      "saved_seconds": -38.475070445
+    },
+    {
+      "sample": 480,
+      "saved_seconds": -1.1680382429999998
+    },
+    {
+      "sample": 1396,
+      "saved_seconds": -0.9521689789999996
+    },
+    {
+      "sample": 954,
+      "saved_seconds": -0.7703841819999999
+    },
+    {
+      "sample": 551,
+      "saved_seconds": -0.6263018990000002
+    }
+  ],
+  "semantic_outcome_counts": {
+    "0": {
+      "certified_no_adversarial_example": 1873,
+      "adversarial_example_found_or_best_known": 124,
+      "witness_verification_failed": 2,
+      "time_limit_unresolved": 1
+    },
+    "1": {
+      "certified_no_adversarial_example": 1874,
+      "adversarial_example_found_or_best_known": 126
+    }
+  },
+  "semantic_outcome_changes": [
+    {
+      "before": "time_limit_unresolved",
+      "after": "certified_no_adversarial_example",
+      "n": 1,
+      "samples": [
+        584
+      ]
+    },
+    {
+      "before": "witness_verification_failed",
+      "after": "adversarial_example_found_or_best_known",
+      "n": 2,
+      "samples": [
+        480,
+        952
+      ]
+    }
+  ],
+  "solve_status_counts": {
+    "0": {
+      "NO_SOLVER": 1966,
+      "INFEASIBLE": 29,
+      "OPTIMAL": 4,
+      "TIME_LIMIT": 1
+    },
+    "1": {
+      "NO_SOLVER": 1966,
+      "INFEASIBLE": 30,
+      "OPTIMAL": 4
+    }
+  },
+  "solve_status_changes": [
+    {
+      "before": "TIME_LIMIT",
+      "after": "INFEASIBLE",
+      "n": 1,
+      "samples": [
+        584
+      ]
+    }
+  ],
+  "witness_verification_counts": {
+    "0": {
+      "none": 1876,
+      "outward_interval": 122,
+      "exact_rational": 2
+    },
+    "1": {
+      "none": 1874,
+      "outward_interval": 123,
+      "exact_rational": 3
+    }
+  },
+  "witness_verification_changes": [
+    {
+      "before": "none",
+      "after": "exact_rational",
+      "n": 1,
+      "samples": [
+        480
+      ]
+    },
+    {
+      "before": "none",
+      "after": "outward_interval",
+      "n": 1,
+      "samples": [
+        952
+      ]
+    }
+  ],
+  "mip_images": [
+    66,
+    212,
+    246,
+    327,
+    407,
+    444,
+    480,
+    512,
+    544,
+    551,
+    584,
+    668,
+    690,
+    724,
+    867,
+    895,
+    952,
+    983,
+    1004,
+    1193,
+    1291,
+    1356,
+    1365,
+    1396,
+    1416,
+    1441,
+    1552,
+    1572,
+    1642,
+    1774,
+    1783,
+    1829,
+    1851,
+    1962
+  ],
+  "without_reuse_mip_image_seconds": 401.45997765,
+  "with_reuse_mip_image_seconds": 287.289053533,
+  "repaired_samples_by_setting": {
+    "0": [
+      212,
+      1193
+    ],
+    "1": [
+      212,
+      480,
+      952,
+      1193
+    ]
+  }
+}

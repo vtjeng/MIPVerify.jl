@@ -1,0 +1,179 @@
+{
+  "timed_point_records": 252,
+  "unique_image_coordinate_pairs": 126,
+  "passed_exact_conditions": 252,
+  "exact_zero_margin_records": 0,
+  "strictly_positive_margin_records": 252,
+  "minimum_target_minus_true_display": 5.395469012434993e-15,
+  "verification_modes": {
+    "outward_interval": 246,
+    "exact_rational": 6
+  },
+  "routes": {
+    "ascent": 244,
+    "MIP": 8
+  },
+  "repaired_records": 8,
+  "passes": {
+    "1": {
+      "source_counts": {
+        "backward": 1844,
+        "ascent": 122,
+        "MIP": 34
+      },
+      "semantic_outcomes": {
+        "certified_no_adversarial_example": 1874,
+        "adversarial_example_found_or_best_known": 126
+      },
+      "fallback_image_ids": [
+        66,
+        212,
+        246,
+        327,
+        407,
+        444,
+        480,
+        512,
+        544,
+        551,
+        584,
+        668,
+        690,
+        724,
+        867,
+        895,
+        952,
+        983,
+        1004,
+        1193,
+        1291,
+        1356,
+        1365,
+        1396,
+        1416,
+        1441,
+        1552,
+        1572,
+        1642,
+        1774,
+        1783,
+        1829,
+        1851,
+        1962
+      ]
+    },
+    "2": {
+      "source_counts": {
+        "backward": 1844,
+        "ascent": 122,
+        "MIP": 34
+      },
+      "semantic_outcomes": {
+        "certified_no_adversarial_example": 1874,
+        "adversarial_example_found_or_best_known": 126
+      },
+      "fallback_image_ids": [
+        66,
+        212,
+        246,
+        327,
+        407,
+        444,
+        480,
+        512,
+        544,
+        551,
+        584,
+        668,
+        690,
+        724,
+        867,
+        895,
+        952,
+        983,
+        1004,
+        1193,
+        1291,
+        1356,
+        1365,
+        1396,
+        1416,
+        1441,
+        1552,
+        1572,
+        1642,
+        1774,
+        1783,
+        1829,
+        1851,
+        1962
+      ]
+    }
+  },
+  "timed_witnesses_sha256": "c3536f6e9e972a72da748614de1cf73642434ab67a58c3703ed66be70bb10876",
+  "exact_replay_sha256": "a503418941a92c4ffb1310edc0a8ee8e90f356d8a629b262c91f0f6ea1875ef1",
+  "bounds_trace": {
+    "previous_implementation_commit": "3745c5845a0126a1fff8aa564d3c0fb9e2957f7c",
+    "previous_source_sha256": "cf142faf795bc27fbbff56cdeb02a85b98a1c9d3bbea7dda497d998904ef7b62",
+    "corrected_source_sha256": "50b885bf9c5c3d33036886b48f950a5fa43118dad12bfc19ffc4c0afc094b0b4",
+    "earlier_exact_audit_commit": "75135e0bd6ef43f61c9d4285f803aa5484dc82b5",
+    "fallback_image_ids": [
+      66,
+      212,
+      246,
+      327,
+      407,
+      444,
+      480,
+      512,
+      544,
+      551,
+      584,
+      668,
+      690,
+      724,
+      867,
+      895,
+      952,
+      983,
+      1004,
+      1193,
+      1291,
+      1356,
+      1365,
+      1396,
+      1416,
+      1441,
+      1552,
+      1572,
+      1642,
+      1774,
+      1783,
+      1829,
+      1851,
+      1962
+    ],
+    "hidden_intervals_identical": 163336,
+    "all_input_boxes_identical": true,
+    "all_target_bounds_identical": true,
+    "all_affine_coefficients_and_biases_identical": true
+  },
+  "ablation": {
+    "returned_point_records": 250,
+    "passed_exact_conditions": 250,
+    "minimum_target_minus_true_display": 5.395469012434993e-15,
+    "withheld_image_ids_without_reuse": [
+      480,
+      952
+    ]
+  },
+  "deduplication": {
+    "independent_exact_image_coordinate_evaluations": 128,
+    "covered_main_and_ablation_returned_records": 502,
+    "coordinate_key": "image ID plus the complete saved coordinate string",
+    "coordinate_sha256_encoding": "SHA-256 of UTF-8 perturbed_input_value string; image ID remains a separate key",
+    "native_rational_implementation": "check_returned_points.jl",
+    "cache_results": "exact-evaluations.csv"
+  },
+  "audit_program_sha256": "d5100672a5e1a8290d08e9d403a9c039a416f4d4ea99da5b6f2d01948ddc7a91"
+}
