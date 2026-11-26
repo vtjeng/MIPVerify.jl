@@ -129,7 +129,9 @@ the page reads `daily.json` from the results branch. The nightly workflow rebuil
 the archived metrics and publishes it in the same commit as the new run. To backfill or verify it
 locally, run `python3 benchmarks/analysis/build_dashboard_data.py <results-checkout> <output.json>`.
 For dates with reruns, the latest archived run supplies the daily point. Drag the window in the
-overview to browse earlier runs, or drag either edge to change the number of days shown.
+overview to browse earlier runs, or drag either edge to change the number of days shown. Copy the
+address bar to share that view. The URL records the interval in days (or `all`), the inclusive UTC
+end date, the metric’s CSV column name, and the log-scale and fixed-axis settings.
 
 Apply the GitHub label `verification-performance` to a measured verification change. The page reads
 labeled PRs separately and marks the first nightly revision containing each merge commit. Unmerged

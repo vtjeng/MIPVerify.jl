@@ -8,8 +8,11 @@ const isoDay = (day) => new Date(day * dayMs).toISOString().slice(0, 10);
 let firstDay, afterLastDay, windowStart, windowEnd;
 
 function presetWindow(days) {
-  windowEnd = afterLastDay;
-  windowStart = days ? Math.max(firstDay, windowEnd - days) : firstDay;
+  const total = afterLastDay - firstDay;
+  const span = days ? Math.min(days, total) : total;
+  // Keep the right edge unless the interval would start before the archive.
+  windowEnd = Math.max(windowEnd ?? afterLastDay, firstDay + span);
+  windowStart = windowEnd - span;
 }
 
 function drawOverview(values, [low, high], logScale, prsByDate) {
@@ -84,7 +87,9 @@ function wireOverview() {
     if (delta === undefined) return;
     event.preventDefault();
     move(event.target.id, delta, windowStart, windowEnd);
+    if (!event.repeat) shareView();
   });
+  strip.addEventListener("keyup", shareView);
   strip.addEventListener("pointerdown", (event) => {
     if (!history.length || !event.isPrimary || event.button !== 0) return;
     const box = strip.getBoundingClientRect();
@@ -105,5 +110,6 @@ function wireOverview() {
   });
   strip.addEventListener("lostpointercapture", () => {
     drag = null;
+    shareView();
   });
 }

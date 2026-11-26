@@ -45,30 +45,6 @@ main {
   letter-spacing: -0.06em;
   font-weight: 700;
 }
-.logo {
-  width: 23px;
-  height: 23px;
-  position: relative;
-}
-.logo b {
-  width: 10px;
-  height: 10px;
-  position: absolute;
-  border-radius: 100%;
-  background: #389826;
-  top: 0;
-  left: 6px;
-}
-.logo b:nth-child(2) {
-  background: #cb3c33;
-  top: 11px;
-  left: 0;
-}
-.logo b:nth-child(3) {
-  background: #9558b2;
-  top: 11px;
-  left: 12px;
-}
 .edition {
   border-left: 1px solid var(--line);
   padding-left: 20px;
@@ -212,6 +188,9 @@ button {
 .axis-controls label {
   min-height: 32px;
   gap: 5px;
+}
+.axis-controls label:has(input:disabled) {
+  color: #818682;
 }
 .axis-controls input {
   margin: 0;
