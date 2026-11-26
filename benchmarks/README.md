@@ -260,3 +260,33 @@ readers get the shape of the distribution before the numbers.
 
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
+
+## Backward bounds for WK17a fixed-radius verification
+
+The standalone `backward_margin_screen.jl` verifier checks whether any other digit can tie or exceed
+the true label on an allowed perturbation of an MNIST image. Each pixel may change by at most 0.1
+and must remain between 0 and 1. It first computes affine upper bounds on target score minus true
+score by propagating backward through the network. It then searches for an adversarial input. Images
+still unresolved go to the Target LP mixed-integer verifier, using the already proved hidden-neuron
+bounds in its ReLU constraints.
+
+```sh
+OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
+  benchmarks/backward_margin_screen.jl --samples 1:2000 --out /tmp/wk17a-backward
+```
+
+The runner loads the authors' WK17a classifier and MNIST test images. It uses one HiGHS thread, a
+20-second limit for each bound LP and a 120-second limit for the final MIP. Setup and warm-up on
+image 2001 are written separately to `setup.csv`. Per-image end-to-end time includes bound
+propagation, adversarial search, model construction, solver work and witness verification.
+`benchmark_per_sample.csv` records the actual MIP status, verification outcome, route, final-solve
+wall time and number of bound solver calls. `NO_SOLVER` means the backward bounds or search resolved
+that image without calling the MIP. The direct routes record zero solver calls and time. A search
+witness must pass outward-rounded singleton-box evaluation; MIP witnesses use the package's
+numerical verification tolerances. The CSV contains pixels only for verified witnesses.
+
+Reusing hidden bounds is enabled by default. Pass `--prebound-fallback false` to measure a fresh
+Target LP fallback without those bounds. The input box, objective and solver limits are fixed by
+this benchmark. The helper representation accepts alternating Conv2d/Linear and ReLU layers, with an
+optional Flatten after a ReLU, and requires a final affine layer. It rejects unsupported layers. Its
+rounding rules rely on nonnegative pixel and rectified activation inputs.
