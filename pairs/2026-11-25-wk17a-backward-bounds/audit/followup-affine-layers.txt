@@ -1,0 +1,4 @@
+stage=1 bases=784 coefficients=2458624 biases=3136
+stage=2 bases=3136 coefficients=4917248 biases=1568
+stage=3 bases=1568 coefficients=156800 biases=100
+stage=4 bases=100 coefficients=1000 biases=10

@@ -1,0 +1,12 @@
+image=584 layer=1 intervals=3136 refined_sides=0 unproved=0
+image=584 layer=2 intervals=1568 refined_sides=1923 unproved=0
+image=584 layer=3 intervals=100 refined_sides=18 unproved=0
+digit=2 target=0 upper=-9.186809893083657
+digit=2 target=1 upper=-9.570418810659637
+digit=2 target=3 upper=-0.9699293888089549
+digit=2 target=4 upper=-10.172839366034811
+digit=2 target=5 upper=-11.620359458798195
+digit=2 target=6 upper=-15.00681439897461
+digit=2 target=7 upper=-1.608264282886679
+digit=2 target=8 upper=0.46874588958602803
+digit=2 target=9 upper=-4.534596206014111

@@ -1,0 +1,11 @@
+{
+  "measured_research_commit": "5dd17c1",
+  "workload": "MNIST.WK17a_linf0.1_authors; images 1:2000; radius 0.1",
+  "fallback_images": 34,
+  "hidden_intervals_proved": 163336,
+  "hidden_endpoint_proofs_requiring_backward_bound": 66143,
+  "unproved_intervals": 0,
+  "replayed_adversarial_inputs": 126,
+  "hidden_interval_checks_at_adversarial_inputs": 605304,
+  "witness_csv_sha256": "ece134e2f3227253deace5b171b03499489aab95d6227380afdfcb02d021ebe7"
+}
