@@ -7,7 +7,7 @@
 #
 # usage:
 #   run_pair.sh --base <commit> --candidate <commit> --out <dir> \
-#     [--samples 1:100] [--tightening lp] [--main-time-limit 120] [--norm-order Inf] \
+#     [--samples 1:100] [--tightening target_lp] [--main-time-limit 120] [--norm-order Inf] \
 #     [--base-objective feasibility|closest] \
 #     [--candidate-objective feasibility|closest] \
 #     [--base-label ...] [--candidate-label ...]
@@ -19,7 +19,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 
 BASE=""; CAND=""; OUT=""
-SAMPLES="1:100"; TIGHTENING="lp"; MAIN_TL="120"; NORM="Inf"
+SAMPLES="1:100"; TIGHTENING="target_lp"; MAIN_TL="120"; NORM="Inf"
 BASE_OBJECTIVE=""; CAND_OBJECTIVE=""; BASE_LABEL=""; CAND_LABEL=""
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -39,7 +39,7 @@ while [ $# -gt 0 ]; do
 done
 if [ -z "$BASE" ] || [ -z "$CAND" ] || [ -z "$OUT" ]; then
     echo "usage: $0 --base <commit> --candidate <commit> --out <dir> [--samples 1:100]" \
-         "[--tightening lp] [--main-time-limit 120] [--norm-order Inf]" \
+         "[--tightening target_lp] [--main-time-limit 120] [--norm-order Inf]" \
          "[--base-objective OBJECTIVE] [--candidate-objective OBJECTIVE]" >&2
     exit 2
 fi

@@ -34,7 +34,7 @@ Objective used when searching for an adversarial example.
 asks only whether any input satisfies the target and perturbation constraints.
 """
 @enum AdversarialExampleObjective closest = 1 worst = 2 feasibility = 3
-const DEFAULT_TIGHTENING_ALGORITHM = mip
+const DEFAULT_TIGHTENING_ALGORITHM = target_lp
 const WITNESS_VERIFICATION_ATOL = 1e-8
 const WITNESS_VERIFICATION_RTOL = 1e-8
 
@@ -236,14 +236,15 @@ check unless they implement `verify_perturbation_witness`.
     target_selection` and `max(y[i])` for all `i ∉ target_selection`.
   - `feasibility` asks whether any adversarial example satisfies the constraints. A returned
     `WitnessDistance` describes that candidate but is not necessarily minimal.
-- `tightening_algorithm`: Defaults to `mip`. Determines how we determine the upper and lower bounds
-    on input to each nonlinear unit. Allowed options are `interval_arithmetic`, `lp`, `mip`, and `target_lp`.
+- `tightening_algorithm`: Defaults to `target_lp`. Selects how to bound nonlinear units and target
+    margins. Allowed options are `interval_arithmetic`, `lp`, `mip`, and `target_lp`.
   - `interval_arithmetic` looks at the bounds on the output to the previous layer.
   - `lp` solves an `lp` corresponding to the `mip` formulation, but with any integer constraints
     relaxed.
   - `target_lp` uses interval bounds inside the network unless a layer specifies an override.
     For `feasibility` and `closest` with several targets and one non-target, it uses LP
     upper bounds on each target logit minus the non-target logit to eliminate impossible targets.
+    Other target selections and the `worst` objective use interval bounds without this screening.
   - `mip` solves the full `mip` formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the

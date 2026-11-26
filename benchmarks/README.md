@@ -27,7 +27,7 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 | ------------------- | -------------- | ------------------------------------------------------------------------ |
 | `--out`             | **(required)** | Output directory for CSV results                                         |
 | `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated)     |
-| `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
+| `--tightening`      | `target_lp`    | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
 | `--main-time-limit` | `120`          | Time limit in seconds for the main solve                                 |
 | `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`                |
 | `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                      |
@@ -113,7 +113,8 @@ Metrics without objective metadata predate feasibility benchmarking and use `clo
 ## Nightly Benchmark Workflow
 
 A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the feasibility WK17a
-benchmark nightly on 500 samples with `lp` tightening.
+benchmark nightly on 500 samples with `target_lp` tightening. Each run records its method in
+`benchmark_metrics.csv` under `tightening_algorithm`.
 
 ### Schedule
 
@@ -224,6 +225,9 @@ benchmarks/run_pair.sh \
   --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120 \
   --base-objective closest --candidate-objective feasibility
 ```
+
+The paired runner uses `target_lp` on both sides by default. Pass `--tightening lp` when either
+revision predates target LP or when reproducing an earlier LP comparison.
 
 The side-specific objective flags are optional; without them, each commit uses its own benchmark
 default.

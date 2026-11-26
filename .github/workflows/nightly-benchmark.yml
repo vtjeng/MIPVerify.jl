@@ -61,7 +61,7 @@ jobs:
         run: |
           julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
             --samples 1:500 \
-            --tightening lp \
+            --tightening target_lp \
             --main-time-limit 120 \
             --objective "${BENCHMARK_OBJECTIVE}" \
             --log-level warn \
