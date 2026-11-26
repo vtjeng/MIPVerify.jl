@@ -281,9 +281,15 @@ image 2001 are written separately to `setup.csv`. Per-image end-to-end time incl
 propagation, adversarial search, model construction, solver work and witness verification.
 `benchmark_per_sample.csv` records the actual MIP status, verification outcome, route, final-solve
 wall time and number of bound solver calls. `NO_SOLVER` means the backward bounds or search resolved
-that image without calling the MIP. The direct routes record zero solver calls and time. A search
-witness must pass outward-rounded singleton-box evaluation; MIP witnesses use the package's
-numerical verification tolerances. The CSV contains pixels only for verified witnesses.
+that image without calling the MIP. The direct routes record zero solver calls and time.
+
+Every returned adversarial input must satisfy the pixel budget and score condition. The verifier
+clips proposed pixels to floating-point values within the exact budget, using both the stored pixel
+and its original MNIST byte value as centers. Outward-rounded score intervals can prove the target
+ties or exceeds the true label. Overlapping intervals trigger exact rational evaluation. If the
+point fails, the verifier tries nearby in-budget points. A failed check leaves the image unresolved.
+The CSV records the check in `witness_verification`, whether the proposed coordinates changed in
+`witness_repaired`, and the accepted coordinates in `perturbed_input_value`.
 
 Reusing hidden bounds is enabled by default. Pass `--prebound-fallback false` to measure a fresh
 Target LP fallback without those bounds. The input box, objective and solver limits are fixed by

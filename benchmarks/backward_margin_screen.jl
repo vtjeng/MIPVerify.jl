@@ -284,8 +284,8 @@ function exact_scores(stages, z)
     return values
 end
 
-# Return the proof method, accepting a true tie only after exact evaluation.
-# An interval that proves every target loses needs no rational calculation.
+# Accept equality when the interval endpoints prove it. Overlapping intervals
+# require exact evaluation unless every target is already ruled out.
 function check_witness(stages, z, y, lower, upper)
     length(z) == length(lower) || return "invalid"
     all(isfinite, z) && all(lower .<= z .<= upper) || return "invalid"
