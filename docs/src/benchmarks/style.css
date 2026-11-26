@@ -204,6 +204,19 @@ button {
   flex: 1 1 200px;
   line-height: 1.5;
 }
+.axis-controls {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 20px;
+}
+.axis-controls label {
+  min-height: 32px;
+  gap: 5px;
+}
+.axis-controls input {
+  margin: 0;
+  accent-color: var(--green);
+}
 label {
   display: flex;
   align-items: center;

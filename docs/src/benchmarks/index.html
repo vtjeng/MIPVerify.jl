@@ -58,6 +58,14 @@
           ></label>
           <p id="description"></p>
         </div>
+        <div class="axis-controls" role="group" aria-label="Y-axis">
+          <label
+            ><input id="log-scale" type="checkbox" /> Log scale<span id="log-reason"></span
+          ></label>
+          <label
+            ><input id="fixed-axis" type="checkbox" checked /> Fix Y-axis to full history</label
+          >
+        </div>
         <div id="graph" aria-label="Daily benchmark trend"></div>
         <div class="pr-rail" aria-label="Verification performance pull requests">
           <span title="First archived run containing a performance PR">◆ PRs</span>

@@ -182,6 +182,19 @@ function readout(row, key) {
 function runPath(row) {
   return "runs/" + row.date + (row.run_id ? "/" + encodeURIComponent(row.run_id) : "");
 }
+// Plotly expects log-axis limits in base-10 exponents, but trace values in display units.
+function axisRange(values, logScale) {
+  if (!values.length) return logScale ? [0, 1] : [-0.12, 1];
+  const max = Math.max(...values);
+  if (logScale) {
+    const low = Math.log10(Math.min(...values));
+    const high = Math.log10(max);
+    const padding = high === low ? 0.05 : (high - low) * 0.05;
+    return [low - padding, high + padding];
+  }
+  return max === 0 ? [-0.12, 1] : [-0.03 * max, 1.05 * max];
+}
+let preferLog = false;
 let history = [],
   visible = [],
   selected = "",
@@ -255,8 +268,23 @@ function render(resetSelection = false) {
     if (!prsByDate.has(pr.date)) prsByDate.set(pr.date, []);
     prsByDate.get(pr.date).push(pr);
   }
-  drawOverview(key, prsByDate);
   const [factor, unit] = scale(key);
+  const historyValues = history.map((row) => {
+    const value = valueOf(row, key);
+    return value === null ? null : value * factor;
+  });
+  const recorded = historyValues.filter((value) => value !== null);
+  const canLog = recorded.length > 0 && recorded.every((value) => value > 0);
+  const logScale = preferLog && canLog;
+  el("log-scale").disabled = !canLog;
+  el("log-scale").checked = logScale;
+  el("log-reason").textContent = canLog
+    ? ""
+    : recorded.length
+      ? "(requires positive values)"
+      : "(no data)";
+  const fullRange = axisRange(recorded, logScale);
+  drawOverview(historyValues, fullRange, logScale, prsByDate);
   const dates = [],
     values = [],
     tips = [];
@@ -333,17 +361,20 @@ function render(resetSelection = false) {
       text: "No recorded values in this period",
       showarrow: false,
     });
-  const flatZero = valid.length && valid.every((v) => v === 0);
+  const fixed = el("fixed-axis").checked;
+  const domainValues = fixed ? recorded : valid;
+  const max = domainValues.length ? Math.max(...domainValues) : null;
   const axis = {
     title: { text: unit || "Count", font: { size: 13 } },
-    rangemode: "tozero",
+    type: logScale ? "log" : "linear",
+    range: fixed || !valid.length ? fullRange : axisRange(valid, logScale),
     fixedrange: true,
     gridcolor: "#e0e7e1",
     zeroline: false,
     nticks: 6,
   };
-  if (flatZero) Object.assign(axis, { range: [-0.12, 1], tickvals: [0, 1] });
-  if (!unit && valid.length && Math.max(...valid) <= 5 && !flatZero) axis.dtick = 1;
+  if (max === 0) axis.tickvals = [0, 1];
+  else if (!logScale && !unit && max !== null && max <= 5) axis.dtick = 1;
   const chart = el("graph");
   Plotly.react(
     chart,
@@ -419,6 +450,11 @@ el("ranges").addEventListener("click", (e) => {
     render();
   }
 });
+el("log-scale").addEventListener("change", (event) => {
+  preferLog = event.target.checked;
+  render();
+});
+el("fixed-axis").addEventListener("change", () => render());
 el("metric").addEventListener("change", () => render());
 el("day").addEventListener("change", (e) => {
   selected = e.target.value;

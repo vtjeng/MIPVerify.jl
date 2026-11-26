@@ -12,17 +12,16 @@ function presetWindow(days) {
   windowStart = days ? Math.max(firstDay, windowEnd - days) : firstDay;
 }
 
-function drawOverview(key, prsByDate) {
+function drawOverview(values, [low, high], logScale, prsByDate) {
   const total = afterLastDay - firstDay;
   const x = (day) => ((day - firstDay + 0.5) / total) * 1000;
-  const values = history.map((row) => valueOf(row, key));
-  const max = Math.max(0, ...values) || 1;
   let path = "";
   for (const [i, row] of history.entries()) {
     if (values[i] === null) continue;
     const day = utcDay(row.date);
     const continued = i && values[i - 1] !== null && utcDay(history[i - 1].date) === day - 1;
-    path += (continued ? "L" : "M") + x(day) + " " + (35 - (32 * values[i]) / max) + " ";
+    const height = ((logScale ? Math.log10(values[i]) : values[i]) - low) / (high - low);
+    path += (continued ? "L" : "M") + x(day) + " " + (35 - 32 * height) + " ";
   }
   el("overview-line").setAttribute("d", path);
   el("overview-prs").setAttribute(
