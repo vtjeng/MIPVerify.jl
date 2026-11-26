@@ -1,0 +1,30 @@
+First 500
+First observations: [(('lp', 'adversarial_example_found_or_best_known'), 23), (('lp', 'certified_no_adversarial_example'), 475), (('lp', 'time_limit_unresolved'), 2), (('target_lp', 'adversarial_example_found_or_best_known'), 23), (('target_lp', 'certified_no_adversarial_example'), 476), (('target_lp', 'time_limit_unresolved'), 1)]
+Candidate-only resolutions [19]
+Baseline-only resolutions []
+Neither resolves [63]
+Both build models 492 989.5818568945 441.526522345 0.483451699289296
+lp solve statuses {'INFEASIBLE': 475.5, 'OPTIMAL': 15.0, 'SKIPPED_PREDICTED_IN_TARGETED': 8.0, 'TIME_LIMIT': 1.5}
+lp bound solves 99067.0
+target_lp solve statuses {'INFEASIBLE': 476.0, 'OPTIMAL': 15.0, 'SKIPPED_PREDICTED_IN_TARGETED': 8.0, 'TIME_LIMIT': 1.0}
+target_lp bound solves 500.0
+Fresh 1500
+First observations: [(('lp', 'adversarial_example_found_or_best_known'), 102), (('lp', 'certified_no_adversarial_example'), 1398), (('target_lp', 'adversarial_example_found_or_best_known'), 102), (('target_lp', 'certified_no_adversarial_example'), 1396), (('target_lp', 'time_limit_unresolved'), 2)]
+Candidate-only resolutions []
+Baseline-only resolutions [584, 1572]
+Neither resolves []
+Both build models 1459 2455.086898105 1309.458733294 0.49218645779645664
+lp solve statuses {'INFEASIBLE': 1398.0, 'SKIPPED_PREDICTED_IN_TARGETED': 41.0, 'OPTIMAL': 61.0}
+lp bound solves 294435.0
+target_lp solve statuses {'INFEASIBLE': 1396.0, 'SKIPPED_PREDICTED_IN_TARGETED': 41.0, 'OPTIMAL': 61.0, 'TIME_LIMIT': 2.0}
+target_lp bound solves 1497.0
+First 2000
+First observations: [(('lp', 'adversarial_example_found_or_best_known'), 125), (('lp', 'certified_no_adversarial_example'), 1873), (('lp', 'time_limit_unresolved'), 2), (('target_lp', 'adversarial_example_found_or_best_known'), 125), (('target_lp', 'certified_no_adversarial_example'), 1872), (('target_lp', 'time_limit_unresolved'), 3)]
+Candidate-only resolutions [19]
+Baseline-only resolutions [584, 1572]
+Neither resolves [63]
+Both build models 1951 3444.6687549995 1750.985255639 0.4894333758217673
+lp solve statuses {'INFEASIBLE': 1873.5, 'OPTIMAL': 76.0, 'SKIPPED_PREDICTED_IN_TARGETED': 49.0, 'TIME_LIMIT': 1.5}
+lp bound solves 393502.0
+target_lp solve statuses {'INFEASIBLE': 1872.0, 'OPTIMAL': 76.0, 'SKIPPED_PREDICTED_IN_TARGETED': 49.0, 'TIME_LIMIT': 3.0}
+target_lp bound solves 1997.0

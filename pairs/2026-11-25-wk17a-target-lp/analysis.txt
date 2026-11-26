@@ -1,0 +1,48 @@
+Images 1–500 (500 pairs)
+Paired totals: 989.64 and 441.57 seconds, 55.38% reduction
+  lp replicate 1: 1054.43s, {'certified_no_adversarial_example': 475, 'adversarial_example_found_or_best_known': 23, 'time_limit_unresolved': 2}
+  lp replicate 2: 924.85s, {'certified_no_adversarial_example': 476, 'adversarial_example_found_or_best_known': 23, 'time_limit_unresolved': 1}
+  target_lp replicate 1: 445.21s, {'certified_no_adversarial_example': 476, 'adversarial_example_found_or_best_known': 23, 'time_limit_unresolved': 1}
+  target_lp replicate 2: 437.93s, {'certified_no_adversarial_example': 476, 'adversarial_example_found_or_best_known': 23, 'time_limit_unresolved': 1}
+Excluding the 1 largest savings: 51.62%
+Excluding the 5 largest savings: 40.31%
+Excluding the 10 largest savings: 38.23%
+Median ratio: 0.485
+Faster / within 1% / slower: 486 3 11
+Resolved every time: 498 images, 59.55% reduction
+Paired-image bootstrap, 95% interval: 38.12–69.37%
+Images 101–500 (400 pairs)
+Paired totals: 673.78 and 257.79 seconds, 61.74% reduction
+  lp replicate 1: 687.79s, {'certified_no_adversarial_example': 379, 'adversarial_example_found_or_best_known': 21}
+  lp replicate 2: 659.76s, {'certified_no_adversarial_example': 379, 'adversarial_example_found_or_best_known': 21}
+  target_lp replicate 1: 262.03s, {'certified_no_adversarial_example': 379, 'adversarial_example_found_or_best_known': 21}
+  target_lp replicate 2: 253.55s, {'certified_no_adversarial_example': 379, 'adversarial_example_found_or_best_known': 21}
+Excluding the 1 largest savings: 58.41%
+Excluding the 5 largest savings: 48.88%
+Excluding the 10 largest savings: 47.18%
+Median ratio: 0.486
+Faster / within 1% / slower: 390 2 8
+Resolved every time: 400 images, 61.74% reduction
+Paired-image bootstrap, 95% interval: 49.95–70.05%
+Images 501–2000 (1500 pairs)
+Paired totals: 2455.38 and 1309.75 seconds, 46.66% reduction
+  lp replicate 1: 2455.38s, {'certified_no_adversarial_example': 1398, 'adversarial_example_found_or_best_known': 102}
+  target_lp replicate 1: 1309.75s, {'certified_no_adversarial_example': 1396, 'adversarial_example_found_or_best_known': 102, 'time_limit_unresolved': 2}
+Excluding the 1 largest savings: 45.14%
+Excluding the 5 largest savings: 40.76%
+Excluding the 10 largest savings: 37.02%
+Median ratio: 0.496
+Faster / within 1% / slower: 1407 9 84
+Resolved every time: 1498 images, 54.44% reduction
+Paired-image bootstrap, 95% interval: 33.71–57.48%
+Images 1–2000 (2000 pairs)
+Paired totals: 3445.02 and 1751.32 seconds, 49.16% reduction
+  lp replicate 1: 3509.81s, {'certified_no_adversarial_example': 1873, 'adversarial_example_found_or_best_known': 125, 'time_limit_unresolved': 2}
+  target_lp replicate 1: 1754.96s, {'certified_no_adversarial_example': 1872, 'adversarial_example_found_or_best_known': 125, 'time_limit_unresolved': 3}
+Excluding the 1 largest savings: 48.00%
+Excluding the 5 largest savings: 44.02%
+Excluding the 10 largest savings: 40.19%
+Median ratio: 0.492
+Faster / within 1% / slower: 1893 12 95
+Resolved every time: 1996 images, 55.73% reduction
+Paired-image bootstrap, 95% interval: 38.36–57.84%

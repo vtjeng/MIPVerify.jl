@@ -1,0 +1,1 @@
+{'separated repeated totals': True, 'savings exceed within-method repeat swings': True, 'positive after excluding five largest savings': True, 'resolution count retained on average': True}
