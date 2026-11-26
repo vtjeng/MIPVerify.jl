@@ -157,6 +157,32 @@ Among all 2,000 image pairs, the backward verifier used fewer bound LPs on 761, 
 
 ![Paired bound solver calls](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/plots/calls_scatter.png)
 
+## A second MNIST classifier
+
+On RSL18a, a classifier with one hidden layer of 500 ReLUs, backward score-gap screening reduced
+verification time by **24.5%**, from **120.7 to 91.2 minutes** on the first 100 MNIST test images.
+Both methods ran twice with the same 0.1 pixel budget and 120-second final solve limit. Repeat
+totals differed by at most 0.32%. Removing the five largest per-image savings left a 17.5%
+reduction.
+
+Most of the saving came from 16 images where the search found an adversarial example. Target LP
+spent 28.5 minutes on these images in total. The screen spent 1.2 seconds. Backward bounds directly
+certified another 35 images. The remaining 49 needed a MIP and took about 91 minutes under either
+method.
+
+Timeouts fell from 56 to 41 on both passes. Each row below pairs the same image before and after the
+change. The same images changed on both passes.
+
+| Target LP outcome | Backward screening outcome | Images | MNIST test image IDs                                 |
+| :---------------- | :------------------------- | -----: | :--------------------------------------------------- |
+| Timeout           | Adversarial example        |     14 | 2, 9, 19, 34, 39, 44, 60, 62, 63, 64, 65, 88, 93, 98 |
+| Timeout           | Robustness certificate     |      1 | 77                                                   |
+
+Both methods agreed wherever both reached a verdict. Exact arithmetic confirmed all 32 returned
+inputs across the two runs, all 35 direct certificates and all 24,500 hidden-neuron ranges supplied
+to the 49 fallback MIPs.
+[Paired RSL18a data, solver-status changes and exact checks](https://github.com/vtjeng/MIPVerify.jl/tree/96619f243e86e66a91f326a62aeb0fc5a6d2d264/pairs/2026-11-26-rsl18a-score-gap)
+
 ## Measurement and reproduction
 
 Each image ran twice under each method on the same physical core, with the order reversed across
