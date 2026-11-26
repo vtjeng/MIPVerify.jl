@@ -155,7 +155,6 @@ for (const [group, entries] of Object.entries(groups)) {
   }
   el("metric").append(options);
 }
-const dayMs = 86400000;
 const dateFormat = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
   day: "numeric",
@@ -185,7 +184,6 @@ function runPath(row) {
 }
 let history = [],
   visible = [],
-  days = 0,
   selected = "",
   bound = false;
 function inspect() {
@@ -227,9 +225,9 @@ function inspect() {
 function render(resetSelection = false) {
   if (!history.length) return;
   const latest = history.at(-1);
-  const cutoff = days ? Date.parse(latest.date) - (days - 1) * dayMs : -Infinity;
-  visible = history.filter((r) => Date.parse(r.date) >= cutoff);
-  if (resetSelection || !visible.some((r) => r.date === selected)) selected = latest.date;
+  visible = history.filter((r) => utcDay(r.date) >= windowStart && utcDay(r.date) < windowEnd);
+  if (resetSelection || !visible.some((r) => r.date === selected)) selected = visible.at(-1)?.date;
+  document.querySelector(".inspect").hidden = !visible.length;
   el("latest").textContent = dateLabel(latest.date);
   el("day").replaceChildren(
     ...visible
@@ -242,8 +240,22 @@ function render(resetSelection = false) {
   el("history").textContent = metric.label;
   el("column").textContent = key;
   el("description").textContent = metric.description;
-  for (const b of el("ranges").children)
-    b.setAttribute("aria-pressed", String(Number(b.dataset.days) === days));
+  for (const b of el("ranges").children) {
+    const days = Number(b.dataset.days);
+    const span = windowEnd - windowStart;
+    const full = span === afterLastDay - firstDay;
+    b.setAttribute(
+      "aria-pressed",
+      String(full ? days === 0 : windowEnd === afterLastDay && span === days),
+    );
+  }
+  const prsByDate = new Map();
+  for (const pr of performancePRs) {
+    if (!pr.date) continue;
+    if (!prsByDate.has(pr.date)) prsByDate.set(pr.date, []);
+    prsByDate.get(pr.date).push(pr);
+  }
+  drawOverview(key, prsByDate);
   const [factor, unit] = scale(key);
   const dates = [],
     values = [],
@@ -258,13 +270,19 @@ function render(resetSelection = false) {
     const value = valueOf(row, key);
     dates.push(row.date);
     values.push(value === null ? null : value * factor);
-    tips.push(readout(row, key) + " · " + objective(row));
+    const prs = prsByDate.get(row.date);
+    tips.push(
+      readout(row, key) +
+        " · " +
+        objective(row) +
+        (prs ? "<br>" + prs.map((pr) => "#" + pr.number).join(", ") : ""),
+    );
     if (value !== null) count++;
   }
   el("extent").textContent =
-    dateLabel(visible[0].date) +
+    dateLabel(isoDay(windowStart)) +
     " – " +
-    dateLabel(latest.date) +
+    dateLabel(isoDay(windowEnd - 1)) +
     " · " +
     count +
     " of " +
@@ -274,7 +292,7 @@ function render(resetSelection = false) {
     shapes = [];
   for (let i = 1; i < history.length; i++) {
     const row = history[i];
-    if (row.date < visible[0].date) continue;
+    if (utcDay(row.date) < windowStart || utcDay(row.date) >= windowEnd) continue;
     const previous = history[i - 1];
     const changes = [];
     if (objective(row) !== objective(previous)) changes.push("Objective");
@@ -338,7 +356,12 @@ function render(resetSelection = false) {
         type: "scatter",
         mode: "lines+markers",
         line: { width: 2.1, color: "#006b50" },
-        marker: { size: 3.4, color: "#006b50" },
+        marker: {
+          size: dates.map((date) => (prsByDate.has(date) ? 9 : 3.4)),
+          color: dates.map((date) => (prsByDate.has(date) ? "#704392" : "#006b50")),
+          symbol: dates.map((date) => (prsByDate.has(date) ? "diamond" : "circle")),
+          opacity: 1,
+        },
         connectgaps: false,
         hovertemplate: "%{x|%d %b %Y}<br>%{text}<extra></extra>",
       },
@@ -355,13 +378,13 @@ function render(resetSelection = false) {
       xaxis: {
         type: "date",
         range: [
-          new Date(Date.parse(visible[0].date) - dayMs * 0.6),
-          new Date(Date.parse(latest.date) + dayMs * 0.6),
+          new Date((windowStart - 0.5) * dayMs).toISOString(),
+          new Date((windowEnd - 0.5) * dayMs).toISOString(),
         ],
         fixedrange: true,
         showgrid: false,
         nticks: chart.clientWidth < 550 ? 4 : 8,
-        tickformat: days ? "%d %b" : "%b %Y",
+        tickformat: windowEnd - windowStart <= 90 ? "%d %b" : "%b %Y",
         zeroline: false,
       },
       yaxis: axis,
@@ -377,7 +400,10 @@ function render(resetSelection = false) {
         const day = e.points[0].customdata;
         if (visible.some((r) => r.date === day)) {
           selected = day;
+          activePR = null;
+          activeDay = day;
           inspect();
+          drawPRRail();
         }
       });
       bound = true;
@@ -388,14 +414,18 @@ function render(resetSelection = false) {
 }
 el("ranges").addEventListener("click", (e) => {
   if (e.target.dataset.days !== undefined) {
-    days = Number(e.target.dataset.days);
+    if (!history.length) return;
+    presetWindow(Number(e.target.dataset.days));
     render();
   }
 });
 el("metric").addEventListener("change", () => render());
 el("day").addEventListener("change", (e) => {
   selected = e.target.value;
+  activeDay = null;
+  activePR = null;
   inspect();
+  drawPRRail();
 });
 async function get(url, type = "text") {
   const response = await fetch(url, { cache: "no-cache", signal: AbortSignal.timeout(20000) });
@@ -406,6 +436,9 @@ async function start() {
   try {
     history = await get(raw + "/daily.json", "json");
     if (!history.length) throw Error("Empty archive");
+    firstDay = utcDay(history[0].date);
+    afterLastDay = utcDay(history.at(-1).date) + 1;
+    presetWindow(90);
     render(true);
     el("status").textContent = "GitHub archive · " + history.length + " daily runs";
   } catch {
@@ -414,4 +447,5 @@ async function start() {
       "Could not load the chart. Reload to retry or open the run files on GitHub.";
   }
 }
+wireOverview();
 startPRs(start());

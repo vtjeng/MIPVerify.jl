@@ -2,11 +2,12 @@
 
 let performancePRs = [];
 let activePR = null;
+let activeDay = null;
 const api = "https://api.github.com/repos/vtjeng/MIPVerify.jl";
-function prLink(pr, short = false) {
+function prLink(pr) {
   const link = document.createElement("a");
   link.href = repo + "/pull/" + pr.number;
-  link.textContent = "#" + pr.number + (short ? "" : " " + pr.title);
+  link.textContent = "#" + pr.number + " " + pr.title;
   return link;
 }
 function prList(items) {
@@ -29,23 +30,40 @@ function showRunPRs(row) {
   const prs = performancePRs.filter((pr) => pr.date === row.date);
   const panel = el("run-prs");
   panel.hidden = !prs.length;
-  panel.replaceChildren("First archived run with ");
-  prs.forEach((pr, i) => panel.append(i ? ", " : "", prLink(pr, true)));
+  if (!prs.length) return;
+  panel.replaceChildren("First archived run with");
+  const list = document.createElement("ul");
+  list.append(
+    ...prs.map((pr) => {
+      const item = document.createElement("li");
+      item.append(prLink(pr));
+      return item;
+    }),
+  );
+  panel.append(list);
 }
 function drawPRRail() {
-  if (!visible.length) return;
+  if (!history.length) return;
   const track = el("pr-track"),
     width = track.clientWidth;
-  const first = visible[0].date,
-    last = visible.at(-1).date;
-  const start = Date.parse(first) - 0.6 * dayMs,
-    end = Date.parse(last) + 0.6 * dayMs;
+  const first = isoDay(windowStart),
+    last = isoDay(windowEnd - 1);
+  const start = (windowStart - 0.5) * dayMs,
+    end = (windowEnd - 0.5) * dayMs;
   const candidates = performancePRs
     .filter((p) => p.date >= first && p.date <= last)
     .sort((a, b) => a.date.localeCompare(b.date) || a.number - b.number);
   const clusters = [];
+  const dayTicks = new Map();
   for (const pr of candidates) {
     const x = ((Date.parse(pr.date) - start) / (end - start)) * width;
+    if (!dayTicks.has(pr.date)) {
+      const tick = document.createElement("span");
+      tick.className = "pr-tick";
+      tick.style.left = x + "px";
+      tick.setAttribute("aria-hidden", "true");
+      dayTicks.set(pr.date, tick);
+    }
     const cluster = clusters.at(-1);
     if (cluster && x - cluster.last < 62) {
       cluster.items.push(pr);
@@ -76,6 +94,7 @@ function drawPRRail() {
       panel.hidden = false;
     }
     button.onclick = () => {
+      activeDay = null;
       activePR = expanded ? null : items[0].number;
       drawPRRail();
       track.querySelectorAll("button")[clusters.indexOf(group)]?.focus({ preventScroll: true });
@@ -83,12 +102,20 @@ function drawPRRail() {
     buttons.push(button);
   }
   if (panel.hidden) activePR = null;
-  track.replaceChildren(...buttons);
+  if (activeDay) {
+    const dayPRs = candidates.filter((pr) => pr.date === activeDay);
+    if (dayPRs.length) {
+      const list = document.createElement("ul");
+      list.append(...prList(dayPRs));
+      panel.replaceChildren(list);
+      panel.hidden = false;
+    } else activeDay = null;
+  }
+  track.replaceChildren(...dayTicks.values(), ...buttons);
 }
 function updatePRDisplay() {
   el("pr-list").replaceChildren(...prList(performancePRs));
-  drawPRRail();
-  if (visible.length) inspect();
+  if (history.length) render();
 }
 async function firstNight(pr) {
   if (!pr.merged) return;
