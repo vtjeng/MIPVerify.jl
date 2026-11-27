@@ -399,29 +399,35 @@ end
 
 include("forward_parallelograms.jl")
 
-function staged_margin_screen(stages, x, y, corners = nothing)
+function staged_margin_screen(stages, x, y, corners = nothing, forward_corners = nothing)
     hidden, input_lo, input_hi = hidden_bounds(stages, x)
     bounds = margin_bounds(stages, y, hidden, input_lo, input_hi, corners)
     maximum(bounds) < 0 && return hidden, bounds, "backward"
-    tighten_forward_margins!(bounds, stages, y, input_lo, input_hi)
+    tighten_forward_margins!(bounds, stages, y, input_lo, input_hi, forward_corners)
     return hidden, bounds, "forward_parallelogram"
 end
 
-# Try the backward plane’s maximizing endpoints only for rivals still open
-# after both screens. Round endpoints inward for the exact witness check.
-function search_checked_witness(stages, x, y, bounds, corners)
+# Check the backward corners first, then the forward corners for surviving rivals.
+# Round endpoints inward for the exact witness check.
+function search_checked_witness(stages, x, y, bounds, corners, forward_corners = nothing)
     lower, upper = witness_box(x)
-    for target in sortperm(bounds; rev = true)
-        bounds[target] < 0 && break
-        point = ifelse.(corners[target], upper, lower)
-        proof = check_witness(stages, point, y, lower, upper)
-        if proof != "invalid"
-            return (
-                witness = reshape(point, size(x)),
-                proof = proof,
-                source = "corner",
-                repaired = false,
-            )
+    targets = sort(findall(>=(0), bounds); by = j -> bounds[j], rev = true)
+    for (source, directions) in (("corner", corners), ("forward_corner", forward_corners))
+        isnothing(directions) && continue
+        for target in targets
+            if source == "forward_corner" && directions[target] == corners[target]
+                continue
+            end
+            point = ifelse.(directions[target], upper, lower)
+            proof = check_witness(stages, point, y, lower, upper)
+            if proof != "invalid"
+                return (
+                    witness = reshape(point, size(x)),
+                    proof = proof,
+                    source = source,
+                    repaired = false,
+                )
+            end
         end
     end
     proposed = find_box_witness(stages, x, y, bounds)
@@ -433,7 +439,8 @@ end
 function verify_image(nn, stages, x, y; prebound_fallback = true)
     1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
     corners = Dict{Int,BitVector}()
-    hidden, bounds, screen_source = staged_margin_screen(stages, x, y, corners)
+    forward_corners = Dict{Int,BitVector}()
+    hidden, bounds, screen_source = staged_margin_screen(stages, x, y, corners, forward_corners)
     worst_margin = maximum(bounds)
     if worst_margin < 0
         return (
@@ -448,7 +455,7 @@ function verify_image(nn, stages, x, y; prebound_fallback = true)
             bound_solver_call_count = 0,
         )
     end
-    checked = search_checked_witness(stages, x, y, bounds, corners)
+    checked = search_checked_witness(stages, x, y, bounds, corners, forward_corners)
     if checked !== nothing
         return (
             solve_status = "NO_SOLVER",

@@ -160,6 +160,23 @@ end
         @test result.bound_solver_call_count == 0
         @test (result.witness !== nothing) == (source == "corner")
     end
+    # On [0.4, 0.6] the rival margin is 0.85x - ReLU(x - 0.45) - 0.35.
+    # The adaptive lower line has slope 1 and sends x to its losing left
+    # endpoint. The parallel line has slope 0.75 and sends x to the winning right endpoint.
+    sloped = MIPVerify.Sequential(
+        [
+            MIPVerify.Linear(ones(1, 2), [0.0, -0.45]),
+            MIPVerify.ReLU(),
+            MIPVerify.Linear([0.0 0.85; 0.0 -1.0], [0.0, -0.35]),
+        ],
+        "different maximizing corners",
+    )
+    center = [0.5]
+    stages = compile_stages(sloped, size(center))
+    result = verify_image(sloped, stages, center, 1)
+    @test result.source == "forward_corner"
+    @test result.witness == last(witness_box(center))
+    @test result.solve_status == "NO_SOLVER"
     # Identical constant scores attain a tie at the corner.
     tied = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), zeros(2))], "tied scores")
     result = verify_image(tied, compile_stages(tied, (1,)), [0.5], 1)

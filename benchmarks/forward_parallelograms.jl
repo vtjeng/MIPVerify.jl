@@ -77,7 +77,7 @@ function forward_relus(stages, lo, hi)
     return inputs, nvars
 end
 
-function forward_gap_upper(rival, truth, pixel_lo, pixel_hi, nvars)
+function forward_gap_upper(rival, truth, pixel_lo, pixel_hi, nvars, directions = nothing)
     coeff = zeros(nvars)
     coeff[rival.ids] .= rival.upper
     for (k, id) in enumerate(truth.ids)
@@ -93,17 +93,26 @@ function forward_gap_upper(rival, truth, pixel_lo, pixel_hi, nvars)
         end
         upper = nextfloat(fma(a, endpoint, upper))
     end
+    if directions !== nothing && upper >= 0
+        # Error variables are independent in the relaxation. Only original pixels
+        # define a candidate input that we can check on the actual network.
+        directions .= view(coeff, eachindex(pixel_lo)) .> 0
+    end
     return upper
 end
 
-function tighten_forward_margins!(bounds, stages, y, lo, hi)
+function tighten_forward_margins!(bounds, stages, y, lo, hi, corners = nothing)
     open = findall(>=(0), bounds)
     isempty(open) && return bounds
     inputs, nvars = forward_relus(stages, lo, hi)
     truth = forward_sum(stages[end], y, inputs, nvars)
     for j in open
         rival = forward_sum(stages[end], j, inputs, nvars)
-        bounds[j] = min(bounds[j], forward_gap_upper(rival, truth, lo, hi, nvars))
+        directions = isnothing(corners) ? nothing : falses(length(lo))
+        bounds[j] = min(bounds[j], forward_gap_upper(rival, truth, lo, hi, nvars, directions))
+        if !isnothing(corners) && bounds[j] >= 0
+            corners[j] = directions
+        end
     end
     return bounds
 end
