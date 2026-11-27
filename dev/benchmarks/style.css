@@ -38,6 +38,8 @@ main {
   min-height: 64px;
 }
 .brand {
+  color: var(--ink);
+  text-decoration: none;
   display: flex;
   align-items: center;
   gap: 11px;
@@ -89,9 +91,44 @@ footer {
   color: var(--green);
   margin: 0 0 9px;
 }
-.eyebrow span {
+.benchmark-terms {
+  position: relative;
+  width: fit-content;
+  display: flex;
+  align-items: center;
+}
+.benchmark-terms .separator {
   color: #74887e;
   padding: 0 4px;
+}
+.term button {
+  display: block;
+  min-height: 24px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+.term [role="tooltip"] {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  left: 0;
+  width: min(19rem, 90vw);
+  padding: 10px 13px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: normal;
+  text-transform: none;
 }
 h1,
 h2,
