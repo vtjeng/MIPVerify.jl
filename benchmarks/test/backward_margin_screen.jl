@@ -147,7 +147,7 @@ end
     # scores make the unperturbed center a strictly adversarial input.
     for (bias, source, outcome) in [
         ([1.0, 0.0], "backward", "certified_no_adversarial_example"),
-        ([0.0, 1.0], "ascent", "adversarial_example_found_or_best_known"),
+        ([0.0, 1.0], "corner", "adversarial_example_found_or_best_known"),
     ]
         network = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), bias)], "constant scores")
         center = [0.5] # Interior point gives a nonempty radius-0.1 box.
@@ -158,17 +158,30 @@ end
         @test result.solve_status == "NO_SOLVER"
         @test result.main_solve_wall_time_seconds == 0
         @test result.bound_solver_call_count == 0
-        @test (result.witness !== nothing) == (source == "ascent")
+        @test (result.witness !== nothing) == (source == "corner")
     end
-    # Identical constant scores attain a tie. Strict witness search cannot
-    # resolve it, so the MIP must retain the feasible zero-margin input.
+    # Identical constant scores attain a tie at the corner.
     tied = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), zeros(2))], "tied scores")
     result = verify_image(tied, compile_stages(tied, (1,)), [0.5], 1)
-    @test result.source == "MIP"
-    @test result.solve_status == "OPTIMAL"
+    @test result.source == "corner"
+    @test result.solve_status == "NO_SOLVER"
     @test result.semantic_outcome == "adversarial_example_found_or_best_known"
     @test result.witness !== nothing
     @test result.main_solve_wall_time_seconds >= 0
+    # The rival's margin peaks at the center (0.05 - abs(x - 0.5)).
+    # Both corners lose, so the PGD fallback must still find the center.
+    peak = MIPVerify.Sequential(
+        [
+            MIPVerify.Linear(reshape([1.0, -1.0], 1, 2), [-0.5, 0.5]),
+            MIPVerify.ReLU(),
+            MIPVerify.Linear([0.0 -1.0; 0.0 -1.0], [0.0, 0.05]),
+        ],
+        "interior witness",
+    )
+    result = verify_image(peak, compile_stages(peak, (1,)), [0.5], 1)
+    @test result.source == "ascent"
+    @test result.witness == [0.5]
+
 end
 
 @testset "Strict witness validation and repair" begin
@@ -176,6 +189,10 @@ end
     # Byte-normalized centers can differ from their exact byte/255 values.
     # The inward endpoints must fit both interpretations at radius 1/10.
     center = [0.0, 1 / 255, 51 / 255, 1.0]
+    # Check every cached brightness in reverse order, and the non-byte fallback.
+    bytes = collect(255:-1:0) ./ 255
+    @test witness_box(bytes) == compute_witness_box(bytes)
+    @test witness_box([0.5, 0.25]) == compute_witness_box([0.5, 0.25])
     lower, upper = witness_box(center)
     for i in eachindex(center)
         original = round(Int, 255 * center[i]) // 255
@@ -218,14 +235,15 @@ end
     @test repaired !== nothing
     @test repaired.witness[1] > 0.5
     @test check_witness(local_stages, vec(repaired.witness), 1, witness_box([0.5])...) != "invalid"
-    # A tie attainable only at the lower endpoint still enters and exits the
-    # MIP as a verified witness, with its original solver status intact.
+    # The minimizing pixel endpoint is zero after clipping. The exact check
+    # accepts a tie attained only there, before PGD or the MIP.
     network = MIPVerify.Sequential(
         [MIPVerify.Linear(reshape([1.0, 0.0], 1, 2), zeros(2))],
         "endpoint tie",
     )
     result = verify_image(network, compile_stages(network, (1,)), [0.05], 1)
-    @test result.solve_status == "OPTIMAL"
+    @test result.source == "corner"
+    @test result.solve_status == "NO_SOLVER"
     @test result.semantic_outcome == "adversarial_example_found_or_best_known"
     @test result.witness[1] == 0
     @test result.witness_verification == "exact_rational"

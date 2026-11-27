@@ -139,13 +139,13 @@ function upper_at_box(coeff, intercept, lo, hi)
 end
 
 """
-Bound a linear objective on the outputs of affine stage `last` over the pixel box.
+Construct an affine upper bound on a linear objective on the outputs of affine stage `last` over the pixel box.
 
 `hidden` contains bounds on the inputs to each preceding ReLU. Propagating the
 objective through affine layers and upper ReLU envelopes leaves an affine
 function of the pixels, maximized at the appropriate box endpoint per pixel.
 """
-function backward_upper(stages, last, coeff, hidden, input_lo, input_hi)
+function backward_plane(stages, last, coeff, hidden)
     intercept = 0.0
     for k in last:-1:1
         coeff, intercept = backward_affine(stages[k], coeff, intercept)
@@ -153,13 +153,31 @@ function backward_upper(stages, last, coeff, hidden, input_lo, input_hi)
             intercept = backward_relu!(coeff, intercept, hidden[k-1]...)
         end
     end
-    return upper_at_box(coeff, intercept, input_lo, input_hi)
+    return coeff, intercept
 end
 
-function margin_upper(stages, hidden, input_lo, input_hi, true_label, target_label)
+function backward_upper(stages, last, coeff, hidden, input_lo, input_hi)
+    plane, intercept = backward_plane(stages, last, coeff, hidden)
+    return upper_at_box(plane, intercept, input_lo, input_hi)
+end
+
+function margin_upper(
+    stages,
+    hidden,
+    input_lo,
+    input_hi,
+    true_label,
+    target_label,
+    corners = nothing,
+)
     coeff = zeros(length(stages[end].bias))
     coeff[target_label], coeff[true_label] = 1, -1
-    return backward_upper(stages, length(stages), coeff, hidden, input_lo, input_hi)
+    plane, intercept = backward_plane(stages, length(stages), coeff, hidden)
+    bound = upper_at_box(plane, intercept, input_lo, input_hi)
+    if corners !== nothing && bound >= 0
+        corners[target_label] = plane .> 0
+    end
+    return bound
 end
 
 """
@@ -197,9 +215,9 @@ function hidden_bounds(stages, x)
     return hidden, input_lo, input_hi
 end
 
-function margin_bounds(stages, y, hidden, input_lo, input_hi)
+function margin_bounds(stages, y, hidden, input_lo, input_hi, corners = nothing)
     return [
-        j == y ? -Inf : margin_upper(stages, hidden, input_lo, input_hi, y, j) for
+        j == y ? -Inf : margin_upper(stages, hidden, input_lo, input_hi, y, j, corners) for
         j in eachindex(stages[end].bias)
     ]
 end
@@ -254,7 +272,7 @@ end
 # Float64 endpoints rounded into the exact radius-1/10 box. MNIST centers
 # also retain their original byte/255 interpretation. These endpoints constrain
 # proposed witnesses only; the certification and MIP domains are untouched.
-function witness_box(x)
+function compute_witness_box(x)
     Q = Rational{BigInt}
     pixels = vec(x)
     bytes = round.(Int, 255 .* pixels)
@@ -272,6 +290,19 @@ function witness_box(x)
         Q(upper[i]) > u && (upper[i] = prevfloat(upper[i]))
     end
     return lower, upper
+end
+
+# MNIST reuses the same 256 centers. Compute their exact inward rounding once.
+const BYTE_WITNESS_LOWER, BYTE_WITNESS_UPPER = compute_witness_box(collect(0:255) ./ 255)
+
+function witness_box(x)
+    pixels = vec(x)
+    bytes = round.(Int, 255 .* pixels)
+    if all(i -> 0 <= bytes[i] <= 255 && pixels[i] == bytes[i] / 255, eachindex(pixels))
+        indices = bytes .+ 1
+        return BYTE_WITNESS_LOWER[indices], BYTE_WITNESS_UPPER[indices]
+    end
+    return compute_witness_box(x)
 end
 
 function exact_scores(stages, z)
@@ -368,17 +399,41 @@ end
 
 include("forward_parallelograms.jl")
 
-function staged_margin_screen(stages, x, y)
+function staged_margin_screen(stages, x, y, corners = nothing)
     hidden, input_lo, input_hi = hidden_bounds(stages, x)
-    bounds = margin_bounds(stages, y, hidden, input_lo, input_hi)
+    bounds = margin_bounds(stages, y, hidden, input_lo, input_hi, corners)
     maximum(bounds) < 0 && return hidden, bounds, "backward"
     tighten_forward_margins!(bounds, stages, y, input_lo, input_hi)
     return hidden, bounds, "forward_parallelogram"
 end
 
+# Try the backward plane’s maximizing endpoints only for rivals still open
+# after both screens. Round endpoints inward for the exact witness check.
+function search_checked_witness(stages, x, y, bounds, corners)
+    lower, upper = witness_box(x)
+    for target in sortperm(bounds; rev = true)
+        bounds[target] < 0 && break
+        point = ifelse.(corners[target], upper, lower)
+        proof = check_witness(stages, point, y, lower, upper)
+        if proof != "invalid"
+            return (
+                witness = reshape(point, size(x)),
+                proof = proof,
+                source = "corner",
+                repaired = false,
+            )
+        end
+    end
+    proposed = find_box_witness(stages, x, y, bounds)
+    checked = repair_witness(stages, x, proposed, y)
+    checked === nothing && return nothing
+    return (; checked..., source = "ascent", repaired = vec(checked.witness) != vec(proposed))
+end
+
 function verify_image(nn, stages, x, y; prebound_fallback = true)
     1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
-    hidden, bounds, screen_source = staged_margin_screen(stages, x, y)
+    corners = Dict{Int,BitVector}()
+    hidden, bounds, screen_source = staged_margin_screen(stages, x, y, corners)
     worst_margin = maximum(bounds)
     if worst_margin < 0
         return (
@@ -393,16 +448,15 @@ function verify_image(nn, stages, x, y; prebound_fallback = true)
             bound_solver_call_count = 0,
         )
     end
-    proposed = find_box_witness(stages, x, y, bounds)
-    checked = repair_witness(stages, x, proposed, y)
+    checked = search_checked_witness(stages, x, y, bounds, corners)
     if checked !== nothing
         return (
             solve_status = "NO_SOLVER",
             semantic_outcome = "adversarial_example_found_or_best_known",
-            source = "ascent",
+            source = checked.source,
             witness = checked.witness,
             witness_verification = checked.proof,
-            witness_repaired = vec(checked.witness) != vec(proposed),
+            witness_repaired = checked.repaired,
             margin_upper = worst_margin,
             main_solve_wall_time_seconds = 0.0,
             bound_solver_call_count = 0,

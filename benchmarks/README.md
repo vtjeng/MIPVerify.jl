@@ -294,9 +294,11 @@ lower line if the positive endpoint is at least as far from zero as the negative
 horizontal lower line otherwise. Positive coefficients use the upper chord on crossing ReLUs. For
 rivals still open, the verifier carries parallelograms forward and subtracts the two logit
 expressions on the same pixel and error variables. Each rival retains its tighter bound. The
-verifier then searches for an adversarial input only among rivals still open. Images still
-unresolved go to the Target LP mixed-integer verifier, using the already proved hidden-neuron bounds
-in its ReLU constraints.
+verifier checks the backward plane’s maximizing pixel corner for each surviving rival, highest bound
+first. It validates each candidate against the actual network and the exact pixel budget. If every
+corner fails, it tries targeted projected gradient descent (PGD). Images still unresolved go to the
+Target LP mixed-integer verifier, using the already proved hidden-neuron bounds in its ReLU
+constraints.
 
 ```sh
 OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
@@ -311,7 +313,8 @@ model construction, solver work and witness verification. `benchmark_per_sample.
 actual MIP status, verification outcome, route, final-solve wall time and number of bound solver
 calls. `NO_SOLVER` means an affine screen or search resolved that image without calling the MIP. The
 recorded source is `backward` for an adaptive-first certificate and `forward_parallelogram` when the
-second screen closes the last open rival. The direct routes record zero solver calls and time.
+second screen closes the last open rival. A checked witness records `corner` or `ascent` (PGD). The
+direct routes record zero solver calls and time.
 
 Every returned adversarial input must satisfy the pixel budget and score condition. The verifier
 clips proposed pixels to floating-point values within the exact budget, using both the stored pixel
