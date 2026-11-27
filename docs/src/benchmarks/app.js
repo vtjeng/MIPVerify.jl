@@ -518,5 +518,34 @@ async function start() {
       "Could not load the chart. Reload to retry or open the run files on GitHub.";
   }
 }
+function wireTermDefinitions() {
+  let active;
+  function show(term) {
+    if (active) active.querySelector('[role="tooltip"]').hidden = true;
+    active = term;
+    if (active) active.querySelector('[role="tooltip"]').hidden = false;
+  }
+  for (const term of document.querySelectorAll(".benchmark-terms .term")) {
+    const button = term.querySelector("button");
+    term.addEventListener("pointerenter", (event) => {
+      if (event.pointerType === "mouse") show(term);
+    });
+    term.addEventListener("pointerleave", () => {
+      if (active === term && document.activeElement !== button) show(null);
+    });
+    button.addEventListener("focus", () => show(term));
+    button.addEventListener("click", () => show(term));
+    button.addEventListener("blur", () => {
+      if (active === term) show(null);
+    });
+  }
+  document.addEventListener("pointerdown", (event) => {
+    if (active && !active.contains(event.target)) show(null);
+  });
+  document.addEventListener("keydown", (event) => {
+    if (active && event.key === "Escape") show(null);
+  });
+}
+wireTermDefinitions();
 wireOverview();
 startPRs(start());
