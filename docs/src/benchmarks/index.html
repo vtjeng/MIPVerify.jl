@@ -25,8 +25,8 @@
   <body>
     <header>
       <div class="bar">
-        <span class="brand"
-          ><img src="favicon.svg" width="23" height="23" alt="" />MIPVerify.jl</span
+        <a class="brand" href="index.html"
+          ><img src="favicon.svg" width="23" height="23" alt="" />MIPVerify.jl</a
         ><a class="edition" href="../">Documentation</a
         ><a class="repo" href="https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results/runs"
           >GitHub source</a
@@ -36,7 +36,24 @@
     <main>
       <section class="intro">
         <div>
-          <p class="eyebrow">WK17a <span>/</span> MNIST</p>
+          <div class="eyebrow benchmark-terms">
+            <span class="term">
+              <button type="button" aria-describedby="wk17a-definition">WK17a</button>
+              <span id="wk17a-definition" role="tooltip" hidden
+                >Wong and Kolter’s convolutional neural network for recognizing handwritten digits.
+                The benchmark checks whether small changes to the pixels can change its
+                prediction.</span
+              >
+            </span>
+            <span class="separator" aria-hidden="true">/</span>
+            <span class="term">
+              <button type="button" aria-describedby="mnist-definition">MNIST</button>
+              <span id="mnist-definition" role="tooltip" hidden
+                >A dataset of labeled, 28 × 28 pixel grayscale images of handwritten digits from 0
+                to 9.</span
+              >
+            </span>
+          </div>
           <h1>Nightly benchmarks</h1>
           <p class="sub">Daily verification runs on the first 500 MNIST test images.</p>
         </div>
