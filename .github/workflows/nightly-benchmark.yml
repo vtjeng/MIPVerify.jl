@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       date: ${{ steps.results.outputs.date }}
+      archive_base: ${{ steps.results.outputs.archive_base }}
+      benchmark_sha: ${{ steps.results.outputs.benchmark_sha }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -61,7 +63,7 @@ jobs:
         run: |
           julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
             --samples 1:500 \
-            --tightening lp \
+            --tightening target_lp \
             --main-time-limit 120 \
             --objective "${BENCHMARK_OBJECTIVE}" \
             --log-level warn \
@@ -70,9 +72,10 @@ jobs:
       - name: Update the results tree and stage what changed
         id: results
         env:
-          COMMIT_SHA: ${{ github.sha }}
           REPOSITORY: ${{ github.repository }}
         run: |
+          COMMIT_SHA=$(git rev-parse HEAD)
+          echo "benchmark_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           DATE=$(date -u +%Y-%m-%d)
           RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}"
 
@@ -92,6 +95,9 @@ jobs:
             # Branch doesn't exist yet; append_to_tracking.jl starts a new tracking CSV.
             mkdir -p /tmp/benchmark-results
           fi
+
+          archive_base=$(git -C /tmp/benchmark-results rev-parse --verify HEAD 2>/dev/null || true)
+          echo "archive_base=${archive_base}" >> "$GITHUB_OUTPUT"
 
           RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
           mkdir -p "${RUN_DIR}"
@@ -115,6 +121,7 @@ jobs:
           mkdir -p "/tmp/publish/runs/${DATE}"
           cp -R "${RUN_DIR}" "/tmp/publish/runs/${DATE}/"
           cp /tmp/benchmark-results/tracking.csv /tmp/publish/tracking.csv
+          python3 benchmarks/analysis/build_dashboard_data.py /tmp/benchmark-results /tmp/publish/daily.json
 
           echo "date=${DATE}" >> "$GITHUB_OUTPUT"
 
@@ -143,6 +150,8 @@ jobs:
       - name: Commit and push to benchmark-results
         env:
           DATE: ${{ needs.benchmark.outputs.date }}
+          ARCHIVE_BASE: ${{ needs.benchmark.outputs.archive_base }}
+          BENCHMARK_SHA: ${{ needs.benchmark.outputs.benchmark_sha }}
           REPOSITORY: ${{ github.repository }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -157,6 +166,14 @@ jobs:
             git init
             git checkout --orphan benchmark-results
             git remote add origin "${REMOTE}"
+          fi
+
+          # Both indexes describe the archive we read. A concurrent publication
+          # could add a different run even when the CSV line counts look equal.
+          head=$(git -C /tmp/benchmark-results rev-parse --verify HEAD 2>/dev/null || true)
+          if [ "${head}" != "${ARCHIVE_BASE}" ]; then
+            echo "Results branch advanced during staging. Rerun the workflow against the new archive." >&2
+            exit 1
           fi
 
           # The staged CSV is the branch's plus this run's row, so it can never be
@@ -176,5 +193,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "${BENCHMARK_OBJECTIVE} benchmark results for ${DATE} (${GITHUB_SHA::7})"
+          git commit -m "${BENCHMARK_OBJECTIVE} benchmark results for ${DATE} (${BENCHMARK_SHA::7})"
           git push origin benchmark-results

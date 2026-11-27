@@ -55,7 +55,9 @@ mixed-integer linear programming (MILP) problem.
 ## Choose an adversarial-example objective
 
 `find_adversarial_example` uses `MIPVerify.closest` by default to compute the minimum adversarial
-distortion. It also supports `MIPVerify.worst`, which maximizes the target margin.
+distortion. It uses `MIPVerify.target_lp` tightening by default. Pass
+`tightening_algorithm = MIPVerify.mip` to use the previous full-MIP tightening strategy. It also
+supports `MIPVerify.worst`, which maximizes the target margin.
 
 For a fixed perturbation budget, use the `feasibility` objective to ask whether any adversarial
 input satisfies the constraints:
@@ -126,7 +128,8 @@ reached the time limit for some samples. Error is over the full MNIST test set o
 
 Historical benchmark results are tracked on the
 [`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch, updated
-nightly by CI. See [`benchmarks/README.md`](./benchmarks/README.md) for details.
+nightly by CI. [Explore the nightly results](https://vtjeng.github.io/MIPVerify.jl/dev/benchmarks/)
+or read the [benchmark instructions](./benchmarks/README.md).
 
 ### Negative results
 

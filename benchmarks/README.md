@@ -27,7 +27,7 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 | ------------------- | -------------- | ------------------------------------------------------------------------ |
 | `--out`             | **(required)** | Output directory for CSV results                                         |
 | `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated)     |
-| `--tightening`      | `mip`          | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
+| `--tightening`      | `target_lp`    | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
 | `--main-time-limit` | `120`          | Time limit in seconds for the main solve                                 |
 | `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`                |
 | `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                      |
@@ -113,12 +113,32 @@ Metrics without objective metadata predate feasibility benchmarking and use `clo
 ## Nightly Benchmark Workflow
 
 A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the feasibility WK17a
-benchmark nightly on 500 samples with `lp` tightening.
+benchmark nightly on 500 samples with `target_lp` tightening. Each run records its method in
+`benchmark_metrics.csv` under `tightening_algorithm`.
 
 ### Schedule
 
 Runs daily at 6 AM UTC. Manual runs default to `feasibility`; select the closest-objective variant
 with `gh workflow run nightly-benchmark.yml -f objective=closest`.
+
+### Dashboard
+
+[Explore the nightly benchmarks](https://vtjeng.github.io/MIPVerify.jl/dev/benchmarks/). Documenter
+copies the static dashboard from `docs/src/benchmarks/` when publishing the documentation. Opening
+the page reads `daily.json` from the results branch. The nightly workflow rebuilds that file from
+the archived metrics and publishes it in the same commit as the new run. To backfill or verify it
+locally, run `python3 benchmarks/analysis/build_dashboard_data.py <results-checkout> <output.json>`.
+For dates with reruns, the latest archived run supplies the daily point. Drag the window in the
+overview to browse earlier runs, or drag either edge to change the number of days shown. Copy the
+address bar to share that view. The URL records the interval in days (or `all`), the metric’s CSV
+column name, and both axis settings. By default, the link opens at the newest archived run. Moving
+the window into history adds an inclusive UTC `end` date. Moving it back to the newest run removes
+the date so the link follows future runs again.
+
+Apply the GitHub label `verification-performance` to a measured verification change. The page reads
+labeled PRs separately and marks the first nightly revision containing each merge commit. Unmerged
+PRs appear in the list. Purple diamonds identify individual PR days. Select one for the PR titles
+and links. The bundled marker snapshot supplies historical links when GitHub's API is unavailable.
 
 ### Results storage
 
@@ -224,6 +244,9 @@ benchmarks/run_pair.sh \
   --out /tmp/pair-<slug> --samples 1:500 --tightening lp --main-time-limit 120 \
   --base-objective closest --candidate-objective feasibility
 ```
+
+The paired runner uses `target_lp` on both sides by default. Pass `--tightening lp` when either
+revision predates target LP or when reproducing an earlier LP comparison.
 
 The side-specific objective flags are optional; without them, each commit uses its own benchmark
 default.
