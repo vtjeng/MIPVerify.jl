@@ -366,16 +366,25 @@ function find_box_witness(stages, x, y, bounds)
     return nothing
 end
 
-function verify_image(nn, stages, x, y; prebound_fallback = true)
-    1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
+include("forward_parallelograms.jl")
+
+function staged_margin_screen(stages, x, y)
     hidden, input_lo, input_hi = hidden_bounds(stages, x)
     bounds = margin_bounds(stages, y, hidden, input_lo, input_hi)
+    maximum(bounds) < 0 && return hidden, bounds, "backward"
+    tighten_forward_margins!(bounds, stages, y, input_lo, input_hi)
+    return hidden, bounds, "forward_parallelogram"
+end
+
+function verify_image(nn, stages, x, y; prebound_fallback = true)
+    1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
+    hidden, bounds, screen_source = staged_margin_screen(stages, x, y)
     worst_margin = maximum(bounds)
     if worst_margin < 0
         return (
             solve_status = "NO_SOLVER",
             semantic_outcome = "certified_no_adversarial_example",
-            source = "backward",
+            source = screen_source,
             witness = nothing,
             witness_verification = "none",
             witness_repaired = false,

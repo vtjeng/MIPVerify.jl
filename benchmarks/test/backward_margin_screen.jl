@@ -41,7 +41,12 @@ end
         ]
         x = [0.5] # Centered box avoids clipping when checking exact extrema.
         upper = margin_bounds(s, x, 1)[2]
-        @test Rational{BigInt}(upper) >= exact_breakpoints(s, 2//5, 3//5)
+        exact = exact_breakpoints(s, 2//5, 3//5)
+        @test Rational{BigInt}(upper) >= exact
+        _, lo, hi = hidden_bounds(s, x)
+        parallel = [-Inf, Inf]
+        tighten_forward_margins!(parallel, s, 1, lo, hi)
+        @test Rational{BigInt}(parallel[2]) >= exact
     end
     # An exact tie is feasible for MIPVerify's zero-margin target condition.
     tied = [AffineStage(sparse(reshape([1.0, 1.0], 1, 2)), zeros(2))]
@@ -79,6 +84,31 @@ end
     end
     @test_throws ArgumentError compile_stages(MIPVerify.Sequential([], "empty"), (1,))
 
+end
+
+@testset "Forward parallelograms resolve an open adaptive margin" begin
+    # For z = x - 0.5, the rival margin is 0.5z - ReLU(z) - 0.02.
+    # On this symmetric crossing interval the parallel lower slope 0.5
+    # cancels the pixel term; either adaptive slope leaves a positive bound.
+    network = MIPVerify.Sequential(
+        [
+            MIPVerify.Linear(reshape([1.0, 1.0], 1, 2), [-0.5, 0.0]),
+            MIPVerify.ReLU(),
+            MIPVerify.Linear([0.0 -1.0 0.0; 0.0 0.5 0.0], [0.0, -0.27, -1.0]),
+        ],
+        "crossing ReLU with a shared pixel",
+    )
+    x = [0.5]
+    stages = compile_stages(network, size(x))
+    original = margin_bounds(stages, x, 1)
+    @test original[2] > 0
+    _, combined, source = staged_margin_screen(stages, x, 1)
+    @test source == "forward_parallelogram"
+    @test combined[2] ≈ -0.02
+    @test combined[3] == original[3] < 0
+    result = verify_image(network, stages, x, 1)
+    @test result.source == source
+    @test result.solve_status == "NO_SOLVER"
 end
 
 @testset "Pass certified bounds to the integer fallback" begin

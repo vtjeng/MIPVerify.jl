@@ -261,14 +261,19 @@ readers get the shape of the distribution before the numbers.
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
 
-## Backward score-gap screening for fixed-radius MNIST verification
+## Affine score-gap screening for fixed-radius MNIST verification
 
 The standalone `backward_margin_screen.jl` verifier checks whether any other digit can tie or exceed
 the true label on an allowed perturbation of an MNIST image. Each pixel may change by at most 0.1
 and must remain between 0 and 1. It first computes affine upper bounds on target score minus true
-score by propagating backward through the network. It then searches for an adversarial input. Images
-still unresolved go to the Target LP mixed-integer verifier, using the already proved hidden-neuron
-bounds in its ReLU constraints.
+score by working backward with an adaptive lower line. A negative coefficient uses the diagonal
+lower line if the positive endpoint is at least as far from zero as the negative endpoint, and the
+horizontal lower line otherwise. Positive coefficients use the upper chord on crossing ReLUs. For
+rivals still open, the verifier carries parallelograms forward and subtracts the two logit
+expressions on the same pixel and error variables. Each rival retains its tighter bound. The
+verifier then searches for an adversarial input only among rivals still open. Images still
+unresolved go to the Target LP mixed-integer verifier, using the already proved hidden-neuron bounds
+in its ReLU constraints.
 
 ```sh
 OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
@@ -281,8 +286,9 @@ each bound LP and a 120-second limit for the final MIP. Setup and warm-up on ima
 separately to `setup.csv`. Per-image end-to-end time includes bound propagation, adversarial search,
 model construction, solver work and witness verification. `benchmark_per_sample.csv` records the
 actual MIP status, verification outcome, route, final-solve wall time and number of bound solver
-calls. `NO_SOLVER` means the backward bounds or search resolved that image without calling the MIP.
-The direct routes record zero solver calls and time.
+calls. `NO_SOLVER` means an affine screen or search resolved that image without calling the MIP. The
+recorded source is `backward` for an adaptive-first certificate and `forward_parallelogram` when the
+second screen closes the last open rival. The direct routes record zero solver calls and time.
 
 Every returned adversarial input must satisfy the pixel budget and score condition. The verifier
 clips proposed pixels to floating-point values within the exact budget, using both the stored pixel
