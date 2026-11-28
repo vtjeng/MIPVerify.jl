@@ -15,20 +15,20 @@ using MIPVerify.BackwardBounds:
     repair_witness
 
 function screened_test_result(network, input, label; solve_if_predicted_in_targeted = true)
-    # One solver thread matches the fallback model tests in this process. The
-    # small synthetic networks exercise the same public feasibility entry point.
+    # Use the package suite’s platform-default HiGHS scheduler for every model.
+    # The small synthetic networks exercise the public feasibility entry point.
     return MIPVerify.find_adversarial_example(
         network,
         input,
         label,
         HiGHS.Optimizer,
-        Dict("threads" => 1, "output_flag" => false, "time_limit" => 120.0);
+        Dict("output_flag" => false, "time_limit" => 120.0);
         invert_target_selection = true,
         pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
         norm_order = Inf,
         adversarial_example_objective = MIPVerify.feasibility,
         tightening_algorithm = MIPVerify.target_lp,
-        tightening_options = Dict("threads" => 1, "output_flag" => false, "time_limit" => 20.0),
+        tightening_options = Dict("output_flag" => false, "time_limit" => 20.0),
         collect_stats = true,
         solve_if_predicted_in_targeted,
     )
@@ -134,9 +134,6 @@ end
         @test bounded([pixel]) == network([pixel])
     end
     model = Model(HiGHS.Optimizer)
-    # HiGHS shares its thread scheduler across models in this process. Match
-    # the verifier's one-thread setting before the first optimizer runs.
-    set_optimizer_attribute(model, "threads", 1)
     set_silent(model)
     pixel = @variable(model, 0.4 <= p <= 0.6)
     scores = bounded([pixel])
