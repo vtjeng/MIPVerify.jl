@@ -292,7 +292,8 @@ check unless they implement `verify_perturbation_witness`.
     classes. A checked witness meets the requested margin against every non-target on one input.
     When screening settles a case, `:VerificationSource` records `:backward_bound`, `:corner`,
     or `:pgd`, with a `:SolveStatus` and zero `:SolveTime`. Otherwise the JuMP model uses the
-    selected tightening, per-layer overrides and MIP solver. Set `backward_screen=false` to skip
+    screen’s hidden bounds. Requested LP or MIP tightening refines the ranges that still cross
+    zero. Per-layer overrides select the tightening method. Set `backward_screen=false` to skip
     the screen. Other objectives and unsupported networks use the solver formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the

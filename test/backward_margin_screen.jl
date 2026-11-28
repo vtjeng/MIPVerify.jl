@@ -366,3 +366,46 @@ end
         @test (proof != "invalid") == accepted
     end
 end
+
+@testset "LP and MIP reuse backward ReLU bounds" begin
+    # The first two exact neuron inputs have known signs. The third still crosses zero.
+    # Its LP variable bounds [-1, 1] are weaker than the known range [-1/4, 1/2].
+    for algorithm in (MIPVerify.lp, MIPVerify.mip)
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+        stats = MIPVerify.VerificationStats()
+        model.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm, stats)
+        pixels = @variable(model, -1 <= p[1:4] <= 1)
+        # At either integer value of gate the third input lies in [-1/4, 1/2].
+        # Relaxing gate to 1/2 permits both variable endpoints, -1 and 1.
+        gate = @variable(model, binary = true)
+        for slack in (gate, 1-gate)
+            @constraint(model, pixels[3] >= -0.25 - 2slack)
+            @constraint(model, pixels[3] <= 0.5 + 2slack)
+        end
+        @constraint(model, pixels[1] >= 0.125)
+        @constraint(model, pixels[1] <= 0.75)
+        @constraint(model, pixels[2] <= -0.125)
+        # The fourth backward range crosses zero. Only the model proves it is always off.
+        @constraint(model, pixels[4] <= -0.0625)
+        layer = MIPVerify.BackwardBounds.PreboundedReLU(
+            algorithm,
+            [0.125, -1.0, -0.25, -1.0],
+            [0.75, -0.125, 0.5, 0.5],
+        )
+        outputs = layer(pixels)
+        summary = MIPVerify.summarize_verification_stats(stats)
+        @test summary[:ReLUSplitCount] == summary[:ReLULinearInInputCount] == 1
+        @test summary[:ReLUZeroOutputCount] == 2
+        # Each mode runs three LPs. Only the third input still needs two MIP solves.
+        @test summary[:BoundSolverCallCount] == (algorithm == MIPVerify.lp ? 3 : 5)
+        @test MIPVerify.upper_bound(outputs[3]) ≈ 0.5
+        @objective(model, Max, outputs[3])
+        optimize!(model)
+        @test termination_status(model) == MOI.OPTIMAL
+        @test objective_value(model) ≈ 0.5 # The ambiguous unit attains its screened upper bound.
+        @objective(model, Min, pixels[3])
+        optimize!(model)
+        @test objective_value(model) ≈ -0.25
+    end
+end

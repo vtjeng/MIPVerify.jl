@@ -433,6 +433,7 @@ function lp_relu_upperbound(
     interval_upper::Real,
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
+    has_screen_bounds::Bool = false,
 )::Real
     upper = bound_name[upper_bound_type]
     if record_interval_skip!(
@@ -452,14 +453,17 @@ function lp_relu_upperbound(
         )
         return interval_upper
     end
-    return optimization_bound(
+    # A relaxed LP can exceed a bound that holds on the true network. Check the LP
+    # incumbent against its own domain, then intersect the two valid network bounds.
+    solved_bound = optimization_bound(
         x,
         lp,
         upper_bound_type,
-        interval_upper,
+        has_screen_bounds ? upper_bound(x) : interval_upper,
         stats;
         integrality_is_relaxed = true,
     )
+    return min(interval_upper, solved_bound)
 end
 
 function lp_relu_lowerbound(
@@ -469,6 +473,7 @@ function lp_relu_lowerbound(
     lp_upper::Real,
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
+    has_screen_bounds::Bool = false,
 )::Real
     lower = bound_name[lower_bound_type]
     if lp_upper <= 0
@@ -485,14 +490,15 @@ function lp_relu_lowerbound(
     )
         return interval_lower
     end
-    return optimization_bound(
+    solved_bound = optimization_bound(
         x,
         lp,
         lower_bound_type,
-        interval_lower,
+        has_screen_bounds ? lower_bound(x) : interval_lower,
         stats;
         integrality_is_relaxed = true,
     )
+    return max(interval_lower, solved_bound)
 end
 
 function requires_lp_relu_tightening(
@@ -514,11 +520,19 @@ function lp_relu_bounds(
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
     show_progress_bar::Bool,
+    has_screen_bounds::Bool = false,
 ) where {T<:JuMPLinearType}
     function calculate_bounds()
         lp_upper = map_with_progress(
-            (x_i, is_constant_i, l_i, u_i) ->
-                lp_relu_upperbound(x_i, is_constant_i, l_i, u_i, requested_algorithm, stats),
+            (x_i, is_constant_i, l_i, u_i) -> lp_relu_upperbound(
+                x_i,
+                is_constant_i,
+                l_i,
+                u_i,
+                requested_algorithm,
+                stats,
+                has_screen_bounds,
+            ),
             "  Tightening LP upper bounds: ",
             show_progress_bar,
             x,
@@ -527,8 +541,15 @@ function lp_relu_bounds(
             interval_upper,
         )
         lp_lower = map_with_progress(
-            (x_i, is_constant_i, l_i, u_i) ->
-                lp_relu_lowerbound(x_i, is_constant_i, l_i, u_i, requested_algorithm, stats),
+            (x_i, is_constant_i, l_i, u_i) -> lp_relu_lowerbound(
+                x_i,
+                is_constant_i,
+                l_i,
+                u_i,
+                requested_algorithm,
+                stats,
+                has_screen_bounds,
+            ),
             "  Tightening LP lower bounds: ",
             show_progress_bar,
             x,
@@ -630,6 +651,7 @@ function progressive_relu_bounds(
     requested_algorithm::TighteningAlgorithm,
     stats::Union{Nothing,VerificationStats},
     show_progress_bar::Bool,
+    input_bounds = nothing,
 ) where {T<:JuMPLinearType}
     interval_upper = map_with_progress(
         upper_bound,
@@ -644,6 +666,15 @@ function progressive_relu_bounds(
         x,
         interval_upper,
     )
+    if input_bounds !== nothing
+        screen_lower, screen_upper = input_bounds
+        for i in eachindex(x, screen_lower, screen_upper)
+            # interval_lower can be a placeholder once the input is known to be nonpositive.
+            interval_upper[i] <= 0 && continue
+            l, u = max(interval_lower[i], screen_lower[i]), min(interval_upper[i], screen_upper[i])
+            interval_lower[i], interval_upper[i] = consistent_relu_bounds(x[i], l, u)
+        end
+    end
     lp_lower, lp_upper = lp_relu_bounds(
         x,
         constant_mask,
@@ -652,6 +683,7 @@ function progressive_relu_bounds(
         requested_algorithm,
         stats,
         show_progress_bar,
+        input_bounds !== nothing,
     )
     return mip_relu_bounds(x, lp_lower, lp_upper, requested_algorithm, stats, show_progress_bar)
 end
@@ -745,6 +777,15 @@ function relu(
     nta::Union{TighteningAlgorithm,Nothing} = nothing,
     stats::Union{Nothing,VerificationStats} = get_verification_stats(x),
 )::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
+    return formulate_relu(x, nta, stats)
+end
+
+function formulate_relu(
+    x::AbstractArray{T},
+    nta,
+    stats,
+    input_bounds = nothing,
+)::Array{JuMP.AffExpr} where {T<:JuMPLinearType}
     constant_mask = is_constant.(x)
     tightening_algorithm = first_nonconstant_tightening_algorithm(x, constant_mask, nta)
     log_bounds_summary::Bool =
@@ -758,8 +799,14 @@ function relu(
     end
 
     bounds_start = time_ns()
-    (l, u) =
-        progressive_relu_bounds(x, constant_mask, tightening_algorithm, stats, show_progress_bar)
+    (l, u) = progressive_relu_bounds(
+        x,
+        constant_mask,
+        tightening_algorithm,
+        stats,
+        show_progress_bar,
+        input_bounds,
+    )
     bounds_time = elapsed_seconds(bounds_start)
 
     if stats !== nothing

@@ -34,6 +34,31 @@ witness (6.17 s). End-to-end time includes work before the final solve. This sin
 illustrates the cost of an inconclusive screen and variation near a solver time limit.
 [Per-call data](fallback.csv).
 
+### Reuse of backward bounds during LP and MIP tightening
+
+On the same image 480 and target digit 8, we compared the previous #335 implementation (`bbf0b1e`)
+with the version that passes backward ranges to LP and MIP tightening. Both versions ran the
+backward screen. The earlier version discarded its ranges before constructing these solver models.
+We timed each public API call twice after a warm-up, pinned to the same CPU with identical options.
+Each version used a 0.2-second limit per tightening solve and five seconds for the final solve.
+
+| Tightening                    | Bound solves before → after | Mean formulation time before → after | Mean end-to-end time before → after |
+| ----------------------------- | --------------------------: | -----------------------------------: | ----------------------------------: |
+| LP                            |                   202 → 198 |                        0.65 → 0.80 s |                       6.46 → 6.42 s |
+| MIP (including its LP solves) |                   398 → 394 |                        3.98 → 3.62 s |                       9.92 → 9.94 s |
+
+Reusing the ranges saved four bound solves on every repeat. Both versions left 151 ReLUs with
+undetermined signs after solver tightening. Each version found a checked witness in one of its two
+LP runs and both MIP runs. The other LP run reached the time limit. The end-to-end time reduction
+was 0.5 ± 14.7 percentage points for LP and −0.3 ± 3.6 for MIP. Each allowance is the larger
+within-version repeat spread divided by that version’s mean. This one image establishes the
+reduction in bound solves. Its timings do not resolve an end-to-end speed difference.
+[Per-call data](fallback-bound-reuse.csv).
+
+To reproduce, run [the same driver](reuse_bounds.jl) sequentially against each checkout’s benchmark
+environment on the same CPU. Pass an output CSV path as the only argument. Repeat zero warms the
+method and is excluded from the table.
+
 ### Reproduce
 
 We used the [pinned environment](../2026-11-28-public-default/README.md#reproduce) on the same Intel

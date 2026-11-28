@@ -12,7 +12,12 @@ For a feasibility check, pass `adversarial_example_objective=MIPVerify.feasibili
 `pp=MIPVerify.LInfNormBoundedPerturbationFamily(radius)`. On supported sequential networks the
 verifier tries backward score-gap bounds before constructing a JuMP model. This screen runs with any
 solver tightening setting, including `tightening_algorithm=lp`. It propagates pixel intervals
-forward and uses back-substitution to tighten hidden-neuron ranges.
+forward. At each hidden layer after the first, it bounds each neuron’s input from above and below by
+working back to the pixels. For an earlier ReLU whose input range crosses zero, the backward
+calculation uses the upper secant or an adaptive lower line (zero or the input itself), according to
+the coefficient’s sign. The verifier keeps the tighter endpoints and applies ReLU to each endpoint
+to get the output range for the next layer. It skips further work on a neuron once its upper bound
+proves its output is always zero.
 
 A target must score at least `margin` above **every** non-target class on the same input. For
 `margin=0`, a tie suffices. An upper bound below the margin against any one non-target eliminates
@@ -21,10 +26,12 @@ checked input meeting the margin is a witness. A corner or gradient-search witne
 or `:pgd`. Each of these results has a `:SolveStatus` and zero `:SolveTime`.
 
 If the check stays open, MIPVerify builds the JuMP model using the chosen tightening algorithm and
-per-layer overrides. With the default `target_lp`, the fallback can reuse the screen’s hidden ranges
-on eligible layers. A time limit can leave the answer unresolved. Pass `backward_screen=false` to
-use the solver formulation directly. The default objective, `closest`, still minimizes perturbation
-distance.
+per-layer overrides. Each ReLU starts with the input range established by the backward screen. An
+input range entirely above or below zero fixes the ReLU’s behavior. With `lp` or `mip` tightening,
+the solver tightens ranges that still cross zero. MIP tightening tries the LP relaxation first. With
+`target_lp`, LP solves focus on the remaining target scores. A time limit can leave the answer
+unresolved. Pass `backward_screen=false` to use the solver formulation directly. The default
+objective, `closest`, still minimizes perturbation distance.
 
 ## Index
 

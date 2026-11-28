@@ -229,18 +229,23 @@ margin_bounds(stages, x, y) = margin_bounds(stages, y, hidden_bounds(stages, x).
 # The bounds apply only to the input box that produced them. Build a new
 # network per image so a later solve cannot reuse another image's bounds.
 struct PreboundedReLU <: MIPVerify.Layer
+    tightening_algorithm::MIPVerify.TighteningAlgorithm
     lower::Vector{Float64}
     upper::Vector{Float64}
 end
 
 (p::PreboundedReLU)(x::Array{<:Real}) = MIPVerify.relu(x)
 function (p::PreboundedReLU)(x::Array{<:MIPVerify.JuMPLinearType})
+    lower = reshape(p.lower, size(x))
+    upper = reshape(p.upper, size(x))
     stats = MIPVerify.get_verification_stats(x)
+    if p.tightening_algorithm in (MIPVerify.lp, MIPVerify.mip)
+        return MIPVerify.formulate_relu(x, p.tightening_algorithm, stats, (lower, upper))
+    end
     layer = MIPVerify.begin_relu_layer!(stats, size(x), MIPVerify.interval_arithmetic)
     layer !== nothing && (layer.tightening_algorithm = "backward")
     bounds_start = time_ns()
-    bounds =
-        MIPVerify.consistent_relu_bounds.(x, reshape(p.lower, size(x)), reshape(p.upper, size(x)))
+    bounds = MIPVerify.consistent_relu_bounds.(x, lower, upper)
     lower, upper = first.(bounds), last.(bounds)
     bounds_time = MIPVerify.elapsed_seconds(bounds_start)
     constraints_start = time_ns()
@@ -260,17 +265,12 @@ function (p::PreboundedReLU)(x::Array{<:MIPVerify.JuMPLinearType})
 end
 
 function bounded_fallback_network(nn, hidden, algorithm = MIPVerify.target_lp)
-    algorithm == MIPVerify.target_lp || return nn
     layers = copy(nn.layers)
     relus = findall(layer -> layer isa MIPVerify.ReLU, layers)
     length(relus) == length(hidden) || error("A bound pair is required for every ReLU layer")
-    for (k, (i, bounds)) in enumerate(zip(relus, hidden))
-        # Reuse these ranges where the model would otherwise use forward intervals.
-        # Explicit LP/MIP tightening still runs on the original ReLU.
-        override = layers[i].tightening_algorithm
-        if isnothing(override) || (k == 1 && override == MIPVerify.interval_arithmetic)
-            layers[i] = PreboundedReLU(bounds...)
-        end
+    for (i, bounds) in zip(relus, hidden)
+        tightening = something(layers[i].tightening_algorithm, algorithm)
+        layers[i] = PreboundedReLU(tightening, bounds...)
     end
     return MIPVerify.Sequential(layers, nn.UUID)
 end
