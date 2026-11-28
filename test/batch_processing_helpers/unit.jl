@@ -470,5 +470,89 @@ TestHelpers.@timed_testset "unit.jl" begin
         @test result[:WitnessTargetVerified]
         @test result[:WitnessPerturbationVerified]
         @test result[:WitnessVerified]
+        # A repaired witness supplies numeric perturbations that supersede the raw solver point.
+        d[:PerturbationValue] = [0.125]
+        @test extract_results_for_save(d)[:PerturbationValue] == [0.125]
+    end
+    @testset "screened results persist without a solver model" begin
+        mktempdir() do dir
+            results_dir = "run_results"
+            mkpath(joinpath(dir, results_dir))
+            summary_path = joinpath(dir, "summary.csv")
+            create_summary_file_if_not_present(summary_path)
+            # Each route receives a distinct sample so resumed scheduling can inspect its own row.
+            routes = (:backward_bound, :corner, :pgd)
+            for (sample, source) in enumerate(routes)
+                witness = source != :backward_bound
+                # Class 1 is predicted, while class 2 is targeted. The certificate therefore cannot
+                # use the original-input skip path, which requires the prediction to be targeted.
+                d = Dict{Symbol,Any}(
+                    :SolveTime => 0.0,
+                    :SolveStatus =>
+                        witness ? MathOptInterface.OPTIMAL : MathOptInterface.INFEASIBLE,
+                    :AdversarialExampleObjective => MIPVerify.feasibility,
+                    :VerificationSource => source,
+                    :WitnessAvailable => witness,
+                    :WitnessTargetVerified => witness,
+                    :WitnessPerturbationVerified => witness,
+                    :WitnessVerified => witness,
+                    :ObjectiveValue => witness ? 0.0 : NaN,
+                    :ObjectiveBound => witness ? 0.0 : NaN,
+                    :TargetIndexes => [2],
+                    :PredictedIndex => 1,
+                    :TighteningApproach => "backward_bound",
+                    :TotalTime => 0.25, # A nonzero elapsed time must survive a zero-solve result.
+                )
+                if witness
+                    # The numeric witness differs from its class-1 original. No JuMP expressions
+                    # exist on these routes, so persistence must retain the supplied coordinates.
+                    d[:WitnessMargin] = 0.1
+                    d[:WitnessOutput] = [0.45, 0.55]
+                    d[:PerturbedInputValue] = reshape([0.55], 1, 1, 1, 1)
+                    d[:WitnessDistance] = 0.1
+                    d[:PerturbationValue] = reshape([0.1], 1, 1, 1, 1)
+                end
+                original = copy(d)
+                extracted = extract_results_for_save(d)
+                @test isequal(d, original)
+                @test extracted[:VerificationSource] == string(source)
+                @test extracted[:SolveTime] == 0.0
+                @test isequal(extracted[:ObjectiveValue], d[:ObjectiveValue])
+                @test !haskey(extracted, :Model)
+                @test haskey(extracted, :PerturbationValue) == witness
+                MIPVerify.save_to_disk(sample, dir, results_dir, summary_path, d)
+                summary, changed = read_summary_file(summary_path)
+                @test !changed
+                row = summary[end, :]
+                artifact = MIPVerify.matread(joinpath(dir, row.ResultRelativePath))
+                @test artifact["VerificationSource"] == string(source)
+                @test artifact["SolveStatus"] == string(d[:SolveStatus])
+                @test row.IsInfeasible == !witness
+                @test row.WitnessVerified == witness
+                @test haskey(artifact, "PerturbedInputValue") == witness
+                if witness
+                    # MAT reads a one-element numeric array back as a scalar.
+                    @test artifact["PerturbedInputValue"] == only(d[:PerturbedInputValue])
+                    @test artifact["PerturbationValue"] == only(d[:PerturbationValue])
+                    @test row.ObjectiveValue == 0.0
+                end
+                @test !run_on_sample_for_untargeted_attack(
+                    sample,
+                    summary,
+                    MIPVerify.resolve_ambiguous_cases,
+                )
+                @test !run_on_sample_for_targeted_attack(
+                    sample,
+                    2,
+                    summary,
+                    MIPVerify.resolve_ambiguous_cases,
+                )
+                @test run_on_sample_for_untargeted_attack(
+                    sample,
+                    summary,
+                    MIPVerify.refine_insecure_cases,
+                ) == witness
+            end
+        end
     end
 end

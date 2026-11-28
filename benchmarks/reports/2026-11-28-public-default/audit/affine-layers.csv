@@ -1,0 +1,5 @@
+network,stage,input_bases_checked,coefficients_checked,biases_checked,native_matches
+WK17a,1,784,2458624,3136,true
+WK17a,2,3136,4917248,1568,true
+WK17a,3,1568,156800,100,true
+WK17a,4,100,1000,10,true

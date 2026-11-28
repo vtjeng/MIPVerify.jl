@@ -1,0 +1,3 @@
+network,method,observations,available_witnesses,public_verified_witnesses,exact_valid_witnesses,exact_invalid_witnesses,binary_budget_failures,exact_score_failures,decimal_budget_failures,byte_center_budget_failures,original_input_witnesses,unique_coordinates_replayed
+WK17a,baseline,4000,250,250,102,148,148,76,152,152,98,125
+WK17a,candidate,4000,252,252,252,0,0,0,0,0,98,126

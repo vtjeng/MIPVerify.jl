@@ -125,3 +125,75 @@ include("../../TestHelpers.jl")
         @test summary[:BoundLowerSkippedCount] >= 1
     end
 end
+
+@testset "fixed-budget feasibility uses the backward screen by default" begin
+    # The first score is x. The second is 0, so a tie is possible only at x = 0.
+    nn = MIPVerify.Sequential([MIPVerify.Linear([1.0 0.0], zeros(2))], "endpoint tie")
+    function verify(x; options...)
+        return find_adversarial_example(
+            nn,
+            [x],
+            2,
+            TestHelpers.get_optimizer(),
+            TestHelpers.get_main_solve_options();
+            pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+            adversarial_example_objective = MIPVerify.feasibility,
+            collect_stats = true,
+            options...,
+        )
+    end
+
+    # The central box excludes zero. Both methods establish infeasibility.
+    certificate = verify(0.5)
+    @test certificate[:VerificationSource] == :backward_bound
+    @test certificate[:SolveStatus] == MOI.INFEASIBLE
+    @test !certificate[:WitnessAvailable]
+    @test !haskey(certificate, :Model)
+    baseline = verify(0.5; backward_screen = false)
+    @test haskey(baseline, :Model)
+    @test baseline[:SolveStatus] == certificate[:SolveStatus]
+
+    # This box includes zero. Screening accepts the exact corner tie.
+    corner = verify(0.05)
+    @test corner[:VerificationSource] == :corner
+    @test corner[:PerturbedInputValue] == [0.0]
+    @test corner[:WitnessVerified]
+    @test corner[:SolveTime] == 0
+
+    # Positive margin and closest-distance queries retain their solver objectives.
+    @test haskey(verify(0.05; margin = 0.01), :Model)
+    closest = verify(0.05; adversarial_example_objective = MIPVerify.closest)
+    @test haskey(closest, :Model)
+    @test closest[:WitnessDistance] ≈ 0.05
+end
+
+@testset "screened solver fallback rejects a near miss" begin
+    # These equal hidden activations feed different logits. Their relaxations leave the
+    # target open, although its exact score always trails by 1e-9 (inside solver tolerance).
+    nn = MIPVerify.Sequential(
+        [
+            MIPVerify.Linear([1.0 1.0], [-0.5, -0.5]),
+            MIPVerify.ReLU(),
+            MIPVerify.Linear([1.0 0.0; 0.0 1.0], [1e-9, 0.0]),
+        ],
+        "duplicate hidden units",
+    )
+    d = find_adversarial_example(
+        nn,
+        [0.5],
+        2,
+        TestHelpers.get_optimizer(),
+        TestHelpers.get_main_solve_options();
+        pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+        adversarial_example_objective = MIPVerify.feasibility,
+        collect_stats = true,
+    )
+    @test haskey(d, :Model)
+    @test d[:ReLULayerCount] == 1
+    @test !d[:WitnessVerified]
+    if d[:WitnessAvailable]
+        @test !(d[:WitnessTargetVerified] && d[:WitnessPerturbationVerified])
+    else
+        @test d[:SolveStatus] == MOI.INFEASIBLE
+    end
+end

@@ -1,0 +1,42 @@
+{
+  "network": "MNIST.RSL18a_linf0.1_authors",
+  "samples": "1:100",
+  "production_commit": "26e928a423aab28df03448b6f0aad37ad9f1650d",
+  "hosted_workflow_commit": "1ee854ca480729823d4c5c3e5e1c78921de40ab6",
+  "hosted_run_url": "https://github.com/vtjeng/MIPVerify.jl/actions/runs/46127914166",
+  "hosted_lanes": 32,
+  "hosts": 16,
+  "repeats": 2,
+  "settings": {
+    "objective": "feasibility",
+    "radius_float64": 0.1,
+    "norm_order": "Inf",
+    "target_selection": "all nine rivals",
+    "solve_if_predicted_in_targeted": false,
+    "tightening": "target_lp",
+    "bound_lp_time_limit_seconds": 20.0,
+    "main_mip_time_limit_seconds": 120.0,
+    "julia_threads": 1,
+    "blas_threads": 1,
+    "highs_threads": 1
+  },
+  "versions": {
+    "Julia": "1.12.6",
+    "HiGHS.jl": "1.23.0",
+    "HiGHS_jll": "1.14.0+0"
+  },
+  "retry": {
+    "failed_job": 140926509900,
+    "reason": "The hosted runner lost communication with the server.",
+    "successful_retry_job": 140942421486,
+    "rerun_scope": "failed jobs only",
+    "replaced_images": [
+      31,
+      32,
+      63,
+      64,
+      95,
+      96
+    ]
+  }
+}

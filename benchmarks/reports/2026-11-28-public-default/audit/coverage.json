@@ -1,0 +1,40 @@
+{
+  "network": "WK17a",
+  "timed_observations": 8000,
+  "opposing_definitive_outcomes": [],
+  "saved_points_replayed": 502,
+  "fallback_images_with_full_domain_proofs": 34,
+  "directly_certified_images": 1844,
+  "direct_certificate_images_with_full_domain_proofs": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    10,
+    11
+  ],
+  "hidden_intervals_checked": 211376,
+  "target_bounds_checked": 396,
+  "native_affine_coefficients_checked": 7533672,
+  "native_affine_biases_checked": 4814,
+  "methods": {
+    "baseline": {
+      "observations": 4000,
+      "saved_points": 250,
+      "original_input_points": 98,
+      "publicly_verified_points": 250,
+      "exact_valid_points": 102
+    },
+    "candidate": {
+      "observations": 4000,
+      "saved_points": 252,
+      "original_input_points": 98,
+      "publicly_verified_points": 252,
+      "exact_valid_points": 252
+    }
+  }
+}

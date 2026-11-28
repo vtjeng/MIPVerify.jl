@@ -153,7 +153,7 @@ const SOURCE_KIND_REPO = "repo"
 const SOURCE_KIND_REGISTRY = "registry"
 const SOURCE_KIND_UNKNOWN = "unknown"
 const NO_DEPENDENCY_CHANGES = "[no dependency changes]"
-const BENCHMARK_SCHEMA_VERSION = 6
+const BENCHMARK_SCHEMA_VERSION = 7
 const SEMANTIC_OUTCOME_SCHEMA_VERSION = 4
 const SEMANTIC_PARTITION_COMPLETENESS_SCHEMA_VERSION = 2
 const WITNESS_SEMANTIC_PARTITION_SCHEMA_VERSION = 3
@@ -174,6 +174,9 @@ const TRACKING_COLUMNS = [
     :benchmark_schema_version,
     :semantic_outcome_schema_version,
     :adversarial_example_objective,
+    :backward_screen,
+    :num_screen_certified,
+    :num_screen_witness,
     :julia_version,
     :dependency_snapshot_sha256,
     :dependency_change_summary,

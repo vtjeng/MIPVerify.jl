@@ -14,6 +14,15 @@ on:
           - feasibility
           - closest
 
+      backward_screen:
+        description: Enable backward bounds and candidate search
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
 # `benchmark` runs for hours and runs third-party actions; `publish` runs a download
 # and a push. Only the second one holds a write token, declared on the job below.
 permissions:
@@ -21,6 +30,7 @@ permissions:
 
 env:
   BENCHMARK_OBJECTIVE: ${{ inputs.objective || 'feasibility' }}
+  BENCHMARK_BACKWARD_SCREEN: ${{ inputs.backward_screen || 'true' }}
 
 jobs:
   benchmark:
@@ -66,6 +76,7 @@ jobs:
             --tightening target_lp \
             --main-time-limit 120 \
             --objective "${BENCHMARK_OBJECTIVE}" \
+            --backward-screen "${BENCHMARK_BACKWARD_SCREEN}" \
             --log-level warn \
             --out /tmp/bench-wk17a
 
@@ -77,7 +88,7 @@ jobs:
           COMMIT_SHA=$(git rev-parse HEAD)
           echo "benchmark_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
           DATE=$(date -u +%Y-%m-%d)
-          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}"
+          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}-screen-${BENCHMARK_BACKWARD_SCREEN}"
 
           # `benchmark-results` is a branch of this public repository, so reading it
           # needs no credentials. append_to_tracking.jl resolves the previous run's
@@ -193,5 +204,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "${BENCHMARK_OBJECTIVE} benchmark results for ${DATE} (${BENCHMARK_SHA::7})"
+          git commit -m "${BENCHMARK_OBJECTIVE} benchmark (backward screen ${BENCHMARK_BACKWARD_SCREEN}) for ${DATE} (${BENCHMARK_SHA::7})"
           git push origin benchmark-results

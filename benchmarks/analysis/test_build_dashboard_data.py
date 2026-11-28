@@ -37,11 +37,16 @@ class DashboardArchiveTests(unittest.TestCase):
                 run = archive / "runs" / "2026-03-07" / run_id
                 run.mkdir(parents=True)
                 (run / "benchmark_metrics.csv").write_text(
-                    "wall_clock_seconds,num_witness_verified,adversarial_example_objective\n"
-                    f"12,{verified},feasibility\n"
+                    "wall_clock_seconds,num_witness_verified,adversarial_example_objective,"
+                    "backward_screen,num_screen_certified,num_screen_witness\n"
+                    f"12,{verified},feasibility,true,1,0\n"
                 )
             old, latest = daily_rows(archive)
             self.assertEqual(old, legacy)
             self.assertIn("T18-", latest["run_id"])
             self.assertEqual(latest["num_witness_verified"], 0)
             self.assertEqual(latest.get("adversarial_example_objective"), "feasibility")
+            self.assertEqual(latest["backward_screen"], "true")
+            self.assertEqual(latest["num_screen_certified"], 1)
+            self.assertEqual(latest["num_screen_witness"], 0)
+            self.assertNotIn("backward_screen", legacy)

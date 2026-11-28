@@ -23,19 +23,22 @@ julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
 
 ### Arguments
 
-| Argument            | Default        | Description                                                              |
-| ------------------- | -------------- | ------------------------------------------------------------------------ |
-| `--out`             | **(required)** | Output directory for CSV results                                         |
-| `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated)     |
-| `--tightening`      | `target_lp`    | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp` |
-| `--main-time-limit` | `120`          | Time limit in seconds for the main solve                                 |
-| `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`                |
-| `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                      |
-| `--log-level`       | `warn`         | MIPVerify log level                                                      |
+| Argument            | Default        | Description                                                                        |
+| ------------------- | -------------- | ---------------------------------------------------------------------------------- |
+| `--out`             | **(required)** | Output directory for CSV results                                                   |
+| `--samples`         | `1:100`        | Sample indices (`start:stop`, `start:step:stop`, or comma-separated)               |
+| `--tightening`      | `target_lp`    | Tightening algorithm: `interval_arithmetic`, `lp`, `mip`, or `target_lp`           |
+| `--main-time-limit` | `120`          | Time limit in seconds for the main solve                                           |
+| `--objective`       | `feasibility`  | Adversarial-example objective: `feasibility` or `closest`                          |
+| `--norm-order`      | `Inf`          | Norm order for the perturbation (`Inf` or a number)                                |
+| `--backward-screen` | `true`         | Enable backward bounds and checked corner/PGD search for eligible feasibility runs |
+| `--log-level`       | `warn`         | MIPVerify log level                                                                |
 
 The benchmark defaults to `feasibility` because its primary series tracks fixed-budget robustness.
 MIPVerify's public API still defaults to the exact minimum-distance `closest` objective. Pass
-`--objective closest` to benchmark that objective.
+`--objective closest` to benchmark that objective. Eligible fixed-budget feasibility runs use
+backward screening by default. Pass `--backward-screen false` for the Target LP baseline. The
+requested setting is recorded as `backward_screen` in the metrics and tracking CSVs.
 
 Fresh benchmark environments can resolve HiGHS.jl 1.27.x with native HiGHS 1.16. The test and
 benchmark environments exclude native HiGHS 1.15.x because it returned incorrect optima on the blur
@@ -65,9 +68,16 @@ Inputs that the network already misclassifies have status `SKIPPED_PREDICTED_IN_
 not require a model or solve, but they count as zero-distance adversarial examples in the semantic
 totals and have objective value and bound `0`.
 
-Only `INFEASIBLE` counts as a robustness certificate. `INFEASIBLE_OR_UNBOUNDED` does not identify
-which condition the solver established, so the benchmark leaves it unresolved. It does not promote
-the benchmark formulation's expected boundedness into a solver proof.
+Screen certificates and checked search witnesses have `solve_status=NO_SOLVER`. Their
+`verification_source` is `backward_bound`, `corner` or `pgd`, and `verification_status` retains the
+public result's termination evidence (`INFEASIBLE` or `OPTIMAL`). They record zero final-solve time
+and zero bound-solver calls. Model-dependent ReLU instrumentation is unavailable for these results.
+`num_screen_certified` and `num_screen_witness` count these routes separately in the aggregate
+metrics. Solver-backed results use source `mip`; original-input skips use `predicted_input`.
+
+Only `INFEASIBLE` termination evidence counts as a robustness certificate. `INFEASIBLE_OR_UNBOUNDED`
+does not identify which condition the solver established, so the benchmark leaves it unresolved. It
+does not promote the benchmark formulation's expected boundedness into a solver proof.
 
 ### Per-sample instrumentation
 
@@ -99,21 +109,24 @@ In `benchmark_tightening.csv`, `status_counts` and `skip_counts` contain sorted 
 `name=count` pairs. Dedicated columns cover optimal and time-limit statuses and each progressive
 skip reason.
 
-`benchmark_schema_version` identifies the timing and output schema. Schema 6 records the
-adversarial-example objective by name. Schema 5 splits witness verification into target and
-perturbation checks. Schema 4 added verified-witness fields and solution- and objective-limit status
-counts. Schema 3 recorded LP and MIP stages separately when progressive MIP tightening is requested.
-`semantic_outcome_schema_version` identifies the outcome-counting rules. Semantic schema 4 requires
-both the numeric target check and perturbation-family membership check before counting an
-adversarial example. Semantic schema 3 first required a verified target witness and recorded failed
-verification separately. Semantic schema 2 added already-misclassified skipped inputs to the
-adversarial count. Comparison tooling rejects runs with different schema versions or objectives.
-Metrics without objective metadata predate feasibility benchmarking and use `closest`.
+`benchmark_schema_version` identifies the timing and output schema. Schema 7 records the backward
+screen setting, screen outcome counts, verification source and termination evidence separately from
+the solver status. Schema 6 records the adversarial-example objective by name. Schema 5 splits
+witness verification into target and perturbation checks. Schema 4 added verified-witness fields and
+solution- and objective-limit status counts. Schema 3 recorded LP and MIP stages separately when
+progressive MIP tightening is requested. `semantic_outcome_schema_version` identifies the
+outcome-counting rules. Semantic schema 4 requires both the numeric target check and
+perturbation-family membership check before counting an adversarial example. Semantic schema 3 first
+required a verified target witness and recorded failed verification separately. Semantic schema 2
+added already-misclassified skipped inputs to the adversarial count. Comparison tooling rejects runs
+with different schema versions or objectives. Metrics without objective metadata predate feasibility
+benchmarking and use `closest`.
 
 ## Nightly Benchmark Workflow
 
 A GitHub Actions workflow (`.github/workflows/nightly-benchmark.yml`) runs the feasibility WK17a
-benchmark nightly on 500 samples with `target_lp` tightening. Each run records its method in
+benchmark nightly on 500 samples with `target_lp` tightening and backward screening enabled. Manual
+runs can select `backward_screen=false` to measure the baseline. Each run records its method in
 `benchmark_metrics.csv` under `tightening_algorithm`.
 
 ### Schedule
@@ -160,6 +173,9 @@ Results are committed to the
 | `benchmark_schema_version`                     | Version of the benchmark timing and output schema                                                                          |
 | `semantic_outcome_schema_version`              | Version of the semantic outcome-counting rules                                                                             |
 | `adversarial_example_objective`                | `feasibility` or `closest`; missing historical values mean `closest`                                                       |
+| `backward_screen`                              | Whether backward screening was enabled for eligible runs                                                                   |
+| `num_screen_certified`                         | Certificates reached without a solver                                                                                      |
+| `num_screen_witness`                           | Checked search witnesses reached without a solver                                                                          |
 | `julia_version`                                | Julia version used for the benchmark                                                                                       |
 | `dependency_snapshot_sha256`                   | SHA-256 hash of the normalized dependency snapshot                                                                         |
 | `dependency_change_summary`                    | Text diff against the previous appended run's snapshot; `[no dependency changes]` when identical, missing when unavailable |
@@ -232,6 +248,9 @@ workflow is three steps: run, analyze, publish.
 
 ### 1. Run both commits — `run_pair.sh`
 
+Use `--base-backward-screen false --candidate-backward-screen true` to compare screening on and off
+on the same revision. Omit these switches for historical runners that predate the option.
+
 Runs the WK17a benchmark on two commits, each in its own throwaway git worktree (so each uses that
 commit's own `src` + `benchmarks`), then analyzes the pair. The current branch and working tree are
 untouched. The runner develops each worktree's MIPVerify checkout into its benchmark environment and
@@ -283,3 +302,46 @@ readers get the shape of the distribution before the numbers.
 
 `benchmark-reports` is a manual, human-published branch, separate from the CI-managed
 `benchmark-results` branch — the two never share a path.
+
+## Affine score-gap screening for fixed-radius MNIST verification
+
+Open [the interactive walkthrough](../docs/src/walkthrough/index.html) in a browser from a local
+checkout. It follows a two-pixel example from interval arithmetic through back-substitution and
+Target LP, then traces the measured WK17a and RSL18a results. The page loads its scripts, figures
+and data from the same directory and needs no build step.
+
+The public `find_adversarial_example` API enables backward score-gap screening by default for
+zero-margin feasibility checks with Target LP and a bounded L-infinity pixel box. It first computes
+an affine upper bound on each rival's score minus the true score. Positive coefficients use an upper
+ReLU line. Negative coefficients use an adaptive lower line. It checks the maximizing pixel corner
+for each open rival and then tries targeted projected gradient descent (PGD). Cases still open reach
+Target LP and the MIP solver with the computed hidden-neuron bounds.
+
+Run the WK17a benchmark through that public API from the repository root:
+
+```sh
+OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
+  benchmarks/benchmark_wk17a_first100.jl --samples 1:2000 --out /tmp/wk17a-backward \
+  --tightening target_lp --objective feasibility
+```
+
+The runner uses a pixel radius of 0.1, a 20-second limit per bound LP and a 120-second final MIP
+limit. Use `--backward-screen false` for the Target LP baseline. The public API also accepts the
+RSL18a network through `get_example_network_params("MNIST.RSL18a_linf0.1_authors")`. This runner
+loads WK17a and records its layer instrumentation.
+
+The CSV distinguishes the public verification status from an optimizer invocation. Screen-only
+results have `solve_status=NO_SOLVER` and a `verification_source` of `backward_bound`, `corner` or
+`pgd`. An original-input shortcut uses `predicted_input`. Those routes record zero main-solver time
+and bound-solver calls. Solver results use `mip`. The witness columns record whether an available
+input satisfies the requested target condition and perturbation family.
+
+The [public API comparison](reports/2026-11-28-public-default/README.md) pairs screening on and off
+on the same CPU core for each image. It includes both repeats, the per-image observations and the
+settings needed to reproduce the comparison.
+
+The [historical experiment](reports/2026-11-27-full-verifier.md) measured a standalone verifier
+before this public integration. To reproduce its configurations, check out the
+[pinned measured revision](https://github.com/vtjeng/MIPVerify.jl/tree/fae89161ee3aec9cfb630f2079de94d63d3400cc)
+and follow that report's driver instructions. Earlier PGD-first timings have their own
+[revision and reproduction instructions](reports/2026-11-26-backward-bounds.md).

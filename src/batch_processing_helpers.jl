@@ -23,12 +23,12 @@ end
 """
     extract_results_for_save(result)
 
-Build the serializable subset of a solver-backed result without mutating `result`. Numeric witness
+Build the serializable subset of a completed result without mutating `result`. Numeric witness
 values are retained whenever a candidate is available, including when independent verification
 fails. Unavailable objective values and bounds are stored as `NaN`.
 """
 function extract_results_for_save(d::Dict)::Dict
-    m = d[:Model]
+    m = get(d, :Model, nothing)
     status = d[:SolveStatus]
     r = Dict()
     r[:SolveTime] = d[:SolveTime]
@@ -46,7 +46,10 @@ function extract_results_for_save(d::Dict)::Dict
             r[:WitnessBlurKernel] = d[:WitnessBlurKernel]
         end
     end
-    if !is_infeasible(status) && d[:WitnessAvailable]
+    if m === nothing
+        r[:ObjectiveBound] = d[:ObjectiveBound]
+        r[:ObjectiveValue] = d[:ObjectiveValue]
+    elseif !is_infeasible(status) && d[:WitnessAvailable]
         r[:ObjectiveBound] = try
             JuMP.objective_bound(m)
         catch
@@ -68,6 +71,12 @@ function extract_results_for_save(d::Dict)::Dict
     else
         r[:ObjectiveBound] = NaN
         r[:ObjectiveValue] = NaN
+    end
+    if haskey(d, :PerturbationValue)
+        r[:PerturbationValue] = d[:PerturbationValue]
+    end
+    if haskey(d, :VerificationSource)
+        r[:VerificationSource] = string(d[:VerificationSource])
     end
     r[:TargetIndexes] = d[:TargetIndexes]
     r[:SolveStatus] = d[:SolveStatus]
@@ -305,8 +314,8 @@ end
 """
     save_to_disk(sample_number, main_path, results_dir, summary_file_path, result)
 
-Persist one batch result and append its summary row. Solver-backed results write a MAT file and
-store its relative path; an original-input fast path appends only the CSV row.
+Persist one batch result and append its summary row. Completed verification results write a MAT
+file and store its relative path. An original-input fast path appends only the CSV row.
 """
 function save_to_disk(
     sample_number::Integer,
@@ -315,7 +324,7 @@ function save_to_disk(
     summary_file_path::String,
     d::Dict,
 )
-    if haskey(d, :Model)
+    if haskey(d, :SolveStatus)
         r = extract_results_for_save(d)
         results_file_uuid = get_uuid()
         results_file_relative_path = joinpath(results_dir, "$(results_file_uuid).mat")
@@ -519,7 +528,7 @@ main solve.
 # Named Arguments:
 + `save_path`: Directory where results will be saved. Defaults to current directory.
 + `pp, norm_order, tightening_algorithm, tightening_options,
-  adversarial_example_objective, solve_if_predicted_in_targeted` are passed
+  adversarial_example_objective, solve_if_predicted_in_targeted, backward_screen` are passed
   through to [`find_adversarial_example`](@ref) and have the same default values;
   see documentation for that function for more details.
 + `solve_rerun_option::MIPVerify.SolveRerunOption`: Options are
@@ -542,6 +551,7 @@ function batch_find_untargeted_attack(
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
+    backward_screen::Bool = true,
 )::Nothing
 
     validate_batch_refinement_objective(solve_rerun_option, adversarial_example_objective)
@@ -568,6 +578,7 @@ function batch_find_untargeted_attack(
                 tightening_options = tightening_options,
                 solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                 adversarial_example_objective = adversarial_example_objective,
+                backward_screen = backward_screen,
             )
 
             persist_summary_migration!(summary_file_path, dt, summary_needs_migration)
@@ -646,6 +657,7 @@ function batch_find_targeted_attack(
     tightening_options::Dict = MIPVerify.get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
     adversarial_example_objective::AdversarialExampleObjective = closest,
+    backward_screen::Bool = true,
 )::Nothing
     results_dir = "run_results"
     summary_file_name = "summary.csv"
@@ -688,6 +700,7 @@ function batch_find_targeted_attack(
                     tightening_options = tightening_options,
                     solve_if_predicted_in_targeted = solve_if_predicted_in_targeted,
                     adversarial_example_objective = adversarial_example_objective,
+                    backward_screen = backward_screen,
                 )
 
                 persist_summary_migration!(summary_file_path, dt, summary_needs_migration)

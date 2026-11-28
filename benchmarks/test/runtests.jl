@@ -41,6 +41,11 @@ function write_metrics_csv(
         benchmark_schema_version = [BENCHMARK_SCHEMA_VERSION],
         semantic_outcome_schema_version = [SEMANTIC_OUTCOME_SCHEMA_VERSION],
         adversarial_example_objective = [adversarial_example_objective],
+        # One bound certificate and one original-input skip exercise screen
+        # metadata without counting the skipped input as a search witness.
+        backward_screen = [true],
+        num_screen_certified = [1],
+        num_screen_witness = [0],
         wall_clock_seconds = [10.0],
         sum_total_time_seconds = [9.0],
         sum_solve_time_seconds = [4.0],
@@ -445,6 +450,12 @@ end
                       SEMANTIC_OUTCOME_SCHEMA_VERSION
                 @test ismissing(tracking[1, :adversarial_example_objective])
                 @test tracking[2, :adversarial_example_objective] == "feasibility"
+                @test ismissing(tracking[1, :backward_screen])
+                @test ismissing(tracking[1, :num_screen_certified])
+                @test ismissing(tracking[1, :num_screen_witness])
+                @test tracking[2, :backward_screen] == true
+                @test tracking[2, :num_screen_certified] == 1
+                @test tracking[2, :num_screen_witness] == 0
                 @test tracking[2, :julia_version] == "1.11.5"
                 @test tracking[2, :dependency_snapshot_sha256] == current_hash
                 @test ismissing(tracking[2, :dependency_change_summary])
@@ -621,3 +632,5 @@ end
         end
     end
 end
+
+include("benchmark_results.jl")
