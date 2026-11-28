@@ -154,6 +154,11 @@ work can inspect the evidence without merging the experimental code.
   this benchmark spanned 412.1 s to 440.4 s of total Julia-only time, so an effect this small cannot
   be resolved here. Interval arithmetic is cheap enough that the redundant walks cost about 11 s
   against a 435 s baseline. Removing them entirely has a ceiling near 2.5%, below that spread.
+- [Parallel lower ReLU lines in back-substitution](./benchmarks/reports/2026-11-28-backward-lower-lines/README.md).
+  Replacing the adaptive lower line with one parallel to the upper line sent more images to the
+  solver at a pixel budget of ±0.10. Solver referrals rose from 34 to 42 on 2,000 WK17a images and
+  from 49 to 55 on 100 RSL18a images. The WK17a timing difference was within repeat variation.
+  RSL18a took 0.42% longer. Both rules gave the same final outcome on every image.
 
 ## Contributing
 

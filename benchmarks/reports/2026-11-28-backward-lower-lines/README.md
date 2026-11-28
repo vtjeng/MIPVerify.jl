@@ -106,6 +106,9 @@ The [earlier forward experiment](../2026-11-27-full-verifier.md) added a second 
 after adaptive backward screening. Here the lower line is replaced within the original backward
 calculation.
 
+For experiments that vary the lower slope while holding the hidden-neuron ranges fixed, see
+[the lower-slope research issue](https://github.com/vtjeng/MIPVerify.jl/issues/333).
+
 ## Reproduce
 
 In a scratch checkout containing this report, apply the experiment patch, copy the archived Julia
