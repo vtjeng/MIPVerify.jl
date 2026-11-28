@@ -284,3 +284,14 @@ end
         @test !result[:WitnessTargetVerified]
     end
 end
+
+@testset "public feasibility includes the stored radius endpoint" begin
+    # The only witness for x >= Float64(0.1) is the upper endpoint. A proposal
+    # rounded into the narrower decimal interval misses this exact tie by one ulp.
+    network = MIPVerify.Sequential([MIPVerify.Linear([0.0 1.0], [0.1, 0.0])], "boundary tie")
+    result = screened_test_result(network, [0.0], 1)
+    @test result[:WitnessVerified]
+    @test result[:PerturbedInputValue] == [0.1]
+    @test result[:PerturbationValue] == result[:PerturbedInputValue]
+    @test result[:WitnessMargin] == 0
+end

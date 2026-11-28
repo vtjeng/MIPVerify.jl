@@ -14,6 +14,7 @@ using MIPVerify: get_image, get_label
     set_log_level!("warn")
 
     include("backward_bounds.jl")
+    include("backward_margin_screen.jl")
     include("integration.jl")
     include("net_components.jl")
     include("utils.jl")
