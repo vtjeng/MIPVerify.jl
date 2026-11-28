@@ -102,6 +102,9 @@ end
     stages = compile_stages(network, size(x))
     original = margin_bounds(stages, x, 1)
     @test original[2] > 0
+    # Disabling the forward screen must preserve the complete backward-only vector.
+    _, backward_only, _ = staged_margin_screen(stages, x, 1; forward_screen = false)
+    @test backward_only == original
     _, combined, source = staged_margin_screen(stages, x, 1)
     @test source == "forward_parallelogram"
     @test combined[2] ≈ -0.02
@@ -177,6 +180,10 @@ end
     @test result.source == "forward_corner"
     @test result.witness == last(witness_box(center))
     @test result.solve_status == "NO_SOLVER"
+    # The center is already adversarial. Both one-corner comparison runs
+    # must reach PGD to discover it after their first corner loses.
+    @test verify_image(sloped, stages, center, 1; second_corner = false).source == "ascent"
+    @test verify_image(sloped, stages, center, 1; forward_screen = false).source == "ascent"
     # Identical constant scores attain a tie at the corner.
     tied = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), zeros(2))], "tied scores")
     result = verify_image(tied, compile_stages(tied, (1,)), [0.5], 1)

@@ -399,10 +399,17 @@ end
 
 include("forward_parallelograms.jl")
 
-function staged_margin_screen(stages, x, y, corners = nothing, forward_corners = nothing)
+function staged_margin_screen(
+    stages,
+    x,
+    y,
+    corners = nothing,
+    forward_corners = nothing;
+    forward_screen = true,
+)
     hidden, input_lo, input_hi = hidden_bounds(stages, x)
     bounds = margin_bounds(stages, y, hidden, input_lo, input_hi, corners)
-    maximum(bounds) < 0 && return hidden, bounds, "backward"
+    (!forward_screen || maximum(bounds) < 0) && return hidden, bounds, "backward"
     tighten_forward_margins!(bounds, stages, y, input_lo, input_hi, forward_corners)
     return hidden, bounds, "forward_parallelogram"
 end
@@ -436,11 +443,26 @@ function search_checked_witness(stages, x, y, bounds, corners, forward_corners =
     return (; checked..., source = "ascent", repaired = vec(checked.witness) != vec(proposed))
 end
 
-function verify_image(nn, stages, x, y; prebound_fallback = true)
+function verify_image(
+    nn,
+    stages,
+    x,
+    y;
+    prebound_fallback = true,
+    forward_screen = true,
+    second_corner = forward_screen,
+)
     1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
     corners = Dict{Int,BitVector}()
-    forward_corners = Dict{Int,BitVector}()
-    hidden, bounds, screen_source = staged_margin_screen(stages, x, y, corners, forward_corners)
+    forward_corners = forward_screen && second_corner ? Dict{Int,BitVector}() : nothing
+    hidden, bounds, screen_source = staged_margin_screen(
+        stages,
+        x,
+        y,
+        corners,
+        forward_corners;
+        forward_screen = forward_screen,
+    )
     worst_margin = maximum(bounds)
     if worst_margin < 0
         return (
