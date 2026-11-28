@@ -1,208 +1,61 @@
-name: Nightly Benchmark
-
-on:
-  schedule:
-    - cron: "0 6 * * *" # 6 AM UTC daily
-  workflow_dispatch:
-    inputs:
-      objective:
-        description: Adversarial-example objective
-        required: true
-        default: feasibility
-        type: choice
-        options:
-          - feasibility
-          - closest
-
-      backward_screen:
-        description: Enable backward bounds and candidate search
-        required: true
-        default: "true"
-        type: choice
-        options:
-          - "true"
-          - "false"
-
-# `benchmark` runs for hours and runs third-party actions; `publish` runs a download
-# and a push. Only the second one holds a write token, declared on the job below.
+name: RSL18a public API paired benchmark
+on: workflow_dispatch
 permissions:
   contents: read
-
-env:
-  BENCHMARK_OBJECTIVE: ${{ inputs.objective || 'feasibility' }}
-  BENCHMARK_BACKWARD_SCREEN: ${{ inputs.backward_screen || 'true' }}
-
 jobs:
-  benchmark:
-    name: WK17a Benchmark (500 samples)
+  measure:
+    name: RSL18a pair ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    outputs:
-      date: ${{ steps.results.outputs.date }}
-      archive_base: ${{ steps.results.outputs.archive_base }}
-      benchmark_sha: ${{ steps.results.outputs.benchmark_sha }}
+    timeout-minutes: 85
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+    env:
+      JULIA_NUM_THREADS: "1"
+      JULIA_NUM_PRECOMPILE_TASKS: "2"
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: master
-          # This job's token is read-only and no step here pushes, so nothing needs
-          # credentials left in .git/config.
           persist-credentials: false
-
       - uses: julia-actions/setup-julia@v3
         with:
-          version: "1"
-          show-versioninfo: true
-
-      - uses: actions/cache@v6
-        env:
-          cache-name: cache-artifacts-benchmark
-        with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-benchmark-${{ env.cache-name }}-${{ hashFiles('**/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-benchmark-${{ env.cache-name }}-
-            ${{ runner.os }}-benchmark-
-            ${{ runner.os }}-
-
-      - uses: julia-actions/julia-buildpkg@v1
-
-      - name: Instantiate benchmarks environment
-        run: julia --project=benchmarks -e 'using Pkg; Pkg.develop(path="."); Pkg.instantiate()'
-
-      - name: Run benchmark
+          version: "1.12.6"
+      - name: Load the pinned environment, weights and test images
         run: |
-          julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
-            --samples 1:500 \
-            --tightening target_lp \
-            --main-time-limit 120 \
-            --objective "${BENCHMARK_OBJECTIVE}" \
-            --backward-screen "${BENCHMARK_BACKWARD_SCREEN}" \
-            --log-level warn \
-            --out /tmp/bench-wk17a
-
-      - name: Update the results tree and stage what changed
-        id: results
+          julia --project=benchmarks -e 'using Pkg; Pkg.instantiate(); using MIPVerify, HiGHS, CSV; MIPVerify.get_example_network_params("MNIST.RSL18a_linf0.1_authors"); MIPVerify.read_datasets("MNIST")'
+      - name: Run each pair twice on the same physical core
         env:
-          REPOSITORY: ${{ github.repository }}
+          SHARD: ${{ matrix.shard }}
         run: |
-          COMMIT_SHA=$(git rev-parse HEAD)
-          echo "benchmark_sha=${COMMIT_SHA}" >> "$GITHUB_OUTPUT"
-          DATE=$(date -u +%Y-%m-%d)
-          RUN_ID="$(date -u +%Y-%m-%dT%H-%M-%SZ)-${COMMIT_SHA::7}-${BENCHMARK_OBJECTIVE}-screen-${BENCHMARK_BACKWARD_SCREEN}"
-
-          # `benchmark-results` is a branch of this public repository, so reading it
-          # needs no credentials. append_to_tracking.jl resolves the previous run's
-          # dependency snapshot relative to the tracking CSV, so it needs the whole
-          # run history here, not just the new run.
-          #
-          # Test for the branch before cloning instead of treating any clone failure
-          # as an absent branch. A transient failure would otherwise stage a tracking
-          # CSV holding only this run, which `publish` would push over the real one.
-          if git ls-remote --exit-code --heads \
-            "https://github.com/${REPOSITORY}.git" benchmark-results > /dev/null; then
-            git clone --single-branch --branch benchmark-results \
-              "https://github.com/${REPOSITORY}.git" /tmp/benchmark-results
-          else
-            # Branch doesn't exist yet; append_to_tracking.jl starts a new tracking CSV.
-            mkdir -p /tmp/benchmark-results
-          fi
-
-          archive_base=$(git -C /tmp/benchmark-results rev-parse --verify HEAD 2>/dev/null || true)
-          echo "archive_base=${archive_base}" >> "$GITHUB_OUTPUT"
-
-          RUN_DIR="/tmp/benchmark-results/runs/${DATE}/${RUN_ID}"
-          mkdir -p "${RUN_DIR}"
-          cp /tmp/bench-wk17a/benchmark_metrics.csv "${RUN_DIR}/"
-          cp /tmp/bench-wk17a/benchmark_per_sample.csv "${RUN_DIR}/"
-          cp /tmp/bench-wk17a/benchmark_relu_layers.csv "${RUN_DIR}/"
-          cp /tmp/bench-wk17a/benchmark_tightening.csv "${RUN_DIR}/"
-          cp /tmp/bench-wk17a/dependency_versions.csv "${RUN_DIR}/"
-          cp /tmp/bench-wk17a/dependency_manifest.toml "${RUN_DIR}/"
-
-          julia --project=benchmarks benchmarks/append_to_tracking.jl \
-            --metrics-csv /tmp/bench-wk17a/benchmark_metrics.csv \
-            --dependency-versions-csv /tmp/bench-wk17a/dependency_versions.csv \
-            --tracking-csv /tmp/benchmark-results/tracking.csv \
-            --date "${DATE}" \
-            --commit-sha "${COMMIT_SHA}" \
-            --run-id "${RUN_ID}"
-
-          # Stage only what this run changed. The rest of the branch is already on the
-          # branch, and `publish` copies this over its own clone of it.
-          mkdir -p "/tmp/publish/runs/${DATE}"
-          cp -R "${RUN_DIR}" "/tmp/publish/runs/${DATE}/"
-          cp /tmp/benchmark-results/tracking.csv /tmp/publish/tracking.csv
-          python3 benchmarks/analysis/build_dashboard_data.py /tmp/benchmark-results /tmp/publish/daily.json
-
-          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
-
-      - name: Upload the staged results
-        uses: actions/upload-artifact@v7
+          mkdir -p output
+          lscpu > "output/cpu-$SHARD.txt"
+          python3 - <<'PY'
+          import os, subprocess
+          from concurrent.futures import ThreadPoolExecutor
+          shard = int(os.environ["SHARD"])
+          available = os.sched_getaffinity(0)
+          rows = subprocess.check_output(["lscpu", "-p=CPU,CORE,SOCKET"], text=True)
+          cores = {}
+          for row in rows.splitlines():
+              if row.startswith("#"):
+                  continue
+              cpu, core, socket = map(int, row.split(","))
+              if cpu in available:
+                  cores.setdefault((socket, core), cpu)
+          cpus = list(cores.values())[:2]
+          def measure(slot):
+              subprocess.run(["taskset", "-c", str(cpus[slot % len(cpus)]), "julia",
+                  "--project=benchmarks", "benchmarks/reports/2026-11-28-public-default/run.jl",
+                  "output", str(2*shard+slot), "32", "RSL18a", "100"], check=True)
+          with ThreadPoolExecutor(max_workers=len(cpus)) as pool:
+              list(pool.map(measure, range(2)))
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
         with:
-          name: benchmark-results
-          path: /tmp/publish
-          if-no-files-found: error
-
-  publish:
-    name: Publish results
-    needs: benchmark
-    runs-on: ubuntu-latest
-    permissions:
-      # The write token exists only in this job. Its steps are a download of the
-      # files `benchmark` staged and a push of them to `benchmark-results`; no
-      # third-party action and no project code runs here.
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: benchmark-results
-          path: /tmp/publish
-
-      - name: Commit and push to benchmark-results
-        env:
-          DATE: ${{ needs.benchmark.outputs.date }}
-          ARCHIVE_BASE: ${{ needs.benchmark.outputs.archive_base }}
-          BENCHMARK_SHA: ${{ needs.benchmark.outputs.benchmark_sha }}
-          REPOSITORY: ${{ github.repository }}
-          TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          REMOTE="https://x-access-token:${TOKEN}@github.com/${REPOSITORY}.git"
-          if git ls-remote --exit-code --heads "${REMOTE}" benchmark-results > /dev/null; then
-            git clone --single-branch --branch benchmark-results "${REMOTE}" \
-              /tmp/benchmark-results
-          else
-            # Branch doesn't exist yet; create an orphan
-            mkdir -p /tmp/benchmark-results
-            cd /tmp/benchmark-results
-            git init
-            git checkout --orphan benchmark-results
-            git remote add origin "${REMOTE}"
-          fi
-
-          # Both indexes describe the archive we read. A concurrent publication
-          # could add a different run even when the CSV line counts look equal.
-          head=$(git -C /tmp/benchmark-results rev-parse --verify HEAD 2>/dev/null || true)
-          if [ "${head}" != "${ARCHIVE_BASE}" ]; then
-            echo "Results branch advanced during staging. Rerun the workflow against the new archive." >&2
-            exit 1
-          fi
-
-          # The staged CSV is the branch's plus this run's row, so it can never be
-          # shorter. If it is, something upstream lost history; do not push it.
-          if [ -f /tmp/benchmark-results/tracking.csv ]; then
-            before=$(wc -l < /tmp/benchmark-results/tracking.csv)
-            after=$(wc -l < /tmp/publish/tracking.csv)
-            if [ "${after}" -lt "${before}" ]; then
-              echo "staged tracking.csv has ${after} lines, branch has ${before}; refusing to push" >&2
-              exit 1
-            fi
-          fi
-
-          cp -R /tmp/publish/. /tmp/benchmark-results/
-
-          cd /tmp/benchmark-results
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "${BENCHMARK_OBJECTIVE} benchmark (backward screen ${BENCHMARK_BACKWARD_SCREEN}) for ${DATE} (${BENCHMARK_SHA::7})"
-          git push origin benchmark-results
+          name: rsl18a-${{ matrix.shard }}
+          path: output/
+          if-no-files-found: warn
