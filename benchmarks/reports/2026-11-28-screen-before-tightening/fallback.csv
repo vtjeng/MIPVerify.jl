@@ -1,0 +1,5 @@
+repeat,image,target_index,screen,seconds,built_model,status,verified_witness
+1,480,9,false,3.59794287,true,OPTIMAL,true
+1,480,9,true,6.367009321,true,TIME_LIMIT,false
+2,480,9,true,6.171563716,true,OPTIMAL,true
+2,480,9,false,5.40328464,true,OPTIMAL,true
