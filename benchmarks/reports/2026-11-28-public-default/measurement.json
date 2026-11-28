@@ -1,0 +1,139 @@
+{
+  "parent_commit": "78c0372132799524ab82f7d541d692834b15ed7e",
+  "sha256": {
+    "src/MIPVerify.jl": "d9b992c35bafa084c12be66e2236c5bc03bbde6beb009406e653dcabfe4f58bd",
+    "src/backward_bounds.jl": "a3521692d97277cc6b7cc1c7b54fe499dd9ce89067e43536217989813868e7dc",
+    "src/batch_processing_helpers.jl": "e6b1c566efd8b8fc89ef25290b243c8448d769864ced8d57f12a24a589c76545",
+    "src/instrumentation.jl": "74f9c22eb819a7c4757ddd13df1efdfc5a71abf5fc02cfbbf8bad84cad998d78",
+    "src/logging.jl": "4e9ef368d9eed6da721e81bf0f584e76c7f5191a38bc8030cae554ada48d5cb8",
+    "src/models.jl": "8e170fa667d6242248ca75da6a42d8c2668e1e6976d431ae7a076bc09489bcdc",
+    "src/net_components/core_ops.jl": "e3f381ae679b922037fef5e00f504bd00ee1a6ff4326a93489e4bbdc4c9976b7",
+    "src/net_components/layers/conv2d.jl": "124f00cc08f38b884ac3a8a11ecac253cb69a3668a0b3aee4bc9904fdcdfc9d7",
+    "src/net_components/layers/flatten.jl": "05117f086ee42604d090dc2acac2de4653d88b9a586911caba145eb8ed2c3e78",
+    "src/net_components/layers/linear.jl": "3425acad7e4ec1747209ae2b0abbf7658d929676635e0a9267bd4213892ed255",
+    "src/net_components/layers/masked_relu.jl": "fcae6b22fd5c0832e9d0296106550eefa601afa4af7c1b789a26a3825f590d8c",
+    "src/net_components/layers/normalize.jl": "78f996b7e87d8eba5ef0249b03db9143ce26dd7cd16612856dcd789ca07acce5",
+    "src/net_components/layers/pool.jl": "3e4d72f9728d820a43cc8d35f26abd05aa76d4e4403cefa94944afaf0519687d",
+    "src/net_components/layers/relu.jl": "decc7250b35015c930038790b9a6428003ca8cde3f17831518793253d2fac78c",
+    "src/net_components/layers/skip_unit.jl": "b5135f7a9883148b4b9fa8bbc3b426781f039c023da42e878cbc22bb946b2671",
+    "src/net_components/layers/zero.jl": "0b1d32ee8cc291de061fcc0f65bbdc458047e76fb00eeca33472383f844b05f7",
+    "src/net_components/layers.jl": "18860697d5cc4e96261d61f34c061887c57beee5535407f28f350beea6c250f9",
+    "src/net_components/lp_certification.jl": "3b6ad6011c18d485c860dc451f3f2b80519ca3d1b906aab7cec0b1c7696e8ca9",
+    "src/net_components/nets/sequential.jl": "53e407d3a40319ffaaf757441e50bb324611251081a1437f126228abcb8e9f74",
+    "src/net_components/nets/skip_sequential.jl": "dc7ade73f3d1ad86e252e2108e1f5293799d0f3ddc971b823405b8413736cc4b",
+    "src/net_components/nets.jl": "acddfefe0d81ebbc69393bb706cfc3f3cb81c9037d13223ccf870542f3211f68",
+    "src/net_components.jl": "4342ede219008f1e03a0ca954f006f304b772ef6ae3b51d785c516537a248b92",
+    "src/utils/import_datasets.jl": "83bb7b3b1eda7fef87961201094945d5990f7b396c1f8250a373344eeb666214",
+    "src/utils/import_example_nets.jl": "271da8ea433b36b03af176352c60d45d70e18ce8589f2b72c350becb9588a953",
+    "src/utils/import_weights.jl": "1a9be9d7f409ff61fdf2bff833288ef62e0740b4ca70748bf15a8193f4d360d6",
+    "src/utils/prep_data_file.jl": "2c4286fcf791c5b1aebdb33b23fd059ad7c744cfe465cf5b4d567a089610b966",
+    "src/utils.jl": "e1ca2e34cfd16e6df54586fcf1b9ecaa297a9db6b41e8ab3c972211250f0640f",
+    "src/vendor/ConditionalJuMP.jl": "766a1aebd152632aefc702f44053224ae2fce762b08ce6941c7a859a1a305bdd",
+    "Project.toml": "285050c8925d23cb2a5f98989c90f12bd71a180f7a53d70399f86cb3e73e3426",
+    "Manifest.toml": "ea248a2d6661dc9b79ff8b0818ce35b9991cb23443bf333ab89c1d56b3556821",
+    "benchmarks/reports/2026-11-28-public-default/run.jl": "ac72150f00db0f21a664b7bb57d45bdce98553805de09418718f97e146306340"
+  },
+  "measurements": {
+    "network": "MNIST.WK17a_linf0.1_authors",
+    "images": "1:2000",
+    "passes": 2,
+    "cpu_per_lane": [
+      0,
+      2,
+      6,
+      8
+    ],
+    "workers": 4,
+    "final_mip_limit_seconds": 120,
+    "target_lp_limit_seconds": 20,
+    "threads_per_worker": 1,
+    "solve_if_predicted_in_targeted": false,
+    "objective": "feasibility",
+    "pixel_radius_float64": 0.1,
+    "target_selection": "all rivals",
+    "warmup_images": [
+      2001,
+      63,
+      66
+    ],
+    "preflight_routes": {
+      "19": "backward_bound",
+      "63": "corner"
+    },
+    "baseline_backward_screen": false,
+    "candidate_backward_screen": true
+  },
+  "julia_version": "1.12.6",
+  "machine": {
+    "Architecture": "x86_64",
+    "CPU(s)": "10",
+    "Model name": "Intel(R) Core(TM) i7-8700K CPU @ 3.70GHz",
+    "Thread(s) per core": "2",
+    "Core(s) per socket": "5",
+    "Socket(s)": "1"
+  },
+  "data_sha256": {
+    "datasets/mnist/mnist_int_test.mat": "862b9343ce96a630730042da1a25e2550a1566749eae33788bcd59b95c5f458f",
+    "datasets/mnist/mnist_int_train.mat": "779873d82eb02583079b9f5a2227668d1ee64180f5aa362a622735233d8e760c"
+  },
+  "weights_sha256": {
+    "weights/mnist/WK17a/linf0.1/master_seed_1_epochs_100.mat": "8f199d86500ba90065be3af281aeca6a946c96806b0acfe372477d7324c36f1b"
+  },
+  "python_analysis": {
+    "lockfile": "benchmarks/analysis/uv.lock",
+    "numpy": "2.5.1",
+    "pandas": "3.0.3",
+    "matplotlib": "3.11.0",
+    "reference_revision": "53e17cf8b642e4976d325d432048c87174d8d310",
+    "reference_path": "pairs/2026-11-26-wk17a-verified-backward-bounds/analyze.py",
+    "reference_sha256": "d123ed890624825fc96249c50c5180a0b15922daf1a916c5925655ac4e7b3fbb"
+  },
+  "timing": "Public API :TotalTime, excluding result CSV serialization, model/data loading and warm-up.",
+  "production_commit": "26e928a423aab28df03448b6f0aad37ad9f1650d",
+  "production_source_verification": {
+    "comparison": "Normalized Julia syntax after removing line nodes and docstrings, with comments ignored by parsing.",
+    "files_compared": 28,
+    "all_equal": true,
+    "measured_source_location": "/tmp/wk17-public-default-v2-20261128",
+    "verification_log": "/tmp/wk17-public-default-v2-results-20261128/semantic-source-match.tsv"
+  },
+  "warmup_seconds_by_lane": {
+    "0": 151.015931981,
+    "1": 147.546907648,
+    "2": 147.597885659,
+    "3": 147.511261191
+  },
+  "timing_exclusions": [
+    "Julia startup and package loading",
+    "model and dataset loading",
+    "active-screen preflight and compilation",
+    "warm-up calls",
+    "result CSV serialization"
+  ],
+  "solver_packages": {
+    "HiGHS": "1.23.0",
+    "HiGHS_jll": "1.14.0+0",
+    "JuMP": "1.31.1",
+    "MathOptInterface": "1.52.0"
+  },
+  "raw_csv_gzip_sha256": {
+    "baseline-1-0.csv.gz": "ee17d0e59f3db9dbd9d063adc96dab53ffcc8d2cdcfbb2c7bfac67df59155378",
+    "baseline-1-1.csv.gz": "a360ce2c030def69d3a01124f36ec1e8d848964b4b86a67fd939c984f8593a6f",
+    "baseline-1-2.csv.gz": "26fd35715aa3da0c7115cc2008fe16765471c54591bca6ba9457a0b1151815a4",
+    "baseline-1-3.csv.gz": "6dfa515ba8cdfef5d9f4d0e5f888418d4f106931f8d1a883f7d8130d8e589012",
+    "baseline-2-0.csv.gz": "b7c7b2a7083dcdbfe2adc7e9bb4909f295a95c732a8bb6533decead1711924b9",
+    "baseline-2-1.csv.gz": "bc662672008ec2b18a5a20c87cd10bda1686553191eed34727aec25d7076bbb6",
+    "baseline-2-2.csv.gz": "be8c8533ca079651415c4359bee852cfbb8f159d9b53600996b40b98662197e1",
+    "baseline-2-3.csv.gz": "a04a3d2ba46fc62dc0fe7a9850b2cb12189a032b74d9f0dc81eae6a514f1ed88",
+    "candidate-1-0.csv.gz": "11179faee13fa05894f7bebc14cb60e5a080875aee7c92cb167eb96057aa666f",
+    "candidate-1-1.csv.gz": "d6b677e45dbd5189cc6c291e9382a28d52fc3514165ca5041e7563c0be1e66f4",
+    "candidate-1-2.csv.gz": "b21382aec9a1a09db97e824e9d17fd5dbf0c8c2331ffc94e2327f703a4ee29d0",
+    "candidate-1-3.csv.gz": "0f900c8f61e20004698faff0801beaac06d0d606e95b9d9f2d559e174ebbe33c",
+    "candidate-2-0.csv.gz": "200d3fccb9235b094a860a7ca2200a68ace303b708eaae89a15862ae8a94db48",
+    "candidate-2-1.csv.gz": "e980d27b8da67e8c25caebdf837cfe80aeb6738bbf32b67d3786508838c58791",
+    "candidate-2-2.csv.gz": "846308b94e24ada11712e7a7dcbc0ee6ff19308c1daa900eda016f8f6b2edf09",
+    "candidate-2-3.csv.gz": "95d51f8392f2f25d40e340408e77f65c5108b80b4b788837716250699d01d793"
+  },
+  "batch_monitor_exit_code": 143,
+  "completion_verification": "All 16 CSVs contain 500 records each, every lane reached its final image, and the independent 8,000-key coverage check passed. No timed observation is missing."
+}

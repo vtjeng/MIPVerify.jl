@@ -1,0 +1,377 @@
+{
+  "observations": 400,
+  "samples": 100,
+  "passes": {
+    "baseline-1": {
+      "seconds": 7140.760024358,
+      "sources": {
+        "MIP": 98,
+        "original_input": 2
+      },
+      "statuses": {
+        "INFEASIBLE": 42,
+        "TIME_LIMIT": 56,
+        "SKIPPED_PREDICTED_IN_TARGETED": 2
+      },
+      "outcomes": {
+        "certified_no_adversarial_example": 42,
+        "time_limit_unresolved": 56,
+        "adversarial_example_found_or_best_known": 2
+      },
+      "verified_witnesses": 2,
+      "unverified_witnesses": 0
+    },
+    "baseline-2": {
+      "seconds": 7131.156802867,
+      "sources": {
+        "MIP": 98,
+        "original_input": 2
+      },
+      "statuses": {
+        "INFEASIBLE": 42,
+        "TIME_LIMIT": 56,
+        "SKIPPED_PREDICTED_IN_TARGETED": 2
+      },
+      "outcomes": {
+        "certified_no_adversarial_example": 42,
+        "time_limit_unresolved": 56,
+        "adversarial_example_found_or_best_known": 2
+      },
+      "verified_witnesses": 2,
+      "unverified_witnesses": 0
+    },
+    "candidate-1": {
+      "seconds": 5358.597275716,
+      "sources": {
+        "backward_bound": 35,
+        "corner": 12,
+        "MIP": 49,
+        "pgd": 2,
+        "original_input": 2
+      },
+      "statuses": {
+        "INFEASIBLE": 43,
+        "OPTIMAL": 14,
+        "TIME_LIMIT": 41,
+        "SKIPPED_PREDICTED_IN_TARGETED": 2
+      },
+      "outcomes": {
+        "certified_no_adversarial_example": 43,
+        "adversarial_example_found_or_best_known": 16,
+        "time_limit_unresolved": 41
+      },
+      "verified_witnesses": 16,
+      "unverified_witnesses": 0
+    },
+    "candidate-2": {
+      "seconds": 5348.676082062,
+      "sources": {
+        "backward_bound": 35,
+        "corner": 12,
+        "MIP": 49,
+        "pgd": 2,
+        "original_input": 2
+      },
+      "statuses": {
+        "INFEASIBLE": 43,
+        "OPTIMAL": 14,
+        "TIME_LIMIT": 41,
+        "SKIPPED_PREDICTED_IN_TARGETED": 2
+      },
+      "outcomes": {
+        "certified_no_adversarial_example": 43,
+        "adversarial_example_found_or_best_known": 16,
+        "time_limit_unresolved": 41
+      },
+      "verified_witnesses": 16,
+      "unverified_witnesses": 0
+    }
+  },
+  "transitions": [
+    {
+      "sample_index": 2,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 2,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 9,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 9,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 19,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 19,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 34,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 34,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 39,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "pgd"
+    },
+    {
+      "sample_index": 39,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "pgd"
+    },
+    {
+      "sample_index": 44,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 44,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 60,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "pgd"
+    },
+    {
+      "sample_index": 60,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "pgd"
+    },
+    {
+      "sample_index": 62,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 62,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 63,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 63,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 64,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 64,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 65,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 65,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 77,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "INFEASIBLE",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "certified_no_adversarial_example",
+      "candidate_source": "MIP"
+    },
+    {
+      "sample_index": 77,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "INFEASIBLE",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "certified_no_adversarial_example",
+      "candidate_source": "MIP"
+    },
+    {
+      "sample_index": 88,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 88,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 93,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 93,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 98,
+      "repeat": 1,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    },
+    {
+      "sample_index": 98,
+      "repeat": 2,
+      "baseline_status": "TIME_LIMIT",
+      "candidate_status": "OPTIMAL",
+      "baseline_outcome": "time_limit_unresolved",
+      "candidate_outcome": "adversarial_example_found_or_best_known",
+      "candidate_source": "corner"
+    }
+  ],
+  "baseline_mean_seconds": 7135.9584136124995,
+  "baseline_repeat_difference_percent": 0.13457507645617836,
+  "candidate_mean_seconds": 5353.636678889,
+  "candidate_repeat_difference_percent": 0.18531690230534006,
+  "savings_percent": 24.976627264580976,
+  "noise_floor_percent": 0.18531690230534006,
+  "median_ratio": 0.6764459299810173,
+  "faster_by_over_one_percent": 55,
+  "slower_by_over_one_percent": 5,
+  "within_one_percent": 40,
+  "ratio_quantiles": {
+    "p10": 0.00010513611433756343,
+    "median": 0.6764459299810173,
+    "p90": 1.0025732778152343
+  }
+}

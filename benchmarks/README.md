@@ -336,6 +336,10 @@ results have `solve_status=NO_SOLVER` and a `verification_source` of `backward_b
 and bound-solver calls. Solver results use `mip`. The witness columns record whether an available
 input satisfies the requested target condition and perturbation family.
 
+The [public API comparison](reports/2026-11-28-public-default/README.md) pairs screening on and off
+on the same CPU core for each image. It includes both repeats, the per-image observations and the
+settings needed to reproduce the comparison.
+
 The [historical experiment](reports/2026-11-27-full-verifier.md) measured a standalone verifier
 before this public integration. To reproduce its configurations, check out the
 [pinned measured revision](https://github.com/vtjeng/MIPVerify.jl/tree/fae89161ee3aec9cfb630f2079de94d63d3400cc)
