@@ -869,8 +869,8 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
         width: 0.75rem;
         border-bottom: 1px solid #779586;
       }
-      .route-exit span,
-      .route-exit strong {
+      .route-exit > span,
+      .route-exit > strong {
         display: block;
       }
       .route-exit strong {
@@ -1752,7 +1752,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <p>Each rival still in contention gets <strong>one candidate image</strong>. To build it, read the pixel coefficients in that rival’s back-substitution bound. Set each pixel to its brightest allowed value if its coefficient is positive, or its darkest if negative. If the coefficient is exactly zero, either endpoint gives the same bound. We choose the darker one. Together these choices give one <strong>corner</strong> of the pixel box.</p>
           <p>We test these images on the actual network, starting with the rival whose upper bound is highest. We stop as soon as <em>any</em> rival ties or beats the true digit. On WK17a image 63, two rivals remained, digits 5 and 8. The corner chosen for 5 gave a witness on the first try, so we skipped the corner for 8.</p>
           <details><summary>How often was a pixel coefficient exactly zero?</summary>
-            <p>At a pixel budget of ±0.10, we counted the 784 coefficients for every rival left open by back-substitution. We found no exact zeros in either benchmark. WK17a had 181,888 pixel coefficients (232 open rivals across 156 images). RSL18a had 271,264 (346 across 65 images). These counts include corners skipped after an earlier witness.</p>
+            <p>In an earlier measurement that screened every image before checking the original prediction, we counted the 784 coefficients for every rival left open by back-substitution at a pixel budget of ±0.10. We found no exact zeros in that measurement. WK17a had 181,888 pixel coefficients (232 open rivals across 156 images). RSL18a had 271,264 (346 across 65 images). These counts include corners skipped after an earlier witness.</p>
           </details>
         </div>
         <figure class="interactive lesson-figure" id="mnist-corner-example">
@@ -1932,7 +1932,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <h3 class="topic-heading">Full run: follow each image through the verifier</h3>
           <p>
             How many images can we settle before calling the solver? For WK17a and RSL18a, we allow each pixel’s brightness to increase or decrease independently by up to 0.10 from its original value, staying within [0, 1].
-            If any rivals remain open after bounding, the verifier tests candidate images before building a solver model.
+            This run first checks the original image. If it already predicts a rival and passes the witness check, verification ends there. Otherwise, the verifier bounds the rivals and tests candidate images before building a solver model.
           </p>
           <p><em>Follow the run on the first 2,000 MNIST test images for WK17a, or switch to RSL18a.</em></p>
         </div>
@@ -1947,16 +1947,26 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           <ol class="route-stages">
             <li>
               <div class="route-main">
-                <span class="route-enter"
-                  ><b data-count="total">2,000</b> images enter</span
-                >
+                <span class="route-enter"><b data-count="total">2,000</b> images enter</span>
+                <h4 class="panel-title">Check the original prediction</h4>
+                <p>The verifier evaluates the unchanged image first. When it already predicts a rival, the original image can be a witness. Its pixel change is zero, so it lies inside the budget. We check the score condition and pixel budget before accepting it.</p>
+              </div>
+              <div class="route-exit">
+                <strong><b data-count="original">49</b> witnesses at the original input
+                  (<b data-share="original" data-of="total">2.5%</b> of all images)</strong>
+                <span>These images finish before bound construction or search.</span>
+              </div>
+            </li>
+            <li>
+              <div class="route-main">
+                <span class="route-enter"><b data-count="screenEnter">1,951</b> reach the backward screen · <b data-share="screenEnter" data-of="total">97.6%</b> of all images</span>
                 <h4 class="panel-title">Screen rivals with back-substitution bounds</h4>
                 <p><strong>Back-substitution bounds certify <b data-count="screen">1,844</b> images.</strong>
                   Forward interval arithmetic first bounds each ReLU’s input. In deeper layers, the verifier tightens those ranges by tracing each neuron’s input back to the pixels.
                   It then traces each rival’s logit difference backward and maximizes its affine upper bound over the pixel box. A negative maximum rules out that rival. Ruling out all nine certifies the image.</p>
                 <details><summary>What did interval arithmetic prove on its own?</summary>
                   <p>For the first hidden layer, the pixel endpoints give the exact range of each weighted sum, up to rounding. A later neuron can combine outputs that depend on the same pixel. Suppose those outputs are <math><mi>x</mi></math> and <math><mn>1</mn><mo>−</mo><mi>x</mi></math>, where <math><mi>x</mi></math> is the pixel’s brightness from 0 to 1. Each output ranges from 0 to 1. Adding those intervals gives [0, 2], even though the two outputs sum to exactly 1 on every image.</p>
-                  <p>In a separate measurement we carried intervals all the way to the logits. This alone ruled out 0 of <b data-count="rivals">18,000</b> rival labels and certified 0 of <b data-count="total">2,000</b> images.</p></details>
+                  <p>In a separate earlier measurement over every original image, we carried intervals all the way to the logits. This alone ruled out 0 of <b data-count="rivals">18,000</b> rival labels and certified 0 of <b data-count="total">2,000</b> images.</p></details>
               </div>
               <div class="route-exit">
                 <strong><b data-count="screen">1,844</b> certified by back-substitution
@@ -1967,9 +1977,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
             <li>
               <div class="route-main">
                 <span class="route-enter"
-                  ><b data-count="search">156</b> reach the corner check · <b data-share="search" data-of="total">7.8%</b> of all images</span>
+                  ><b data-count="search">107</b> reach the corner check · <b data-share="search" data-of="total">5.4%</b> of all images</span>
                 <h4 class="panel-title">Check the corners, then use PGD if needed</h4>
-                <p><strong><a id="funnel-corners-link" data-return-label="the full run" href="#corner-candidates">Back-substitution corners</a> found witnesses on <b data-count="backCorners">117</b> images.</strong>
+                <p><strong><a id="funnel-corners-link" data-return-label="the full run" href="#corner-candidates">Back-substitution corners</a> found witnesses on <b data-count="backCorners">68</b> images.</strong>
                   Of the <b data-count="pgdEnter">39</b> images still open, PGD found a witness on <b data-count="pgdAfterCorners">5</b>.</p>
                 <p>PGD tries the remaining rivals in descending order of their bound. It returns a candidate when it verifies that the target scores strictly higher than the true digit. If every search misses, the solver still checks for a tie or a win.</p>
                 <details>
@@ -1981,14 +1991,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
                     and can try three more starting points sampled uniformly from
                     the pixel box. Each start uses up to 32 iterations with a
                     step size of 0.02.
-                    <a href="https://github.com/vtjeng/MIPVerify.jl/blob/2cece3828db2620a24027e806335bd3b4bcfb0b1/benchmarks/backward_margin_screen.jl">Search implementation</a>
+                    <a href="https://github.com/vtjeng/MIPVerify.jl/blob/e90fcbc4ead5bbf5456fb796be737de740772f71/src/backward_bounds.jl">Search implementation</a>
                     · <a href="https://arxiv.org/abs/1706.06083">PGD in Madry et al.</a></p>
                 </details>
               </div>
               <div class="route-exit">
                 <strong
-                  ><b data-count="found">122</b> adversarial examples</strong
-                ><span><b data-share="found" data-of="search">78.2%</b> of images entering the corner check yielded a checked example.</span>
+                  ><b data-count="found">73</b> witnesses found during search</strong
+                ><span><b data-share="found" data-of="search">68.2%</b> of images entering the corner check yielded a checked example.</span>
               </div>
             </li>
             <li>
@@ -2003,7 +2013,7 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
                     It passes only the true digit as the label, so the solver starts with all nine rivals again.
                     Using the supplied ranges, it compares each target’s upper logit bound with the true digit’s lower logit bound.
                     If that comparison leaves the target open, it solves a linear program (LP) for the logit difference. A negative upper bound rules out the target.
-                    <p data-wk17a-screen>Across these 34 images, separate logit bounds excluded 202 of 306 rivals. Target LP excluded 85 more, leaving 19 rivals for the MIP. <a href="wk17a-label-screen.csv">Per-image screening results</a>.</p>
+                    <p data-wk17a-screen>In the earlier standalone run, across its 34 solver referrals, separate logit bounds excluded 202 of 306 rivals. Target LP excluded 85 more, leaving 19 rivals for the MIP. <a href="wk17a-label-screen.csv">Per-image screening results</a>.</p>
                   </li>
                   <li>
                     <strong
@@ -2031,11 +2041,11 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           </ol>
           <section id="end-to-end-timing">
             <h4 class="panel-title">Time for the full verifier</h4>
-            <p data-timing-network="WK17a">The two runs over 2,000 images took 398.3 and 397.6 seconds. In each run, 34 images reached the solver.</p>
-            <p data-timing-network="RSL18a" hidden>The two runs over 100 images took about 5,553 and 5,551 seconds. In each run, 49 images reached the solver and 42 remained unresolved at the time limit.</p>
-            <p class="caption">Times sum the work on each image from the first bound to the verdict or timeout, including solver calls. Setup and warm-up are excluded. The funnel shows the first run.</p>
+            <p data-timing-network="WK17a">With the backward screen, the two runs over 2,000 images took 554.7 and 547.1 seconds, compared with 1,690 and 1,684 seconds for Target LP alone. The mean reduction was 67.34%. Each screened run sent 34 images to the solver and resolved all 2,000. <a href="https://github.com/vtjeng/MIPVerify.jl/tree/e90fcbc4ead5bbf5456fb796be737de740772f71/benchmarks/reports/2026-11-28-public-default">Paired report and raw records</a>.</p>
+            <p data-timing-network="RSL18a" hidden>With the backward screen, the two runs over 100 images took 5,359 and 5,349 seconds, compared with 7,141 and 7,131 seconds for Target LP alone. The mean reduction was 24.98%. Each screened run sent 49 images to the solver and left 41 unresolved at the time limit. <a href="https://github.com/vtjeng/MIPVerify.jl/tree/e90fcbc4ead5bbf5456fb796be737de740772f71/benchmarks/reports/2026-11-28-public-default/rsl18a">Paired report and raw records</a>.</p>
+            <p class="caption">Times sum the full verification calls from the original prediction through each verdict or timeout, including search and solver work. Loading the model and data, setup and warm-up are excluded. Both methods skip a checked witness at the original input. The funnel shows the first repeat.</p>
             <details><summary>What did a second affine screen add?</summary>
-              <p>We tested forward parallelograms and a second corner check. On WK17a they reduced solver referrals from 34 to 29. The full run took 6.0 seconds longer on one repeat and 2.3 seconds less on the other. On RSL18a, referrals stayed at 49 and the two runs saved 3.1 and 5.7 seconds out of more than 5,500. We kept the simpler verifier. <a href="https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/2026-11-27-full-verifier.md">Paired measurements and per-image results</a>.</p>
+              <p>In an earlier experiment, the standalone verifier checked corners before its original-input shortcut. We tested forward parallelograms and a second corner check. On WK17a they reduced solver referrals from 34 to 29. The full run took 6.0 seconds longer on one repeat and 2.3 seconds less on the other. On RSL18a, referrals stayed at 49 and the two runs saved 3.1 and 5.7 seconds out of more than 5,500. We kept the simpler verifier. <a href="https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/2026-11-27-full-verifier.md">Paired measurements and per-image results</a>.</p>
             </details>
           </section>
         </figure>
@@ -3455,10 +3465,10 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
       })();
 
       (() => {
-        // Disjoint outcomes from the first single-screen, single-corner run.
+        // Disjoint outcomes from the first paired run through the public verifier.
         const counts = {
-          WK17a: {screen:1844, backCorners:117, pgdAfterCorners:5, cert:30, witness:4, open:0},
-          RSL18a: {screen:35, backCorners:14, pgdAfterCorners:2, cert:7, witness:0, open:42},
+          WK17a: {original:49, screen:1844, backCorners:68, pgdAfterCorners:5, cert:30, witness:4, open:0},
+          RSL18a: {original:2, screen:35, backCorners:12, pgdAfterCorners:2, cert:8, witness:0, open:41},
         };
         const choice = el("route-network");
         function showRoute() {
@@ -3470,8 +3480,9 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
           const fallback = selected.cert + selected.witness + selected.open;
           const pgdEnter = fallback + selected.pgdAfterCorners;
           const search = pgdEnter + selected.backCorners;
-          const total = search + selected.screen;
-          const run = {...selected, fallback, pgdEnter, search, total, rivals:9*total,
+          const screenEnter = search + selected.screen;
+          const total = selected.original + screenEnter;
+          const run = {...selected, fallback, pgdEnter, search, screenEnter, total, rivals:9*total,
             found:selected.backCorners + selected.pgdAfterCorners};
           for (const item of document.querySelectorAll("[data-wk17a-screen]")) {
             item.hidden = model !== "WK17a";
