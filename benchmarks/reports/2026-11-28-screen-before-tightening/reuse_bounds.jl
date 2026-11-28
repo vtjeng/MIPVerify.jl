@@ -3,14 +3,16 @@ BLAS.set_num_threads(1)
 MIPVerify.set_log_level!("warn")
 nn = MIPVerify.get_example_network_params("MNIST.WK17a_linf0.1_authors")
 x = MIPVerify.get_image(MIPVerify.read_datasets("MNIST").test, 480)
-# Ask whether digit 8 (class index 9) can tie or beat the other digits on image 480.
-function trial(nn, x, algorithm)
+# The original comparison checks digit 8. The pruning comparison checks every rival of 9.
+all_rivals = length(ARGS) == 2 && ARGS[2] == "all-rivals"
+function trial(nn, x, algorithm, all_rivals)
     r = find_adversarial_example(
         nn,
         x,
-        9,
+        all_rivals ? 10 : 9,
         HiGHS.Optimizer,
         Dict("threads"=>1, "output_flag"=>false, "time_limit"=>5.0);
+        invert_target_selection = all_rivals,
         adversarial_example_objective = MIPVerify.feasibility,
         pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
         tightening_algorithm = algorithm,
@@ -21,21 +23,26 @@ function trial(nn, x, algorithm)
         r[:TotalTime],
         r[:FormulationTime],
         r[:BoundSolverCallCount],
-        r[:ReLUSplitCount],
+        (
+            all_rivals ? (r[:NumBinaryVariables], r[:NumStructuralConstraints]) :
+            (r[:ReLUSplitCount],)
+        )...,
         r[:SolveStatus],
         r[:WitnessVerified],
     )
 end
 open(ARGS[1], "w") do io
+    counts = all_rivals ? "binaries,constraints" : "split"
     println(
         io,
-        "repeat,algorithm,total_seconds,formulation_seconds,bound_solves,split,status,verified",
+        "repeat,algorithm,total_seconds,formulation_seconds,bound_solves,$counts,status,verified",
     )
+    methods =
+        all_rivals ? (MIPVerify.interval_arithmetic, MIPVerify.target_lp) :
+        (MIPVerify.lp, MIPVerify.mip)
     # Repeat zero warms each method. Reverse the method order for the first measured repeat.
-    for pass in 0:2,
-        alg in (isodd(pass) ? (MIPVerify.mip, MIPVerify.lp) : (MIPVerify.lp, MIPVerify.mip))
-
-        row = trial(nn, x, alg)
+    for pass in 0:2, alg in (isodd(pass) ? reverse(methods) : methods)
+        row = trial(nn, x, alg, all_rivals)
         println(io, join((pass, alg, row...), ","))
         flush(io)
     end

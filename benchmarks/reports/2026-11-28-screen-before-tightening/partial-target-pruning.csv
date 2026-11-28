@@ -1,0 +1,9 @@
+version,repeat,algorithm,total_seconds,formulation_seconds,bound_solves,binaries,constraints,status,verified
+before,1,target_lp,6.610277205,0.4326033,4,155,1406,OPTIMAL,true
+before,1,interval_arithmetic,5.663404966,0.242326108,0,159,1414,TIME_LIMIT,false
+before,2,interval_arithmetic,5.555253698,0.249599203,0,159,1414,TIME_LIMIT,false
+before,2,target_lp,6.842655687,0.312771449,4,155,1406,OPTIMAL,true
+after,1,target_lp,6.371748846,0.251585409,1,155,1406,OPTIMAL,true
+after,1,interval_arithmetic,5.646082567,0.241806828,0,155,1405,TIME_LIMIT,false
+after,2,interval_arithmetic,5.513306786,0.218744954,0,155,1405,TIME_LIMIT,false
+after,2,target_lp,6.911948958,0.314002404,1,155,1406,OPTIMAL,true

@@ -59,6 +59,28 @@ To reproduce, run [the same driver](reuse_bounds.jl) sequentially against each c
 environment on the same CPU. Pass an output CSV path as the only argument. Repeat zero warms the
 method and is excluded from the table.
 
+### Pass the surviving targets to the solver
+
+On WK17a image 480, the backward score-gap bounds ruled out eight of the nine rivals of digit 9.
+Digit 8 remained. We compared rebuilding the original target list (`942d698`) with passing just that
+surviving target to the solver. Both versions used the same backward neuron bounds. The public
+feasibility calls used the same single-threaded solver, CPU, pixel budget and time limits as the
+bound-reuse comparison above. Two timed repeats followed one warm-up for each method.
+
+| Tightening          | Bound solves before → after | Binary variables before → after | Structural constraints before → after | Mean end-to-end time before → after |
+| ------------------- | --------------------------: | ------------------------------: | ------------------------------------: | ----------------------------------: |
+| Interval arithmetic |                       0 → 0 |                       159 → 155 |                         1,414 → 1,405 |                       5.61 → 5.58 s |
+| Target LP           |                       4 → 1 |                       155 → 155 |                         1,406 → 1,406 |                       6.73 → 6.64 s |
+
+Both interval-arithmetic repeats reached the five-second final solve limit under both versions. All
+four Target LP runs found a checked witness. Reusing the target list removed four binary variables
+in interval-arithmetic mode and three bound solves in Target LP on each repeat. The end-to-end
+reductions were 0.5 ± 2.4 percentage points for interval arithmetic and 1.3 ± 8.1 for Target LP. The
+allowances use the larger within-version repeat spread divided by that version’s mean. Neither time
+difference clears repeat variation on this image. To reproduce, run the [driver](reuse_bounds.jl) on
+each checkout with an output CSV path followed by `all-rivals`.
+[Per-call data](partial-target-pruning.csv).
+
 ### Reproduce
 
 We used the [pinned environment](../2026-11-28-public-default/README.md#reproduce) on the same Intel

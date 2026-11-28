@@ -292,7 +292,8 @@ check unless they implement `verify_perturbation_witness`.
     classes. A checked witness meets the requested margin against every non-target on one input.
     When screening settles a case, `:VerificationSource` records `:backward_bound`, `:corner`,
     or `:pgd`, with a `:SolveStatus` and zero `:SolveTime`. Otherwise the JuMP model uses the
-    screen’s hidden bounds. Requested LP or MIP tightening refines the ranges that still cross
+    screen’s hidden bounds and compares the surviving targets against the original non-targets.
+    Requested LP or MIP tightening refines the ranges that still cross
     zero. Per-layer overrides select the tightening method. Set `backward_screen=false` to skip
     the screen. Other objectives and unsupported networks use the solver formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
@@ -405,7 +406,10 @@ function find_adversarial_example(
             if adversarial_example_objective == feasibility
                 # A feasibility objective is solver-independent. Once a feasible point is found,
                 # there is no remaining optimality gap to close.
-                set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
+                remaining_targets =
+                    isnothing(screen) ? d[:TargetIndexes] :
+                    filter(i -> screen.bounds[i] >= margin, screen.targets)
+                set_max_indexes(m, d[:Output], d[:TargetIndexes]; margin, remaining_targets)
                 JuMP.set_objective_sense(m, MathOptInterface.FEASIBILITY_SENSE)
             elseif adversarial_example_objective == closest
                 set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)

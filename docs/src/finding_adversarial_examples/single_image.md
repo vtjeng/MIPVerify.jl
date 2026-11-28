@@ -25,13 +25,17 @@ that target. If every target is eliminated, the result records `:backward_bound`
 checked input meeting the margin is a witness. A corner or gradient-search witness records `:corner`
 or `:pgd`. Each of these results has a `:SolveStatus` and zero `:SolveTime`.
 
-If the check stays open, MIPVerify builds the JuMP model using the chosen tightening algorithm and
-per-layer overrides. Each ReLU starts with the input range established by the backward screen. An
-input range entirely above or below zero fixes the ReLU’s behavior. With `lp` or `mip` tightening,
-the solver tightens ranges that still cross zero. MIP tightening tries the LP relaxation first. With
-`target_lp`, LP solves focus on the remaining target scores. A time limit can leave the answer
-unresolved. Pass `backward_screen=false` to use the solver formulation directly. The default
-objective, `closest`, still minimizes perturbation distance.
+If the check stays open, the solver considers only the surviving targets and compares them with the
+original non-target classes. The result’s `:TargetIndexes` records the caller’s selection. With
+`interval_arithmetic`, the verifier builds the target constraints directly from those survivors. An
+unresolved image still goes to the final MIP solver. MIPVerify builds that model using the chosen
+tightening algorithm and per-layer overrides. Each ReLU starts with the input range established by
+the backward screen. An input range entirely above or below zero fixes the ReLU’s behavior. With
+`lp` or `mip` tightening, the solver tightens ranges that still cross zero. MIP tightening tries the
+LP relaxation first. For a multi-target request with one non-target, `target_lp` checks only the
+surviving score gaps. A time limit can leave the answer unresolved. Pass `backward_screen=false` to
+use the solver formulation directly. The default objective, `closest`, still minimizes perturbation
+distance.
 
 ## Index
 

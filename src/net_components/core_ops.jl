@@ -1129,11 +1129,12 @@ end
 function get_vars_for_max_index(
     xs::Array{<:JuMPLinearType,1},
     target_indexes::Array{<:Integer,1},
+    remaining_targets = target_indexes,
 )::Tuple{JuMPLinearType,Array{<:JuMPLinearType,1}}
 
     @assert length(xs) >= 1
 
-    target_vars = xs[Bool[i ∈ target_indexes for i in 1:length(xs)]]
+    target_vars = xs[Bool[i ∈ remaining_targets for i in 1:length(xs)]]
     nontarget_vars = xs[Bool[i ∉ target_indexes for i in 1:length(xs)]]
 
     maximum_target_var = length(target_vars) == 1 ? target_vars[1] : MIPVerify.maximum(target_vars)
@@ -1179,23 +1180,27 @@ $(SIGNATURES)
 
 Imposes constraints ensuring that one of the elements at the target_indexes is (tied for) the
 largest element of the array x. More specifically, we require `x[j] - x[i] ≥ margin` for
-some `j ∈ target_indexes` and for all `i ∉ target_indexes`.
+some `j ∈ target_indexes` and for all `i ∉ target_indexes`. When prior bounds exclude targets,
+`remaining_targets` is the nonempty subset that can still satisfy the margin. Comparisons always
+use the non-targets from the original selection.
 """
 function set_max_indexes(
     model::Model,
     xs::Array{<:JuMPLinearType,1},
     target_indexes::Array{<:Integer,1};
     margin::Real = 0,
+    remaining_targets = target_indexes,
 )::Nothing
 
     if haskey(model.ext, :MIPVerify) && model.ext[:MIPVerify].tightening_algorithm == target_lp
         nontargets = setdiff(eachindex(xs), target_indexes)
         if length(nontargets) == 1 && length(target_indexes) > 1
-            return constrain_target_margins!(model, xs, target_indexes, only(nontargets), margin)
+            return constrain_target_margins!(model, xs, remaining_targets, only(nontargets), margin)
         end
     end
 
-    (maximum_target_var, nontarget_vars) = get_vars_for_max_index(xs, target_indexes)
+    (maximum_target_var, nontarget_vars) =
+        get_vars_for_max_index(xs, target_indexes, remaining_targets)
 
     # JuMP does not support strict inequalities; see 
     # https://github.com/jump-dev/JuMP.jl/blob/24c0409c5fa5cae6a4ae64b1c82ab5f83d55fbc6/src/macros/%40variable.jl#L516-L523

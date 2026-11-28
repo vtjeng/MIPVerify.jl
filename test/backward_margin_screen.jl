@@ -409,3 +409,47 @@ end
         @test objective_value(model) ≈ -0.25
     end
 end
+
+
+@testset "Partial target pruning in the solver fallback" begin
+    # With t = x - 1/2, class 2 scores zero against non-targets t and -t.
+    # It can beat either one separately, but never both by 1/32 on the same input.
+    # Target 3 scores t - 1/64 and can be eliminated against class 1 immediately.
+    network = MIPVerify.Sequential(
+        [MIPVerify.Linear([1.0 0.0 1.0 -1.0], [-0.5, 0.0, -0.5 - 1/64, 0.5])],
+        "one excluded target, one open target",
+    )
+    result = MIPVerify.BackwardBounds.screen(network, [0.5], [1, 4], [2, 3]; margin = 1/32)
+    @test result.bounds[3] < 1/32 <= result.bounds[2]
+    for algorithm in
+        (MIPVerify.interval_arithmetic, MIPVerify.target_lp, MIPVerify.lp, MIPVerify.mip)
+        d = screened_test_result(
+            network,
+            [0.5],
+            [2, 3];
+            invert_target_selection = false,
+            margin = 1/32,
+            tightening_algorithm = algorithm,
+        )
+        @test d[:TargetIndexes] == [2, 3]
+        @test d[:SolveStatus] == MOI.INFEASIBLE
+        # With one surviving target an affine network needs no binary target selector or bound solves.
+        @test d[:NumBinaryVariables] == d[:BoundSolverCallCount] == 0
+
+        # Target 2 meets the margin exactly against class 1. Treating the excluded target
+        # (score 1/8) as a second reference would falsely make this model infeasible.
+        m = Model(HiGHS.Optimizer)
+        set_silent(m)
+        stats = MIPVerify.VerificationStats()
+        m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm, stats)
+        x = @variable(m, 0 <= x <= 1)
+        scores = [x+0, x+1/4, x+1/8]
+        MIPVerify.set_max_indexes(m, scores, [2, 3]; margin = 1/4, remaining_targets = [2])
+        # Target LP still checks the sole surviving gap in the original multi-target request.
+        @test MIPVerify.summarize_verification_stats(stats)[:BoundSolverCallCount] ==
+              (algorithm == MIPVerify.target_lp ? 1 : 0)
+        @objective(m, Min, x)
+        optimize!(m)
+        @test termination_status(m) == MOI.OPTIMAL
+    end
+end
