@@ -129,7 +129,9 @@ reached the time limit for some samples. Error is over the full MNIST test set o
 Historical benchmark results are tracked on the
 [`benchmark-results`](https://github.com/vtjeng/MIPVerify.jl/tree/benchmark-results) branch, updated
 nightly by CI. [Explore the nightly results](https://vtjeng.github.io/MIPVerify.jl/dev/benchmarks/)
-or read the [benchmark instructions](./benchmarks/README.md).
+or read the [benchmark instructions](./benchmarks/README.md). The
+[interactive verification walkthrough](https://vtjeng.github.io/MIPVerify.jl/dev/walkthrough/) shows
+how the verifier screens rival digits before calling the solver.
 
 ### Negative results
 

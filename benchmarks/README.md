@@ -286,6 +286,11 @@ readers get the shape of the distribution before the numbers.
 
 ## Affine score-gap screening for fixed-radius MNIST verification
 
+Open [the interactive walkthrough](../docs/src/walkthrough/index.html) in a browser from a local
+checkout. It follows a two-pixel example from interval arithmetic through back-substitution and
+Target LP, then traces the measured WK17a and RSL18a results. The page loads its scripts, figures
+and data from the same directory and needs no build step.
+
 The standalone `backward_margin_screen.jl` verifier checks whether any other digit can tie or exceed
 the true label on an allowed perturbation of an MNIST image. Each pixel may change by at most 0.1
 and must remain between 0 and 1. It first computes affine upper bounds on target score minus true
