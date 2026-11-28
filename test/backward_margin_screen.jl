@@ -14,7 +14,15 @@ using MIPVerify.BackwardBounds:
     bounded_fallback_network,
     repair_witness
 
-function screened_test_result(network, input, label; solve_if_predicted_in_targeted = true)
+function screened_test_result(
+    network,
+    input,
+    label;
+    solve_if_predicted_in_targeted = true,
+    margin = 0,
+    tightening_algorithm = MIPVerify.target_lp,
+    invert_target_selection = true,
+)
     # Use the package suite’s platform-default HiGHS scheduler for every model.
     # The small synthetic networks exercise the public feasibility entry point.
     return MIPVerify.find_adversarial_example(
@@ -23,11 +31,12 @@ function screened_test_result(network, input, label; solve_if_predicted_in_targe
         label,
         HiGHS.Optimizer,
         Dict("output_flag" => false, "time_limit" => 120.0);
-        invert_target_selection = true,
+        invert_target_selection,
         pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
         norm_order = Inf,
         adversarial_example_objective = MIPVerify.feasibility,
-        tightening_algorithm = MIPVerify.target_lp,
+        tightening_algorithm,
+        margin,
         tightening_options = Dict("output_flag" => false, "time_limit" => 20.0),
         collect_stats = true,
         solve_if_predicted_in_targeted,
@@ -291,4 +300,156 @@ end
     @test result[:PerturbedInputValue] == [0.1]
     @test result[:PerturbationValue] == result[:PerturbedInputValue]
     @test result[:WitnessMargin] == 0
+end
+
+@testset "Screen the requested margin against every non-target before tightening" begin
+    # At x=0.5 class 1 wins. At x=0.6 class 2 ties class 3, enough for a
+    # zero-margin witness. Class 3 prevents class 2 from ever winning by 1/32.
+    net = MIPVerify.Sequential(
+        [MIPVerify.Linear(reshape([0.0, 1.0, 1.0], 1, 3), [0.55, 0.0, 0.0])],
+        "tied targets",
+    )
+    for algorithm in
+        (MIPVerify.interval_arithmetic, MIPVerify.lp, MIPVerify.mip, MIPVerify.target_lp)
+        for (margin, route) in ((0, :corner), (1//32, :backward_bound))
+            result = screened_test_result(
+                net,
+                [0.5],
+                [2];
+                invert_target_selection = false,
+                margin,
+                tightening_algorithm = algorithm,
+            )
+            @test result[:VerificationSource] == route
+            @test result[:WitnessVerified] == iszero(margin)
+            @test !haskey(result, :Model)
+        end
+    end
+
+    # Class 2 already leads, but its 1/8 lead cannot satisfy a requested 1/4.
+    # The original-input check fails and the screen can still rule it out.
+    leading = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), [0.0, 0.125])], "small lead")
+    result = screened_test_result(
+        leading,
+        [0.5],
+        [2];
+        invert_target_selection = false,
+        solve_if_predicted_in_targeted = false,
+        margin = 0.25,
+    )
+    @test result[:VerificationSource] == :backward_bound
+    @test !result[:WitnessVerified]
+
+    # The target beats each non-target separately at opposite endpoints,
+    # but never both on one input. A positive margin rules out the center tie.
+    cross = MIPVerify.Sequential(
+        [MIPVerify.Linear(reshape([1.0, 0.0, -1.0], 1, 3), [-0.5, 0.0, 0.5])],
+        "different corners",
+    )
+    result = screened_test_result(
+        cross,
+        [0.5],
+        [2];
+        invert_target_selection = false,
+        margin = 1/32,
+        tightening_algorithm = MIPVerify.lp,
+    )
+    @test haskey(result, :Model)
+    @test result[:SolveStatus] == MOI.INFEASIBLE
+    @test !result[:WitnessVerified]
+
+    # Equal non-target scores and binary-exact gap exercise inclusive equality
+    # and a margin one ulp beyond it in the independent witness checker.
+    tied = [AffineStage(sparse(reshape([1.0, 1.0, 1.0], 1, 3)), [0.0, 0.25, 0.0])]
+    for (margin, accepted) in ((0.25, true), (nextfloat(0.25), false))
+        proof = check_witness(tied, [0.5], [1, 3], [0.5], [0.5]; targets = [2], margin)
+        @test (proof != "invalid") == accepted
+    end
+end
+
+@testset "LP and MIP reuse backward ReLU bounds" begin
+    # The first two exact neuron inputs have known signs. The third still crosses zero.
+    # Its LP variable bounds [-1, 1] are weaker than the known range [-1/4, 1/2].
+    for algorithm in (MIPVerify.lp, MIPVerify.mip)
+        model = Model(HiGHS.Optimizer)
+        set_silent(model)
+        stats = MIPVerify.VerificationStats()
+        model.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm, stats)
+        pixels = @variable(model, -1 <= p[1:4] <= 1)
+        # At either integer value of gate the third input lies in [-1/4, 1/2].
+        # Relaxing gate to 1/2 permits both variable endpoints, -1 and 1.
+        gate = @variable(model, binary = true)
+        for slack in (gate, 1-gate)
+            @constraint(model, pixels[3] >= -0.25 - 2slack)
+            @constraint(model, pixels[3] <= 0.5 + 2slack)
+        end
+        @constraint(model, pixels[1] >= 0.125)
+        @constraint(model, pixels[1] <= 0.75)
+        @constraint(model, pixels[2] <= -0.125)
+        # The fourth backward range crosses zero. Only the model proves it is always off.
+        @constraint(model, pixels[4] <= -0.0625)
+        layer = MIPVerify.BackwardBounds.PreboundedReLU(
+            algorithm,
+            [0.125, -1.0, -0.25, -1.0],
+            [0.75, -0.125, 0.5, 0.5],
+        )
+        outputs = layer(pixels)
+        summary = MIPVerify.summarize_verification_stats(stats)
+        @test summary[:ReLUSplitCount] == summary[:ReLULinearInInputCount] == 1
+        @test summary[:ReLUZeroOutputCount] == 2
+        # Each mode runs three LPs. Only the third input still needs two MIP solves.
+        @test summary[:BoundSolverCallCount] == (algorithm == MIPVerify.lp ? 3 : 5)
+        @test MIPVerify.upper_bound(outputs[3]) ≈ 0.5
+        @objective(model, Max, outputs[3])
+        optimize!(model)
+        @test termination_status(model) == MOI.OPTIMAL
+        @test objective_value(model) ≈ 0.5 # The ambiguous unit attains its screened upper bound.
+        @objective(model, Min, pixels[3])
+        optimize!(model)
+        @test objective_value(model) ≈ -0.25
+    end
+end
+
+
+@testset "Partial target pruning in the solver fallback" begin
+    # With t = x - 1/2, class 2 scores zero against non-targets t and -t.
+    # It can beat either one separately, but never both by 1/32 on the same input.
+    # Target 3 scores t - 1/64 and can be eliminated against class 1 immediately.
+    network = MIPVerify.Sequential(
+        [MIPVerify.Linear([1.0 0.0 1.0 -1.0], [-0.5, 0.0, -0.5 - 1/64, 0.5])],
+        "one excluded target, one open target",
+    )
+    result = MIPVerify.BackwardBounds.screen(network, [0.5], [1, 4], [2, 3]; margin = 1/32)
+    @test result.bounds[3] < 1/32 <= result.bounds[2]
+    for algorithm in
+        (MIPVerify.interval_arithmetic, MIPVerify.target_lp, MIPVerify.lp, MIPVerify.mip)
+        d = screened_test_result(
+            network,
+            [0.5],
+            [2, 3];
+            invert_target_selection = false,
+            margin = 1/32,
+            tightening_algorithm = algorithm,
+        )
+        @test d[:TargetIndexes] == [2, 3]
+        @test d[:SolveStatus] == MOI.INFEASIBLE
+        # With one surviving target an affine network needs no binary target selector or bound solves.
+        @test d[:NumBinaryVariables] == d[:BoundSolverCallCount] == 0
+
+        # Target 2 meets the margin exactly against class 1. Treating the excluded target
+        # (score 1/8) as a second reference would falsely make this model infeasible.
+        m = Model(HiGHS.Optimizer)
+        set_silent(m)
+        stats = MIPVerify.VerificationStats()
+        m.ext[:MIPVerify] = MIPVerify.MIPVerifyExt(algorithm, stats)
+        x = @variable(m, 0 <= x <= 1)
+        scores = [x+0, x+1/4, x+1/8]
+        MIPVerify.set_max_indexes(m, scores, [2, 3]; margin = 1/4, remaining_targets = [2])
+        # Target LP still checks the sole surviving gap in the original multi-target request.
+        @test MIPVerify.summarize_verification_stats(stats)[:BoundSolverCallCount] ==
+              (algorithm == MIPVerify.target_lp ? 1 : 0)
+        @objective(m, Min, x)
+        optimize!(m)
+        @test termination_status(m) == MOI.OPTIMAL
+    end
 end

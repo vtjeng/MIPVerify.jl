@@ -64,7 +64,10 @@ using MIPVerify
         ],
         "custom tightening",
     )
-    @test BB.screen(custom_relu, [0.5], 1, [2]) === nothing
+    screened_custom = BB.screen(custom_relu, [0.5], 1, [2])
+    @test screened_custom !== nothing
+    @test BB.bounded_fallback_network(custom_relu, screened_custom.hidden).layers[2].tightening_algorithm ==
+          MIPVerify.lp
     # Built-in MNIST networks explicitly request interval arithmetic at the first ReLU.
     # This matches the first stage of the backward screen exactly.
     first_interval = MIPVerify.Sequential(
@@ -76,7 +79,7 @@ using MIPVerify
         "first-layer interval override",
     )
     @test BB.screen(first_interval, [0.5], 1, [2]) !== nothing
-    # A later interval override would bypass backward tightening at that layer.
+    # A later interval override reuses the known ranges without asking for solver tightening.
     later_interval = MIPVerify.Sequential(
         [
             MIPVerify.Linear(ones(1, 1), [-0.5]),
@@ -87,7 +90,10 @@ using MIPVerify
         ],
         "later-layer interval override",
     )
-    @test BB.screen(later_interval, [0.5], 1, [2]) === nothing
+    screened_later = BB.screen(later_interval, [0.5], 1, [2])
+    @test screened_later !== nothing
+    @test BB.bounded_fallback_network(later_interval, screened_later.hidden).layers[4].tightening_algorithm ==
+          MIPVerify.interval_arithmetic
     # Asymmetric shape, padding, stride and flatten order exercise convolution compilation.
     image = reshape(collect(1.0:12.0) ./ 12, 1, 3, 4, 1)
     for padding in (MIPVerify.SamePadding(), MIPVerify.ValidPadding(), (1, 0, 2, 0))

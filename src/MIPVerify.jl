@@ -171,10 +171,17 @@ end
 
 # A screen-only feasibility result has a mathematical termination status but no optimizer or
 # JuMP model. Keep the original-input shortcut distinguishable by leaving its status absent.
-function screen_feasibility!(d, nn, input, pp, norm_order, non_target)
-    screen = BackwardBounds.screen(nn, input, non_target, d[:TargetIndexes]; radius = pp.norm_bound)
+function screen_feasibility!(d, nn, input, pp, norm_order, non_targets, margin)
+    screen = BackwardBounds.screen(
+        nn,
+        input,
+        non_targets,
+        d[:TargetIndexes];
+        radius = pp.norm_bound,
+        margin,
+    )
     isnothing(screen) && return nothing
-    if maximum(screen.bounds) < 0
+    if maximum(screen.bounds) < margin
         d[:VerificationSource] = :backward_bound
         d[:SolveStatus] = MathOptInterface.INFEASIBLE
         d[:PrimalStatus] = MathOptInterface.NO_SOLUTION
@@ -182,7 +189,7 @@ function screen_feasibility!(d, nn, input, pp, norm_order, non_target)
     else
         checked = BackwardBounds.search_checked_witness(screen, input)
         isnothing(checked) && return screen
-        record_witness!(d, nn, input, checked.witness, pp, 0.0)
+        record_witness!(d, nn, input, checked.witness, pp, margin)
         if !d[:WitnessVerified]
             record_no_witness!(d)
             return screen
@@ -278,15 +285,17 @@ check unless they implement `verify_perturbation_witness`.
     upper bounds on each target logit minus the non-target logit to eliminate impossible targets.
     Other target selections and the `worst` objective use interval bounds without this screening.
   - `mip` solves the full `mip` formulation.
-- `backward_screen`: Defaults to `true`. For zero-margin `feasibility` with `target_lp`,
-    a finite Float64 L-infinity pixel budget, and one non-target class, the verifier first bounds
-    each target's score minus the non-target score. It supports Float64 pixels and sequential
-    Conv2d or Linear layers alternating with ReLUs. On these networks it can return a
-    certificate or a checked corner or gradient-search witness before building a
-    model. These results record `:VerificationSource` (`:backward_bound`, `:corner`, or `:pgd`),
-    `:SolveStatus`, and zero `:SolveTime`. Open cases use Target LP and the requested MIP solver
-    with the computed hidden bounds. Other objectives and unsupported networks follow the usual
-    solver path. Set `backward_screen=false` for the Target LP baseline.
+- `backward_screen`: Defaults to `true`. For fixed-budget `feasibility`, first try backward bounds
+    and checked candidate inputs, with any `tightening_algorithm`. The screen supports sequential
+    Conv2d/Linear and ReLU networks, Float64 pixels, a finite Float64 L-infinity budget, and
+    finite integer, rational or floating-point margins. It tests each target against the non-target
+    classes. A checked witness meets the requested margin against every non-target on one input.
+    When screening settles a case, `:VerificationSource` records `:backward_bound`, `:corner`,
+    or `:pgd`, with a `:SolveStatus` and zero `:SolveTime`. Otherwise the JuMP model uses the
+    screen’s hidden bounds and compares the surviving targets against the original non-targets.
+    Requested LP or MIP tightening refines the ranges that still cross
+    zero. Per-layer overrides select the tightening method. Set `backward_screen=false` to skip
+    the screen. Other objectives and unsupported networks use the solver formulation.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the
     `tightening_algorithm` is `lp`, `mip`, or `target_lp` (no solver is used when `interval_arithmetic` is used
@@ -363,24 +372,23 @@ function find_adversarial_example(
         screen = nothing
         if backward_screen &&
            !skip_solve &&
-           !(predicted_index in d[:TargetIndexes]) &&
+           (!solve_if_predicted_in_targeted || !(predicted_index in d[:TargetIndexes])) &&
            adversarial_example_objective == feasibility &&
-           tightening_algorithm == target_lp &&
            pp isa LInfNormBoundedPerturbationFamily &&
            pp.norm_bound isa Float64 &&
            isfinite(pp.norm_bound) &&
-           iszero(margin)
+           margin isa Union{Integer,AbstractFloat,Rational} &&
+           isfinite(margin)
             non_targets = setdiff(eachindex(predicted_output), d[:TargetIndexes])
-            if length(non_targets) == 1
-                screen = screen_feasibility!(d, nn, input, pp, norm_order, only(non_targets))
-            end
+            screen = screen_feasibility!(d, nn, input, pp, norm_order, non_targets, margin)
         end
         if skip_solve
             d[:WitnessDistance] = zero(float(norm_order))
         elseif !haskey(d, :SolveStatus)
             formulation_start = time_ns()
             model_network =
-                isnothing(screen) ? nn : BackwardBounds.bounded_fallback_network(nn, screen.hidden)
+                isnothing(screen) ? nn :
+                BackwardBounds.bounded_fallback_network(nn, screen.hidden, tightening_algorithm)
             merge!(
                 d,
                 get_model(
@@ -398,7 +406,10 @@ function find_adversarial_example(
             if adversarial_example_objective == feasibility
                 # A feasibility objective is solver-independent. Once a feasible point is found,
                 # there is no remaining optimality gap to close.
-                set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)
+                remaining_targets =
+                    isnothing(screen) ? d[:TargetIndexes] :
+                    filter(i -> screen.bounds[i] >= margin, screen.targets)
+                set_max_indexes(m, d[:Output], d[:TargetIndexes]; margin, remaining_targets)
                 JuMP.set_objective_sense(m, MathOptInterface.FEASIBILITY_SENSE)
             elseif adversarial_example_objective == closest
                 set_max_indexes(m, d[:Output], d[:TargetIndexes], margin = margin)

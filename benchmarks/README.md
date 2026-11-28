@@ -311,8 +311,9 @@ Target LP, then traces the measured WK17a and RSL18a results. The page loads its
 and data from the same directory and needs no build step.
 
 The public `find_adversarial_example` API enables backward score-gap screening by default for
-zero-margin feasibility checks with Target LP and a bounded L-infinity pixel box. It first computes
-an affine upper bound on each rival's score minus the true score. Positive coefficients use an upper
+feasibility checks on supported networks with a bounded L-infinity pixel box, before the chosen
+solver tightening. The measured benchmark uses zero margin and Target LP. It first computes an
+affine upper bound on each rival's score minus the true score. Positive coefficients use an upper
 ReLU line. Negative coefficients use an adaptive lower line. It checks the maximizing pixel corner
 for each open rival and then tries targeted projected gradient descent (PGD). Cases still open reach
 Target LP and the MIP solver with the computed hidden-neuron bounds.
