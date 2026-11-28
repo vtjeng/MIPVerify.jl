@@ -1,7 +1,7 @@
 # Check the affine corner before PGD
 
 This historical experiment used the
-[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/corner_search.jl).
+[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/478a7599d3926bbd23d9232f00b8dbd0043e61a2/benchmarks/reports/corner_search.jl).
 Check out that revision to reproduce it.
 
 We measured witness search on every image left open by the two affine screens in the

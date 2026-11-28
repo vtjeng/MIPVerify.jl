@@ -1,7 +1,7 @@
 # Check the forward parallelogram's pixel corner before PGD
 
 This historical experiment used the
-[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/second_corner.jl).
+[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/03480855f689d7ce6edd17fc512124a22a6a0522/benchmarks/reports/second_corner.jl).
 Check out that revision to reproduce it.
 
 On WK17a, a second set of corner checks found seven adversarial examples after every backward corner

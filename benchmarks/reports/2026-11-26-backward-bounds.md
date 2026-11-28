@@ -8,8 +8,8 @@ change exists, the image is robust.
 
 **Backward score-gap screening** reduced total verification time from 29.5 minutes with Target LP to
 7.4 minutes (75.1%). Removing the ten images with the largest savings still left a 75.8% reduction.
-Target LP resolved 1,997 images on its first pass. The screen resolved all 2,000 on each pass, with
-1,874 robustness certificates and 126 adversarial examples.
+Target LP resolved 1,997 images on its first pass. The screened verifier resolved all 2,000 on each
+pass, with 1,874 robustness certificates and 126 adversarial examples.
 
 ## How backward score-gap screening works
 
@@ -161,9 +161,10 @@ Among all 2,000 image pairs, the backward verifier used fewer bound LPs on 761, 
 
 On RSL18a, a classifier with one hidden layer of 500 ReLUs, backward score-gap screening reduced
 verification time by **24.5%**, from **120.7 to 91.2 minutes** on the first 100 MNIST test images.
-Both methods ran twice with the same 0.1 pixel budget and 120-second final solve limit. Repeat
-totals differed by at most 0.32%. Removing the five largest per-image savings left a 17.5%
-reduction.
+On a Google Cloud N2-standard-96 host, 48 workers ran concurrently, one per physical Intel Xeon
+core. The totals sum per-image times under that load. Both methods ran twice with the same 0.1 pixel
+budget and 120-second final solve limit. Repeat totals differed by at most 0.32%. Removing the five
+largest per-image savings left a 17.5% reduction.
 
 Most of the saving came from 16 images where the search found an adversarial example. Target LP
 spent 28.5 minutes on these images in total. The screen spent 1.2 seconds. Backward bounds directly
@@ -185,15 +186,23 @@ to the 49 fallback MIPs.
 
 ## Measurement and reproduction
 
-Each image ran twice under each method on the same physical core, with the order reversed across
-cores. HiGHS used one thread, with 20 seconds for each bound LP and 120 seconds for the final solve.
-Setup and warm-up were recorded separately. Times sum the per-image means. The Target LP runs took
-1,790.8 and 1,753.0 seconds. The backward verifier took 464.1 and 418.5 seconds. The larger
-difference between repeats of the same method was 9.8%. Resampling complete image pairs gave a 95%
-interval of 65.4–84.1% for the reduction. The separate comparison of bound reuse ran once per
-setting on a dedicated physical core.
+For WK17a, four workers processed the paired runs on separate physical cores. Each image ran twice
+under each method on the same core, with the order reversed across cores. HiGHS used one thread,
+with 20 seconds for each bound LP and 120 seconds for the final solve. Setup and warm-up were
+recorded separately. Times sum the per-image means. The Target LP runs took 1,790.8 and 1,753.0
+seconds. The backward verifier took 464.1 and 418.5 seconds. The larger difference between repeats
+of the same method was 9.8%. Resampling complete image pairs gave a 95% interval of 65.4–84.1% for
+the reduction. The separate comparison of bound reuse ran once per setting on a dedicated physical
+core.
 
-From the repository root, run the standalone WK17a verifier with the benchmark environment:
+These timings precede the corner check. The WK17a run used
+[the PGD-first verifier at `5617f91`](https://github.com/vtjeng/MIPVerify.jl/commit/5617f917679c8cd761c635372be986c8b4105610).
+The RSL18a run used
+[the revision supporting input flattening](https://github.com/vtjeng/MIPVerify.jl/commit/ce20d25915988c3ddc929c8e5cd82778ee099e9f).
+The [later end-to-end comparison](2026-11-27-full-verifier.md) measures the version that checks a
+corner before PGD.
+
+To run the standalone WK17a verifier from the checked-out revision:
 
 ```sh
 OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
