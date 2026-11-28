@@ -84,6 +84,10 @@ const groups = {
       "Inputs whose original prediction was already in the target set.",
     ],
   ],
+  "Screen results": [
+    ["num_screen_certified", "Certified before the solver", "Inputs certified by backward bounds before building a solver model."],
+    ["num_screen_witness", "Witness found before the solver", "Checked adversarial examples found by corner checks or PGD before building a solver model."],
+  ],
   "Verification outcomes": [
     [
       "num_certified_no_adversarial_example",
@@ -164,6 +168,10 @@ const dateFormat = new Intl.DateTimeFormat("en-GB", {
 const dateLabel = (day) => dateFormat.format(new Date(day + "T00:00:00Z"));
 const numberFormat = new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 });
 const objective = (row) => row.adversarial_example_objective || "closest";
+const screenSetting = (row) => {
+  const setting = String(row.backward_screen);
+  return setting === "true" ? "Enabled" : setting === "false" ? "Disabled" : null;
+};
 const valueOf = (row, key) => {
   const value = row[key];
   return value != null && value !== "" && Number.isFinite(Number(value)) ? Number(value) : null;
@@ -247,6 +255,7 @@ function inspect() {
   const stats = [
     [metrics.get(key).label, readout(row, key)],
     ["Objective", objective(row)],
+    ["Backward screening", screenSetting(row) || "Unavailable"],
     ["Julia version", row.julia_version || "Unavailable"],
     ["Outcome schema", row.semantic_outcome_schema_version || "Unversioned"],
   ];
@@ -335,6 +344,7 @@ function render(resetSelection = false) {
       readout(row, key) +
         " · " +
         objective(row) +
+        (screenSetting(row) ? " · screening " + screenSetting(row).toLowerCase() : "") +
         (prs ? "<br>" + prs.map((pr) => "#" + pr.number).join(", ") : ""),
     );
     if (value !== null) count++;
@@ -356,6 +366,8 @@ function render(resetSelection = false) {
     const previous = history[i - 1];
     const changes = [];
     if (objective(row) !== objective(previous)) changes.push("Objective");
+    if (screenSetting(row) && screenSetting(previous) && screenSetting(row) !== screenSetting(previous))
+      changes.push("Screening");
     if (
       row.tightening_algorithm &&
       previous.tightening_algorithm &&
@@ -379,6 +391,7 @@ function render(resetSelection = false) {
       yref: "paper",
       text: changes.join(" + ") + " changed",
       yanchor: "bottom",
+      xanchor: utcDay(row.date) >= (windowStart + windowEnd) / 2 ? "right" : "left",
       showarrow: false,
       font: { size: 12, color: "#52665e" },
     });

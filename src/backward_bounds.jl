@@ -1,12 +1,8 @@
-# WK17a fixed-radius feasibility verifier using affine bounds on score differences.
-using MIPVerify
+module BackwardBounds
+
+import ..MIPVerify
 using SparseArrays
 using Random
-using CSV, HiGHS, JuMP
-if !isdefined(@__MODULE__, :BenchmarkHelpers)
-    include("BenchmarkHelpers.jl")
-end
-using .BenchmarkHelpers
 
 # WK17a alternates affine layers and ReLUs. Convolutions have few input
 # connections per output pixel. Store a column per output so backward
@@ -18,7 +14,9 @@ end
 
 function affine_stage(p::MIPVerify.Conv2d, ids)
     n, h, w, channels = size(ids)
-    fh, fw, _, outputs = size(p.filter)
+    fh, fw, inputs, outputs = size(p.filter)
+    inputs == channels ||
+        throw(DimensionMismatch("convolution channel count does not match its filter"))
     (oh, ow), (dy, dx) = MIPVerify.compute_output_parameters(h, w, fh, fw, p.stride, p.padding)
     out = LinearIndices((n, oh, ow, outputs))
     rows, cols, weights = Int[], Int[], Float64[]
@@ -42,11 +40,13 @@ function affine_stage(p::MIPVerify.Conv2d, ids)
 end
 
 function affine_stage(p::MIPVerify.Linear, ids)
+    size(p.matrix, 1) == length(ids) ||
+        throw(DimensionMismatch("linear input size does not match its weights"))
     return AffineStage(sparse(Float64.(p.matrix[invperm(vec(ids)), :])), Float64.(p.bias)),
     size(p.bias)
 end
 
-function compile_stages(nn, shape)
+function compile_stages(nn::MIPVerify.Sequential, shape)
     !isempty(nn.layers) || throw(ArgumentError("network must have affine layers"))
     stages = AffineStage[]
     ids = reshape(1:prod(shape), shape)
@@ -59,19 +59,34 @@ function compile_stages(nn, shape)
             flattened = true
             ids = p(collect(ids))
         elseif p isa MIPVerify.ReLU
-            expect_relu || error("Expected affine layer before ReLU")
+            # The first hidden layer is already bounded by interval arithmetic.
+            # Later overrides can change tightening and must retain their solver path.
+            permitted_override =
+                length(stages) == 1 && p.tightening_algorithm == MIPVerify.interval_arithmetic
+            p.tightening_algorithm === nothing ||
+                permitted_override ||
+                throw(
+                    ArgumentError(
+                        "this ReLU tightening override requires the ordinary solver path",
+                    ),
+                )
+            expect_relu || throw(ArgumentError("Expected affine layer before ReLU"))
             expect_relu = false
         else
-            expect_relu && error("Adjacent affine layers require different input bounds")
+            expect_relu &&
+                throw(ArgumentError("Adjacent affine layers require different input bounds"))
             p isa Union{MIPVerify.Conv2d,MIPVerify.Linear} ||
                 throw(ArgumentError("only Conv2d, Linear, ReLU, and Flatten layers are supported"))
+            values = p isa MIPVerify.Linear ? (p.matrix, p.bias) : (p.filter, p.bias)
+            all(v -> eltype(v) <: Union{Float32,Float64} && all(isfinite, v), values) ||
+                throw(ArgumentError("affine parameters must be finite Float32 or Float64 values"))
             stage, shape = affine_stage(p, ids)
             push!(stages, stage)
             ids = reshape(1:prod(shape), shape)
             expect_relu = true
         end
     end
-    expect_relu || error("Expected a final affine layer")
+    expect_relu || throw(ArgumentError("Expected a final affine layer"))
     return stages
 end
 
@@ -185,15 +200,17 @@ Return preactivation bounds for each hidden layer and the enclosing input box.
 
 Start with forward interval arithmetic. For later layers, tighten each unit by
 propagating its positive and negative objectives back to the input box, using
-only the bounds already established for earlier layers. The pixel radius is 0.1.
+only the bounds already established for earlier layers.
 """
-function hidden_bounds(stages, x)
+function hidden_bounds(stages, x; radius::Float64 = 0.1)
     all(v -> isfinite(v) && 0 <= v <= 1, x) ||
         throw(ArgumentError("input pixels must be finite values in [0, 1]"))
+    isfinite(radius) && radius >= 0 || throw(ArgumentError("radius must be finite and nonnegative"))
+    radius = min(radius, 1.0)
     # The center, decimal radius and endpoint arithmetic each contribute at
     # most one ulp at unit scale on [0,1]. Widen by four before clipping.
-    input_lo = max.(0.0, vec(x) .- 0.1 .- 4eps())
-    input_hi = min.(1.0, vec(x) .+ 0.1 .+ 4eps())
+    input_lo = max.(0.0, vec(x) .- radius .- 4eps())
+    input_hi = min.(1.0, vec(x) .+ radius .+ 4eps())
     lo, hi = input_lo, input_hi
     hidden = Tuple{Vector{Float64},Vector{Float64}}[]
     for (k, stage) in enumerate(stages[1:(end-1)])
@@ -233,9 +250,28 @@ end
 
 (p::PreboundedReLU)(x::Array{<:Real}) = MIPVerify.relu(x)
 function (p::PreboundedReLU)(x::Array{<:MIPVerify.JuMPLinearType})
-    return map(x, reshape(p.lower, size(x)), reshape(p.upper, size(x))) do value, lo, hi
-        MIPVerify.relu(value, lo, hi)
-    end
+    stats = MIPVerify.get_verification_stats(x)
+    layer = MIPVerify.begin_relu_layer!(stats, size(x), MIPVerify.interval_arithmetic)
+    layer !== nothing && (layer.tightening_algorithm = "backward")
+    bounds_start = time_ns()
+    bounds =
+        MIPVerify.consistent_relu_bounds.(x, reshape(p.lower, size(x)), reshape(p.upper, size(x)))
+    lower, upper = first.(bounds), last.(bounds)
+    bounds_time = MIPVerify.elapsed_seconds(bounds_start)
+    constraints_start = time_ns()
+    output = MIPVerify.relu.(x, lower, upper)
+    phases = MIPVerify.get_relu_type.(lower, upper)
+    MIPVerify.finish_relu_layer!(
+        stats,
+        layer,
+        bounds_time,
+        MIPVerify.elapsed_seconds(constraints_start),
+        count(==(MIPVerify.zero_output), phases),
+        count(==(MIPVerify.linear_in_input), phases),
+        count(==(MIPVerify.constant_output), phases),
+        count(==(MIPVerify.split), phases),
+    )
+    return output
 end
 
 function bounded_fallback_network(nn, hidden)
@@ -269,21 +305,23 @@ function confirms_witness(stages, z, y, j)
     return lo[j] > hi[y]
 end
 
-# Float64 endpoints rounded into the exact radius-1/10 box. MNIST centers
-# also retain their original byte/255 interpretation. These endpoints constrain
-# proposed witnesses only; the certification and MIP domains are untouched.
-function compute_witness_box(x)
+# Historical MNIST measurements used exact radius 1/10 and both stored and byte/255
+# centers. Public witness validation can set decimal_radius=false to match its
+# Float64 perturbation family exactly. These inward endpoints constrain witnesses only.
+function compute_witness_box(x; radius::Float64 = 0.1, decimal_radius::Bool = true)
     Q = Rational{BigInt}
+    isfinite(radius) && radius >= 0 || throw(ArgumentError("radius must be finite and nonnegative"))
+    exact_radius = decimal_radius && radius == 0.1 ? Q(1//10) : Q(radius)
     pixels = vec(x)
     bytes = round.(Int, 255 .* pixels)
     byte_centers = all(pixels .== bytes ./ 255)
     lower, upper = zeros(length(pixels)), zeros(length(pixels))
     for i in eachindex(pixels)
         center = Q(pixels[i])
-        l, u = max(Q(0), center - 1//10), min(Q(1), center + 1//10)
-        if byte_centers
+        l, u = max(Q(0), center - exact_radius), min(Q(1), center + exact_radius)
+        if byte_centers && decimal_radius && radius == 0.1
             original = Q(bytes[i]) / 255
-            l, u = max(l, original - 1//10), min(u, original + 1//10)
+            l, u = max(l, original - exact_radius), min(u, original + exact_radius)
         end
         lower[i], upper[i] = Float64(l), Float64(u)
         Q(lower[i]) < l && (lower[i] = nextfloat(lower[i]))
@@ -295,14 +333,16 @@ end
 # MNIST reuses the same 256 centers. Compute their exact inward rounding once.
 const BYTE_WITNESS_LOWER, BYTE_WITNESS_UPPER = compute_witness_box(collect(0:255) ./ 255)
 
-function witness_box(x)
+function witness_box(x; radius::Float64 = 0.1, decimal_radius::Bool = true)
     pixels = vec(x)
     bytes = round.(Int, 255 .* pixels)
-    if all(i -> 0 <= bytes[i] <= 255 && pixels[i] == bytes[i] / 255, eachindex(pixels))
+    if decimal_radius &&
+       radius == 0.1 &&
+       all(i -> 0 <= bytes[i] <= 255 && pixels[i] == bytes[i] / 255, eachindex(pixels))
         indices = bytes .+ 1
         return BYTE_WITNESS_LOWER[indices], BYTE_WITNESS_UPPER[indices]
     end
-    return compute_witness_box(x)
+    return compute_witness_box(x; radius, decimal_radius)
 end
 
 function exact_scores(stages, z)
@@ -317,7 +357,14 @@ end
 
 # Accept equality when the interval endpoints prove it. Overlapping intervals
 # require exact evaluation unless every target is already ruled out.
-function check_witness(stages, z, y, lower, upper)
+function check_witness(
+    stages,
+    z,
+    y,
+    lower,
+    upper;
+    targets = setdiff(eachindex(stages[end].bias), y),
+)
     length(z) == length(lower) || return "invalid"
     all(isfinite, z) && all(lower .<= z .<= upper) || return "invalid"
     lo = hi = z
@@ -327,7 +374,6 @@ function check_witness(stages, z, y, lower, upper)
             lo, hi = max.(lo, 0), max.(hi, 0)
         end
     end
-    targets = setdiff(eachindex(lo), y)
     any(lo[j] >= hi[y] for j in targets) && return "outward_interval"
     all(hi[j] < lo[y] for j in targets) && return "invalid"
     scores = exact_scores(stages, z)
@@ -337,16 +383,23 @@ end
 # A solver point can miss the exact box or output constraint by its feasibility
 # tolerance. Clip into the exact box, then try nearby projected gradient steps.
 # Every returned point is independently checked; search failure proves nothing.
-function repair_witness(stages, x, proposed, y)
+function repair_witness(
+    stages,
+    x,
+    proposed,
+    y;
+    radius::Float64 = 0.1,
+    decimal_radius::Bool = true,
+    targets = setdiff(eachindex(stages[end].bias), y),
+)
     proposed === nothing && return nothing
     length(proposed) == length(x) && all(isfinite, proposed) || return nothing
-    lower, upper = witness_box(x)
+    lower, upper = witness_box(x; radius, decimal_radius)
     z = clamp.(vec(proposed), lower, upper)
-    proof = check_witness(stages, z, y, lower, upper)
+    proof = check_witness(stages, z, y, lower, upper; targets)
     proof != "invalid" && return (witness = reshape(z, size(x)), proof = proof)
     for step in (1e-9, 1e-7, 1e-5, 1e-3, 0.02)
         act = forward(stages, z)
-        targets = setdiff(eachindex(act[end]), y)
         target = targets[argmax(act[end][targets])]
         gradient = zeros(length(act[end]))
         gradient[target], gradient[y] = 1, -1
@@ -355,7 +408,7 @@ function repair_witness(stages, x, proposed, y)
             k > 1 && (gradient[act[k] .<= 0] .= 0)
         end
         trial = clamp.(z + step * sign.(gradient), lower, upper)
-        proof = check_witness(stages, trial, y, lower, upper)
+        proof = check_witness(stages, trial, y, lower, upper; targets)
         proof != "invalid" && return (witness = reshape(trial, size(x)), proof = proof)
         current = act[end][target] - act[end][y]
         scores = last(forward(stages, trial))
@@ -366,10 +419,13 @@ function repair_witness(stages, x, proposed, y)
     return nothing
 end
 
-function find_box_witness(stages, x, y, bounds)
-    # Shrink the witness box by the same rounding allowance.
-    lo = max.(0.0, vec(x) .- 0.1 .+ 4eps())
-    hi = min.(1.0, vec(x) .+ 0.1 .- 4eps())
+function find_box_witness(stages, x, y, bounds; radius::Float64 = 0.1, decimal_radius::Bool = true)
+    # Retain the historical starts at radius .1; other radii use exact inward endpoints.
+    lo, hi = if decimal_radius && radius == 0.1
+        max.(0.0, vec(x) .- radius .+ 4eps()), min.(1.0, vec(x) .+ radius .- 4eps())
+    else
+        witness_box(x; radius, decimal_radius)
+    end
     rng = MersenneTwister(1)
     for j in sortperm(bounds, rev = true)
         bounds[j] < 0 && continue
@@ -398,12 +454,21 @@ function find_box_witness(stages, x, y, bounds)
 end
 
 # Check the maximizing corner of each open rival before running PGD.
-function search_checked_witness(stages, x, y, bounds, corners)
-    lower, upper = witness_box(x)
+function search_checked_witness(
+    stages,
+    x,
+    y,
+    bounds,
+    corners;
+    radius::Float64 = 0.1,
+    decimal_radius::Bool = true,
+    targets = setdiff(eachindex(bounds), y),
+)
+    lower, upper = witness_box(x; radius, decimal_radius)
     for target in sortperm(bounds; rev = true)
         bounds[target] < 0 && break
         point = ifelse.(corners[target], upper, lower)
-        proof = check_witness(stages, point, y, lower, upper)
+        proof = check_witness(stages, point, y, lower, upper; targets)
         if proof != "invalid"
             return (
                 witness = reshape(point, size(x)),
@@ -413,134 +478,92 @@ function search_checked_witness(stages, x, y, bounds, corners)
             )
         end
     end
-    proposed = find_box_witness(stages, x, y, bounds)
-    checked = repair_witness(stages, x, proposed, y)
+    proposed = find_box_witness(stages, x, y, bounds; radius, decimal_radius)
+    checked = repair_witness(stages, x, proposed, y; radius, decimal_radius, targets)
     checked === nothing && return nothing
     return (; checked..., source = "ascent", repaired = vec(checked.witness) != vec(proposed))
 end
 
-function verify_image(nn, stages, x, y; prebound_fallback = true)
-    1 <= y <= length(stages[end].bias) || throw(ArgumentError("true label is out of range"))
+
+"""
+    screen(nn, input, true_label, targets; radius=0.1)
+
+Compute affine upper bounds for the requested target scores minus `true_label`.
+Return `nothing` when the network or numeric representation is unsupported. Supported
+networks alternate finite Float32/Float64 Conv2d/Linear and ReLU layers, optionally flattening
+once before an affine layer. Pixels must be Float64 values in [0, 1].
+
+The result retains the hidden bounds and corner choices for witness search or a later
+solver model. Only requested targets appear in `bounds`; other entries are `-Inf`.
+"""
+function screen(nn, input, true_label, targets; radius = 0.1)
+    nn isa MIPVerify.Sequential && input isa Array{Float64} && radius isa Float64 || return nothing
+    isfinite(radius) && radius >= 0 && all(v -> isfinite(v) && 0 <= v <= 1, input) || return nothing
+    stages = try
+        compile_stages(nn, size(input))
+    catch error
+        error isa Union{ArgumentError,DimensionMismatch,BoundsError,AssertionError} || rethrow()
+        return nothing
+    end
+    count = length(stages[end].bias)
+    true_label isa Integer && 1 <= true_label <= count || return nothing
+    selected = collect(targets)
+    all(j -> j isa Integer && 1 <= j <= count && j != true_label, selected) || return nothing
+    selected = unique(Int.(selected))
+    isempty(selected) && return nothing
+    hidden, input_lower, input_upper = hidden_bounds(stages, input; radius)
+    all(pair -> all(isfinite, pair[1]) && all(isfinite, pair[2]), hidden) || return nothing
     corners = Dict{Int,BitVector}()
-    hidden, lo, hi = hidden_bounds(stages, x)
-    bounds = margin_bounds(stages, y, hidden, lo, hi, corners)
-    worst_margin = maximum(bounds)
-    if worst_margin < 0
-        return (
-            solve_status = "NO_SOLVER",
-            semantic_outcome = "certified_no_adversarial_example",
-            source = "backward",
-            witness = nothing,
-            witness_verification = "none",
-            witness_repaired = false,
-            margin_upper = worst_margin,
-            main_solve_wall_time_seconds = 0.0,
-            bound_solver_call_count = 0,
-        )
+    bounds = fill(-Inf, count)
+    for target in selected
+        bounds[target] =
+            margin_upper(stages, hidden, input_lower, input_upper, true_label, target, corners)
     end
-    checked = search_checked_witness(stages, x, y, bounds, corners)
-    if checked !== nothing
-        return (
-            solve_status = "NO_SOLVER",
-            semantic_outcome = "adversarial_example_found_or_best_known",
-            source = checked.source,
-            witness = checked.witness,
-            witness_verification = checked.proof,
-            witness_repaired = checked.repaired,
-            margin_upper = worst_margin,
-            main_solve_wall_time_seconds = 0.0,
-            bound_solver_call_count = 0,
-        )
-    end
-    opts = Dict("threads" => 1, "output_flag" => false, "time_limit" => 120.0)
-    bt = Dict("threads" => 1, "output_flag" => false, "time_limit" => 20.0)
-    fallback = prebound_fallback ? bounded_fallback_network(nn, hidden) : nn
-    d = MIPVerify.find_adversarial_example(
-        fallback,
-        x,
-        y,
-        HiGHS.Optimizer,
-        opts;
-        invert_target_selection = true,
-        pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
-        norm_order = Inf,
-        tightening_algorithm = MIPVerify.target_lp,
-        tightening_options = bt,
-        solve_if_predicted_in_targeted = false,
-        collect_stats = true,
-        adversarial_example_objective = MIPVerify.feasibility,
-    )
-    status = string(get(d, :SolveStatus, "SKIPPED_PREDICTED_IN_TARGETED"))
-    proposed = get(d, :PerturbedInputValue, nothing)
-    checked = repair_witness(stages, x, proposed, y)
-    outcome = if checked !== nothing
-        "adversarial_example_found_or_best_known"
-    elseif proposed !== nothing
-        "witness_verification_failed"
-    else
-        classify_semantic_outcome(status, false, false)
-    end
-    return (
-        solve_status = status,
-        semantic_outcome = outcome,
-        source = "MIP",
-        witness = checked === nothing ? nothing : checked.witness,
-        witness_verification = checked === nothing ? "none" : checked.proof,
-        witness_repaired = checked !== nothing && vec(checked.witness) != vec(proposed),
-        margin_upper = worst_margin,
-        main_solve_wall_time_seconds = Float64(get(d, :MainSolveWallTime, 0.0)),
-        bound_solver_call_count = Int(get(d, :BoundSolverCallCount, 0)),
-    )
-end
-
-function benchmark(args)
-    options = parse_args(args)
-    prebound_fallback = parse(Bool, get(options, "prebound-fallback", "true"))
-    output = abspath(options["out"])
-    mkpath(output)
-    samples = parse_sample_spec(get(options, "samples", "1:100"))
-    network_name = get(options, "network", "MNIST.WK17a_linf0.1_authors")
-    nn = MIPVerify.get_example_network_params(network_name)
-    test = MIPVerify.read_datasets("MNIST").test
-    setup = @elapsed stages = compile_stages(nn, size(MIPVerify.get_image(test, 1)))
-    # Keep compilation separate from the per-image cost. Report setup and
-    # warm-up costs so a caller can include either in a one-off comparison.
-    warm = @elapsed verify_image(
-        nn,
+    all(j -> isfinite(bounds[j]), selected) || return nothing
+    return (;
         stages,
-        MIPVerify.get_image(test, 2001),
-        MIPVerify.get_label(test, 2001)+1;
-        prebound_fallback = prebound_fallback,
+        hidden,
+        input_lower,
+        input_upper,
+        bounds,
+        corners,
+        true_label,
+        targets = selected,
+        radius,
     )
-    rows = NamedTuple[]
-    for i in samples
-        x, y = MIPVerify.get_image(test, i), MIPVerify.get_label(test, i)+1
-        t = @elapsed result = verify_image(nn, stages, x, y; prebound_fallback = prebound_fallback)
-        push!(
-            rows,
-            (
-                sample_index = i,
-                network = nn.UUID,
-                solve_status = result.solve_status,
-                adversarial_example_objective = "feasibility",
-                semantic_outcome = result.semantic_outcome,
-                source = result.source,
-                witness_verification = result.witness_verification,
-                witness_repaired = result.witness_repaired,
-                total_time_seconds = t,
-                margin_upper = result.margin_upper,
-                main_solve_wall_time_seconds = result.main_solve_wall_time_seconds,
-                bound_solver_call_count = result.bound_solver_call_count,
-                perturbed_input_value = result.witness === nothing ? "" :
-                                        join(vec(result.witness), ';'),
-            ),
-        )
-    end
-    CSV.write(joinpath(output, "benchmark_per_sample.csv"), rows)
-    CSV.write(joinpath(output, "setup.csv"), [(setup_seconds = setup, warmup_seconds = warm)])
 end
 
-if abspath(PROGRAM_FILE) == @__FILE__
-    MIPVerify.set_log_level!("warn")
-    benchmark(ARGS)
+search_checked_witness(result::NamedTuple, input) = search_checked_witness(
+    result.stages,
+    input,
+    result.true_label,
+    result.bounds,
+    result.corners;
+    radius = result.radius,
+    targets = result.targets,
+)
+
+function repair_witness(result::NamedTuple, input, proposed)
+    # Keep already checked historical candidates unchanged. Only a failed repair
+    # needs the public API's exact Float64 perturbation-box endpoints.
+    checked = repair_witness(
+        result.stages,
+        input,
+        proposed,
+        result.true_label;
+        radius = result.radius,
+        targets = result.targets,
+    )
+    checked !== nothing && return checked
+    return repair_witness(
+        result.stages,
+        input,
+        proposed,
+        result.true_label;
+        radius = result.radius,
+        decimal_radius = false,
+        targets = result.targets,
+    )
 end
+
+end # module BackwardBounds

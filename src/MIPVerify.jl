@@ -47,6 +47,7 @@ include("net_components.jl")
 include("models.jl")
 include("utils.jl")
 include("logging.jl")
+include("backward_bounds.jl")
 
 function get_max_index(x::Array{<:Real,1})::Integer
     return findmax(x)[2]
@@ -168,6 +169,37 @@ function record_witness!(
     return nothing
 end
 
+# A screen-only feasibility result has a mathematical termination status but no optimizer or
+# JuMP model. Keep the original-input shortcut distinguishable by leaving its status absent.
+function screen_feasibility!(d, nn, input, pp, norm_order, non_target)
+    screen = BackwardBounds.screen(nn, input, non_target, d[:TargetIndexes]; radius = pp.norm_bound)
+    isnothing(screen) && return nothing
+    if maximum(screen.bounds) < 0
+        d[:VerificationSource] = :backward_bound
+        d[:SolveStatus] = MathOptInterface.INFEASIBLE
+        d[:PrimalStatus] = MathOptInterface.NO_SOLUTION
+        d[:ObjectiveValue] = d[:ObjectiveBound] = NaN
+    else
+        checked = BackwardBounds.search_checked_witness(screen, input)
+        isnothing(checked) && return screen
+        record_witness!(d, nn, input, checked.witness, pp, 0.0)
+        if !d[:WitnessVerified]
+            record_no_witness!(d)
+            return screen
+        end
+        d[:VerificationSource] = checked.source == "corner" ? :corner : :pgd
+        d[:SolveStatus] = MathOptInterface.OPTIMAL
+        d[:PrimalStatus] = MathOptInterface.FEASIBLE_POINT
+        d[:ObjectiveValue] = d[:ObjectiveBound] = 0.0
+        d[:PerturbationValue] = checked.witness - input
+        d[:WitnessDistance] = get_norm(norm_order, d[:PerturbationValue])
+    end
+    d[:PerturbationFamily] = pp
+    d[:TighteningApproach] = "backward_bound"
+    d[:SolveTime] = 0.0
+    return screen
+end
+
 function get_default_tightening_options(optimizer)::Dict
     optimizer_type_name = string(typeof(optimizer()))
     if optimizer_type_name == "Gurobi.Optimizer"
@@ -246,6 +278,15 @@ check unless they implement `verify_perturbation_witness`.
     upper bounds on each target logit minus the non-target logit to eliminate impossible targets.
     Other target selections and the `worst` objective use interval bounds without this screening.
   - `mip` solves the full `mip` formulation.
+- `backward_screen`: Defaults to `true`. For zero-margin `feasibility` with `target_lp`,
+    a finite Float64 L-infinity pixel budget, and one non-target class, the verifier first bounds
+    each target's score minus the non-target score. It supports Float64 pixels and sequential
+    Conv2d or Linear layers alternating with ReLUs. On these networks it can return a
+    certificate or a checked corner or gradient-search witness before building a
+    model. These results record `:VerificationSource` (`:backward_bound`, `:corner`, or `:pgd`),
+    `:SolveStatus`, and zero `:SolveTime`. Open cases use Target LP and the requested MIP solver
+    with the computed hidden bounds. Other objectives and unsupported networks follow the usual
+    solver path. Set `backward_screen=false` for the Target LP baseline.
 - `tightening_options`: Solver-specific options passed to optimizer when used to determine upper
     and lower bounds for input to nonlinear units. Note that these are only used if the
     `tightening_algorithm` is `lp`, `mip`, or `target_lp` (no solver is used when `interval_arithmetic` is used
@@ -262,8 +303,7 @@ check unless they implement `verify_perturbation_witness`.
     (by at least `margin`) than any non-target category. 
 - `collect_stats`: Defaults to `false`. If `true`, records formulation structure, progressive bound
     tightening work, ReLU stability, and main-solver work in the returned dictionary. The
-    statistics keys are absent when no model is built (that is, when the predicted index is in
-    `target_selection` and `solve_if_predicted_in_targeted` is `false`).
+    statistics keys are absent when a screen or original-input check finishes without building a model.
 """
 function find_adversarial_example(
     nn::NeuralNet,
@@ -278,6 +318,7 @@ function find_adversarial_example(
     tightening_algorithm::TighteningAlgorithm = DEFAULT_TIGHTENING_ALGORITHM,
     tightening_options::Dict = get_default_tightening_options(optimizer),
     solve_if_predicted_in_targeted = true,
+    backward_screen::Bool = true,
     margin::Real = 0.0,
     collect_stats::Bool = false,
 )::Dict
@@ -319,14 +360,31 @@ function find_adversarial_example(
             skip_solve = d[:WitnessVerified]
             skip_solve || record_no_witness!(d)
         end
+        screen = nothing
+        if backward_screen &&
+           !skip_solve &&
+           !(predicted_index in d[:TargetIndexes]) &&
+           adversarial_example_objective == feasibility &&
+           tightening_algorithm == target_lp &&
+           pp isa LInfNormBoundedPerturbationFamily &&
+           pp.norm_bound isa Float64 &&
+           isfinite(pp.norm_bound) &&
+           iszero(margin)
+            non_targets = setdiff(eachindex(predicted_output), d[:TargetIndexes])
+            if length(non_targets) == 1
+                screen = screen_feasibility!(d, nn, input, pp, norm_order, only(non_targets))
+            end
+        end
         if skip_solve
             d[:WitnessDistance] = zero(float(norm_order))
-        else
+        elseif !haskey(d, :SolveStatus)
             formulation_start = time_ns()
+            model_network =
+                isnothing(screen) ? nn : BackwardBounds.bounded_fallback_network(nn, screen.hidden)
             merge!(
                 d,
                 get_model(
-                    nn,
+                    model_network,
                     input,
                     pp,
                     optimizer,
@@ -393,7 +451,29 @@ function find_adversarial_example(
             d[:SolveTime] = JuMP.solve_time(m)
             if d[:PrimalStatus] == MathOptInterface.FEASIBLE_POINT
                 perturbed_input = JuMP.value.(d[:PerturbedInput])
+                checked =
+                    isnothing(screen) ? nothing :
+                    BackwardBounds.repair_witness(screen, input, perturbed_input)
+                if !isnothing(checked)
+                    perturbed_input = checked.witness
+                    d[:PerturbationValue] = perturbed_input - input
+                end
                 record_witness!(d, nn, input, perturbed_input, pp, margin)
+                if !isnothing(screen) && isnothing(checked)
+                    # If the raw point is inside the checked box, repair tested its scores
+                    # directly before trying other points. Otherwise its coordinates failed.
+                    lo, hi = BackwardBounds.witness_box(
+                        input;
+                        radius = screen.radius,
+                        decimal_radius = false,
+                    )
+                    if all(lo .<= vec(perturbed_input) .<= hi)
+                        d[:WitnessTargetVerified] = false
+                    else
+                        d[:WitnessPerturbationVerified] = false
+                    end
+                    d[:WitnessVerified] = false
+                end
                 d[:WitnessDistance] = get_norm(norm_order, perturbed_input - input)
                 if !d[:WitnessVerified]
                     Memento.warn(

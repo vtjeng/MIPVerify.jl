@@ -120,21 +120,23 @@ Across their recorded observations, the repository’s original LP runs independ
 same 1,874 images.
 [Original LP records](https://github.com/vtjeng/MIPVerify.jl/tree/dcdd36d12449a82a2a07c3cd4c1bfbb32d623e84/pairs/2026-11-25-wk17a-target-lp/runs)
 
-In the prototype, four MIP-returned inputs exceeded the exact pixel budget by about 3.3 × 10⁻¹⁷. On
-image 952 the target score also fell about 4.7 × 10⁻¹³ below the true score. The solver accepted
-those differences within tolerance. Only proposed pixel coordinates are rounded inward. After
-clipping, exact evaluation confirmed the inputs for images 212, 480 and 1193. Image 952 required one
-projected gradient step of size 10⁻⁹. In this benchmark, independent exact replay accepted all 252
-returned inputs across both passes, including all eight from the MIP.
+In the earlier run before strict witness validation, four MIP-returned inputs exceeded the exact
+pixel budget by about 3.3 × 10⁻¹⁷. On image 952 the target score also fell about 4.7 × 10⁻¹³ below
+the true score. The solver accepted those differences within tolerance. Only proposed pixel
+coordinates are rounded inward. After clipping, exact evaluation confirmed the inputs for images
+212, 480 and 1193. Image 952 required one projected gradient step of size 10⁻⁹. In this benchmark,
+independent exact replay accepted all 252 returned inputs across both passes, including all eight
+from the MIP.
 [Exact replay of the timed inputs](https://github.com/vtjeng/MIPVerify.jl/tree/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/audit)
 
 ## Per-image results
 
-The plots label the screen “Backward bounds.” A ratio below 1 favors the screen. Ratios use images
-with positive Target LP cost for the measure. The median per-image end-to-end time ratio was 0.14.
-The screen was faster by more than 1% on 1,935 images, slower by more than 1% on 64, and within 1%
-on 1. The slower group includes all 49 images that Target LP skipped because the network already
-misclassified them.
+The five plots compare the PGD-first verifier at `5617f91` with Target LP at `8e1d435`, using the
+archived paired measurements. They label the screened verifier “Backward bounds.” A ratio below 1
+favors that verifier. Ratios use images with positive Target LP cost for the measure. The median
+per-image end-to-end time ratio was 0.14. The screen was faster by more than 1% on 1,935 images,
+slower by more than 1% on 64, and within 1% on 1. The slower group includes all 49 images that
+Target LP skipped because the network already misclassified them.
 
 ![Paired cost ratios](https://raw.githubusercontent.com/vtjeng/MIPVerify.jl/53e17cf8b642e4976d325d432048c87174d8d310/pairs/2026-11-26-wk17a-verified-backward-bounds/plots/ratio_ecdf.png)
 

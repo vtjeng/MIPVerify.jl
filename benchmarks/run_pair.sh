@@ -10,6 +10,7 @@
 #     [--samples 1:100] [--tightening target_lp] [--main-time-limit 120] [--norm-order Inf] \
 #     [--base-objective feasibility|closest] \
 #     [--candidate-objective feasibility|closest] \
+#     [--base-backward-screen true|false] [--candidate-backward-screen true|false] \
 #     [--base-label ...] [--candidate-label ...]
 #
 # Produces <out>/base, <out>/candidate (benchmark outputs) and <out>/analysis (plots + tables).
@@ -21,6 +22,7 @@ REPO="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)"
 BASE=""; CAND=""; OUT=""
 SAMPLES="1:100"; TIGHTENING="target_lp"; MAIN_TL="120"; NORM="Inf"
 BASE_OBJECTIVE=""; CAND_OBJECTIVE=""; BASE_LABEL=""; CAND_LABEL=""
+BASE_SCREEN=""; CAND_SCREEN=""
 while [ $# -gt 0 ]; do
     case "$1" in
         --base) BASE="$2"; shift 2;;
@@ -32,6 +34,8 @@ while [ $# -gt 0 ]; do
         --norm-order) NORM="$2"; shift 2;;
         --base-objective) BASE_OBJECTIVE="$2"; shift 2;;
         --candidate-objective) CAND_OBJECTIVE="$2"; shift 2;;
+        --base-backward-screen) BASE_SCREEN="$2"; shift 2;;
+        --candidate-backward-screen) CAND_SCREEN="$2"; shift 2;;
         --base-label) BASE_LABEL="$2"; shift 2;;
         --candidate-label) CAND_LABEL="$2"; shift 2;;
         *) echo "unknown argument: $1" >&2; exit 2;;
@@ -52,6 +56,12 @@ validate_objective() {
 }
 validate_objective "$BASE_OBJECTIVE"
 validate_objective "$CAND_OBJECTIVE"
+for screen in "$BASE_SCREEN" "$CAND_SCREEN"; do
+    case "$screen" in
+        ""|true|false) ;;
+        *) echo "invalid backward-screen setting: $screen" >&2; exit 2;;
+    esac
+done
 
 BASE_LABEL="${BASE_LABEL:-base $BASE}"
 CAND_LABEL="${CAND_LABEL:-candidate $CAND}"
@@ -67,10 +77,14 @@ cleanup() {
 trap cleanup EXIT
 
 run_side() {
-    local name="$1" sha="$2" objective="$3"
+    local name="$1" sha="$2" objective="$3" screen="$4"
     local objective_args=()
     if [ -n "$objective" ]; then
         objective_args=(--objective "$objective")
+    fi
+    local screen_args=()
+    if [ -n "$screen" ]; then
+        screen_args=(--backward-screen "$screen")
     fi
     local wt; wt="$(mktemp -d)"; WORKTREES+=("$wt")
     echo "[$name @ $sha] add worktree + instantiate pinned benchmarks env"
@@ -88,11 +102,11 @@ run_side() {
     ( cd "$wt" && julia --project=benchmarks benchmarks/benchmark_wk17a_first100.jl \
         --out "$OUT/$name" --samples "$SAMPLES" --tightening "$TIGHTENING" \
         --main-time-limit "$MAIN_TL" --norm-order "$NORM" --log-level warn \
-        "${objective_args[@]}" )
+        "${objective_args[@]}" "${screen_args[@]}" )
 }
 
-run_side base "$BASE" "$BASE_OBJECTIVE"
-run_side candidate "$CAND" "$CAND_OBJECTIVE"
+run_side base "$BASE" "$BASE_OBJECTIVE" "$BASE_SCREEN"
+run_side candidate "$CAND" "$CAND_OBJECTIVE" "$CAND_SCREEN"
 
 echo "analyzing pair -> $OUT/analysis"
 ( cd "$SCRIPT_DIR/analysis" && uv run analyze_pair.py \

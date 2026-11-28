@@ -13,6 +13,7 @@ using MIPVerify: get_image, get_label
     TestHelpers.reset_timer!()
     set_log_level!("warn")
 
+    include("backward_bounds.jl")
     include("integration.jl")
     include("net_components.jl")
     include("utils.jl")

@@ -41,6 +41,7 @@ def daily_rows(archive):
                 record[key] = float(value)
             elif key in (
                 "adversarial_example_objective",
+                "backward_screen",
                 "tightening_algorithm",
                 "julia_version",
                 "benchmark_schema_version",

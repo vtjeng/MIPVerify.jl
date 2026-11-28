@@ -1,5 +1,38 @@
 using Test
-include(joinpath(@__DIR__, "..", "backward_margin_screen.jl"))
+using MIPVerify, SparseArrays, Random, HiGHS, JuMP
+using MIPVerify.BackwardBounds:
+    AffineStage,
+    forward,
+    confirms_witness,
+    witness_box,
+    compute_witness_box,
+    check_witness,
+    exact_scores,
+    compile_stages,
+    hidden_bounds,
+    margin_bounds,
+    bounded_fallback_network,
+    repair_witness
+
+function screened_test_result(network, input, label; solve_if_predicted_in_targeted = true)
+    # One solver thread matches the fallback model tests in this process. The
+    # small synthetic networks exercise the same public feasibility entry point.
+    return MIPVerify.find_adversarial_example(
+        network,
+        input,
+        label,
+        HiGHS.Optimizer,
+        Dict("threads" => 1, "output_flag" => false, "time_limit" => 120.0);
+        invert_target_selection = true,
+        pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
+        norm_order = Inf,
+        adversarial_example_objective = MIPVerify.feasibility,
+        tightening_algorithm = MIPVerify.target_lp,
+        tightening_options = Dict("threads" => 1, "output_flag" => false, "time_limit" => 20.0),
+        collect_stats = true,
+        solve_if_predicted_in_targeted,
+    )
+end
 
 # Enumerate exact line segments for a one-dimensional ReLU network. On each
 # segment every logit is affine, so its maximum margin occurs at an endpoint.
@@ -114,45 +147,52 @@ end
 end
 
 @testset "Verification routes and solver counters" begin
-    # Constant scores [1, 0] certify the true first class immediately; reversed
-    # scores make the unperturbed center a strictly adversarial input.
-    for (bias, source, outcome) in [
-        ([1.0, 0.0], "backward", "certified_no_adversarial_example"),
-        ([0.0, 1.0], "corner", "adversarial_example_found_or_best_known"),
+    # Constant scores certify the first class. A rival score x - 0.55 loses
+    # at the center but wins at the upper corner of the radius-0.1 box.
+    for (weights, bias, source, status, witness) in [
+        (zeros(1, 2), [1.0, 0.0], :backward_bound, MOI.INFEASIBLE, false),
+        (reshape([0.0, 1.0], 1, 2), [0.0, -0.55], :corner, MOI.OPTIMAL, true),
     ]
-        network = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), bias)], "constant scores")
+        network = MIPVerify.Sequential([MIPVerify.Linear(weights, bias)], "screen routes")
         center = [0.5] # Interior point gives a nonempty radius-0.1 box.
-        stages = compile_stages(network, size(center))
-        result = verify_image(network, stages, center, 1)
-        @test result.source == source
-        @test result.semantic_outcome == outcome
-        @test result.solve_status == "NO_SOLVER"
-        @test result.main_solve_wall_time_seconds == 0
-        @test result.bound_solver_call_count == 0
-        @test (result.witness !== nothing) == (source == "corner")
+        result = screened_test_result(network, center, 1)
+        @test result[:VerificationSource] == source
+        @test result[:SolveStatus] == status
+        @test result[:SolveTime] == 0
+        @test !haskey(result, :Model)
+        @test !haskey(result, :BoundSolverCallCount)
+        @test result[:WitnessVerified] == witness
     end
+    # The original-input shortcut retains its status-free result, even when
+    # screening is enabled. Class 2 already wins without perturbing the input.
+    wrong = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), [0.0, 1.0])], "clean error")
+    original = screened_test_result(wrong, [0.5], 1; solve_if_predicted_in_targeted = false)
+    @test !haskey(original, :Model)
+    @test !haskey(original, :SolveStatus)
+    @test !haskey(original, :VerificationSource)
+    @test original[:WitnessVerified]
+    @test original[:PerturbedInputValue] == [0.5]
     # Identical constant scores attain a tie at the corner.
     tied = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), zeros(2))], "tied scores")
-    result = verify_image(tied, compile_stages(tied, (1,)), [0.5], 1)
-    @test result.source == "corner"
-    @test result.solve_status == "NO_SOLVER"
-    @test result.semantic_outcome == "adversarial_example_found_or_best_known"
-    @test result.witness !== nothing
-    @test result.main_solve_wall_time_seconds >= 0
-    # The rival's margin peaks at the center (0.05 - abs(x - 0.5)).
-    # Both corners lose, so the PGD fallback must still find the center.
+    result = screened_test_result(tied, [0.5], 1)
+    @test result[:VerificationSource] == :corner
+    @test result[:SolveStatus] == MOI.OPTIMAL
+    @test result[:WitnessVerified]
+    @test result[:SolveTime] == 0
+    # The rival's margin peaks inside the box at x=0.53. Both corners and
+    # the original input lose, so the public entry point reaches PGD.
     peak = MIPVerify.Sequential(
         [
-            MIPVerify.Linear(reshape([1.0, -1.0], 1, 2), [-0.5, 0.5]),
+            MIPVerify.Linear(reshape([1.0, -1.0], 1, 2), [-0.53, 0.53]),
             MIPVerify.ReLU(),
-            MIPVerify.Linear([0.0 -1.0; 0.0 -1.0], [0.0, 0.05]),
+            MIPVerify.Linear([0.0 -1.0; 0.0 -1.0], [0.0, 0.02]),
         ],
         "interior witness",
     )
-    result = verify_image(peak, compile_stages(peak, (1,)), [0.5], 1)
-    @test result.source == "ascent"
-    @test result.witness == [0.5]
-
+    result = screened_test_result(peak, [0.5], 1)
+    @test result[:VerificationSource] == :pgd
+    @test result[:WitnessVerified]
+    @test peak(result[:PerturbedInputValue])[2] > peak(result[:PerturbedInputValue])[1]
 end
 
 @testset "Strict witness validation and repair" begin
@@ -212,12 +252,13 @@ end
         [MIPVerify.Linear(reshape([1.0, 0.0], 1, 2), zeros(2))],
         "endpoint tie",
     )
-    result = verify_image(network, compile_stages(network, (1,)), [0.05], 1)
-    @test result.source == "corner"
-    @test result.solve_status == "NO_SOLVER"
-    @test result.semantic_outcome == "adversarial_example_found_or_best_known"
-    @test result.witness[1] == 0
-    @test result.witness_verification == "exact_rational"
+    result = screened_test_result(network, [0.05], 1)
+    @test result[:VerificationSource] == :corner
+    @test result[:SolveStatus] == MOI.OPTIMAL
+    @test result[:WitnessVerified]
+    @test result[:PerturbedInputValue][1] == 0
+    @test check_witness(compile_stages(network, (1,)), [0.0], 1, witness_box([0.05])...) ==
+          "exact_rational"
 end
 
 @testset "An optimal solver status does not verify a witness" begin
@@ -232,15 +273,14 @@ end
         ],
         "near-tie duplicate rectifiers",
     )
-    result = verify_image(network, compile_stages(network, (1,)), [0.5], 1)
-    @test result.source == "MIP"
-    @test result.witness === nothing
-    @test result.witness_verification == "none"
-    @test result.semantic_outcome in
-          ("witness_verification_failed", "certified_no_adversarial_example")
+    result = screened_test_result(network, [0.5], 1)
+    @test haskey(result, :Model)
+    @test !result[:WitnessVerified]
+    @test result[:SolveStatus] in (MOI.OPTIMAL, MOI.INFEASIBLE)
     # A solver may establish infeasibility exactly enough to reject this model.
     # If it accepts a primal point, preserve OPTIMAL but reject that point.
-    if result.solve_status == "OPTIMAL"
-        @test result.semantic_outcome == "witness_verification_failed"
+    if result[:SolveStatus] == MOI.OPTIMAL
+        @test result[:WitnessAvailable]
+        @test !result[:WitnessTargetVerified]
     end
 end

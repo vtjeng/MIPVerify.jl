@@ -6,7 +6,9 @@ using JuMP
 using MIPVerify
 using Statistics
 
-include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
+if !isdefined(@__MODULE__, :BenchmarkHelpers)
+    include(joinpath(@__DIR__, "BenchmarkHelpers.jl"))
+end
 using .BenchmarkHelpers
 
 function get_optimizer_main_and_tightening_options(main_time_limit::Float64)
@@ -181,6 +183,57 @@ function collect_instrumentation_fields(d::Dict, stats::MIPVerify.VerificationSt
     return fields
 end
 
+# A result without a JuMP model can be a screen certificate, a search witness,
+# or the original-input skip. Keep its termination evidence and route separate
+# from an actual optimizer status in the benchmark CSV.
+function benchmark_result_fields(d::Dict)
+    solver_backed = haskey(d, :Model)
+    screened =
+        !solver_backed && get(d, :VerificationSource, :none) in (:backward_bound, :corner, :pgd)
+    verification_status = string(get(d, :SolveStatus, "SKIPPED_PREDICTED_IN_TARGETED"))
+    status = screened ? "NO_SOLVER" : verification_status
+    source = string(get(d, :VerificationSource, solver_backed ? :mip : :predicted_input))
+    if solver_backed
+        objective_value = try
+            Float64(JuMP.objective_value(d[:Model]))
+        catch
+            missing
+        end
+        objective_bound = try
+            Float64(JuMP.objective_bound(d[:Model]))
+        catch
+            missing
+        end
+    else
+        objective_value = get(d, :ObjectiveValue, screened ? missing : 0.0)
+        objective_bound = get(d, :ObjectiveBound, screened ? missing : 0.0)
+    end
+    objective_value =
+        ismissing(objective_value) || isnan(objective_value) ? missing : objective_value
+    objective_bound =
+        ismissing(objective_bound) || isnan(objective_bound) ? missing : objective_bound
+    semantic_outcome = classify_semantic_outcome(
+        verification_status,
+        Bool(d[:WitnessAvailable]),
+        Bool(d[:WitnessVerified]),
+    )
+    return (;
+        solve_status = status,
+        verification_status,
+        verification_source = source,
+        semantic_outcome,
+        objective_value,
+        objective_bound,
+    )
+end
+
+function model_free_instrumentation_fields()
+    return merge(
+        missing_instrumentation_fields(),
+        (main_solve_wall_time_seconds = 0.0, bound_solver_call_count = 0),
+    )
+end
+
 function main()
     args = parse_args(ARGS)
     allowed_arguments = Set([
@@ -191,6 +244,7 @@ function main()
         "norm-order",
         "objective",
         "log-level",
+        "backward-screen",
     ])
     unknown_arguments = sort!(collect(setdiff(keys(args), allowed_arguments)))
     isempty(unknown_arguments) || error(
@@ -221,6 +275,7 @@ function main()
     tightening_algorithm =
         haskey(args, "tightening") ? parse_tightening_algorithm(args["tightening"]) :
         MIPVerify.DEFAULT_TIGHTENING_ALGORITHM
+    backward_screen = parse(Bool, get(args, "backward-screen", "true"))
     main_time_limit = parse(Float64, get(args, "main-time-limit", "120"))
     norm_order = maybe_parse_norm_order(get(args, "norm-order", "Inf"))
     objective_name = parse_benchmark_objective(get(args, "objective", "feasibility"))
@@ -290,6 +345,7 @@ function main()
             tightening_options = tightening_options,
             solve_if_predicted_in_targeted = false,
             collect_stats = true,
+            backward_screen = backward_screen,
             adversarial_example_objective = adversarial_example_objective,
         )
 
@@ -309,17 +365,6 @@ function main()
 
         if haskey(d, :Model)
             m = d[:Model]
-            status = string(d[:SolveStatus])
-            objective_value = try
-                Float64(JuMP.objective_value(m))
-            catch
-                missing
-            end
-            objective_bound = try
-                Float64(JuMP.objective_bound(m))
-            catch
-                missing
-            end
             stats = MIPVerify.get_verification_stats(m)
             stats === nothing && error("collect_stats=true returned no verification statistics")
             validate_instrumentation(stats)
@@ -400,21 +445,14 @@ function main()
                 )
             end
         else
-            status = "SKIPPED_PREDICTED_IN_TARGETED"
-            # The unperturbed input is already misclassified, so it is a zero-distance
-            # adversarial example even though model construction and solving are skipped.
-            objective_value = 0.0
-            objective_bound = 0.0
-            instrumentation_fields = missing_instrumentation_fields()
+            instrumentation_fields = model_free_instrumentation_fields()
         end
-        semantic_outcome = classify_semantic_outcome(status, witness_available, witness_verified)
+        result_fields = benchmark_result_fields(d)
         push!(
             sample_rows,
             merge(
                 (
                     sample_index = sample_index,
-                    solve_status = status,
-                    semantic_outcome = semantic_outcome,
                     adversarial_example_objective = string(result_objective),
                     witness_available = witness_available,
                     witness_target_verified = witness_target_verified,
@@ -424,10 +462,9 @@ function main()
                     witness_output = witness_output,
                     perturbed_input_value = perturbed_input_value,
                     total_time_seconds = Float64(d[:TotalTime]),
-                    solve_time_seconds = haskey(d, :Model) ? Float64(d[:SolveTime]) : 0.0,
-                    objective_value = objective_value,
-                    objective_bound = objective_bound,
+                    solve_time_seconds = Float64(get(d, :SolveTime, 0.0)),
                 ),
+                result_fields,
                 instrumentation_fields,
             ),
         )
@@ -509,6 +546,21 @@ function main()
         ],
         num_witness_verified = [count(identity, witness_verified_values)],
         num_missing_objective_value = [sum(ismissing.(objective_values))],
+        num_screen_certified = [
+            count(
+                row ->
+                    row.solve_status == "NO_SOLVER" &&
+                    row.semantic_outcome == "certified_no_adversarial_example",
+                eachrow(per_sample),
+            ),
+        ],
+        num_screen_witness = [
+            count(
+                row -> row.solve_status == "NO_SOLVER" && row.witness_verified,
+                eachrow(per_sample),
+            ),
+        ],
+        backward_screen = [backward_screen],
         adversarial_example_objective = [objective_name],
         tightening_algorithm = [string(tightening_algorithm)],
         norm_order = [string(norm_order)],
@@ -547,4 +599,6 @@ function main()
     println("Wrote metrics to $metrics_path")
 end
 
-main()
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end

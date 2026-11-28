@@ -250,4 +250,64 @@ TestHelpers.@timed_testset "integration.jl" begin
             @test length(result_files) == 1
         end
     end
+    @testset "feasibility batches persist screened and solver results" begin
+        # Both entry points must forward the switch. The same two samples exercise a certificate
+        # and a checked corner witness when screening is enabled, and MIP results when disabled.
+        for targeted in (false, true), screening in (true, false)
+            mktempdir() do dir
+                attack =
+                    targeted ? MIPVerify.batch_find_targeted_attack :
+                    MIPVerify.batch_find_untargeted_attack
+                target_options = targeted ? (; target_labels = [target_class]) : (;)
+                options = (
+                    pp = pp,
+                    norm_order = Inf,
+                    tightening_algorithm = MIPVerify.target_lp,
+                    tightening_options = TestHelpers.get_tightening_options(),
+                    adversarial_example_objective = MIPVerify.feasibility,
+                    backward_screen = screening,
+                    save_path = dir,
+                )
+                samples = [robust_sample, attackable_sample]
+                attack(
+                    nn,
+                    dataset,
+                    samples,
+                    TestHelpers.get_optimizer(),
+                    TestHelpers.get_main_solve_options();
+                    options...,
+                    target_options...,
+                )
+                main_path, summary, files = read_batch_output(dir)
+                @test length(files) == length(samples)
+                @test summary.SampleNumber == samples
+                @test summary.WitnessVerified == [false, true]
+                for sample in samples
+                    row = summary[row_for_sample(summary, sample), :]
+                    result = MIPVerify.matread(joinpath(main_path, row.ResultRelativePath))
+                    @test result["SolveStatus"] == row.SolveStatus
+                    if screening
+                        @test row.SolveTime == 0.0
+                        @test result["VerificationSource"] ==
+                              (sample == robust_sample ? "backward_bound" : "corner")
+                    end
+                end
+                # Both completed verdicts leave the unresolved queue, so a resumed batch appends
+                # no duplicate rows under either entry point's ambiguity-resolution policy.
+                attack(
+                    nn,
+                    dataset,
+                    samples,
+                    TestHelpers.get_optimizer(),
+                    TestHelpers.get_main_solve_options();
+                    options...,
+                    target_options...,
+                    solve_rerun_option = MIPVerify.resolve_ambiguous_cases,
+                )
+                _, resumed, resumed_files = read_batch_output(dir)
+                @test nrow(resumed) == nrow(summary)
+                @test resumed_files == files
+            end
+        end
+    end
 end
