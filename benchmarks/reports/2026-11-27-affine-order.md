@@ -1,5 +1,9 @@
 # Which affine screen should run first?
 
+This historical experiment used the
+[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/affine_screen_order.jl).
+Check out that revision to reproduce it.
+
 The benchmark verifier now applies the adaptive lower line first and adds forward parallelograms
 only for rivals that remain open. Both orders certify the same images when each rival retains its
 smaller upper bound. The order changes how often the second pass runs and how much the screen costs.
@@ -25,6 +29,7 @@ from zero as the negative endpoint, and the zero edge otherwise. The forward alt
 a shared error variable per crossing ReLU and subtracts the resulting logit expressions before
 maximizing.
 
-[Per-image measurements](2026-11-27-affine-order.csv.gz) · [Replay driver](affine_screen_order.jl).
+[Per-image measurements](2026-11-27-affine-order.csv.gz) ·
+[Replay driver](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/affine_screen_order.jl).
 Run the driver with the benchmarks project, the output filename, and the worker index and count. Use
 index and count 1 for a single worker.

@@ -291,15 +291,11 @@ the true label on an allowed perturbation of an MNIST image. Each pixel may chan
 and must remain between 0 and 1. It first computes affine upper bounds on target score minus true
 score by working backward with an adaptive lower line. A negative coefficient uses the diagonal
 lower line if the positive endpoint is at least as far from zero as the negative endpoint, and the
-horizontal lower line otherwise. Positive coefficients use the upper chord on crossing ReLUs. For
-rivals still open, the verifier carries parallelograms forward and subtracts the two logit
-expressions on the same pixel and error variables. Each rival retains its tighter bound. The
-verifier checks the backward plane’s maximizing pixel corner for each surviving rival, highest bound
-first. If those corners miss, it checks the maximizing pixel endpoints from the forward forms. The
-extra ReLU error variables contribute to the bound but do not represent image pixels. It validates
-each candidate against the actual network and the exact pixel budget. If every corner fails, it
-tries targeted projected gradient descent (PGD). Images still unresolved go to the Target LP
-mixed-integer verifier, using the already proved hidden-neuron bounds in its ReLU constraints.
+horizontal lower line otherwise. Positive coefficients use the upper chord on crossing ReLUs. The
+verifier checks the maximizing pixel corner for each open rival in descending order of its bound. It
+validates each candidate against the actual network and the exact pixel budget. If every corner
+fails, it tries targeted projected gradient descent (PGD). Images still unresolved go to the Target
+LP mixed-integer verifier, using the already proved hidden-neuron bounds in its ReLU constraints.
 
 ```sh
 OPENBLAS_NUM_THREADS=1 JULIA_NUM_THREADS=1 julia --project=benchmarks \
@@ -313,9 +309,8 @@ separately to `setup.csv`. Per-image end-to-end time includes bound propagation,
 model construction, solver work and witness verification. `benchmark_per_sample.csv` records the
 actual MIP status, verification outcome, route, final-solve wall time and number of bound solver
 calls. `NO_SOLVER` means an affine screen or search resolved that image without calling the MIP. The
-recorded source is `backward` for an adaptive-first certificate and `forward_parallelogram` when the
-second screen closes the last open rival. A checked witness records `corner` (backward),
-`forward_corner`, or `ascent` (PGD). The direct routes record zero solver calls and time.
+recorded source is `backward` for a certificate and `corner` or `ascent` (PGD) for a checked
+witness. The direct routes record zero solver calls and time.
 
 Every returned adversarial input must satisfy the pixel budget and score condition. The verifier
 clips proposed pixels to floating-point values within the exact budget, using both the stored pixel

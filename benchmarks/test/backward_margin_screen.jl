@@ -43,10 +43,6 @@ end
         upper = margin_bounds(s, x, 1)[2]
         exact = exact_breakpoints(s, 2//5, 3//5)
         @test Rational{BigInt}(upper) >= exact
-        _, lo, hi = hidden_bounds(s, x)
-        parallel = [-Inf, Inf]
-        tighten_forward_margins!(parallel, s, 1, lo, hi)
-        @test Rational{BigInt}(parallel[2]) >= exact
     end
     # An exact tie is feasible for MIPVerify's zero-margin target condition.
     tied = [AffineStage(sparse(reshape([1.0, 1.0], 1, 2)), zeros(2))]
@@ -84,34 +80,6 @@ end
     end
     @test_throws ArgumentError compile_stages(MIPVerify.Sequential([], "empty"), (1,))
 
-end
-
-@testset "Forward parallelograms resolve an open adaptive margin" begin
-    # For z = x - 0.5, the rival margin is 0.5z - ReLU(z) - 0.02.
-    # On this symmetric crossing interval the parallel lower slope 0.5
-    # cancels the pixel term; either adaptive slope leaves a positive bound.
-    network = MIPVerify.Sequential(
-        [
-            MIPVerify.Linear(reshape([1.0, 1.0], 1, 2), [-0.5, 0.0]),
-            MIPVerify.ReLU(),
-            MIPVerify.Linear([0.0 -1.0 0.0; 0.0 0.5 0.0], [0.0, -0.27, -1.0]),
-        ],
-        "crossing ReLU with a shared pixel",
-    )
-    x = [0.5]
-    stages = compile_stages(network, size(x))
-    original = margin_bounds(stages, x, 1)
-    @test original[2] > 0
-    # Disabling the forward screen must preserve the complete backward-only vector.
-    _, backward_only, _ = staged_margin_screen(stages, x, 1; forward_screen = false)
-    @test backward_only == original
-    _, combined, source = staged_margin_screen(stages, x, 1)
-    @test source == "forward_parallelogram"
-    @test combined[2] ≈ -0.02
-    @test combined[3] == original[3] < 0
-    result = verify_image(network, stages, x, 1)
-    @test result.source == source
-    @test result.solve_status == "NO_SOLVER"
 end
 
 @testset "Pass certified bounds to the integer fallback" begin
@@ -163,27 +131,6 @@ end
         @test result.bound_solver_call_count == 0
         @test (result.witness !== nothing) == (source == "corner")
     end
-    # On [0.4, 0.6] the rival margin is 0.85x - ReLU(x - 0.45) - 0.35.
-    # The adaptive lower line has slope 1 and sends x to its losing left
-    # endpoint. The parallel line has slope 0.75 and sends x to the winning right endpoint.
-    sloped = MIPVerify.Sequential(
-        [
-            MIPVerify.Linear(ones(1, 2), [0.0, -0.45]),
-            MIPVerify.ReLU(),
-            MIPVerify.Linear([0.0 0.85; 0.0 -1.0], [0.0, -0.35]),
-        ],
-        "different maximizing corners",
-    )
-    center = [0.5]
-    stages = compile_stages(sloped, size(center))
-    result = verify_image(sloped, stages, center, 1)
-    @test result.source == "forward_corner"
-    @test result.witness == last(witness_box(center))
-    @test result.solve_status == "NO_SOLVER"
-    # The center is already adversarial. Both one-corner comparison runs
-    # must reach PGD to discover it after their first corner loses.
-    @test verify_image(sloped, stages, center, 1; second_corner = false).source == "ascent"
-    @test verify_image(sloped, stages, center, 1; forward_screen = false).source == "ascent"
     # Identical constant scores attain a tie at the corner.
     tied = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), zeros(2))], "tied scores")
     result = verify_image(tied, compile_stages(tied, (1,)), [0.5], 1)

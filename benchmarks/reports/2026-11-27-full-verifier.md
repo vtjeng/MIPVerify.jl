@@ -1,5 +1,9 @@
 # Time the complete verifier with both affine screens and corner checks
 
+This historical experiment used the
+[verifier and replay driver at the measured revision](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/end_to_end_screens.jl).
+Check out that revision to reproduce it.
+
 We ran the complete verifier on the first 2,000 WK17a and first 100 RSL18a MNIST test images. All
 three configurations use adaptive backward bounds and check their maximizing pixel corners before
 targeted PGD. The second adds the forward parallelogram screen on remaining rivals. The third also
@@ -90,7 +94,7 @@ describes repeatability on this fixed cohort. We average the two differences per
 faster/slower counts and quantiles.
 
 [Per-image times, outcomes, LP calls and witness sources](2026-11-27-full-verifier.csv.gz) ·
-[Benchmark runner](end_to_end_screens.jl)
+[Benchmark runner](https://github.com/vtjeng/MIPVerify.jl/blob/fae89161ee3aec9cfb630f2079de94d63d3400cc/benchmarks/reports/end_to_end_screens.jl)
 
 ```sh
 for worker in 1 2 3 4 5; do
