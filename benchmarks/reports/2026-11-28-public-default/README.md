@@ -49,6 +49,11 @@ baseline denominators. Absolute plots retain zero costs.
 
 ![Paired cost ratios](plots/ratio_ecdf.png)
 
+The two rises in the total-time ratio curve mostly come from directly certified images. In the first
+group both screened runs were usually fast. In the second, one often took about 0.6 s. A
+[rerun measuring garbage collection](gc-timing/README.md) reproduced the split on eight images. GC
+accounted for 81–86% of elapsed time in each of the 11 slow screened calls.
+
 The runtime distributions show the fixed-cost clusters and the long solver tail. Each scatter point
 pairs one image's mean costs under both methods.
 
