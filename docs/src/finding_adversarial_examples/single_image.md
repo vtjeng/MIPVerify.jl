@@ -8,20 +8,23 @@ expected performance on the test set. This can be done using [`frac_correct`](@r
 
 ## Fixed-budget verification
 
-For a feasibility check against all rivals of one class, pass
-`adversarial_example_objective=MIPVerify.feasibility` and
-`pp=MIPVerify.LInfNormBoundedPerturbationFamily(radius)`. Backward score-gap screening is enabled by
-default for zero-margin checks on supported sequential networks with Float64 inputs with the default
-`target_lp` tightening. The verifier can rule out every rival or find a checked input before it
-builds a JuMP model. In those cases the result records `:VerificationSource` and `:SolveStatus`. For
-example, `:backward_bound` and `INFEASIBLE` mean the upper bound for each rival was strictly
-negative throughout the pixel box.
+For a feasibility check, pass `adversarial_example_objective=MIPVerify.feasibility` and
+`pp=MIPVerify.LInfNormBoundedPerturbationFamily(radius)`. On supported sequential networks the
+verifier tries backward score-gap bounds before constructing a JuMP model. This screen runs with any
+solver tightening setting, including `tightening_algorithm=lp`. It propagates pixel intervals
+forward and uses back-substitution to tighten hidden-neuron ranges.
 
-If the screen leaves the answer open, the verifier passes the hidden-neuron bounds to Target LP and
-the caller’s MIP solver. A solver-returned candidate must pass a box and score check before it
-counts as a witness. A time limit can still leave the answer unresolved. To reproduce a run using
-Target LP alone, pass `backward_screen=false`. The default optimization objective is `closest`,
-which still solves for the minimum perturbation distance.
+A target must score at least `margin` above **every** non-target class on the same input. For
+`margin=0`, a tie suffices. An upper bound below the margin against any one non-target eliminates
+that target. If every target is eliminated, the result records `:backward_bound` and `INFEASIBLE`. A
+checked input meeting the margin is a witness. A corner or gradient-search witness records `:corner`
+or `:pgd`. Each of these results has a `:SolveStatus` and zero `:SolveTime`.
+
+If the check stays open, MIPVerify builds the JuMP model using the chosen tightening algorithm and
+per-layer overrides. With the default `target_lp`, the fallback can reuse the screen’s hidden ranges
+on eligible layers. A time limit can leave the answer unresolved. Pass `backward_screen=false` to
+use the solver formulation directly. The default objective, `closest`, still minimizes perturbation
+distance.
 
 ## Index
 

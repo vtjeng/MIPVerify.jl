@@ -14,7 +14,15 @@ using MIPVerify.BackwardBounds:
     bounded_fallback_network,
     repair_witness
 
-function screened_test_result(network, input, label; solve_if_predicted_in_targeted = true)
+function screened_test_result(
+    network,
+    input,
+    label;
+    solve_if_predicted_in_targeted = true,
+    margin = 0,
+    tightening_algorithm = MIPVerify.target_lp,
+    invert_target_selection = true,
+)
     # Use the package suite’s platform-default HiGHS scheduler for every model.
     # The small synthetic networks exercise the public feasibility entry point.
     return MIPVerify.find_adversarial_example(
@@ -23,11 +31,12 @@ function screened_test_result(network, input, label; solve_if_predicted_in_targe
         label,
         HiGHS.Optimizer,
         Dict("output_flag" => false, "time_limit" => 120.0);
-        invert_target_selection = true,
+        invert_target_selection,
         pp = MIPVerify.LInfNormBoundedPerturbationFamily(0.1),
         norm_order = Inf,
         adversarial_example_objective = MIPVerify.feasibility,
-        tightening_algorithm = MIPVerify.target_lp,
+        tightening_algorithm,
+        margin,
         tightening_options = Dict("output_flag" => false, "time_limit" => 20.0),
         collect_stats = true,
         solve_if_predicted_in_targeted,
@@ -291,4 +300,69 @@ end
     @test result[:PerturbedInputValue] == [0.1]
     @test result[:PerturbationValue] == result[:PerturbedInputValue]
     @test result[:WitnessMargin] == 0
+end
+
+@testset "Screen the requested margin against every non-target before tightening" begin
+    # At x=0.5 class 1 wins. At x=0.6 class 2 ties class 3, enough for a
+    # zero-margin witness. Class 3 prevents class 2 from ever winning by 1/32.
+    net = MIPVerify.Sequential(
+        [MIPVerify.Linear(reshape([0.0, 1.0, 1.0], 1, 3), [0.55, 0.0, 0.0])],
+        "tied targets",
+    )
+    for algorithm in
+        (MIPVerify.interval_arithmetic, MIPVerify.lp, MIPVerify.mip, MIPVerify.target_lp)
+        for (margin, route) in ((0, :corner), (1//32, :backward_bound))
+            result = screened_test_result(
+                net,
+                [0.5],
+                [2];
+                invert_target_selection = false,
+                margin,
+                tightening_algorithm = algorithm,
+            )
+            @test result[:VerificationSource] == route
+            @test result[:WitnessVerified] == iszero(margin)
+            @test !haskey(result, :Model)
+        end
+    end
+
+    # Class 2 already leads, but its 1/8 lead cannot satisfy a requested 1/4.
+    # The original-input check fails and the screen can still rule it out.
+    leading = MIPVerify.Sequential([MIPVerify.Linear(zeros(1, 2), [0.0, 0.125])], "small lead")
+    result = screened_test_result(
+        leading,
+        [0.5],
+        [2];
+        invert_target_selection = false,
+        solve_if_predicted_in_targeted = false,
+        margin = 0.25,
+    )
+    @test result[:VerificationSource] == :backward_bound
+    @test !result[:WitnessVerified]
+
+    # The target beats each non-target separately at opposite endpoints,
+    # but never both on one input. A positive margin rules out the center tie.
+    cross = MIPVerify.Sequential(
+        [MIPVerify.Linear(reshape([1.0, 0.0, -1.0], 1, 3), [-0.5, 0.0, 0.5])],
+        "different corners",
+    )
+    result = screened_test_result(
+        cross,
+        [0.5],
+        [2];
+        invert_target_selection = false,
+        margin = 1/32,
+        tightening_algorithm = MIPVerify.lp,
+    )
+    @test haskey(result, :Model)
+    @test result[:SolveStatus] == MOI.INFEASIBLE
+    @test !result[:WitnessVerified]
+
+    # Equal non-target scores and binary-exact gap exercise inclusive equality
+    # and a margin one ulp beyond it in the independent witness checker.
+    tied = [AffineStage(sparse(reshape([1.0, 1.0, 1.0], 1, 3)), [0.0, 0.25, 0.0])]
+    for (margin, accepted) in ((0.25, true), (nextfloat(0.25), false))
+        proof = check_witness(tied, [0.5], [1, 3], [0.5], [0.5]; targets = [2], margin)
+        @test (proof != "invalid") == accepted
+    end
 end

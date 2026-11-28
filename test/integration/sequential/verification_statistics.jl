@@ -160,8 +160,9 @@ end
     @test corner[:WitnessVerified]
     @test corner[:SolveTime] == 0
 
-    # Positive margin and closest-distance queries retain their solver objectives.
-    @test haskey(verify(0.05; margin = 0.01), :Model)
+    # The endpoint tie cannot achieve a positive margin. The closest objective
+    # still requires optimizing distance even when a corner witness is available.
+    @test verify(0.05; margin = 0.01)[:VerificationSource] == :backward_bound
     closest = verify(0.05; adversarial_example_objective = MIPVerify.closest)
     @test haskey(closest, :Model)
     @test closest[:WitnessDistance] ≈ 0.05

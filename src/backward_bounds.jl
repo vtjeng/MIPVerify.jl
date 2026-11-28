@@ -59,17 +59,6 @@ function compile_stages(nn::MIPVerify.Sequential, shape)
             flattened = true
             ids = p(collect(ids))
         elseif p isa MIPVerify.ReLU
-            # The first hidden layer is already bounded by interval arithmetic.
-            # Later overrides can change tightening and must retain their solver path.
-            permitted_override =
-                length(stages) == 1 && p.tightening_algorithm == MIPVerify.interval_arithmetic
-            p.tightening_algorithm === nothing ||
-                permitted_override ||
-                throw(
-                    ArgumentError(
-                        "this ReLU tightening override requires the ordinary solver path",
-                    ),
-                )
             expect_relu || throw(ArgumentError("Expected affine layer before ReLU"))
             expect_relu = false
         else
@@ -176,21 +165,17 @@ function backward_upper(stages, last, coeff, hidden, input_lo, input_hi)
     return upper_at_box(plane, intercept, input_lo, input_hi)
 end
 
-function margin_upper(
-    stages,
-    hidden,
-    input_lo,
-    input_hi,
-    true_label,
-    target_label,
-    corners = nothing,
-)
+function margin_plane(stages, hidden, reference, target)
     coeff = zeros(length(stages[end].bias))
-    coeff[target_label], coeff[true_label] = 1, -1
-    plane, intercept = backward_plane(stages, length(stages), coeff, hidden)
+    coeff[target], coeff[reference] = 1, -1
+    return backward_plane(stages, length(stages), coeff, hidden)
+end
+
+function margin_upper(stages, hidden, input_lo, input_hi, reference, target, corners = nothing)
+    plane, intercept = margin_plane(stages, hidden, reference, target)
     bound = upper_at_box(plane, intercept, input_lo, input_hi)
     if corners !== nothing && bound >= 0
-        corners[target_label] = plane .> 0
+        corners[target] = plane .> 0
     end
     return bound
 end
@@ -274,12 +259,18 @@ function (p::PreboundedReLU)(x::Array{<:MIPVerify.JuMPLinearType})
     return output
 end
 
-function bounded_fallback_network(nn, hidden)
+function bounded_fallback_network(nn, hidden, algorithm = MIPVerify.target_lp)
+    algorithm == MIPVerify.target_lp || return nn
     layers = copy(nn.layers)
     relus = findall(layer -> layer isa MIPVerify.ReLU, layers)
     length(relus) == length(hidden) || error("A bound pair is required for every ReLU layer")
-    for (i, bounds) in zip(relus, hidden)
-        layers[i] = PreboundedReLU(bounds...)
+    for (k, (i, bounds)) in enumerate(zip(relus, hidden))
+        # Reuse these ranges where the model would otherwise use forward intervals.
+        # Explicit LP/MIP tightening still runs on the original ReLU.
+        override = layers[i].tightening_algorithm
+        if isnothing(override) || (k == 1 && override == MIPVerify.interval_arithmetic)
+            layers[i] = PreboundedReLU(bounds...)
+        end
     end
     return MIPVerify.Sequential(layers, nn.UUID)
 end
@@ -293,8 +284,17 @@ function forward(stages, x)
     return act
 end
 
+reference_labels(y::Integer) = (y,)
+reference_labels(labels) = labels
+
+# A rounded subtraction can cross the requested threshold by one ulp. For zero
+# margin, comparing the endpoints directly also preserves provable exact ties.
+gap_at_least(lower, upper, margin) =
+    iszero(margin) ? lower >= upper : prevfloat(lower - upper) >= margin
+gap_below(upper, lower, margin) = iszero(margin) ? upper < lower : nextfloat(upper - lower) < margin
+
 # Verify the positive margin over a singleton box with outward rounding.
-function confirms_witness(stages, z, y, j)
+function confirms_witness(stages, z, y, j; margin = 0)
     lo = hi = z
     for (k, stage) in enumerate(stages)
         lo, hi = interval_stage(stage, lo, hi)
@@ -302,7 +302,8 @@ function confirms_witness(stages, z, y, j)
             lo, hi = max.(lo, 0), max.(hi, 0)
         end
     end
-    return lo[j] > hi[y]
+    reference = maximum(i -> hi[i], reference_labels(y))
+    return iszero(margin) ? lo[j] > reference : gap_at_least(lo[j], reference, margin)
 end
 
 # Historical MNIST measurements used exact radius 1/10 and both stored and byte/255
@@ -364,6 +365,7 @@ function check_witness(
     lower,
     upper;
     targets = setdiff(eachindex(stages[end].bias), y),
+    margin = 0,
 )
     length(z) == length(lower) || return "invalid"
     all(isfinite, z) && all(lower .<= z .<= upper) || return "invalid"
@@ -374,10 +376,14 @@ function check_witness(
             lo, hi = max.(lo, 0), max.(hi, 0)
         end
     end
-    any(lo[j] >= hi[y] for j in targets) && return "outward_interval"
-    all(hi[j] < lo[y] for j in targets) && return "invalid"
+    refs = reference_labels(y)
+    reference_upper = maximum(i -> hi[i], refs)
+    any(gap_at_least(lo[j], reference_upper, margin) for j in targets) && return "outward_interval"
+    reference_lower = maximum(i -> lo[i], refs)
+    all(gap_below(hi[j], reference_lower, margin) for j in targets) && return "invalid"
     scores = exact_scores(stages, z)
-    return any(scores[j] >= scores[y] for j in targets) ? "exact_rational" : "invalid"
+    threshold = maximum(i -> scores[i], refs) + Rational{BigInt}(margin)
+    return any(scores[j] >= threshold for j in targets) ? "exact_rational" : "invalid"
 end
 
 # A solver point can miss the exact box or output constraint by its feasibility
@@ -391,35 +397,45 @@ function repair_witness(
     radius::Float64 = 0.1,
     decimal_radius::Bool = true,
     targets = setdiff(eachindex(stages[end].bias), y),
+    margin = 0,
 )
     proposed === nothing && return nothing
     length(proposed) == length(x) && all(isfinite, proposed) || return nothing
     lower, upper = witness_box(x; radius, decimal_radius)
     z = clamp.(vec(proposed), lower, upper)
-    proof = check_witness(stages, z, y, lower, upper; targets)
+    proof = check_witness(stages, z, y, lower, upper; targets, margin)
     proof != "invalid" && return (witness = reshape(z, size(x)), proof = proof)
     for step in (1e-9, 1e-7, 1e-5, 1e-3, 0.02)
         act = forward(stages, z)
         target = targets[argmax(act[end][targets])]
         gradient = zeros(length(act[end]))
-        gradient[target], gradient[y] = 1, -1
+        reference = argmax(i -> act[end][i], reference_labels(y))
+        gradient[target], gradient[reference] = 1, -1
         for k in reverse(eachindex(stages))
             gradient = stages[k].weights * gradient
             k > 1 && (gradient[act[k] .<= 0] .= 0)
         end
         trial = clamp.(z + step * sign.(gradient), lower, upper)
-        proof = check_witness(stages, trial, y, lower, upper; targets)
+        proof = check_witness(stages, trial, y, lower, upper; targets, margin)
         proof != "invalid" && return (witness = reshape(trial, size(x)), proof = proof)
-        current = act[end][target] - act[end][y]
+        current = act[end][target] - act[end][reference]
         scores = last(forward(stages, trial))
-        if maximum(scores[targets]) - scores[y] > current
+        if maximum(scores[targets]) - maximum(i -> scores[i], reference_labels(y)) > current
             z = trial
         end
     end
     return nothing
 end
 
-function find_box_witness(stages, x, y, bounds; radius::Float64 = 0.1, decimal_radius::Bool = true)
+function find_box_witness(
+    stages,
+    x,
+    y,
+    bounds;
+    radius::Float64 = 0.1,
+    decimal_radius::Bool = true,
+    margin = 0,
+)
     # Retain the historical starts at radius .1; other radii use exact inward endpoints.
     lo, hi = if decimal_radius && radius == 0.1
         max.(0.0, vec(x) .- radius .+ 4eps()), min.(1.0, vec(x) .+ radius .- 4eps())
@@ -428,16 +444,18 @@ function find_box_witness(stages, x, y, bounds; radius::Float64 = 0.1, decimal_r
     end
     rng = MersenneTwister(1)
     for j in sortperm(bounds, rev = true)
-        bounds[j] < 0 && continue
+        bounds[j] < margin && continue
         for start in 1:4
             z = start == 1 ? copy(vec(x)) : lo + (hi-lo) .* rand(rng, length(lo))
             for _ in 1:32
                 act = forward(stages, z)
-                if act[end][j] > act[end][y] && confirms_witness(stages, z, y, j)
+                reference = argmax(i -> act[end][i], reference_labels(y))
+                if act[end][j] - act[end][reference] >= margin &&
+                   confirms_witness(stages, z, y, j; margin)
                     return reshape(z, size(x))
                 end
                 g = zeros(length(bounds))
-                g[j], g[y] = 1, -1
+                g[j], g[reference] = 1, -1
                 for k in reverse(eachindex(stages))
                     g = stages[k].weights * g
                     if k > 1
@@ -463,12 +481,13 @@ function search_checked_witness(
     radius::Float64 = 0.1,
     decimal_radius::Bool = true,
     targets = setdiff(eachindex(bounds), y),
+    margin = 0,
 )
     lower, upper = witness_box(x; radius, decimal_radius)
     for target in sortperm(bounds; rev = true)
-        bounds[target] < 0 && break
+        bounds[target] < margin && break
         point = ifelse.(corners[target], upper, lower)
-        proof = check_witness(stages, point, y, lower, upper; targets)
+        proof = check_witness(stages, point, y, lower, upper; targets, margin)
         if proof != "invalid"
             return (
                 witness = reshape(point, size(x)),
@@ -478,17 +497,17 @@ function search_checked_witness(
             )
         end
     end
-    proposed = find_box_witness(stages, x, y, bounds; radius, decimal_radius)
-    checked = repair_witness(stages, x, proposed, y; radius, decimal_radius, targets)
+    proposed = find_box_witness(stages, x, y, bounds; radius, decimal_radius, margin)
+    checked = repair_witness(stages, x, proposed, y; radius, decimal_radius, targets, margin)
     checked === nothing && return nothing
     return (; checked..., source = "ascent", repaired = vec(checked.witness) != vec(proposed))
 end
 
 
 """
-    screen(nn, input, true_label, targets; radius=0.1)
+    screen(nn, input, non_targets, targets; radius=0.1, margin=0)
 
-Compute affine upper bounds for the requested target scores minus `true_label`.
+Bound each requested target score minus the highest non-target score.
 Return `nothing` when the network or numeric representation is unsupported. Supported
 networks alternate finite Float32/Float64 Conv2d/Linear and ReLU layers, optionally flattening
 once before an affine layer. Pixels must be Float64 values in [0, 1].
@@ -496,7 +515,7 @@ once before an affine layer. Pixels must be Float64 values in [0, 1].
 The result retains the hidden bounds and corner choices for witness search or a later
 solver model. Only requested targets appear in `bounds`; other entries are `-Inf`.
 """
-function screen(nn, input, true_label, targets; radius = 0.1)
+function screen(nn, input, non_targets, targets; radius = 0.1, margin = 0)
     nn isa MIPVerify.Sequential && input isa Array{Float64} && radius isa Float64 || return nothing
     isfinite(radius) && radius >= 0 && all(v -> isfinite(v) && 0 <= v <= 1, input) || return nothing
     stages = try
@@ -506,9 +525,11 @@ function screen(nn, input, true_label, targets; radius = 0.1)
         return nothing
     end
     count = length(stages[end].bias)
-    true_label isa Integer && 1 <= true_label <= count || return nothing
+    refs = reference_labels(non_targets)
+    isempty(refs) && return nothing
+    all(i -> i isa Integer && 1 <= i <= count, refs) || return nothing
     selected = collect(targets)
-    all(j -> j isa Integer && 1 <= j <= count && j != true_label, selected) || return nothing
+    all(j -> j isa Integer && 1 <= j <= count && j ∉ refs, selected) || return nothing
     selected = unique(Int.(selected))
     isempty(selected) && return nothing
     hidden, input_lower, input_upper = hidden_bounds(stages, input; radius)
@@ -516,10 +537,21 @@ function screen(nn, input, true_label, targets; radius = 0.1)
     corners = Dict{Int,BitVector}()
     bounds = fill(-Inf, count)
     for target in selected
-        bounds[target] =
-            margin_upper(stages, hidden, input_lower, input_upper, true_label, target, corners)
+        # One impossible comparison excludes the target. Otherwise keep the
+        # maximizing corner of its tightest pairwise upper bound.
+        upper = Inf
+        for reference in refs
+            plane, intercept = margin_plane(stages, hidden, reference, target)
+            bound = upper_at_box(plane, intercept, input_lower, input_upper)
+            isfinite(bound) || return nothing
+            if bound < upper
+                upper = bound
+                upper < margin && break
+                corners[target] = plane .> 0
+            end
+        end
+        bounds[target] = upper
     end
-    all(j -> isfinite(bounds[j]), selected) || return nothing
     return (;
         stages,
         hidden,
@@ -527,7 +559,8 @@ function screen(nn, input, true_label, targets; radius = 0.1)
         input_upper,
         bounds,
         corners,
-        true_label,
+        non_targets = refs,
+        margin,
         targets = selected,
         radius,
     )
@@ -536,11 +569,12 @@ end
 search_checked_witness(result::NamedTuple, input) = search_checked_witness(
     result.stages,
     input,
-    result.true_label,
+    result.non_targets,
     result.bounds,
     result.corners;
     radius = result.radius,
     targets = result.targets,
+    margin = result.margin,
 )
 
 function repair_witness(result::NamedTuple, input, proposed)
@@ -550,19 +584,21 @@ function repair_witness(result::NamedTuple, input, proposed)
         result.stages,
         input,
         proposed,
-        result.true_label;
+        result.non_targets;
         radius = result.radius,
         targets = result.targets,
+        margin = result.margin,
     )
     checked !== nothing && return checked
     return repair_witness(
         result.stages,
         input,
         proposed,
-        result.true_label;
+        result.non_targets;
         radius = result.radius,
         decimal_radius = false,
         targets = result.targets,
+        margin = result.margin,
     )
 end
 
