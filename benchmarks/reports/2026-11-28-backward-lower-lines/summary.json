@@ -1,0 +1,310 @@
+[
+  {
+    "network": "WK17a",
+    "images": 2000,
+    "runs": {
+      "adaptive": [
+        {
+          "phases": {
+            "total_s": 498.665431166,
+            "screen_s": 231.271942609,
+            "mip_s": 234.71106067,
+            "lp_calls": 104.0
+          },
+          "routes": {
+            "backward_bound": 1844,
+            "corner": 68,
+            "MIP": 34,
+            "original_input": 49,
+            "pgd": 5
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 1874,
+            "adversarial_example_found_or_best_known": 126
+          },
+          "rivals_excluded": 17430
+        },
+        {
+          "phases": {
+            "total_s": 508.12774492,
+            "screen_s": 244.794720356,
+            "mip_s": 230.662215029,
+            "lp_calls": 104.0
+          },
+          "routes": {
+            "backward_bound": 1844,
+            "corner": 68,
+            "MIP": 34,
+            "original_input": 49,
+            "pgd": 5
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 1874,
+            "adversarial_example_found_or_best_known": 126
+          },
+          "rivals_excluded": 17430
+        }
+      ],
+      "parallel": [
+        {
+          "phases": {
+            "total_s": 516.299747264,
+            "screen_s": 248.78377228,
+            "mip_s": 233.569443829,
+            "lp_calls": 125.0
+          },
+          "routes": {
+            "backward_bound": 1833,
+            "corner": 74,
+            "MIP": 42,
+            "pgd": 2,
+            "original_input": 49
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 1874,
+            "adversarial_example_found_or_best_known": 126
+          },
+          "rivals_excluded": 17414
+        },
+        {
+          "phases": {
+            "total_s": 501.087162309,
+            "screen_s": 232.867808412,
+            "mip_s": 234.64715345500002,
+            "lp_calls": 125.0
+          },
+          "routes": {
+            "backward_bound": 1833,
+            "corner": 74,
+            "MIP": 42,
+            "pgd": 2,
+            "original_input": 49
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 1874,
+            "adversarial_example_found_or_best_known": 126
+          },
+          "rivals_excluded": 17414
+        }
+      ]
+    },
+    "runtime_change_pct": 1.0522253963007655,
+    "repeat_noise_pct": 2.9905210715527524,
+    "per_repeat_change_pct": [
+      3.5363020967317915,
+      -1.3855930287979934
+    ],
+    "bounds": {
+      "either_per_rival_certificate": 1846,
+      "compared_rivals": 17559,
+      "parallel_tighter": 1858,
+      "adaptive_tighter": 15701,
+      "only_adaptive_excludes": 18,
+      "only_parallel_excludes": 2
+    },
+    "exclusive_certificates": {
+      "adaptive": [
+        19,
+        46,
+        176,
+        359,
+        782,
+        1201,
+        1203,
+        1412,
+        1426,
+        1448,
+        1468,
+        1869,
+        1921
+      ],
+      "parallel": [
+        544,
+        724
+      ]
+    },
+    "per_image_time_ratios_p10_median_p90": [
+      0.36003490012250394,
+      1.0100264381280173,
+      2.9001224926078977
+    ],
+    "faster_within_1pct_slower": [
+      920,
+      80,
+      1000
+    ],
+    "largest_absolute_time_changes": [
+      [
+        1572,
+        18.585799238000007
+      ],
+      [
+        480,
+        -8.161300103499999
+      ],
+      [
+        212,
+        -6.672832203499993
+      ],
+      [
+        584,
+        -6.438013505000001
+      ],
+      [
+        1193,
+        -5.9500477185
+      ]
+    ]
+  },
+  {
+    "network": "RSL18a",
+    "images": 100,
+    "runs": {
+      "adaptive": [
+        {
+          "phases": {
+            "total_s": 5529.839442917,
+            "screen_s": 1.7828699749999999,
+            "mip_s": 5427.866324138,
+            "lp_calls": 441.0
+          },
+          "routes": {
+            "backward_bound": 35,
+            "corner": 12,
+            "MIP": 49,
+            "pgd": 2,
+            "original_input": 2
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 42,
+            "adversarial_example_found_or_best_known": 16,
+            "time_limit_unresolved": 42
+          },
+          "rivals_excluded": 554
+        },
+        {
+          "phases": {
+            "total_s": 5523.32373776,
+            "screen_s": 1.27138118,
+            "mip_s": 5422.212785819,
+            "lp_calls": 441.0
+          },
+          "routes": {
+            "backward_bound": 35,
+            "corner": 12,
+            "MIP": 49,
+            "pgd": 2,
+            "original_input": 2
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 42,
+            "adversarial_example_found_or_best_known": 16,
+            "time_limit_unresolved": 42
+          },
+          "rivals_excluded": 554
+        }
+      ],
+      "parallel": [
+        {
+          "phases": {
+            "total_s": 5552.360762095,
+            "screen_s": 1.867643296,
+            "mip_s": 5435.495038372,
+            "lp_calls": 495.0
+          },
+          "routes": {
+            "backward_bound": 29,
+            "corner": 12,
+            "MIP": 55,
+            "pgd": 2,
+            "original_input": 2
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 42,
+            "adversarial_example_found_or_best_known": 16,
+            "time_limit_unresolved": 42
+          },
+          "rivals_excluded": 484
+        },
+        {
+          "phases": {
+            "total_s": 5547.17151076,
+            "screen_s": 1.84492895,
+            "mip_s": 5434.259283826,
+            "lp_calls": 495.0
+          },
+          "routes": {
+            "backward_bound": 29,
+            "corner": 12,
+            "MIP": 55,
+            "pgd": 2,
+            "original_input": 2
+          },
+          "outcomes": {
+            "certified_no_adversarial_example": 42,
+            "adversarial_example_found_or_best_known": 16,
+            "time_limit_unresolved": 42
+          },
+          "rivals_excluded": 484
+        }
+      ]
+    },
+    "runtime_change_pct": 0.41950970432664825,
+    "repeat_noise_pct": 0.11789756561978719,
+    "per_repeat_change_pct": [
+      0.40726895257052753,
+      0.43176489614333846
+    ],
+    "bounds": {
+      "either_per_rival_certificate": 35,
+      "compared_rivals": 882,
+      "parallel_tighter": 0,
+      "adaptive_tighter": 882,
+      "only_adaptive_excludes": 70,
+      "only_parallel_excludes": 0
+    },
+    "exclusive_certificates": {
+      "adaptive": [
+        6,
+        38,
+        50,
+        52,
+        84,
+        94
+      ],
+      "parallel": []
+    },
+    "per_image_time_ratios_p10_median_p90": [
+      0.8753862345507951,
+      1.0022382641530285,
+      1.386115522668396
+    ],
+    "faster_within_1pct_slower": [
+      19,
+      47,
+      34
+    ],
+    "largest_absolute_time_changes": [
+      [
+        84,
+        2.680767499
+      ],
+      [
+        94,
+        2.539753382
+      ],
+      [
+        6,
+        2.4220463349999997
+      ],
+      [
+        40,
+        2.375584446000005
+      ],
+      [
+        52,
+        2.2231278289999996
+      ]
+    ]
+  }
+]

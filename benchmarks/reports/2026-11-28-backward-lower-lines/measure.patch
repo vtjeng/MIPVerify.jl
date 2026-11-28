@@ -1,0 +1,34 @@
+--- a/src/backward_bounds.jl
++++ b/src/backward_bounds.jl
+@@ -124,6 +124,8 @@
+     return prev, intercept
+ end
+ 
++const parallel_lower = Ref(false)
++
+ function backward_relu!(coeff, intercept, lo, hi)
+     for j in eachindex(coeff)
+         a, l, u = coeff[j], lo[j], hi[j]
+@@ -137,6 +139,9 @@
+                 offset = max(nextfloat(-k*l), nextfloat(nextfloat(a-k)*u))
+                 intercept = nextfloat(intercept+offset)
+                 coeff[j] = k
++            elseif parallel_lower[]
++                # a < 0, so any rounded slope k in [a, 0] bounds a * ReLU from above.
++                coeff[j] = clamp(a*(u/(u-l)), a, 0.0)
+             elseif u < -l
+                 coeff[j] = 0
+             end
+--- a/src/MIPVerify.jl
++++ b/src/MIPVerify.jl
+@@ -172,7 +172,10 @@
+ # A screen-only feasibility result has a mathematical termination status but no optimizer or
+ # JuMP model. Keep the original-input shortcut distinguishable by leaving its status absent.
+ function screen_feasibility!(d, nn, input, pp, norm_order, non_target)
++    start = time_ns()
+     screen = BackwardBounds.screen(nn, input, non_target, d[:TargetIndexes]; radius = pp.norm_bound)
++    d[:StudyScreenSeconds] = (time_ns()-start)/1e9
++    d[:StudyBounds] = isnothing(screen) ? nothing : screen.bounds
+     isnothing(screen) && return nothing
+     if maximum(screen.bounds) < 0
+         d[:VerificationSource] = :backward_bound
